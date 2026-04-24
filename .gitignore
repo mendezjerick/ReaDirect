@@ -1,4 +1,7 @@
 *.log
+*.backup
+*.dump
+*.sql
 .DS_Store
 .env
 .env.backup

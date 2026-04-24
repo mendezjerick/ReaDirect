@@ -113,10 +113,10 @@ class ModuleContentSeeder extends Seeder
     {
         $path = $this->basePath.DIRECTORY_SEPARATOR.$file;
         $handle = fopen($path, 'r');
-        $headers = fgetcsv($handle);
+        $headers = fgetcsv($handle, null, ',', '"', '\\');
         $rows = [];
 
-        while (($data = fgetcsv($handle)) !== false) {
+        while (($data = fgetcsv($handle, null, ',', '"', '\\')) !== false) {
             $rows[] = array_combine($headers, $data);
         }
 

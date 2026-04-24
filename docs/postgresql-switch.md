@@ -2,6 +2,8 @@
 
 Phase 1 uses SQLite for fast local migrations, seeders, and tests. The migrations avoid PostgreSQL-only column types so the same schema can move to PostgreSQL later.
 
+Phase 4 uses PostgreSQL as the active compatibility target. See the root-level `DATABASE_SETUP.md`, `BACKUP_AND_RESTORE.md`, and `DEPLOYMENT_NOTES.md` files for the maintained setup, backup, and deployment notes.
+
 To switch:
 
 1. Create a PostgreSQL database and user.
