@@ -64,11 +64,7 @@ class DiagnosticAssessmentController extends Controller
         AnswerMatchingService $answerMatching,
         CrlaScoringService $crla
     ): RedirectResponse {
-        $validated = $request->validate([
-            'responses' => ['required', 'array', 'size:10'],
-            'responses.*.assessment_attempt_item_id' => ['required', 'integer', 'exists:assessment_attempt_items,id'],
-            'responses.*.answer' => ['nullable', 'string', 'max:255'],
-        ]);
+        $validated = $request->validate($this->textResponseRules(10), $this->friendlyValidationMessages());
 
         $attempt = $this->attempt($request);
         $items = $itemSelection->getLockedItemsForAttempt($attempt, AssessmentItemSelectionService::TASK_1_LETTER);
@@ -120,11 +116,7 @@ class DiagnosticAssessmentController extends Controller
         AssessmentItemSelectionService $itemSelection,
         AnswerMatchingService $answerMatching
     ): RedirectResponse {
-        $validated = $request->validate([
-            'responses' => ['required', 'array', 'size:10'],
-            'responses.*.assessment_attempt_item_id' => ['required', 'integer', 'exists:assessment_attempt_items,id'],
-            'responses.*.answer' => ['nullable', 'string', 'max:255'],
-        ]);
+        $validated = $request->validate($this->textResponseRules(10), $this->friendlyValidationMessages());
 
         $attempt = $this->attempt($request);
         $items = $itemSelection->getLockedItemsForAttempt($attempt, AssessmentItemSelectionService::TASK_2A_RHYME);
@@ -151,11 +143,7 @@ class DiagnosticAssessmentController extends Controller
         AnswerMatchingService $answerMatching,
         CrlaScoringService $crla
     ): RedirectResponse {
-        $validated = $request->validate([
-            'responses' => ['required', 'array', 'size:10'],
-            'responses.*.assessment_attempt_item_id' => ['required', 'integer', 'exists:assessment_attempt_items,id'],
-            'responses.*.answer' => ['nullable', 'string', 'max:255'],
-        ]);
+        $validated = $request->validate($this->textResponseRules(10), $this->friendlyValidationMessages());
 
         $attempt = $this->attempt($request);
         $items = $itemSelection->getLockedItemsForAttempt($attempt, AssessmentItemSelectionService::TASK_2B_WORD_SENTENCE);
@@ -202,7 +190,7 @@ class DiagnosticAssessmentController extends Controller
     {
         $validated = $request->validate([
             'incorrect_words' => ['required', 'integer', 'min:0', 'max:50'],
-        ]);
+        ], $this->friendlyValidationMessages());
 
         $attempt = $this->attempt($request);
         $accuracy = $reading->calculateAccuracyPercentage((int) $validated['incorrect_words']);
@@ -235,8 +223,8 @@ class DiagnosticAssessmentController extends Controller
         $validated = $request->validate([
             'responses' => ['required', 'array', 'size:5'],
             'responses.*.question_id' => ['required', 'string'],
-            'responses.*.answer' => ['required', 'string', 'max:255'],
-        ]);
+            'responses.*.answer' => ['required', 'string', 'max:255', 'regex:/\S/'],
+        ], $this->friendlyValidationMessages());
 
         $attempt = $this->attempt($request);
         $passage = $itemSelection->selectReadingPassageForAttempt($attempt);
@@ -441,5 +429,26 @@ class DiagnosticAssessmentController extends Controller
                 'choices' => $content->payload['choices'] ?? [],
             ])
             ->all();
+    }
+
+    private function textResponseRules(int $requiredCount): array
+    {
+        return [
+            'responses' => ['required', 'array', 'size:'.$requiredCount],
+            'responses.*.assessment_attempt_item_id' => ['required', 'integer', 'exists:assessment_attempt_items,id'],
+            'responses.*.answer' => ['required', 'string', 'max:255', 'regex:/\S/'],
+        ];
+    }
+
+    private function friendlyValidationMessages(): array
+    {
+        return [
+            'responses.required' => 'Almost there! Finish all items to continue.',
+            'responses.size' => 'Almost there! Finish all items to continue.',
+            'responses.*.answer.required' => 'Let us answer this first.',
+            'responses.*.answer.regex' => 'Try this item before moving on.',
+            'incorrect_words.required' => 'Add the number of words to review before moving on.',
+            'incorrect_words.integer' => 'Use a whole number for words to review.',
+        ];
     }
 }

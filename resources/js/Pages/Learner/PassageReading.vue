@@ -2,6 +2,7 @@
 import { useForm } from '@inertiajs/vue3';
 import LearnerLayout from '../../Layouts/LearnerLayout.vue';
 import RecordingButton from '../../Components/RecordingButton.vue';
+import AgentSpeakerPanel from '../../Components/Learner/AgentSpeakerPanel.vue';
 import PrimaryButton from '../../Components/PrimaryButton.vue';
 import BottomActionBar from '../../Components/BottomActionBar.vue';
 import StatusBadge from '../../Components/StatusBadge.vue';
@@ -9,11 +10,15 @@ import StatusBadge from '../../Components/StatusBadge.vue';
 defineProps({ passage: Object });
 
 const form = useForm({ incorrect_words: 0 });
+const hasIncorrectWords = () => form.incorrect_words !== '' && form.incorrect_words !== null && Number(form.incorrect_words) >= 0;
 const submit = () => form.post('/learner/diagnostic/passage');
 </script>
 
 <template>
     <LearnerLayout :progress="78">
+        <template #agent>
+            <AgentSpeakerPanel agent-type="assessment" state="listening" message="Read the passage aloud. Enter the number of words to review before continuing." />
+        </template>
         <div class="mx-auto grid max-w-3xl gap-6">
             <div class="flex items-center justify-between">
                 <StatusBadge status="50 words" />
@@ -31,7 +36,7 @@ const submit = () => form.post('/learner/diagnostic/passage');
             </div>
         </div>
         <BottomActionBar>
-            <PrimaryButton :disabled="form.processing" @click="submit">Continue</PrimaryButton>
+            <PrimaryButton :disabled="form.processing || !hasIncorrectWords()" @click="submit">Continue</PrimaryButton>
         </BottomActionBar>
     </LearnerLayout>
 </template>

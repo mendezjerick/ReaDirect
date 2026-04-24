@@ -3,6 +3,7 @@ import { useForm } from '@inertiajs/vue3';
 import LearnerLayout from '../../Layouts/LearnerLayout.vue';
 import PromptCard from '../../Components/PromptCard.vue';
 import AgentPanel from '../../Components/AgentPanel.vue';
+import AgentSpeakerPanel from '../../Components/Learner/AgentSpeakerPanel.vue';
 import PrimaryButton from '../../Components/PrimaryButton.vue';
 import BottomActionBar from '../../Components/BottomActionBar.vue';
 
@@ -12,6 +13,9 @@ const start = () => form.post('/learner/diagnostic/start');
 
 <template>
     <LearnerLayout :progress="25">
+        <template #agent>
+            <AgentSpeakerPanel agent-type="assessment" state="speaking" message="We will do a short reading check together. I will guide each step." show-audio-button />
+        </template>
         <div class="mx-auto grid max-w-2xl gap-6">
             <PromptCard label="Diagnostic reading check" prompt="Ready to read?" size="word" />
             <AgentPanel title="Assessment Agent">We will do short reading tasks. Take your time and try your best.</AgentPanel>

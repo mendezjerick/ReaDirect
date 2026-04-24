@@ -18,6 +18,9 @@ defineProps({
             </div>
         </header>
         <main class="mx-auto max-w-4xl px-4 pb-28 pt-6">
+            <div v-if="$slots.agent" class="mb-6">
+                <slot name="agent" />
+            </div>
             <slot />
         </main>
     </div>

@@ -3,6 +3,7 @@ import { Link } from '@inertiajs/vue3';
 import LearnerLayout from '../../Layouts/LearnerLayout.vue';
 import ScoreCard from '../../Components/ScoreCard.vue';
 import AgentPanel from '../../Components/AgentPanel.vue';
+import AgentSpeakerPanel from '../../Components/Learner/AgentSpeakerPanel.vue';
 import PrimaryButton from '../../Components/PrimaryButton.vue';
 import BottomActionBar from '../../Components/BottomActionBar.vue';
 
@@ -11,6 +12,9 @@ defineProps({ attempt: Object });
 
 <template>
     <LearnerLayout :progress="94">
+        <template #agent>
+            <AgentSpeakerPanel agent-type="evaluator" state="pointing" message="I used the final reading score to find the reading level." />
+        </template>
         <div class="mx-auto grid max-w-3xl gap-6">
             <h1 class="text-center text-4xl font-black text-text">Reading check complete.</h1>
             <div class="grid gap-4 md:grid-cols-2">

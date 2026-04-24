@@ -1,37 +1,75 @@
 <script setup>
-import { reactive } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import LearnerLayout from '../../Layouts/LearnerLayout.vue';
+import AgentSpeakerPanel from '../../Components/Learner/AgentSpeakerPanel.vue';
 import PrimaryButton from '../../Components/PrimaryButton.vue';
+import SecondaryButton from '../../Components/SecondaryButton.vue';
 import BottomActionBar from '../../Components/BottomActionBar.vue';
 import StatusBadge from '../../Components/StatusBadge.vue';
+import ModuleProgressBar from '../../Components/ModuleProgressBar.vue';
+import { useStepAssessment } from '../../Composables/useStepAssessment';
 
 const props = defineProps({ questions: Array });
-const answers = reactive(Object.fromEntries(props.questions.map((question) => [question.id, ''])));
+const step = useStepAssessment(props.questions, { emptyMessage: 'Choose one answer before moving on.' });
 const form = useForm({ responses: [] });
 
+const choose = (choice) => {
+    step.answers[step.currentItem.value.id] = choice;
+    step.feedback.value = '';
+};
+
 const submit = () => {
-    form.responses = props.questions.map((question) => ({ question_id: question.id, answer: answers[question.id] }));
+    if (!step.validateCurrent()) return;
+
+    form.responses = step.payload((question, answer) => ({ question_id: question.id, answer }));
     form.post('/learner/diagnostic/comprehension');
+};
+
+const handlePrimary = () => {
+    if (step.isLast.value) {
+        submit();
+        return;
+    }
+
+    step.goNext();
 };
 </script>
 
 <template>
     <LearnerLayout :progress="86">
-        <div class="mx-auto grid max-w-3xl gap-5">
-            <StatusBadge status="5 questions" />
-            <section v-for="question in questions" :key="question.id" class="rounded-[28px] border border-border bg-surface p-6 shadow-lg shadow-primary/10">
-                <p class="text-2xl font-black text-text">{{ question.sequence }}. {{ question.question_text }}</p>
-                <div class="mt-4 grid gap-3">
-                    <label v-for="(choice, key) in question.choices" :key="key" class="flex cursor-pointer items-center gap-3 rounded-2xl border-2 border-border p-4 text-lg font-black hover:border-primary">
-                        <input v-model="answers[question.id]" type="radio" :name="question.id" :value="choice" class="size-5">
+        <template #agent>
+            <AgentSpeakerPanel compact agent-type="assessment" state="speaking" message="Choose the best answer for this question." />
+        </template>
+
+        <section class="mx-auto grid max-w-2xl gap-4">
+            <StatusBadge :status="`Question ${step.currentIndex.value + 1} of ${questions.length}`" />
+            <ModuleProgressBar :value="step.progressPercent.value" />
+            <div class="rounded-[32px] border border-border bg-surface p-6 shadow-xl shadow-primary/10">
+                <p class="text-2xl font-black text-text">{{ step.currentItem.value.question_text }}</p>
+                <div class="mt-5 grid gap-3">
+                    <button
+                        v-for="(choice, key) in step.currentItem.value.choices"
+                        :key="key"
+                        type="button"
+                        class="rounded-2xl border-2 p-4 text-left text-lg font-black"
+                        :class="step.answers[step.currentItem.value.id] === choice ? 'border-primary bg-primary-light text-primary' : 'border-border bg-surface text-text hover:border-primary'"
+                        @click="choose(choice)"
+                    >
                         {{ choice }}
-                    </label>
+                    </button>
                 </div>
-            </section>
-        </div>
+                <p v-if="step.feedback.value" class="mt-4 rounded-2xl bg-accent px-4 py-3 text-lg font-black text-text">{{ step.feedback.value }}</p>
+            </div>
+        </section>
+
         <BottomActionBar>
-            <PrimaryButton :disabled="form.processing" @click="submit">Check answers</PrimaryButton>
+            <div class="flex w-full items-center justify-between gap-3">
+                <SecondaryButton v-if="!step.isFirst.value" @click="step.goBack">Back</SecondaryButton>
+                <span v-else />
+                <PrimaryButton :disabled="form.processing" :class="{ 'opacity-70': !step.isCurrentAnswered.value }" @click="handlePrimary">
+                    {{ step.isLast.value ? 'Check answers' : 'Next' }}
+                </PrimaryButton>
+            </div>
         </BottomActionBar>
     </LearnerLayout>
 </template>

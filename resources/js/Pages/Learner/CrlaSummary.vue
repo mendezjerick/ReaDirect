@@ -3,6 +3,7 @@ import { Link } from '@inertiajs/vue3';
 import LearnerLayout from '../../Layouts/LearnerLayout.vue';
 import ScoreCard from '../../Components/ScoreCard.vue';
 import RewardBadge from '../../Components/RewardBadge.vue';
+import AgentSpeakerPanel from '../../Components/Learner/AgentSpeakerPanel.vue';
 import PrimaryButton from '../../Components/PrimaryButton.vue';
 import BottomActionBar from '../../Components/BottomActionBar.vue';
 
@@ -11,6 +12,9 @@ defineProps({ attempt: Object });
 
 <template>
     <LearnerLayout :progress="65">
+        <template #agent>
+            <AgentSpeakerPanel agent-type="evaluator" state="celebrating" message="The first reading check is complete. Now we will read a short passage." />
+        </template>
         <div class="mx-auto grid max-w-3xl gap-6 text-center">
             <RewardBadge title="CRLA Complete" />
             <h1 class="text-4xl font-black text-text">Great effort. The first reading check is done.</h1>
