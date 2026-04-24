@@ -1,4 +1,5 @@
 <script setup>
+import { computed } from 'vue';
 import TeacherLayout from '../../Layouts/TeacherLayout.vue';
 import PageHeader from '../../Components/PageHeader.vue';
 import DashboardCard from '../../Components/DashboardCard.vue';
@@ -7,7 +8,7 @@ import DataTable from '../../Components/DataTable.vue';
 import EmptyState from '../../Components/EmptyState.vue';
 import StatusBadge from '../../Components/StatusBadge.vue';
 
-defineProps({
+const props = defineProps({
     learner: Object,
     assessmentAttempt: Object,
     task1Responses: Array,
@@ -18,6 +19,13 @@ defineProps({
     scoringSummary: Object,
     placementDecision: Object,
 });
+
+const audioRows = computed(() => [
+    ...props.task1Responses.map((row) => ({ task: 'Task 1', ...row })),
+    ...props.task2aResponses.map((row) => ({ task: 'Task 2A', ...row })),
+    ...props.task2bResponses.map((row) => ({ task: 'Task 2B', ...row })),
+    ...props.comprehensionResponses.map((row) => ({ task: 'Comprehension', ...row })),
+].filter((row) => row.audio));
 </script>
 
 <template>
@@ -44,17 +52,17 @@ defineProps({
             <div class="mt-4 grid gap-6">
                 <section>
                     <h3 class="mb-2 font-black text-text">Task 1 Letter Pronunciation</h3>
-                    <DataTable v-if="task1Responses.length" :headers="['item', 'prompt', 'expected_answer', 'answer', 'is_correct', 'score']" :rows="task1Responses" />
+                    <DataTable v-if="task1Responses.length" :headers="['item', 'prompt', 'expected_answer', 'answer', 'transcript_source', 'audio_status', 'is_correct', 'score']" :rows="task1Responses" />
                     <EmptyState v-else title="No Task 1 responses" />
                 </section>
                 <section>
                     <h3 class="mb-2 font-black text-text">Task 2A Rhyming Words</h3>
-                    <DataTable v-if="task2aResponses.length" :headers="['item', 'prompt', 'expected_answer', 'answer', 'is_correct', 'score']" :rows="task2aResponses" />
+                    <DataTable v-if="task2aResponses.length" :headers="['item', 'prompt', 'expected_answer', 'answer', 'transcript_source', 'audio_status', 'is_correct', 'score']" :rows="task2aResponses" />
                     <EmptyState v-else title="Task 2A was skipped or not completed" />
                 </section>
                 <section>
                     <h3 class="mb-2 font-black text-text">Task 2B Word-in-Sentence</h3>
-                    <DataTable v-if="task2bResponses.length" :headers="['item', 'prompt', 'expected_answer', 'answer', 'is_correct', 'score']" :rows="task2bResponses" />
+                    <DataTable v-if="task2bResponses.length" :headers="['item', 'prompt', 'expected_answer', 'answer', 'transcript_source', 'audio_status', 'is_correct', 'score']" :rows="task2bResponses" />
                     <EmptyState v-else title="No Task 2B responses" />
                 </section>
             </div>
@@ -69,9 +77,40 @@ defineProps({
                 <ScoreCard label="Comprehension" :value="scoringSummary.comprehension_percentage ?? '-'" suffix="%" />
             </div>
             <div class="mt-4">
-                <DataTable v-if="comprehensionResponses.length" :headers="['item', 'prompt', 'expected_answer', 'answer', 'is_correct', 'score']" :rows="comprehensionResponses" />
+                <DataTable v-if="comprehensionResponses.length" :headers="['item', 'prompt', 'expected_answer', 'answer', 'transcript_source', 'audio_status', 'is_correct', 'score']" :rows="comprehensionResponses" />
                 <EmptyState v-else title="No comprehension responses" />
             </div>
+        </DashboardCard>
+
+        <DashboardCard class="mt-6">
+            <h2 class="text-xl font-black text-text">Audio Review</h2>
+            <div v-if="audioRows.length" class="mt-4 overflow-x-auto">
+                <table class="min-w-full text-left text-sm">
+                    <thead class="bg-primaryLight text-xs uppercase text-primaryDark">
+                        <tr>
+                            <th class="px-4 py-3">Task</th>
+                            <th class="px-4 py-3">Item</th>
+                            <th class="px-4 py-3">Transcript Source</th>
+                            <th class="px-4 py-3">Type</th>
+                            <th class="px-4 py-3">Size</th>
+                            <th class="px-4 py-3">Playback</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-border">
+                        <tr v-for="row in audioRows" :key="`${row.task}-${row.item}`">
+                            <td class="px-4 py-3 font-bold text-text">{{ row.task }}</td>
+                            <td class="px-4 py-3 text-muted">{{ row.item }}</td>
+                            <td class="px-4 py-3 text-muted">{{ row.transcript_source ?? 'manual' }}</td>
+                            <td class="px-4 py-3 text-muted">{{ row.audio.mime_type ?? '-' }}</td>
+                            <td class="px-4 py-3 text-muted">{{ row.audio.file_size ?? '-' }} bytes</td>
+                            <td class="px-4 py-3">
+                                <audio controls class="h-9 w-56" :src="row.audio.play_url" />
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <EmptyState v-else title="No audio recordings yet" message="Recordings appear here after learner tasks include saved audio." />
         </DashboardCard>
 
         <DashboardCard class="mt-6">
@@ -81,7 +120,6 @@ defineProps({
                 <StatusBadge :status="placementDecision.module ?? 'No module needed'" />
                 <StatusBadge v-if="placementDecision.rule_applied" :status="placementDecision.rule_applied" variant="success" />
             </div>
-            <p class="mt-4 text-sm font-bold text-muted">Audio playback placeholder: no audio files are attached to this review yet.</p>
         </DashboardCard>
     </TeacherLayout>
 </template>

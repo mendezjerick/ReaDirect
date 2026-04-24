@@ -1,7 +1,9 @@
 <script setup>
+import { reactive } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import LearnerLayout from '../../Layouts/LearnerLayout.vue';
 import PromptCard from '../../Components/PromptCard.vue';
+import AudioRecorder from '../../Components/Learner/AudioRecorder.vue';
 import AgentSpeakerPanel from '../../Components/Learner/AgentSpeakerPanel.vue';
 import PrimaryButton from '../../Components/PrimaryButton.vue';
 import SecondaryButton from '../../Components/SecondaryButton.vue';
@@ -13,12 +15,30 @@ import { useStepAssessment } from '../../Composables/useStepAssessment';
 const props = defineProps({ items: Array });
 const step = useStepAssessment(props.items, { emptyMessage: 'Let us answer this first.' });
 const form = useForm({ responses: [] });
+const audioFiles = reactive({});
+const audioDurations = reactive({});
+
+const rememberAudio = (item, file) => {
+    audioFiles[item.id] = file;
+    audioDurations[item.id] = file.durationSeconds ?? null;
+};
+
+const clearAudio = (item) => {
+    delete audioFiles[item.id];
+    delete audioDurations[item.id];
+};
 
 const submit = () => {
     if (!step.validateCurrent()) return;
 
-    form.responses = step.payload((item, answer) => ({ assessment_attempt_item_id: item.id, answer }));
-    form.post('/learner/diagnostic/task-2a');
+    form.responses = step.payload((item, answer) => ({
+        assessment_attempt_item_id: item.id,
+        answer,
+        transcript_source: 'manual',
+        audio: audioFiles[item.id] ?? null,
+        duration_seconds: audioDurations[item.id] ?? null,
+    }));
+    form.post('/learner/diagnostic/task-2a', { forceFormData: true });
 };
 
 const handlePrimary = () => {
@@ -42,7 +62,16 @@ const handlePrimary = () => {
             <ModuleProgressBar :value="step.progressPercent.value" />
             <PromptCard label="Say a word that rhymes with" :prompt="step.currentItem.value.prompt" size="word" />
             <div class="rounded-[28px] border border-border bg-surface p-5 shadow-lg shadow-primary/10">
-                <input v-model="step.answers[step.currentItem.value.id]" class="w-full rounded-2xl border-2 border-border px-5 py-4 text-xl font-black focus:border-primary focus:outline-none" placeholder="Type a rhyming word">
+                <div class="grid gap-4 md:grid-cols-[240px_1fr] md:items-center">
+                    <AudioRecorder
+                        compact
+                        :max-duration-seconds="30"
+                        label="Rhyme voice"
+                        @recorded="(file) => rememberAudio(step.currentItem.value, file)"
+                        @cleared="() => clearAudio(step.currentItem.value)"
+                    />
+                    <input v-model="step.answers[step.currentItem.value.id]" class="w-full rounded-2xl border-2 border-border px-5 py-4 text-xl font-black focus:border-primary focus:outline-none" placeholder="Type a rhyming word">
+                </div>
                 <p v-if="step.feedback.value" class="mt-4 rounded-2xl bg-accent px-4 py-3 text-lg font-black text-text">{{ step.feedback.value }}</p>
             </div>
         </section>

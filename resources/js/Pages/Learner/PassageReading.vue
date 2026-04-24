@@ -1,7 +1,8 @@
 <script setup>
+import { ref } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import LearnerLayout from '../../Layouts/LearnerLayout.vue';
-import RecordingButton from '../../Components/RecordingButton.vue';
+import AudioRecorder from '../../Components/Learner/AudioRecorder.vue';
 import AgentSpeakerPanel from '../../Components/Learner/AgentSpeakerPanel.vue';
 import PrimaryButton from '../../Components/PrimaryButton.vue';
 import BottomActionBar from '../../Components/BottomActionBar.vue';
@@ -9,9 +10,20 @@ import StatusBadge from '../../Components/StatusBadge.vue';
 
 defineProps({ passage: Object });
 
-const form = useForm({ incorrect_words: 0 });
+const form = useForm({ incorrect_words: 0, audio: null, duration_seconds: null });
+const audioFile = ref(null);
 const hasIncorrectWords = () => form.incorrect_words !== '' && form.incorrect_words !== null && Number(form.incorrect_words) >= 0;
-const submit = () => form.post('/learner/diagnostic/passage');
+const rememberAudio = (file) => {
+    audioFile.value = file;
+    form.audio = file;
+    form.duration_seconds = file.durationSeconds ?? null;
+};
+const clearAudio = () => {
+    audioFile.value = null;
+    form.audio = null;
+    form.duration_seconds = null;
+};
+const submit = () => form.post('/learner/diagnostic/passage', { forceFormData: true });
 </script>
 
 <template>
@@ -27,8 +39,14 @@ const submit = () => form.post('/learner/diagnostic/passage');
             <section class="rounded-[32px] border border-border bg-surface p-7 shadow-xl shadow-primary/10">
                 <p class="text-3xl font-black leading-relaxed text-text">{{ passage.prompt }}</p>
             </section>
-            <div class="grid gap-4 rounded-[28px] border border-border bg-surface p-5 shadow-lg shadow-primary/10 md:grid-cols-[160px_1fr]">
-                <RecordingButton state="ready" />
+            <div class="grid gap-4 rounded-[28px] border border-border bg-surface p-5 shadow-lg shadow-primary/10 md:grid-cols-[240px_1fr]">
+                <AudioRecorder
+                    compact
+                    :max-duration-seconds="60"
+                    label="Passage voice"
+                    @recorded="rememberAudio"
+                    @cleared="clearAudio"
+                />
                 <label class="grid content-center gap-2 text-lg font-black text-text">
                     Incorrect words for Phase 2 manual check
                     <input v-model="form.incorrect_words" type="number" min="0" max="50" class="rounded-2xl border-2 border-border px-5 py-4 text-xl font-black focus:border-primary focus:outline-none">

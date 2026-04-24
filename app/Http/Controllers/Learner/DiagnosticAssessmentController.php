@@ -13,6 +13,7 @@ use App\Models\Module;
 use App\Models\Recommendation;
 use App\Services\AnswerMatchingService;
 use App\Services\AssessmentItemSelectionService;
+use App\Services\AudioStorageService;
 use App\Services\CrlaScoringService;
 use App\Services\ModulePlacementService;
 use App\Services\ReadingComprehensionScoringService;
@@ -62,13 +63,14 @@ class DiagnosticAssessmentController extends Controller
         Request $request,
         AssessmentItemSelectionService $itemSelection,
         AnswerMatchingService $answerMatching,
+        AudioStorageService $audioStorage,
         CrlaScoringService $crla
     ): RedirectResponse {
         $validated = $request->validate($this->textResponseRules(10), $this->friendlyValidationMessages());
 
         $attempt = $this->attempt($request);
         $items = $itemSelection->getLockedItemsForAttempt($attempt, AssessmentItemSelectionService::TASK_1_LETTER);
-        $score = $this->scoreTextResponses($attempt, $items, $validated['responses'], $answerMatching, 'CRLA_TASK_1_SCORING_V1');
+        $score = $this->scoreTextResponses($attempt, $items, $validated['responses'], $answerMatching, $audioStorage, 'CRLA_TASK_1_SCORING_V1');
         $route = $crla->routeTaskOne($score);
 
         $attempt->update([
@@ -114,13 +116,14 @@ class DiagnosticAssessmentController extends Controller
     public function storeTaskTwoA(
         Request $request,
         AssessmentItemSelectionService $itemSelection,
-        AnswerMatchingService $answerMatching
+        AnswerMatchingService $answerMatching,
+        AudioStorageService $audioStorage
     ): RedirectResponse {
         $validated = $request->validate($this->textResponseRules(10), $this->friendlyValidationMessages());
 
         $attempt = $this->attempt($request);
         $items = $itemSelection->getLockedItemsForAttempt($attempt, AssessmentItemSelectionService::TASK_2A_RHYME);
-        $score = $this->scoreTextResponses($attempt, $items, $validated['responses'], $answerMatching, 'CRLA_TASK_2A_SCORING_V1');
+        $score = $this->scoreTextResponses($attempt, $items, $validated['responses'], $answerMatching, $audioStorage, 'CRLA_TASK_2A_SCORING_V1');
 
         $attempt->update(['task_2a_score' => $score, 'status' => 'task_2a_completed']);
 
@@ -141,13 +144,14 @@ class DiagnosticAssessmentController extends Controller
         Request $request,
         AssessmentItemSelectionService $itemSelection,
         AnswerMatchingService $answerMatching,
+        AudioStorageService $audioStorage,
         CrlaScoringService $crla
     ): RedirectResponse {
         $validated = $request->validate($this->textResponseRules(10), $this->friendlyValidationMessages());
 
         $attempt = $this->attempt($request);
         $items = $itemSelection->getLockedItemsForAttempt($attempt, AssessmentItemSelectionService::TASK_2B_WORD_SENTENCE);
-        $taskTwoBScore = $this->scoreTextResponses($attempt, $items, $validated['responses'], $answerMatching, 'CRLA_TASK_2B_SCORING_V1');
+        $taskTwoBScore = $this->scoreTextResponses($attempt, $items, $validated['responses'], $answerMatching, $audioStorage, 'CRLA_TASK_2B_SCORING_V1');
         $taskTwoAScore = (int) $attempt->task_2a_score;
         $totalScore = $crla->calculateTotalScore((int) $attempt->task_1_score, $taskTwoAScore, $taskTwoBScore);
         $classification = $crla->classifyTotalScore($totalScore);
@@ -186,13 +190,24 @@ class DiagnosticAssessmentController extends Controller
         ]);
     }
 
-    public function storePassage(Request $request, ReadingComprehensionScoringService $reading): RedirectResponse
+    public function storePassage(Request $request, ReadingComprehensionScoringService $reading, AudioStorageService $audioStorage): RedirectResponse
     {
         $validated = $request->validate([
             'incorrect_words' => ['required', 'integer', 'min:0', 'max:50'],
+            'audio' => ['nullable', 'file', 'max:10240', 'mimetypes:'.implode(',', AudioStorageService::ALLOWED_MIME_TYPES)],
+            'duration_seconds' => ['nullable', 'numeric', 'min:0', 'max:600'],
         ], $this->friendlyValidationMessages());
 
         $attempt = $this->attempt($request);
+        if ($request->hasFile('audio')) {
+            $audioStorage->store(
+                file: $request->file('audio'),
+                learner: $attempt->learner,
+                recordingContext: 'passage_reading',
+                assessmentAttempt: $attempt,
+                durationSeconds: isset($validated['duration_seconds']) ? (float) $validated['duration_seconds'] : null
+            );
+        }
         $accuracy = $reading->calculateAccuracyPercentage((int) $validated['incorrect_words']);
 
         $attempt->update([
@@ -346,6 +361,7 @@ class DiagnosticAssessmentController extends Controller
         Collection $items,
         array $responses,
         AnswerMatchingService $answerMatching,
+        AudioStorageService $audioStorage,
         string $rule
     ): int {
         $score = 0;
@@ -353,21 +369,34 @@ class DiagnosticAssessmentController extends Controller
         foreach ($items as $item) {
             $submitted = collect($responses)->firstWhere('assessment_attempt_item_id', $item->id);
             $answer = $submitted['answer'] ?? '';
+            $transcriptSource = $submitted['transcript_source'] ?? 'manual';
             $acceptedAnswers = $item->prompt_snapshot['accepted_answers'] ?? [];
             $isCorrect = $answerMatching->isAcceptedAnswer($answer, $acceptedAnswers);
             $score += $isCorrect ? 1 : 0;
+            $audioFile = isset($submitted['audio']) && $submitted['audio']
+                ? $audioStorage->store(
+                    file: $submitted['audio'],
+                    learner: $attempt->learner,
+                    recordingContext: 'assessment_task',
+                    assessmentAttempt: $attempt,
+                    durationSeconds: isset($submitted['duration_seconds']) ? (float) $submitted['duration_seconds'] : null,
+                    metadata: ['assessment_attempt_item_id' => $item->id, 'task_type' => $item->task_type]
+                )
+                : null;
 
-            AssessmentTaskResponse::updateOrCreate(
+            $response = AssessmentTaskResponse::updateOrCreate(
                 ['assessment_attempt_id' => $attempt->id, 'assessment_attempt_item_id' => $item->id],
                 [
                     'learner_id' => $attempt->learner_id,
                     'learning_content_id' => $item->learning_content_id,
+                    'audio_file_id' => $audioFile?->id,
                     'task_key' => $item->task_type,
                     'task_type' => $item->task_type,
                     'item_number' => $item->sequence,
                     'prompt' => $item->prompt_snapshot['prompt'] ?? null,
                     'expected_answer' => $this->expectedAnswer($item),
                     'learner_transcript' => $answer,
+                    'transcript_source' => $transcriptSource,
                     'response_text' => $answer,
                     'is_correct' => $isCorrect,
                     'score' => $isCorrect ? 1 : 0,
@@ -377,6 +406,10 @@ class DiagnosticAssessmentController extends Controller
                     'metadata_json' => ['prompt_snapshot' => $item->prompt_snapshot],
                 ]
             );
+
+            if ($audioFile) {
+                $audioStorage->attachToAssessmentResponse($audioFile, $response->id);
+            }
 
             $item->update(['answered_at' => now()]);
         }
@@ -442,6 +475,9 @@ class DiagnosticAssessmentController extends Controller
             'responses' => ['required', 'array', 'size:'.$requiredCount],
             'responses.*.assessment_attempt_item_id' => ['required', 'integer', 'exists:assessment_attempt_items,id'],
             'responses.*.answer' => ['required', 'string', 'max:255', 'regex:/\S/'],
+            'responses.*.transcript_source' => ['nullable', 'string', 'in:manual,stt_placeholder,teacher_review,future_asr'],
+            'responses.*.audio' => ['nullable', 'file', 'max:10240', 'mimetypes:'.implode(',', AudioStorageService::ALLOWED_MIME_TYPES)],
+            'responses.*.duration_seconds' => ['nullable', 'numeric', 'min:0', 'max:600'],
         ];
     }
 

@@ -44,6 +44,14 @@ Use migrations and seeders for repeatable setup. Use `pg_dump` only for data han
 
 Database backups do not include separately stored audio files. Back up private file storage independently.
 
+## Private Audio Storage
+
+- Learner recordings are stored outside the public web root on Laravel's private `local` disk.
+- Back up `storage/app/private` or the configured private audio disk separately from PostgreSQL.
+- PostgreSQL backups include audio metadata only, not the actual audio files.
+- Do not expose direct public storage URLs for learner voice recordings.
+- Production servers should protect private storage with filesystem permissions and encrypted backups.
+
 ## Security Notes
 
 - Keep PostgreSQL credentials private.

@@ -8,6 +8,7 @@ use App\Models\Module;
 use App\Models\ModuleActivityResponse;
 use App\Models\ModuleAttempt;
 use App\Models\ModuleAttemptItem;
+use App\Services\AudioStorageService;
 use App\Services\ModuleActivitySelectionService;
 use App\Services\ModuleFeedbackService;
 use App\Services\ModuleMasteryService;
@@ -43,7 +44,8 @@ class ModuleMasteryController extends Controller
         ModuleActivitySelectionService $selection,
         ModuleScoringService $scoring,
         ModuleFeedbackService $feedback,
-        ModuleMasteryService $mastery
+        ModuleMasteryService $mastery,
+        AudioStorageService $audioStorage
     ): RedirectResponse {
         $learner = $this->learner($request);
         $this->authorizeModule($learner, $module);
@@ -56,15 +58,33 @@ class ModuleMasteryController extends Controller
         foreach ($items as $item) {
             $submitted = collect($validated['responses'])->firstWhere('module_attempt_item_id', $item->id);
             $answer = $submitted['answer'] ?? '';
+            $audioFile = null;
+
+            if (isset($submitted['audio'])) {
+                $audioFile = $audioStorage->store(
+                    $submitted['audio'],
+                    $attempt->learner,
+                    'module_mastery_check',
+                    moduleAttempt: $attempt,
+                    durationSeconds: isset($submitted['duration_seconds']) ? (float) $submitted['duration_seconds'] : null,
+                    metadata: [
+                        'module_attempt_item_id' => $item->id,
+                        'activity_type' => 'mastery_check',
+                    ],
+                );
+            }
+
             $score = $scoring->scoreAnswer($item, $answer);
             $template = $score['is_correct']
                 ? $feedback->feedbackForCorrect($module->key, 'mastery_check')
                 : $feedback->feedbackForIncorrect($module->key, 'mastery_check', $score['error_type'] ?? 'incorrect_general');
 
-            ModuleActivityResponse::updateOrCreate(
+            $response = ModuleActivityResponse::updateOrCreate(
                 ['module_attempt_id' => $attempt->id, 'module_attempt_item_id' => $item->id],
                 [
                     'module_activity_id' => $item->module_activity_id,
+                    'audio_file_id' => $audioFile?->id,
+                    'transcript_source' => $submitted['transcript_source'] ?? 'manual',
                     'response_text' => $answer,
                     'learner_answer' => $answer,
                     'expected_answer' => $score['expected_answer'],
@@ -78,6 +98,10 @@ class ModuleMasteryController extends Controller
                     'metadata_json' => ['prompt_snapshot' => $item->prompt_snapshot],
                 ]
             );
+
+            if ($audioFile) {
+                $audioStorage->attachToModuleResponse($audioFile, $response->id);
+            }
 
             $item->update(['answered_at' => now()]);
         }
@@ -174,6 +198,9 @@ class ModuleMasteryController extends Controller
             'responses' => ['required', 'array', 'size:'.$requiredCount],
             'responses.*.module_attempt_item_id' => ['required', 'integer', 'exists:module_attempt_items,id'],
             'responses.*.answer' => ['required', 'string', 'max:255', 'regex:/\S/'],
+            'responses.*.transcript_source' => ['nullable', 'string', 'in:manual,stt_placeholder,teacher_review,future_asr'],
+            'responses.*.audio' => ['nullable', 'file', 'max:10240', 'mimetypes:audio/webm,audio/wav,audio/x-wav,audio/mpeg,audio/mp4,audio/ogg'],
+            'responses.*.duration_seconds' => ['nullable', 'numeric', 'min:0', 'max:600'],
         ];
     }
 

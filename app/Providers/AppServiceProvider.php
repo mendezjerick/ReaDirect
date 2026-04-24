@@ -2,8 +2,11 @@
 
 namespace App\Providers;
 
+use App\Models\AudioFile;
+use App\Policies\AudioFilePolicy;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
@@ -22,6 +25,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Gate::policy(AudioFile::class, AudioFilePolicy::class);
+
         RateLimiter::for('login', fn (Request $request) => [
             Limit::perMinute(5)->by($request->ip()),
         ]);

@@ -16,12 +16,14 @@ class AssessmentTaskResponse extends Model
         'learner_id',
         'learning_content_id',
         'assessment_attempt_item_id',
+        'audio_file_id',
         'task_key',
         'task_type',
         'item_number',
         'prompt',
         'expected_answer',
         'learner_transcript',
+        'transcript_source',
         'selected_answer',
         'response_text',
         'is_correct',
@@ -47,5 +49,10 @@ class AssessmentTaskResponse extends Model
     public function selectedItem(): BelongsTo
     {
         return $this->belongsTo(AssessmentAttemptItem::class, 'assessment_attempt_item_id');
+    }
+
+    public function audioFile(): BelongsTo
+    {
+        return $this->belongsTo(AudioFile::class);
     }
 }

@@ -15,8 +15,10 @@ class ModuleActivityResponse extends Model
         'module_attempt_id',
         'module_activity_id',
         'module_attempt_item_id',
+        'audio_file_id',
         'response_text',
         'learner_answer',
+        'transcript_source',
         'expected_answer',
         'is_correct',
         'score',
@@ -53,5 +55,10 @@ class ModuleActivityResponse extends Model
     public function moduleAttemptItem(): BelongsTo
     {
         return $this->belongsTo(ModuleAttemptItem::class);
+    }
+
+    public function audioFile(): BelongsTo
+    {
+        return $this->belongsTo(AudioFile::class);
     }
 }

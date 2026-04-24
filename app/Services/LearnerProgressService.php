@@ -49,7 +49,7 @@ class LearnerProgressService
 
     public function assessmentReview(AssessmentAttempt $attempt): array
     {
-        $responses = $attempt->responses()->orderBy('item_number')->get();
+        $responses = $attempt->responses()->with('audioFile')->orderBy('item_number')->get();
 
         return [
             'assessmentAttempt' => $attempt->load('assignedModule')->only([
@@ -76,7 +76,7 @@ class LearnerProgressService
 
     public function moduleReview(Learner $learner): array
     {
-        $attempts = ModuleAttempt::with(['module', 'responses.moduleAttemptItem'])
+        $attempts = ModuleAttempt::with(['module', 'responses.moduleAttemptItem', 'responses.audioFile'])
             ->where('learner_id', $learner->id)
             ->latest()
             ->get();
@@ -101,11 +101,14 @@ class LearnerProgressService
                     'prompt' => $response->moduleAttemptItem?->prompt_snapshot['prompt'] ?? null,
                     'answer' => $response->learner_answer ?? $response->response_text,
                     'expected_answer' => $response->expected_answer,
+                    'transcript_source' => $response->transcript_source ?? 'manual',
                     'is_correct' => $response->is_correct,
                     'score' => $response->score,
                     'feedback_text' => $response->feedback_text,
                     'retry_count' => $response->retry_count,
                     'is_mastery_item' => $response->is_mastery_item,
+                    'audio_status' => $response->audioFile ? 'Audio saved' : 'No audio',
+                    'audio' => $this->audioArray($response->audioFile),
                 ])->values()->all(),
             ])->values()->all(),
         ];
@@ -192,10 +195,29 @@ class LearnerProgressService
             'prompt' => $response->prompt,
             'expected_answer' => $response->expected_answer,
             'answer' => $response->learner_transcript ?? $response->selected_answer ?? $response->response_text,
+            'transcript_source' => $response->transcript_source ?? 'manual',
             'is_correct' => $response->is_correct,
             'score' => $response->score,
             'error_type' => $response->error_type,
             'rule_applied' => $response->rule_applied,
+            'audio_status' => $response->audioFile ? 'Audio saved' : 'No audio',
+            'audio' => $this->audioArray($response->audioFile),
         ])->values()->all();
+    }
+
+    private function audioArray($audioFile): ?array
+    {
+        if (! $audioFile) {
+            return null;
+        }
+
+        return [
+            'public_id' => $audioFile->public_id,
+            'mime_type' => $audioFile->mime_type,
+            'file_size' => $audioFile->file_size ?? $audioFile->size_bytes,
+            'duration_seconds' => $audioFile->duration_seconds,
+            'recording_context' => $audioFile->recording_context,
+            'play_url' => route('teacher.audio.play', $audioFile),
+        ];
     }
 }

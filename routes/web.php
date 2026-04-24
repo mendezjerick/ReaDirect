@@ -4,10 +4,12 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Learner\DiagnosticAssessmentController;
 use App\Http\Controllers\Learner\LearnerAccessController;
 use App\Http\Controllers\Learner\LearnerDashboardController;
+use App\Http\Controllers\Learner\AudioUploadController;
 use App\Http\Controllers\Learner\ModuleActivityController;
 use App\Http\Controllers\Learner\ModuleController;
 use App\Http\Controllers\Learner\ModuleMasteryController;
 use App\Http\Controllers\Teacher\TeacherAnalyticsController;
+use App\Http\Controllers\Teacher\AudioPlaybackController;
 use App\Http\Controllers\Teacher\TeacherAssessmentReviewController;
 use App\Http\Controllers\Teacher\TeacherDashboardController;
 use App\Http\Controllers\Teacher\TeacherLearnerController;
@@ -28,6 +30,7 @@ Route::post('/logout', [AuthController::class, 'destroy'])->middleware('auth')->
 Route::get('/learner/access', [LearnerAccessController::class, 'create'])->name('learner.access');
 Route::post('/learner/access', [LearnerAccessController::class, 'store'])->middleware('throttle:learner-access')->name('learner.access.store');
 Route::get('/learner/dashboard', LearnerDashboardController::class)->name('learner.dashboard');
+Route::post('/learner/audio/upload', [AudioUploadController::class, 'store'])->middleware('throttle:assessment-submit')->name('learner.audio.upload');
 
 Route::prefix('learner/diagnostic')->name('learner.diagnostic.')->group(function (): void {
     Route::get('/', fn () => redirect()->route('learner.diagnostic.start'))->name('intro');
@@ -79,4 +82,5 @@ Route::middleware('auth')->prefix('teacher')->name('teacher.')->group(function (
     Route::get('/reports/class-summary', [TeacherReportController::class, 'classSummary'])->name('reports.class-summary');
     Route::get('/reports/pdf-placeholder', [TeacherReportController::class, 'pdfPlaceholder'])->name('reports.pdf-placeholder');
     Route::get('/analytics', TeacherAnalyticsController::class)->name('analytics');
+    Route::get('/audio/{audioFile}/play', AudioPlaybackController::class)->name('audio.play');
 });
