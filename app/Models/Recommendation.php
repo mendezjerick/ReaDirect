@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\HasPublicId;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Recommendation extends Model
 {
@@ -28,5 +29,20 @@ class Recommendation extends Model
     protected function casts(): array
     {
         return ['input_scores' => 'array'];
+    }
+
+    public function learner(): BelongsTo
+    {
+        return $this->belongsTo(Learner::class);
+    }
+
+    public function module(): BelongsTo
+    {
+        return $this->belongsTo(Module::class);
+    }
+
+    public function recommendedModule(): BelongsTo
+    {
+        return $this->belongsTo(Module::class, 'recommended_module_id');
     }
 }

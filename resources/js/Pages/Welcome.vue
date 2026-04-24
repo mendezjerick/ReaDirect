@@ -1,10 +1,10 @@
 <script setup>
-import { Link } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
 import { BookOpen, Mic, Trophy } from 'lucide-vue-next';
 import AppLayout from '../Layouts/AppLayout.vue';
-import PrimaryButton from '../Components/PrimaryButton.vue';
-import SecondaryButton from '../Components/SecondaryButton.vue';
 import RewardBadge from '../Components/RewardBadge.vue';
+
+const page = usePage();
 </script>
 
 <template>
@@ -17,8 +17,15 @@ import RewardBadge from '../Components/RewardBadge.vue';
                     Friendly oral reading assessment and guided practice for young readers.
                 </p>
                 <div class="mt-8 flex flex-col gap-3 sm:flex-row">
-                    <Link href="/learner/access"><PrimaryButton>Start reading</PrimaryButton></Link>
-                    <Link href="/login"><SecondaryButton>Teacher login</SecondaryButton></Link>
+                    <Link href="/learner/access" class="inline-flex min-h-14 items-center justify-center rounded-2xl bg-primary px-6 text-lg font-black text-white shadow-lg shadow-primary/20 hover:bg-primary-dark">
+                        Start reading
+                    </Link>
+                    <a v-if="!page.props.auth?.user" href="/login" class="inline-flex min-h-14 items-center justify-center rounded-2xl border-2 border-primary bg-surface px-6 text-lg font-black text-primary hover:bg-primary-light">
+                        Teacher login
+                    </a>
+                    <a v-else href="/teacher/dashboard" class="inline-flex min-h-14 items-center justify-center rounded-2xl border-2 border-primary bg-surface px-6 text-lg font-black text-primary hover:bg-primary-light">
+                        Teacher dashboard
+                    </a>
                 </div>
             </div>
             <div class="rounded-[36px] border border-border bg-surface p-6 shadow-2xl shadow-primary/10">

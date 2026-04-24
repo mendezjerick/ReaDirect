@@ -7,7 +7,12 @@ use App\Http\Controllers\Learner\LearnerDashboardController;
 use App\Http\Controllers\Learner\ModuleActivityController;
 use App\Http\Controllers\Learner\ModuleController;
 use App\Http\Controllers\Learner\ModuleMasteryController;
+use App\Http\Controllers\Teacher\TeacherAnalyticsController;
+use App\Http\Controllers\Teacher\TeacherAssessmentReviewController;
 use App\Http\Controllers\Teacher\TeacherDashboardController;
+use App\Http\Controllers\Teacher\TeacherLearnerController;
+use App\Http\Controllers\Teacher\TeacherModuleProgressController;
+use App\Http\Controllers\Teacher\TeacherReportController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -61,4 +66,17 @@ Route::prefix('learner/modules')->name('learner.modules.')->group(function (): v
     Route::get('/{module:key}/extra-drills', [ModuleController::class, 'extraDrills'])->name('extra-drills');
 });
 
-Route::get('/teacher/dashboard', TeacherDashboardController::class)->middleware('auth')->name('teacher.dashboard');
+Route::middleware('auth')->prefix('teacher')->name('teacher.')->group(function (): void {
+    Route::get('/dashboard', TeacherDashboardController::class)->name('dashboard');
+    Route::get('/learners', [TeacherLearnerController::class, 'index'])->name('learners.index');
+    Route::get('/learners/{learner}', [TeacherLearnerController::class, 'show'])->name('learners.show');
+    Route::get('/learners/{learner}/assessments/{assessmentAttempt}', [TeacherAssessmentReviewController::class, 'show'])->name('learners.assessments.show');
+    Route::get('/learners/{learner}/modules', [TeacherModuleProgressController::class, 'index'])->name('learners.modules.index');
+    Route::get('/reports', [TeacherReportController::class, 'index'])->name('reports.index');
+    Route::get('/reports/learner/{learner}/diagnostic', [TeacherReportController::class, 'learnerDiagnostic'])->name('reports.learner.diagnostic');
+    Route::get('/reports/learner/{learner}/module-progress', [TeacherReportController::class, 'learnerModuleProgress'])->name('reports.learner.module-progress');
+    Route::get('/reports/learner/{learner}/full-progress', [TeacherReportController::class, 'learnerFullProgress'])->name('reports.learner.full-progress');
+    Route::get('/reports/class-summary', [TeacherReportController::class, 'classSummary'])->name('reports.class-summary');
+    Route::get('/reports/pdf-placeholder', [TeacherReportController::class, 'pdfPlaceholder'])->name('reports.pdf-placeholder');
+    Route::get('/analytics', TeacherAnalyticsController::class)->name('analytics');
+});

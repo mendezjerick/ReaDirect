@@ -13,14 +13,10 @@ class LearnerPolicy
             return true;
         }
 
-        if ($user->hasRole('student')) {
-            return $learner->user_id === $user->id;
+        if (! $user->hasRole('teacher')) {
+            return false;
         }
 
-        if ($user->hasAnyRole(['teacher', 'school_admin'])) {
-            return $learner->schoolClass?->teacher_id === $user->id || $user->hasRole('school_admin');
-        }
-
-        return false;
+        return $user->teachingClasses()->whereKey($learner->class_id)->exists();
     }
 }

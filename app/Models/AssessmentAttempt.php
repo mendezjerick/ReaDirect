@@ -68,4 +68,9 @@ class AssessmentAttempt extends Model
     {
         return $this->belongsTo(Module::class, 'assigned_module_id');
     }
+
+    public function getRouteKeyName(): string
+    {
+        return 'public_id';
+    }
 }

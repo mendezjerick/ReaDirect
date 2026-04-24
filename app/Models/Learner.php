@@ -60,4 +60,9 @@ class Learner extends Model
     {
         return $this->hasMany(ModuleAttempt::class);
     }
+
+    public function getRouteKeyName(): string
+    {
+        return 'public_id';
+    }
 }
