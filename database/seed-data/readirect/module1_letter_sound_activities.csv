@@ -1,0 +1,31 @@
+id,module_key,activity_type,sequence,prompt_text,expected_answer,accepted_answers,difficulty,points,is_mastery_item,is_active
+M1-HR001,module_1,hear_and_repeat,1,Say the sound for A.,A,"A|a|ah",easy,1,0,1
+M1-HR002,module_1,hear_and_repeat,2,Say the sound for M.,M,"M|m|mmm",easy,1,0,1
+M1-HR003,module_1,hear_and_repeat,3,Say the sound for S.,S,"S|s|sss",easy,1,0,1
+M1-HR004,module_1,hear_and_repeat,4,Say the sound for T.,T,"T|t|tuh",easy,1,0,1
+M1-HR005,module_1,hear_and_repeat,5,Say the sound for P.,P,"P|p|puh",easy,1,0,1
+M1-SL001,module_1,see_letter_say_sound,6,Look at B and say its sound.,B,"B|b|buh",easy,1,0,1
+M1-SL002,module_1,see_letter_say_sound,7,Look at L and say its sound.,L,"L|l|luh",easy,1,0,1
+M1-SL003,module_1,see_letter_say_sound,8,Look at R and say its sound.,R,"R|r|ruh",easy,1,0,1
+M1-SL004,module_1,see_letter_say_sound,9,Look at N and say its sound.,N,"N|n|nnn",easy,1,0,1
+M1-SL005,module_1,see_letter_say_sound,10,Look at K and say its sound.,K,"K|k|kuh",easy,1,0,1
+M1-ML001,module_1,match_sound_to_letter,11,Which letter makes /m/?,M,"M|m",easy,1,0,1
+M1-ML002,module_1,match_sound_to_letter,12,Which letter makes /s/?,S,"S|s",easy,1,0,1
+M1-ML003,module_1,match_sound_to_letter,13,Which letter makes /t/?,T,"T|t",easy,1,0,1
+M1-ML004,module_1,match_sound_to_letter,14,Which letter makes /p/?,P,"P|p",easy,1,0,1
+M1-ML005,module_1,match_sound_to_letter,15,Which letter makes /b/?,B,"B|b",easy,1,0,1
+M1-SD001,module_1,sound_drill,16,Say the first sound in sun.,S,"S|s|sss",easy,1,0,1
+M1-SD002,module_1,sound_drill,17,Say the first sound in map.,M,"M|m|mmm",easy,1,0,1
+M1-SD003,module_1,sound_drill,18,Say the first sound in tap.,T,"T|t|tuh",easy,1,0,1
+M1-SD004,module_1,sound_drill,19,Say the first sound in pin.,P,"P|p|puh",easy,1,0,1
+M1-SD005,module_1,sound_drill,20,Say the first sound in lid.,L,"L|l|luh",easy,1,0,1
+M1-MC001,module_1,mastery_check,21,Say the sound for A.,A,"A|a|ah",easy,1,1,1
+M1-MC002,module_1,mastery_check,22,Say the sound for B.,B,"B|b|buh",easy,1,1,1
+M1-MC003,module_1,mastery_check,23,Say the sound for M.,M,"M|m|mmm",easy,1,1,1
+M1-MC004,module_1,mastery_check,24,Say the sound for S.,S,"S|s|sss",easy,1,1,1
+M1-MC005,module_1,mastery_check,25,Say the sound for T.,T,"T|t|tuh",easy,1,1,1
+M1-MC006,module_1,mastery_check,26,Say the sound for P.,P,"P|p|puh",easy,1,1,1
+M1-MC007,module_1,mastery_check,27,Say the sound for L.,L,"L|l|luh",easy,1,1,1
+M1-MC008,module_1,mastery_check,28,Say the sound for R.,R,"R|r|ruh",easy,1,1,1
+M1-MC009,module_1,mastery_check,29,Say the sound for N.,N,"N|n|nnn",easy,1,1,1
+M1-MC010,module_1,mastery_check,30,Say the sound for K.,K,"K|k|kuh",easy,1,1,1

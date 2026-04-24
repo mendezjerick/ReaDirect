@@ -4,6 +4,9 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Learner\DiagnosticAssessmentController;
 use App\Http\Controllers\Learner\LearnerAccessController;
 use App\Http\Controllers\Learner\LearnerDashboardController;
+use App\Http\Controllers\Learner\ModuleActivityController;
+use App\Http\Controllers\Learner\ModuleController;
+use App\Http\Controllers\Learner\ModuleMasteryController;
 use App\Http\Controllers\Teacher\TeacherDashboardController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -43,6 +46,19 @@ Route::prefix('learner/diagnostic')->name('learner.diagnostic.')->group(function
 
     Route::get('/routing-result', [DiagnosticAssessmentController::class, 'taskRouting'])->name('routing-result');
     Route::get('/task-one', [DiagnosticAssessmentController::class, 'taskOne'])->name('task-one');
+});
+
+Route::prefix('learner/modules')->name('learner.modules.')->group(function (): void {
+    Route::get('/', [ModuleController::class, 'index'])->name('index');
+    Route::get('/{module:key}/start', [ModuleController::class, 'start'])->name('start');
+    Route::post('/{module:key}/start', [ModuleController::class, 'start'])->middleware('throttle:assessment-submit')->name('start.store');
+    Route::get('/{module:key}/overview', [ModuleController::class, 'overview'])->name('overview');
+    Route::get('/{module:key}/activity/{activityType}', [ModuleActivityController::class, 'show'])->name('activity');
+    Route::post('/{module:key}/activity/{activityType}', [ModuleActivityController::class, 'store'])->middleware('throttle:assessment-submit')->name('activity.store');
+    Route::get('/{module:key}/mastery-check', [ModuleMasteryController::class, 'show'])->name('mastery-check');
+    Route::post('/{module:key}/mastery-check', [ModuleMasteryController::class, 'store'])->middleware('throttle:assessment-submit')->name('mastery-check.store');
+    Route::get('/{module:key}/mastery-result', [ModuleMasteryController::class, 'result'])->name('mastery-result');
+    Route::get('/{module:key}/extra-drills', [ModuleController::class, 'extraDrills'])->name('extra-drills');
 });
 
 Route::get('/teacher/dashboard', TeacherDashboardController::class)->middleware('auth')->name('teacher.dashboard');

@@ -1,0 +1,201 @@
+<?php
+
+namespace App\Http\Controllers\Learner;
+
+use App\Http\Controllers\Controller;
+use App\Models\Learner;
+use App\Models\Module;
+use App\Models\ModuleActivityResponse;
+use App\Models\ModuleAttempt;
+use App\Models\ModuleAttemptItem;
+use App\Services\ModuleActivitySelectionService;
+use App\Services\ModuleFeedbackService;
+use App\Services\ModuleMasteryService;
+use App\Services\ModuleScoringService;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
+use Inertia\Response;
+
+class ModuleMasteryController extends Controller
+{
+    public function show(Request $request, Module $module, ModuleActivitySelectionService $selection): Response
+    {
+        $learner = $this->learner($request);
+        $this->authorizeModule($learner, $module);
+        $attempt = $selection->startOrResumeModuleAttempt($learner, $module);
+        $request->session()->put('module_attempt_id', $attempt->id);
+        $items = $selection->selectMasteryItemsForAttempt($attempt, $selection->masteryCountFor($module));
+
+        $attempt->update(['status' => 'mastery_started']);
+
+        return Inertia::render('Learner/Modules/ModuleMasteryCheck', [
+            'module' => $module->only('key', 'title', 'description'),
+            'items' => $this->itemsForForm($items),
+        ]);
+    }
+
+    public function store(
+        Request $request,
+        Module $module,
+        ModuleActivitySelectionService $selection,
+        ModuleScoringService $scoring,
+        ModuleFeedbackService $feedback,
+        ModuleMasteryService $mastery
+    ): RedirectResponse {
+        $learner = $this->learner($request);
+        $this->authorizeModule($learner, $module);
+        $attempt = $this->attempt($request, $learner, $module, $selection);
+        $items = $selection->getLockedItemsForAttempt($attempt)->where('is_mastery_item', true)->values();
+
+        $validated = $request->validate($this->responseRules($items->count()), $this->friendlyValidationMessages());
+        $this->validateSubmittedItemSet($items, $validated['responses']);
+
+        foreach ($items as $item) {
+            $submitted = collect($validated['responses'])->firstWhere('module_attempt_item_id', $item->id);
+            $answer = $submitted['answer'] ?? '';
+            $score = $scoring->scoreAnswer($item, $answer);
+            $template = $score['is_correct']
+                ? $feedback->feedbackForCorrect($module->key, 'mastery_check')
+                : $feedback->feedbackForIncorrect($module->key, 'mastery_check', $score['error_type'] ?? 'incorrect_general');
+
+            ModuleActivityResponse::updateOrCreate(
+                ['module_attempt_id' => $attempt->id, 'module_attempt_item_id' => $item->id],
+                [
+                    'module_activity_id' => $item->module_activity_id,
+                    'response_text' => $answer,
+                    'learner_answer' => $answer,
+                    'expected_answer' => $score['expected_answer'],
+                    'is_correct' => $score['is_correct'],
+                    'score' => $score['score'],
+                    'feedback_text' => $score['is_correct'] ? $template['success_text'] : $template['feedback_text'],
+                    'retry_count' => 0,
+                    'is_mastery_item' => true,
+                    'error_type' => $score['error_type'],
+                    'metadata' => ['source_csv_id' => $item->source_csv_id],
+                    'metadata_json' => ['prompt_snapshot' => $item->prompt_snapshot],
+                ]
+            );
+
+            $item->update(['answered_at' => now()]);
+        }
+
+        $masteryScore = $scoring->calculateMasteryScore($attempt->refresh());
+        $decision = $mastery->decide($module->key, $masteryScore);
+
+        $attempt->update([
+            'status' => 'completed',
+            'score' => $masteryScore,
+            'mastery_decision' => $decision['decision_key'],
+            'rule_applied' => $decision['rule_applied'],
+            'decision_reason' => $decision['user_friendly_message'],
+            'completed_at' => now(),
+        ]);
+
+        $this->applyLearnerDecision($learner, $decision);
+
+        return redirect()->route('learner.modules.mastery-result', $module);
+    }
+
+    public function result(Request $request, Module $module, ModuleMasteryService $mastery): Response
+    {
+        $learner = $this->learner($request);
+        $attempt = ModuleAttempt::where('learner_id', $learner->id)
+            ->where('module_id', $module->id)
+            ->latest()
+            ->firstOrFail();
+        $decision = $mastery->decide($module->key, (float) $attempt->score);
+        $nextModule = $decision['next_module_key'] ? Module::where('key', $decision['next_module_key'])->first() : null;
+
+        return Inertia::render('Learner/Modules/ModuleMasteryResult', [
+            'module' => $module->only('key', 'title', 'description'),
+            'score' => $attempt->score,
+            'decision' => $decision,
+            'nextModule' => $nextModule?->only('key', 'title', 'description'),
+        ]);
+    }
+
+    private function applyLearnerDecision(Learner $learner, array $decision): void
+    {
+        $nextModule = $decision['next_module_key'] ? Module::where('key', $decision['next_module_key'])->first() : null;
+        $stage = match ($decision['decision_key']) {
+            'extra_phoneme_drills' => 'extra_phoneme_drills',
+            'proceed_to_reassessment' => 'final_reassessment_pending',
+            default => 'module_assigned',
+        };
+
+        $learner->update([
+            'current_module_id' => $nextModule?->id,
+            'current_stage' => $stage,
+        ]);
+    }
+
+    private function learner(Request $request): Learner
+    {
+        return Learner::find($request->session()->get('learner_id')) ?? Learner::firstOrFail();
+    }
+
+    private function attempt(Request $request, Learner $learner, Module $module, ModuleActivitySelectionService $selection): ModuleAttempt
+    {
+        $attempt = ModuleAttempt::where('id', $request->session()->get('module_attempt_id'))
+            ->where('learner_id', $learner->id)
+            ->where('module_id', $module->id)
+            ->first();
+
+        return $attempt ?? $selection->startOrResumeModuleAttempt($learner, $module);
+    }
+
+    private function authorizeModule(Learner $learner, Module $module): void
+    {
+        if ($learner->current_module_id && (int) $learner->current_module_id !== (int) $module->id) {
+            abort(403);
+        }
+    }
+
+    private function itemsForForm(Collection $items): array
+    {
+        return $items->map(fn (ModuleAttemptItem $item) => [
+            'id' => $item->id,
+            'sequence' => $item->sequence,
+            'source_csv_id' => $item->source_csv_id,
+            'activity_type' => $item->activity_type,
+            'prompt' => $item->prompt_snapshot['prompt'] ?? '',
+            'accepted_answers' => $item->prompt_snapshot['accepted_answers'] ?? [],
+            'payload' => $item->prompt_snapshot['payload'] ?? [],
+            'is_mastery_item' => $item->is_mastery_item,
+        ])->values()->all();
+    }
+
+    private function responseRules(int $requiredCount): array
+    {
+        return [
+            'responses' => ['required', 'array', 'size:'.$requiredCount],
+            'responses.*.module_attempt_item_id' => ['required', 'integer', 'exists:module_attempt_items,id'],
+            'responses.*.answer' => ['required', 'string', 'max:255', 'regex:/\S/'],
+        ];
+    }
+
+    private function validateSubmittedItemSet(Collection $items, array $responses): void
+    {
+        $expected = $items->pluck('id')->sort()->values()->all();
+        $submitted = collect($responses)->pluck('module_attempt_item_id')->sort()->values()->all();
+
+        if ($expected !== $submitted) {
+            throw ValidationException::withMessages([
+                'responses' => 'Almost there! Finish this check before moving on.',
+            ]);
+        }
+    }
+
+    private function friendlyValidationMessages(): array
+    {
+        return [
+            'responses.required' => 'Almost there! Finish all items to continue.',
+            'responses.size' => 'Almost there! Finish all items to continue.',
+            'responses.*.answer.required' => 'Let us answer this first.',
+            'responses.*.answer.regex' => 'Try this item before moving on.',
+        ];
+    }
+}

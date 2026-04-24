@@ -320,6 +320,11 @@ class DiagnosticAssessmentController extends Controller
             ]
         );
 
+        $attempt->learner->update([
+            'current_module_id' => $module?->id,
+            'current_stage' => $module ? 'module_assigned' : 'grade_ready',
+        ]);
+
         return Inertia::render('Learner/ModulePlacementResult', [
             'decision' => $decision,
             'module' => $module?->only('key', 'title', 'description'),

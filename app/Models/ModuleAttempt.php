@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\HasPublicId;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ModuleAttempt extends Model
 {
@@ -25,5 +26,15 @@ class ModuleAttempt extends Model
     public function module(): BelongsTo
     {
         return $this->belongsTo(Module::class);
+    }
+
+    public function items(): HasMany
+    {
+        return $this->hasMany(ModuleAttemptItem::class);
+    }
+
+    public function responses(): HasMany
+    {
+        return $this->hasMany(ModuleActivityResponse::class);
     }
 }

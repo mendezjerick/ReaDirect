@@ -2,17 +2,18 @@ import { computed, reactive, ref } from 'vue';
 
 export function useStepAssessment(items, options = {}) {
     const idKey = options.idKey ?? 'id';
-    const answers = reactive(Object.fromEntries(items.map((item) => [item[idKey], ''])));
+    const itemList = ref(items);
+    const answers = reactive(Object.fromEntries(itemList.value.map((item) => [item[idKey], ''])));
     const currentIndex = ref(0);
     const feedback = ref('');
 
-    const currentItem = computed(() => items[currentIndex.value]);
+    const currentItem = computed(() => itemList.value[currentIndex.value]);
     const isFirst = computed(() => currentIndex.value === 0);
-    const isLast = computed(() => currentIndex.value === items.length - 1);
+    const isLast = computed(() => currentIndex.value === itemList.value.length - 1);
     const answeredCount = computed(() => Object.values(answers).filter((answer) => String(answer ?? '').trim()).length);
     const isCurrentAnswered = computed(() => String(answers[currentItem.value?.[idKey]] ?? '').trim().length > 0);
-    const isComplete = computed(() => answeredCount.value === items.length);
-    const progressPercent = computed(() => Math.round(((currentIndex.value + 1) / Math.max(items.length, 1)) * 100));
+    const isComplete = computed(() => answeredCount.value === itemList.value.length);
+    const progressPercent = computed(() => Math.round(((currentIndex.value + 1) / Math.max(itemList.value.length, 1)) * 100));
 
     const validateCurrent = () => {
         if (isCurrentAnswered.value) {
@@ -35,9 +36,20 @@ export function useStepAssessment(items, options = {}) {
         if (!isFirst.value) currentIndex.value -= 1;
     };
 
-    const payload = (mapItem) => items.map((item) => mapItem(item, answers[item[idKey]]));
+    const payload = (mapItem) => itemList.value.map((item) => mapItem(item, answers[item[idKey]]));
+
+    const reset = (nextItems) => {
+        itemList.value = nextItems;
+        Object.keys(answers).forEach((key) => delete answers[key]);
+        nextItems.forEach((item) => {
+            answers[item[idKey]] = '';
+        });
+        currentIndex.value = 0;
+        feedback.value = '';
+    };
 
     return {
+        items: itemList,
         answers,
         currentIndex,
         currentItem,
@@ -52,5 +64,6 @@ export function useStepAssessment(items, options = {}) {
         goNext,
         goBack,
         payload,
+        reset,
     };
 }

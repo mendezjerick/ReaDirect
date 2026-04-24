@@ -16,6 +16,8 @@ class Learner extends Model
         'user_id',
         'school_id',
         'class_id',
+        'current_module_id',
+        'current_stage',
         'learner_code',
         'first_name',
         'last_name',
@@ -47,5 +49,15 @@ class Learner extends Model
     public function assessmentAttempts(): HasMany
     {
         return $this->hasMany(AssessmentAttempt::class);
+    }
+
+    public function currentModule(): BelongsTo
+    {
+        return $this->belongsTo(Module::class, 'current_module_id');
+    }
+
+    public function moduleAttempts(): HasMany
+    {
+        return $this->hasMany(ModuleAttempt::class);
     }
 }

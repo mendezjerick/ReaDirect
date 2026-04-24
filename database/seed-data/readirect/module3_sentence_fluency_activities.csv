@@ -1,0 +1,36 @@
+id,module_key,activity_type,sequence,prompt_text,expected_answer,accepted_answers,difficulty,points,is_mastery_item,is_active
+M3-RS001,module_3,read_sentence,1,I see a cat.,I see a cat.,"I see a cat|I see a cat.",easy,1,0,1
+M3-RS002,module_3,read_sentence,2,The dog can run.,The dog can run.,"The dog can run|The dog can run.",easy,1,0,1
+M3-RS003,module_3,read_sentence,3,We play in the sun.,We play in the sun.,"We play in the sun|We play in the sun.",easy,1,0,1
+M3-RS004,module_3,read_sentence,4,A red ball is here.,A red ball is here.,"A red ball is here|A red ball is here.",easy,1,0,1
+M3-RS005,module_3,read_sentence,5,Mom has a cup.,Mom has a cup.,"Mom has a cup|Mom has a cup.",easy,1,0,1
+M3-RC001,module_3,read_with_coach,6,Read with me: Ben can hop.,Ben can hop.,"Ben can hop|Ben can hop.",easy,1,0,1
+M3-RC002,module_3,read_with_coach,7,Read with me: The fish is big.,The fish is big.,"The fish is big|The fish is big.",easy,1,0,1
+M3-RC003,module_3,read_with_coach,8,Read with me: Ana has a pen.,Ana has a pen.,"Ana has a pen|Ana has a pen.",easy,1,0,1
+M3-RC004,module_3,read_with_coach,9,Read with me: We sit on mats.,We sit on mats.,"We sit on mats|We sit on mats.",easy,1,0,1
+M3-RC005,module_3,read_with_coach,10,Read with me: The box is blue.,The box is blue.,"The box is blue|The box is blue.",easy,1,0,1
+M3-TS001,module_3,timed_sentence_reading,11,Read smoothly: I can run fast.,I can run fast.,"I can run fast|I can run fast.",easy,1,0,1
+M3-TS002,module_3,timed_sentence_reading,12,Read smoothly: Dad has a hat.,Dad has a hat.,"Dad has a hat|Dad has a hat.",easy,1,0,1
+M3-TS003,module_3,timed_sentence_reading,13,Read smoothly: The bug is small.,The bug is small.,"The bug is small|The bug is small.",easy,1,0,1
+M3-TS004,module_3,timed_sentence_reading,14,Read smoothly: My bag is red.,My bag is red.,"My bag is red|My bag is red.",easy,1,0,1
+M3-TS005,module_3,timed_sentence_reading,15,Read smoothly: We like the park.,We like the park.,"We like the park|We like the park.",easy,1,0,1
+M3-PP001,module_3,pause_practice,16,Pause after the comma in Sam runs then sits.,Sam runs then sits.,"Sam runs then sits|Sam runs then sits.",easy,1,0,1
+M3-PP002,module_3,pause_practice,17,Pause after the comma in I jump then clap.,I jump then clap.,"I jump then clap|I jump then clap.",easy,1,0,1
+M3-PP003,module_3,pause_practice,18,Pause after the comma in The cat naps then eats.,The cat naps then eats.,"The cat naps then eats|The cat naps then eats.",easy,1,0,1
+M3-PP004,module_3,pause_practice,19,Pause after the comma in We read then draw.,We read then draw.,"We read then draw|We read then draw.",easy,1,0,1
+M3-PP005,module_3,pause_practice,20,Pause after the comma in Ben looks then waves.,Ben looks then waves.,"Ben looks then waves|Ben looks then waves.",easy,1,0,1
+M3-MC001,module_3,mastery_check,21,I see a cat.,I see a cat.,"I see a cat|I see a cat.",easy,1,1,1
+M3-MC002,module_3,mastery_check,22,The dog can run.,The dog can run.,"The dog can run|The dog can run.",easy,1,1,1
+M3-MC003,module_3,mastery_check,23,We play in the sun.,We play in the sun.,"We play in the sun|We play in the sun.",easy,1,1,1
+M3-MC004,module_3,mastery_check,24,A red ball is here.,A red ball is here.,"A red ball is here|A red ball is here.",easy,1,1,1
+M3-MC005,module_3,mastery_check,25,Mom has a cup.,Mom has a cup.,"Mom has a cup|Mom has a cup.",easy,1,1,1
+M3-MC006,module_3,mastery_check,26,Ben can hop.,Ben can hop.,"Ben can hop|Ben can hop.",easy,1,1,1
+M3-MC007,module_3,mastery_check,27,The fish is big.,The fish is big.,"The fish is big|The fish is big.",easy,1,1,1
+M3-MC008,module_3,mastery_check,28,Ana has a pen.,Ana has a pen.,"Ana has a pen|Ana has a pen.",easy,1,1,1
+M3-MC009,module_3,mastery_check,29,We sit on mats.,We sit on mats.,"We sit on mats|We sit on mats.",easy,1,1,1
+M3-MC010,module_3,mastery_check,30,The box is blue.,The box is blue.,"The box is blue|The box is blue.",easy,1,1,1
+M3-FC001,module_3,fluency_challenge,31,Read with a smooth voice: I like my blue bag.,I like my blue bag.,"I like my blue bag|I like my blue bag.",easy,1,0,1
+M3-FC002,module_3,fluency_challenge,32,Read with a smooth voice: The little dog runs home.,The little dog runs home.,"The little dog runs home|The little dog runs home.",easy,1,0,1
+M3-FC003,module_3,fluency_challenge,33,Read with a smooth voice: We can read and draw.,We can read and draw.,"We can read and draw|We can read and draw.",easy,1,0,1
+M3-FC004,module_3,fluency_challenge,34,Read with a smooth voice: Ana and Ben play.,Ana and Ben play.,"Ana and Ben play|Ana and Ben play.",easy,1,0,1
+M3-FC005,module_3,fluency_challenge,35,Read with a smooth voice: The sun is bright today.,The sun is bright today.,"The sun is bright today|The sun is bright today.",easy,1,0,1

@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
             AgentProfileSeeder::class,
             ModuleSeeder::class,
+            ModuleContentSeeder::class,
             DiagnosticContentSeeder::class,
             LlmPromptTemplateSeeder::class,
             SampleSchoolSeeder::class,

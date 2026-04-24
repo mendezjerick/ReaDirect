@@ -5,8 +5,9 @@ namespace App\Models;
 use App\Models\Concerns\HasPublicId;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class ModuleActivityResponse extends Model
+class ModuleAttemptItem extends Model
 {
     use HasPublicId;
 
@@ -14,29 +15,22 @@ class ModuleActivityResponse extends Model
         'public_id',
         'module_attempt_id',
         'module_activity_id',
-        'module_attempt_item_id',
-        'response_text',
-        'learner_answer',
-        'expected_answer',
-        'is_correct',
-        'score',
-        'feedback_text',
-        'retry_count',
+        'source_csv_id',
+        'activity_type',
+        'sequence',
+        'prompt_snapshot',
         'is_mastery_item',
-        'error_type',
-        'metadata',
-        'metadata_json',
+        'selected_at',
+        'answered_at',
     ];
 
     protected function casts(): array
     {
         return [
-            'is_correct' => 'boolean',
-            'score' => 'float',
-            'retry_count' => 'integer',
+            'prompt_snapshot' => 'array',
             'is_mastery_item' => 'boolean',
-            'metadata' => 'array',
-            'metadata_json' => 'array',
+            'selected_at' => 'datetime',
+            'answered_at' => 'datetime',
         ];
     }
 
@@ -50,8 +44,8 @@ class ModuleActivityResponse extends Model
         return $this->belongsTo(ModuleActivity::class);
     }
 
-    public function moduleAttemptItem(): BelongsTo
+    public function responses(): HasMany
     {
-        return $this->belongsTo(ModuleAttemptItem::class);
+        return $this->hasMany(ModuleActivityResponse::class);
     }
 }

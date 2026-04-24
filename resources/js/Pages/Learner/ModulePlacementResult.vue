@@ -22,7 +22,8 @@ defineProps({ decision: Object, module: Object });
             <p class="text-base font-bold text-muted">Rule applied: {{ decision.rule_applied }}</p>
         </section>
         <BottomActionBar>
-            <Link href="/learner/dashboard"><PrimaryButton>Back home</PrimaryButton></Link>
+            <Link v-if="module" :href="`/learner/modules/${module.key}/start`"><PrimaryButton>Start module</PrimaryButton></Link>
+            <Link v-else href="/learner/dashboard"><PrimaryButton>Back home</PrimaryButton></Link>
         </BottomActionBar>
     </LearnerLayout>
 </template>

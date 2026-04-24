@@ -17,8 +17,18 @@ class Module extends Model
         return ['is_active' => 'boolean'];
     }
 
+    public function getRouteKeyName(): string
+    {
+        return 'key';
+    }
+
     public function activities(): HasMany
     {
         return $this->hasMany(ModuleActivity::class);
+    }
+
+    public function attempts(): HasMany
+    {
+        return $this->hasMany(ModuleAttempt::class);
     }
 }
