@@ -9,6 +9,7 @@ use App\Models\ModuleActivityResponse;
 use App\Models\ModuleAttempt;
 use App\Models\ModuleAttemptItem;
 use App\Services\AudioStorageService;
+use App\Services\LLM\CoachFeedbackLLMService;
 use App\Services\ModuleActivitySelectionService;
 use App\Services\ModuleFeedbackService;
 use App\Services\ModuleScoringService;
@@ -56,7 +57,8 @@ class ModuleActivityController extends Controller
         ModuleActivitySelectionService $selection,
         ModuleScoringService $scoring,
         ModuleFeedbackService $feedback,
-        AudioStorageService $audioStorage
+        AudioStorageService $audioStorage,
+        CoachFeedbackLLMService $coachFeedback
     ): RedirectResponse {
         $learner = $this->learner($request);
         $this->authorizeModule($learner, $module);
@@ -66,7 +68,7 @@ class ModuleActivityController extends Controller
         $validated = $request->validate($this->responseRules($items->count()), $this->friendlyValidationMessages());
         $this->validateSubmittedItemSet($items, $validated['responses']);
 
-        $this->persistResponses($attempt, $items, $validated['responses'], $scoring, $feedback, $audioStorage, $module, $activityType, false);
+        $this->persistResponses($attempt, $items, $validated['responses'], $scoring, $feedback, $audioStorage, $coachFeedback, $module, $activityType, false);
 
         $activityTypes = $selection->practiceActivityTypes($module);
         $nextActivityType = $this->nextActivityType($activityTypes, $activityType);
@@ -85,6 +87,7 @@ class ModuleActivityController extends Controller
         ModuleScoringService $scoring,
         ModuleFeedbackService $feedback,
         AudioStorageService $audioStorage,
+        CoachFeedbackLLMService $coachFeedback,
         Module $module,
         string $activityType,
         bool $isMastery
@@ -112,6 +115,7 @@ class ModuleActivityController extends Controller
             $template = $score['is_correct']
                 ? $feedback->feedbackForCorrect($module->key, $activityType)
                 : $feedback->feedbackForIncorrect($module->key, $activityType, $score['error_type'] ?? 'incorrect_general');
+            $templateFeedback = $score['is_correct'] ? $template['success_text'] : $template['feedback_text'];
 
             $response = ModuleActivityResponse::updateOrCreate(
                 ['module_attempt_id' => $attempt->id, 'module_attempt_item_id' => $item->id],
@@ -124,7 +128,7 @@ class ModuleActivityController extends Controller
                     'expected_answer' => $score['expected_answer'],
                     'is_correct' => $score['is_correct'],
                     'score' => $score['score'],
-                    'feedback_text' => $score['is_correct'] ? $template['success_text'] : $template['feedback_text'],
+                    'feedback_text' => $templateFeedback,
                     'retry_count' => (int) ($submitted['retry_count'] ?? 0),
                     'is_mastery_item' => $isMastery,
                     'error_type' => $score['error_type'],
@@ -136,6 +140,25 @@ class ModuleActivityController extends Controller
             if ($audioFile) {
                 $audioStorage->attachToModuleResponse($audioFile, $response->id);
             }
+
+            $response->update([
+                'feedback_text' => $coachFeedback->generateFeedback([
+                    'learner_id' => $attempt->learner_id,
+                    'source_type' => 'module_activity_response',
+                    'source_id' => $response->id,
+                    'prompt_key' => $score['is_correct'] ? 'coach_feedback_correct' : 'coach_feedback_incorrect',
+                    'module_key' => $module->key,
+                    'activity_type' => $activityType,
+                    'expected_answer' => $score['expected_answer'],
+                    'learner_response' => $answer,
+                    'is_correct' => $score['is_correct'],
+                    'error_type' => $score['error_type'] ?? null,
+                    'recommended_action' => $score['is_correct'] ? 'continue' : 'try_again',
+                    'template_feedback' => $templateFeedback,
+                    'retry_instruction' => $template['retry_instruction'] ?? '',
+                    'max_words' => 30,
+                ]),
+            ]);
 
             $item->update(['answered_at' => now()]);
         }

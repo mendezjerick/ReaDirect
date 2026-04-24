@@ -52,6 +52,15 @@ Database backups do not include separately stored audio files. Back up private f
 - Do not expose direct public storage URLs for learner voice recordings.
 - Production servers should protect private storage with filesystem permissions and encrypted backups.
 
+## OpenAI / LLM Configuration
+
+- Production deployments must use a client-owned or government-owned OpenAI API key.
+- Store the key only in the production server `.env`.
+- Never commit API keys, expose them to frontend code, or store them in the database.
+- The Coach + Feedback Agent may use OpenAI for feedback wording only.
+- Assessment scoring, reading classification, module placement, and mastery decisions remain rule-based.
+- If OpenAI is disabled or unavailable, ReaDirect falls back to template feedback.
+
 ## Security Notes
 
 - Keep PostgreSQL credentials private.

@@ -9,6 +9,7 @@ use App\Models\ModuleActivityResponse;
 use App\Models\ModuleAttempt;
 use App\Models\ModuleAttemptItem;
 use App\Services\AudioStorageService;
+use App\Services\LLM\CoachFeedbackLLMService;
 use App\Services\ModuleActivitySelectionService;
 use App\Services\ModuleFeedbackService;
 use App\Services\ModuleMasteryService;
@@ -45,7 +46,8 @@ class ModuleMasteryController extends Controller
         ModuleScoringService $scoring,
         ModuleFeedbackService $feedback,
         ModuleMasteryService $mastery,
-        AudioStorageService $audioStorage
+        AudioStorageService $audioStorage,
+        CoachFeedbackLLMService $coachFeedback
     ): RedirectResponse {
         $learner = $this->learner($request);
         $this->authorizeModule($learner, $module);
@@ -78,6 +80,7 @@ class ModuleMasteryController extends Controller
             $template = $score['is_correct']
                 ? $feedback->feedbackForCorrect($module->key, 'mastery_check')
                 : $feedback->feedbackForIncorrect($module->key, 'mastery_check', $score['error_type'] ?? 'incorrect_general');
+            $templateFeedback = $score['is_correct'] ? $template['success_text'] : $template['feedback_text'];
 
             $response = ModuleActivityResponse::updateOrCreate(
                 ['module_attempt_id' => $attempt->id, 'module_attempt_item_id' => $item->id],
@@ -90,7 +93,7 @@ class ModuleMasteryController extends Controller
                     'expected_answer' => $score['expected_answer'],
                     'is_correct' => $score['is_correct'],
                     'score' => $score['score'],
-                    'feedback_text' => $score['is_correct'] ? $template['success_text'] : $template['feedback_text'],
+                    'feedback_text' => $templateFeedback,
                     'retry_count' => 0,
                     'is_mastery_item' => true,
                     'error_type' => $score['error_type'],
@@ -102,6 +105,25 @@ class ModuleMasteryController extends Controller
             if ($audioFile) {
                 $audioStorage->attachToModuleResponse($audioFile, $response->id);
             }
+
+            $response->update([
+                'feedback_text' => $coachFeedback->generateFeedback([
+                    'learner_id' => $attempt->learner_id,
+                    'source_type' => 'module_activity_response',
+                    'source_id' => $response->id,
+                    'prompt_key' => $score['is_correct'] ? 'coach_feedback_correct' : 'coach_feedback_incorrect',
+                    'module_key' => $module->key,
+                    'activity_type' => 'mastery_check',
+                    'expected_answer' => $score['expected_answer'],
+                    'learner_response' => $answer,
+                    'is_correct' => $score['is_correct'],
+                    'error_type' => $score['error_type'] ?? null,
+                    'recommended_action' => $score['is_correct'] ? 'continue' : 'try_again',
+                    'template_feedback' => $templateFeedback,
+                    'retry_instruction' => $template['retry_instruction'] ?? '',
+                    'max_words' => 30,
+                ]),
+            ]);
 
             $item->update(['answered_at' => now()]);
         }
