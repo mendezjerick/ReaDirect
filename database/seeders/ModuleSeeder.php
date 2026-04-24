@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\LearningContent;
 use App\Models\MasteryThreshold;
 use App\Models\Module;
 use Illuminate\Database\Seeder;
@@ -29,7 +28,6 @@ class ModuleSeeder extends Seeder
         }
 
         $this->seedThresholds();
-        $this->seedAssessmentContent();
     }
 
     private function activitiesFor(string $moduleKey): array
@@ -92,23 +90,4 @@ class ModuleSeeder extends Seeder
         }
     }
 
-    private function seedAssessmentContent(): void
-    {
-        foreach (['A', 'M', 'S', 'T', 'B', 'P', 'R', 'L', 'N', 'F'] as $index => $letter) {
-            LearningContent::updateOrCreate(
-                ['content_type' => 'crla_task_1_letter', 'title' => 'Letter '.$letter],
-                ['prompt' => $letter, 'payload' => ['item_number' => $index + 1], 'difficulty' => 'grade_1', 'is_active' => true]
-            );
-        }
-
-        LearningContent::updateOrCreate(
-            ['content_type' => 'reading_passage', 'title' => 'Sam and the Sun'],
-            [
-                'prompt' => 'Sam sees the sun. The sun is bright and warm. Sam sits by a tree and reads a small book. A bird sings near Sam. Sam smiles and waves to Mom. Then Sam runs home for lunch.',
-                'payload' => ['word_count' => 50, 'expected_seconds' => 45, 'maximum_seconds' => 60],
-                'difficulty' => 'grade_1',
-                'is_active' => true,
-            ]
-        );
-    }
 }

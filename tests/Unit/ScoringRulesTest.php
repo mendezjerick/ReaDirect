@@ -63,6 +63,21 @@ class ScoringRulesTest extends TestCase
         $this->assertSame('High Emerging Reader', $service->classifyReadingLevelFromFinalScore($final));
     }
 
+    public function test_reading_classification_boundaries(): void
+    {
+        $service = new ReadingComprehensionScoringService();
+
+        $this->assertSame('Low Emerging Reader', $service->classifyReadingLevelFromFinalScore(25));
+        $this->assertSame('High Emerging Reader', $service->classifyReadingLevelFromFinalScore(26));
+        $this->assertSame('High Emerging Reader', $service->classifyReadingLevelFromFinalScore(50));
+        $this->assertSame('Developing Reader', $service->classifyReadingLevelFromFinalScore(51));
+        $this->assertSame('Developing Reader', $service->classifyReadingLevelFromFinalScore(75));
+        $this->assertSame('Transitioning Reader', $service->classifyReadingLevelFromFinalScore(76));
+        $this->assertSame('Transitioning Reader', $service->classifyReadingLevelFromFinalScore(90));
+        $this->assertSame('Reading at Grade Level', $service->classifyReadingLevelFromFinalScore(91));
+        $this->assertSame('Reading at Grade Level', $service->classifyReadingLevelFromFinalScore(100));
+    }
+
     public function test_module_placement(): void
     {
         $service = new ModulePlacementService();

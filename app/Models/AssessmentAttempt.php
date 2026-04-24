@@ -26,6 +26,10 @@ class AssessmentAttempt extends Model
         'comprehension_percentage',
         'final_reading_score',
         'reading_classification',
+        'incorrect_words',
+        'comprehension_correct_count',
+        'assigned_module_id',
+        'placement_decision',
         'rule_applied',
         'decision_reason',
         'started_at',
@@ -38,6 +42,8 @@ class AssessmentAttempt extends Model
             'reading_accuracy' => 'float',
             'comprehension_percentage' => 'float',
             'final_reading_score' => 'float',
+            'incorrect_words' => 'integer',
+            'comprehension_correct_count' => 'integer',
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
         ];
@@ -51,5 +57,15 @@ class AssessmentAttempt extends Model
     public function responses(): HasMany
     {
         return $this->hasMany(AssessmentTaskResponse::class);
+    }
+
+    public function selectedItems(): HasMany
+    {
+        return $this->hasMany(AssessmentAttemptItem::class);
+    }
+
+    public function assignedModule(): BelongsTo
+    {
+        return $this->belongsTo(Module::class, 'assigned_module_id');
     }
 }

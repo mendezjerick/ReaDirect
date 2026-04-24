@@ -1,7 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\Learner\DiagnosticController;
+use App\Http\Controllers\Learner\DiagnosticAssessmentController;
 use App\Http\Controllers\Learner\LearnerAccessController;
 use App\Http\Controllers\Learner\LearnerDashboardController;
 use App\Http\Controllers\Teacher\TeacherDashboardController;
@@ -22,11 +22,27 @@ Route::post('/learner/access', [LearnerAccessController::class, 'store'])->middl
 Route::get('/learner/dashboard', LearnerDashboardController::class)->name('learner.dashboard');
 
 Route::prefix('learner/diagnostic')->name('learner.diagnostic.')->group(function (): void {
-    Route::get('/', [DiagnosticController::class, 'intro'])->name('intro');
-    Route::get('/task-1', [DiagnosticController::class, 'taskOne'])->name('task-one');
-    Route::post('/task-1', [DiagnosticController::class, 'submitTaskOne'])->middleware('throttle:assessment-submit')->name('task-one.submit');
-    Route::get('/routing-result', [DiagnosticController::class, 'routingResult'])->name('routing-result');
-    Route::get('/module-placement', [DiagnosticController::class, 'placementResult'])->name('module-placement');
+    Route::get('/', fn () => redirect()->route('learner.diagnostic.start'))->name('intro');
+    Route::get('/start', [DiagnosticAssessmentController::class, 'start'])->name('start');
+    Route::post('/start', [DiagnosticAssessmentController::class, 'storeStart'])->middleware('throttle:assessment-submit')->name('start.store');
+    Route::get('/task-1', [DiagnosticAssessmentController::class, 'taskOne'])->name('task-1');
+    Route::post('/task-1', [DiagnosticAssessmentController::class, 'storeTaskOne'])->middleware('throttle:assessment-submit')->name('task-1.store');
+    Route::get('/task-routing', [DiagnosticAssessmentController::class, 'taskRouting'])->name('task-routing');
+    Route::get('/task-2a', [DiagnosticAssessmentController::class, 'taskTwoA'])->name('task-2a');
+    Route::post('/task-2a', [DiagnosticAssessmentController::class, 'storeTaskTwoA'])->middleware('throttle:assessment-submit')->name('task-2a.store');
+    Route::get('/task-2b', [DiagnosticAssessmentController::class, 'taskTwoB'])->name('task-2b');
+    Route::post('/task-2b', [DiagnosticAssessmentController::class, 'storeTaskTwoB'])->middleware('throttle:assessment-submit')->name('task-2b.store');
+    Route::get('/crla-summary', [DiagnosticAssessmentController::class, 'crlaSummary'])->name('crla-summary');
+    Route::get('/reading-intro', [DiagnosticAssessmentController::class, 'readingIntro'])->name('reading-intro');
+    Route::get('/passage', [DiagnosticAssessmentController::class, 'passage'])->name('passage');
+    Route::post('/passage', [DiagnosticAssessmentController::class, 'storePassage'])->middleware('throttle:assessment-submit')->name('passage.store');
+    Route::get('/comprehension', [DiagnosticAssessmentController::class, 'comprehension'])->name('comprehension');
+    Route::post('/comprehension', [DiagnosticAssessmentController::class, 'storeComprehension'])->middleware('throttle:assessment-submit')->name('comprehension.store');
+    Route::get('/reading-summary', [DiagnosticAssessmentController::class, 'readingSummary'])->name('reading-summary');
+    Route::get('/module-placement', [DiagnosticAssessmentController::class, 'modulePlacement'])->name('module-placement');
+
+    Route::get('/routing-result', [DiagnosticAssessmentController::class, 'taskRouting'])->name('routing-result');
+    Route::get('/task-one', [DiagnosticAssessmentController::class, 'taskOne'])->name('task-one');
 });
 
 Route::get('/teacher/dashboard', TeacherDashboardController::class)->middleware('auth')->name('teacher.dashboard');
