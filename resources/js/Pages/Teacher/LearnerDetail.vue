@@ -12,6 +12,8 @@ defineProps({
     latestDiagnosticAttempt: Object,
     diagnosticSummary: Object,
     readingSummary: Object,
+    latestFinalReassessment: Object,
+    finalComparison: Object,
     moduleProgress: Array,
     latestRecommendation: Object,
     recentActivity: Array,
@@ -28,6 +30,21 @@ defineProps({
             <ScoreCard label="Final Reading Score" :value="readingSummary?.final_reading_score ?? '-'" />
             <ScoreCard label="Reading Classification" :value="readingSummary?.reading_classification ?? '-'" />
         </div>
+
+        <DashboardCard class="mt-6">
+            <h2 class="text-xl font-black text-text">Final Reassessment</h2>
+            <div v-if="latestFinalReassessment" class="mt-4 grid gap-4">
+                <div class="grid gap-4 md:grid-cols-4">
+                    <ScoreCard label="Final CRLA" :value="latestFinalReassessment.crla_total_score ?? '-'" />
+                    <ScoreCard label="CRLA Growth" :value="finalComparison?.deltas?.crla_total_score ?? '-'" />
+                    <ScoreCard label="Final Reading" :value="latestFinalReassessment.final_reading_score ?? '-'" />
+                    <ScoreCard label="Reading Growth" :value="finalComparison?.deltas?.final_reading_score ?? '-'" />
+                </div>
+                <p class="text-sm font-bold text-muted">{{ finalComparison?.summary }}</p>
+                <Link class="font-black text-primary" :href="`/teacher/learners/${learner.public_id}/assessments/${latestFinalReassessment.public_id}`">Review final reassessment</Link>
+            </div>
+            <EmptyState v-else title="No final reassessment yet" message="Final results appear after the learner completes the final check." />
+        </DashboardCard>
 
         <div class="mt-6 grid gap-6 lg:grid-cols-2">
             <DashboardCard>
@@ -69,6 +86,7 @@ defineProps({
                 <a class="rounded-xl bg-primary px-4 py-2 font-black text-white" :href="`/teacher/reports/learner/${learner.public_id}/diagnostic`">Diagnostic CSV</a>
                 <a class="rounded-xl bg-primary-light px-4 py-2 font-black text-primary" :href="`/teacher/reports/learner/${learner.public_id}/module-progress`">Module CSV</a>
                 <a class="rounded-xl bg-primary-light px-4 py-2 font-black text-primary" :href="`/teacher/reports/learner/${learner.public_id}/full-progress`">Full CSV</a>
+                <a class="rounded-xl bg-primary-light px-4 py-2 font-black text-primary" :href="`/teacher/reports/learner/${learner.public_id}/final-comparison`">Final Comparison CSV</a>
             </div>
         </DashboardCard>
     </TeacherLayout>

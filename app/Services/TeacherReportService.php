@@ -22,6 +22,7 @@ class TeacherReportService
             ['type' => 'learner_diagnostic', 'title' => 'Learner diagnostic summary', 'description' => 'CRLA and reading comprehension scores by learner.'],
             ['type' => 'learner_module_progress', 'title' => 'Learner module progress summary', 'description' => 'Module attempts, mastery decisions, and scores.'],
             ['type' => 'learner_full_progress', 'title' => 'Learner full progress summary', 'description' => 'Combined diagnostic and module progress view.'],
+            ['type' => 'learner_final_comparison', 'title' => 'Learner final comparison', 'description' => 'Initial diagnostic and final reassessment side-by-side.'],
             ['type' => 'class_summary', 'title' => 'Class summary report', 'description' => 'Class-level distribution and placement report.'],
         ];
     }
@@ -96,6 +97,28 @@ class TeacherReportService
         }
 
         return $this->csv('learner-full-progress-'.$learner->learner_code.'.csv', $rows);
+    }
+
+    public function learnerFinalComparisonCsv(User $teacher, Learner $learner): StreamedResponse
+    {
+        $this->access->authorizeLearner($teacher, $learner);
+        $initial = AssessmentAttempt::where('learner_id', $learner->id)->where('attempt_type', 'diagnostic')->latest()->first();
+        $final = AssessmentAttempt::where('learner_id', $learner->id)->where('attempt_type', 'final_reassessment')->latest()->first();
+        $comparison = $final?->comparison_summary ?? [];
+
+        $rows = [['Metric', 'Initial', 'Final', 'Delta', 'Percent Change']];
+
+        foreach (['task_1_score', 'task_2a_score', 'task_2b_score', 'crla_total_score', 'reading_accuracy', 'comprehension_percentage', 'final_reading_score'] as $metric) {
+            $rows[] = [
+                $metric,
+                $initial?->{$metric},
+                $final?->{$metric},
+                $comparison['deltas'][$metric] ?? null,
+                $comparison['percent_change'][$metric] ?? null,
+            ];
+        }
+
+        return $this->csv('learner-final-comparison-'.$learner->learner_code.'.csv', $rows);
     }
 
     public function classSummaryCsv(User $teacher): StreamedResponse

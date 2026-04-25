@@ -15,6 +15,7 @@ class AssessmentAttempt extends Model
         'public_id',
         'learner_id',
         'agent_profile_id',
+        'baseline_assessment_attempt_id',
         'attempt_type',
         'status',
         'task_1_score',
@@ -32,6 +33,7 @@ class AssessmentAttempt extends Model
         'placement_decision',
         'rule_applied',
         'decision_reason',
+        'comparison_summary',
         'started_at',
         'completed_at',
     ];
@@ -44,6 +46,7 @@ class AssessmentAttempt extends Model
             'final_reading_score' => 'float',
             'incorrect_words' => 'integer',
             'comprehension_correct_count' => 'integer',
+            'comparison_summary' => 'array',
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
         ];
@@ -67,6 +70,11 @@ class AssessmentAttempt extends Model
     public function assignedModule(): BelongsTo
     {
         return $this->belongsTo(Module::class, 'assigned_module_id');
+    }
+
+    public function baselineAssessment(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'baseline_assessment_attempt_id');
     }
 
     public function getRouteKeyName(): string

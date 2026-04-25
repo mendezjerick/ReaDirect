@@ -16,6 +16,11 @@ class LearnerProgressService
             ->where('attempt_type', 'diagnostic')
             ->latest()
             ->first();
+        $latestFinal = AssessmentAttempt::query()
+            ->where('learner_id', $learner->id)
+            ->where('attempt_type', 'final_reassessment')
+            ->latest()
+            ->first();
         $moduleAttempts = ModuleAttempt::with(['module', 'responses'])
             ->where('learner_id', $learner->id)
             ->latest()
@@ -36,6 +41,13 @@ class LearnerProgressService
             ]),
             'diagnosticSummary' => $latestDiagnostic ? $this->diagnosticSummary($latestDiagnostic) : null,
             'readingSummary' => $latestDiagnostic ? $this->readingSummary($latestDiagnostic) : null,
+            'latestFinalReassessment' => $latestFinal?->only([
+                'public_id', 'status', 'task_1_score', 'task_2a_score', 'task_2b_score',
+                'crla_total_score', 'crla_classification', 'reading_accuracy',
+                'comprehension_percentage', 'final_reading_score', 'reading_classification',
+                'comparison_summary', 'completed_at',
+            ]),
+            'finalComparison' => $latestFinal?->comparison_summary,
             'moduleProgress' => $this->moduleProgress($moduleAttempts),
             'latestRecommendation' => $latestRecommendation ? [
                 'decision' => $latestRecommendation->decision,
@@ -176,6 +188,19 @@ class LearnerProgressService
                 'date' => $diagnostic->updated_at?->toDateTimeString(),
                 'label' => 'Diagnostic '.$diagnostic->status,
                 'detail' => $diagnostic->crla_classification,
+            ]);
+        }
+
+        $final = AssessmentAttempt::where('learner_id', $diagnostic?->learner_id)
+            ->where('attempt_type', 'final_reassessment')
+            ->latest()
+            ->first();
+
+        if ($final) {
+            $items->push([
+                'date' => $final->updated_at?->toDateTimeString(),
+                'label' => 'Final reassessment '.$final->status,
+                'detail' => $final->crla_classification,
             ]);
         }
 

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\FinalAssessmentController;
 use App\Http\Controllers\Learner\DiagnosticAssessmentController;
 use App\Http\Controllers\Learner\LearnerAccessController;
 use App\Http\Controllers\Learner\LearnerDashboardController;
@@ -70,6 +71,14 @@ Route::prefix('learner/modules')->name('learner.modules.')->group(function (): v
     Route::get('/{module:key}/extra-drills', [ModuleController::class, 'extraDrills'])->name('extra-drills');
 });
 
+Route::prefix('final-assessment')->name('final-assessment.')->group(function (): void {
+    Route::get('/start', [FinalAssessmentController::class, 'start'])->name('start');
+    Route::post('/start', [FinalAssessmentController::class, 'storeStart'])->middleware('throttle:assessment-submit')->name('start.store');
+    Route::get('/summary', [FinalAssessmentController::class, 'summary'])->name('summary');
+    Route::get('/{taskKey}', [FinalAssessmentController::class, 'showTask'])->name('task');
+    Route::post('/{taskKey}/submit', [FinalAssessmentController::class, 'submitTask'])->middleware('throttle:assessment-submit')->name('task.submit');
+});
+
 Route::middleware('auth')->prefix('teacher')->name('teacher.')->group(function (): void {
     Route::get('/dashboard', TeacherDashboardController::class)->name('dashboard');
     Route::get('/learners', [TeacherLearnerController::class, 'index'])->name('learners.index');
@@ -80,6 +89,7 @@ Route::middleware('auth')->prefix('teacher')->name('teacher.')->group(function (
     Route::get('/reports/learner/{learner}/diagnostic', [TeacherReportController::class, 'learnerDiagnostic'])->name('reports.learner.diagnostic');
     Route::get('/reports/learner/{learner}/module-progress', [TeacherReportController::class, 'learnerModuleProgress'])->name('reports.learner.module-progress');
     Route::get('/reports/learner/{learner}/full-progress', [TeacherReportController::class, 'learnerFullProgress'])->name('reports.learner.full-progress');
+    Route::get('/reports/learner/{learner}/final-comparison', [TeacherReportController::class, 'learnerFinalComparison'])->name('reports.learner.final-comparison');
     Route::get('/reports/class-summary', [TeacherReportController::class, 'classSummary'])->name('reports.class-summary');
     Route::get('/reports/pdf-placeholder', [TeacherReportController::class, 'pdfPlaceholder'])->name('reports.pdf-placeholder');
     Route::get('/analytics', TeacherAnalyticsController::class)->name('analytics');

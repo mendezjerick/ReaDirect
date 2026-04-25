@@ -19,6 +19,7 @@ class TeacherDashboardService
         $learners = $this->access->learnersFor($teacher)->get();
         $learnerIds = $learners->pluck('id');
         $latestDiagnostics = $this->latestDiagnostics($learnerIds);
+        $latestFinals = $this->latestFinalReassessments($learnerIds);
         $latestMastery = $this->latestMastery($learnerIds);
 
         return [
@@ -27,13 +28,25 @@ class TeacherDashboardService
                 'diagnostic_completed' => $latestDiagnostics->where('status', 'module_placement_completed')->count(),
                 'diagnostic_pending' => $learners->count() - $latestDiagnostics->where('status', 'module_placement_completed')->count(),
                 'ready_for_reassessment' => $learners->where('current_stage', 'final_reassessment_pending')->count(),
+                'final_reassessment_completed' => $latestFinals->where('status', 'final_reassessment_completed')->count(),
             ],
             'moduleDistribution' => $this->moduleDistribution($learners),
             'crlaDistribution' => $this->distribution($latestDiagnostics, 'crla_classification'),
             'readingDistribution' => $this->distribution($latestDiagnostics, 'reading_classification'),
+            'finalReadingDistribution' => $this->distribution($latestFinals, 'reading_classification'),
             'recentActivity' => $this->recentActivity($learnerIds),
             'learnersByModule' => $this->moduleDistribution($learners),
         ];
+    }
+
+    private function latestFinalReassessments(Collection $learnerIds): Collection
+    {
+        return AssessmentAttempt::whereIn('learner_id', $learnerIds)
+            ->where('attempt_type', 'final_reassessment')
+            ->latest()
+            ->get()
+            ->unique('learner_id')
+            ->values();
     }
 
     private function latestDiagnostics(Collection $learnerIds): Collection

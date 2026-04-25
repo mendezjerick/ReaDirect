@@ -20,6 +20,19 @@ defineProps({ dashboard: Object });
             <ScoreCard label="Diagnostic pending" :value="dashboard.counts.diagnostic_pending" />
             <ScoreCard label="Ready for reassessment" :value="dashboard.counts.ready_for_reassessment" />
         </div>
+        <div class="mt-4 grid gap-4 md:grid-cols-2">
+            <ScoreCard label="Final reassessments complete" :value="dashboard.counts.final_reassessment_completed ?? 0" />
+            <DashboardCard>
+                <h2 class="text-lg font-black text-text">Final Reading Classifications</h2>
+                <div class="mt-3 grid gap-2">
+                    <div v-for="(count, label) in dashboard.finalReadingDistribution" :key="label" class="flex items-center justify-between rounded-xl bg-background px-4 py-3">
+                        <span class="font-bold text-muted">{{ label }}</span>
+                        <StatusBadge :status="String(count)" />
+                    </div>
+                    <EmptyState v-if="Object.keys(dashboard.finalReadingDistribution ?? {}).length === 0" title="No final reassessment data yet" />
+                </div>
+            </DashboardCard>
+        </div>
 
         <div class="mt-6 grid gap-4 lg:grid-cols-3">
             <DashboardCard>

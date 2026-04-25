@@ -49,6 +49,13 @@ class TeacherReportController extends Controller
         return $reports->learnerFullProgressCsv($request->user(), $learner);
     }
 
+    public function learnerFinalComparison(Request $request, Learner $learner, TeacherReportService $reports): StreamedResponse
+    {
+        $this->audit($request, 'teacher.downloaded_learner_final_comparison_csv', $learner);
+
+        return $reports->learnerFinalComparisonCsv($request->user(), $learner);
+    }
+
     public function classSummary(Request $request, TeacherAccessService $access, TeacherReportService $reports): StreamedResponse
     {
         $access->ensureTeacherArea($request->user());

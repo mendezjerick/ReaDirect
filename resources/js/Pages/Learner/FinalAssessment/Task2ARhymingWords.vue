@@ -1,0 +1,83 @@
+<script setup>
+import { reactive, ref } from 'vue';
+import { useForm } from '@inertiajs/vue3';
+import LearnerLayout from '../../../Layouts/LearnerLayout.vue';
+import PromptCard from '../../../Components/PromptCard.vue';
+import AudioRecorder from '../../../Components/Learner/AudioRecorder.vue';
+import AgentSpeakerPanel from '../../../Components/Learner/AgentSpeakerPanel.vue';
+import PrimaryButton from '../../../Components/PrimaryButton.vue';
+import SecondaryButton from '../../../Components/SecondaryButton.vue';
+import BottomActionBar from '../../../Components/BottomActionBar.vue';
+import StatusBadge from '../../../Components/StatusBadge.vue';
+import ModuleProgressBar from '../../../Components/ModuleProgressBar.vue';
+import { useStepAssessment } from '../../../Composables/useStepAssessment';
+
+const props = defineProps({ items: Array });
+const form = useForm({ responses: [] });
+const audioFiles = reactive({});
+const audioDurations = reactive({});
+const hasAnswerOrAudio = (item, answer) => String(answer ?? '').trim().length > 0 || Boolean(audioFiles[item?.id]);
+const step = useStepAssessment(props.items, { emptyMessage: 'Let us answer this first.', isAnswered: hasAnswerOrAudio });
+const agentMessage = ref('Say one word that rhymes with this word.');
+const agentState = ref('listening');
+
+const rememberAudio = (item, file) => {
+    audioFiles[item.id] = file;
+    audioDurations[item.id] = file.durationSeconds ?? null;
+};
+const clearAudio = (item) => {
+    delete audioFiles[item.id];
+    delete audioDurations[item.id];
+};
+const submit = () => {
+    if (!step.validateCurrent()) return;
+    form.responses = step.payload((item, answer) => ({
+        assessment_attempt_item_id: item.id,
+        answer,
+        transcript_source: String(answer ?? '').trim() ? 'manual' : 'stt_auto',
+        audio: audioFiles[item.id] ?? null,
+        duration_seconds: audioDurations[item.id] ?? null,
+    }));
+    form.post('/final-assessment/task-2a/submit', { forceFormData: true });
+};
+const handlePrimary = () => {
+    if (!step.validateCurrent()) {
+        agentMessage.value = 'Let us answer this first.';
+        agentState.value = 'speaking';
+        return;
+    }
+    agentMessage.value = 'Thank you. Let us continue.';
+    agentState.value = 'speaking';
+    if (step.isLast.value) return submit();
+    step.goNext();
+};
+</script>
+
+<template>
+    <LearnerLayout :progress="42">
+        <template #agent>
+            <AgentSpeakerPanel compact agent-type="assessment" :state="agentState" :message="agentMessage" />
+        </template>
+        <section class="mx-auto grid max-w-xl gap-3">
+            <StatusBadge :status="`Rhyme ${step.currentIndex.value + 1} of ${items.length}`" />
+            <ModuleProgressBar :value="step.progressPercent.value" />
+            <PromptCard label="Say a word that rhymes with" :prompt="step.currentItem.value.prompt" size="word" />
+            <div class="rounded-[24px] border border-border bg-surface p-4 shadow-lg shadow-primary/10">
+                <div class="grid gap-3 md:grid-cols-[220px_1fr] md:items-center">
+                    <AudioRecorder compact :max-duration-seconds="30" label="Rhyme voice" @recorded="(file) => rememberAudio(step.currentItem.value, file)" @cleared="() => clearAudio(step.currentItem.value)" />
+                    <input v-model="step.answers[step.currentItem.value.id]" class="w-full rounded-2xl border-2 border-border px-4 py-3 text-lg font-black focus:border-primary focus:outline-none" placeholder="Type or record a rhyming word">
+                </div>
+                <p v-if="step.feedback.value" class="mt-4 rounded-2xl bg-accent px-4 py-3 text-lg font-black text-text">{{ step.feedback.value }}</p>
+            </div>
+        </section>
+        <BottomActionBar>
+            <div class="flex w-full items-center justify-between gap-3">
+                <SecondaryButton v-if="!step.isFirst.value" @click="step.goBack">Back</SecondaryButton>
+                <span v-else />
+                <PrimaryButton :disabled="form.processing" :class="{ 'opacity-70': !step.isCurrentAnswered.value }" @click="handlePrimary">
+                    {{ step.isLast.value ? 'Check rhymes' : 'Next' }}
+                </PrimaryButton>
+            </div>
+        </BottomActionBar>
+    </LearnerLayout>
+</template>
