@@ -1,6 +1,7 @@
 param(
     [string]$Source = "database/seed-data/readirect",
-    [string]$Destination = "content-bank/export"
+    [string]$Destination = "content-bank/export",
+    [string]$ZipPath = "content-bank/export/readirect-content-bank-export.zip"
 )
 
 $ErrorActionPreference = "Stop"
@@ -59,3 +60,23 @@ foreach ($entry in $mapping.GetEnumerator()) {
     Copy-Item -LiteralPath $sourcePath -Destination $targetPath -Force
     Write-Host "Copied $sourcePath -> $targetPath"
 }
+
+$zipParent = Split-Path -Parent $ZipPath
+New-Item -ItemType Directory -Force -Path $zipParent | Out-Null
+
+if (Test-Path -LiteralPath $ZipPath) {
+    $confirmation = Read-Host "Overwrite existing ZIP $ZipPath? Type YES to continue"
+    if ($confirmation -ne "YES") {
+        Write-Host "ZIP export skipped."
+        exit 0
+    }
+
+    Remove-Item -LiteralPath $ZipPath -Force
+}
+
+$zipSources = @("assessment", "modules", "agents", "rules", "feedback", "prompts", "docs", "README.md") |
+    ForEach-Object { Join-Path $Destination $_ } |
+    Where-Object { Test-Path -LiteralPath $_ }
+
+Compress-Archive -LiteralPath $zipSources -DestinationPath $ZipPath
+Write-Host "Created content bank ZIP: $ZipPath"
