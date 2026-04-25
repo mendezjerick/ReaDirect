@@ -100,8 +100,10 @@ class LearnerProgressService
                     'activity_type' => $response->moduleAttemptItem?->activity_type,
                     'prompt' => $response->moduleAttemptItem?->prompt_snapshot['prompt'] ?? null,
                     'answer' => $response->learner_answer ?? $response->response_text,
+                    'learner_transcript' => $response->learner_transcript ?? $response->learner_answer ?? $response->response_text,
                     'expected_answer' => $response->expected_answer,
                     'transcript_source' => $response->transcript_source ?? 'manual',
+                    'stt_confidence' => $response->stt_confidence,
                     'is_correct' => $response->is_correct,
                     'score' => $response->score,
                     'feedback_text' => $response->feedback_text,
@@ -196,6 +198,7 @@ class LearnerProgressService
             'expected_answer' => $response->expected_answer,
             'answer' => $response->learner_transcript ?? $response->selected_answer ?? $response->response_text,
             'transcript_source' => $response->transcript_source ?? 'manual',
+            'stt_confidence' => $response->stt_confidence,
             'is_correct' => $response->is_correct,
             'score' => $response->score,
             'error_type' => $response->error_type,
@@ -217,7 +220,12 @@ class LearnerProgressService
             'file_size' => $audioFile->file_size ?? $audioFile->size_bytes,
             'duration_seconds' => $audioFile->duration_seconds,
             'recording_context' => $audioFile->recording_context,
+            'transcript' => $audioFile->transcript,
+            'stt_confidence' => $audioFile->stt_confidence,
+            'stt_completed_at' => $audioFile->stt_completed_at?->toDateTimeString(),
+            'stt_error' => $audioFile->stt_error,
             'play_url' => route('teacher.audio.play', $audioFile),
+            'transcript_update_url' => route('teacher.audio.transcript.update', $audioFile),
         ];
     }
 }

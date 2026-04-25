@@ -13,6 +13,7 @@ use App\Services\Agents\AgentCommentaryService;
 use App\Services\ModuleActivitySelectionService;
 use App\Services\ModuleFeedbackService;
 use App\Services\ModuleScoringService;
+use App\Services\STT\TranscriptResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -58,6 +59,7 @@ class ModuleActivityController extends Controller
         ModuleScoringService $scoring,
         ModuleFeedbackService $feedback,
         AudioStorageService $audioStorage,
+        TranscriptResolver $transcripts,
         AgentCommentaryService $commentary
     ): RedirectResponse {
         $learner = $this->learner($request);
@@ -68,7 +70,7 @@ class ModuleActivityController extends Controller
         $validated = $request->validate($this->responseRules($items->count()), $this->friendlyValidationMessages());
         $this->validateSubmittedItemSet($items, $validated['responses']);
 
-        $this->persistResponses($attempt, $items, $validated['responses'], $scoring, $feedback, $audioStorage, $commentary, $module, $activityType, false);
+        $this->persistResponses($attempt, $items, $validated['responses'], $scoring, $feedback, $audioStorage, $transcripts, $commentary, $module, $activityType, false);
 
         $activityTypes = $selection->practiceActivityTypes($module);
         $nextActivityType = $this->nextActivityType($activityTypes, $activityType);
@@ -87,14 +89,15 @@ class ModuleActivityController extends Controller
         ModuleScoringService $scoring,
         ModuleFeedbackService $feedback,
         AudioStorageService $audioStorage,
+        TranscriptResolver $transcripts,
         AgentCommentaryService $commentary,
         Module $module,
         string $activityType,
         bool $isMastery
     ): void {
         foreach ($items as $item) {
-            $submitted = collect($responses)->firstWhere('module_attempt_item_id', $item->id);
-            $answer = $submitted['answer'] ?? '';
+            $submittedIndex = collect($responses)->search(fn ($response) => (int) ($response['module_attempt_item_id'] ?? 0) === (int) $item->id);
+            $submitted = $submittedIndex === false ? [] : $responses[$submittedIndex];
             $audioFile = null;
 
             if (isset($submitted['audio'])) {
@@ -111,6 +114,15 @@ class ModuleActivityController extends Controller
                 );
             }
 
+            $resolved = $transcripts->resolve($submitted['answer'] ?? null, $audioFile);
+            $answer = $resolved['transcript'];
+
+            if (trim($answer) === '') {
+                throw ValidationException::withMessages([
+                    'responses.'.($submittedIndex === false ? 0 : $submittedIndex).'.answer' => 'Let us answer this first.',
+                ]);
+            }
+
             $score = $scoring->scoreAnswer($item, $answer);
             $template = $score['is_correct']
                 ? $feedback->feedbackForCorrect($module->key, $activityType)
@@ -122,9 +134,11 @@ class ModuleActivityController extends Controller
                 [
                     'module_activity_id' => $item->module_activity_id,
                     'audio_file_id' => $audioFile?->id,
-                    'transcript_source' => $submitted['transcript_source'] ?? 'manual',
+                    'transcript_source' => $resolved['source'],
+                    'stt_confidence' => $resolved['confidence'],
                     'response_text' => $answer,
                     'learner_answer' => $answer,
+                    'learner_transcript' => $answer,
                     'expected_answer' => $score['expected_answer'],
                     'is_correct' => $score['is_correct'],
                     'score' => $score['score'],
@@ -230,9 +244,9 @@ class ModuleActivityController extends Controller
         return [
             'responses' => ['required', 'array', 'size:'.$requiredCount],
             'responses.*.module_attempt_item_id' => ['required', 'integer', 'exists:module_attempt_items,id'],
-            'responses.*.answer' => ['required', 'string', 'max:255', 'regex:/\S/'],
+            'responses.*.answer' => ['nullable', 'string', 'max:255'],
             'responses.*.retry_count' => ['nullable', 'integer', 'min:0'],
-            'responses.*.transcript_source' => ['nullable', 'string', 'in:manual,stt_placeholder,teacher_review,future_asr'],
+            'responses.*.transcript_source' => ['nullable', 'string', 'in:manual,stt_auto,stt_placeholder,teacher_review,future_asr'],
             'responses.*.audio' => ['nullable', 'file', 'max:10240', 'mimetypes:audio/webm,audio/wav,audio/x-wav,audio/mpeg,audio/mp4,audio/ogg'],
             'responses.*.duration_seconds' => ['nullable', 'numeric', 'min:0', 'max:600'],
         ];

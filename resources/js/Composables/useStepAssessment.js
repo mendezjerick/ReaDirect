@@ -10,8 +10,17 @@ export function useStepAssessment(items, options = {}) {
     const currentItem = computed(() => itemList.value[currentIndex.value]);
     const isFirst = computed(() => currentIndex.value === 0);
     const isLast = computed(() => currentIndex.value === itemList.value.length - 1);
-    const answeredCount = computed(() => Object.values(answers).filter((answer) => String(answer ?? '').trim()).length);
-    const isCurrentAnswered = computed(() => String(answers[currentItem.value?.[idKey]] ?? '').trim().length > 0);
+    const isAnswered = (item) => {
+        const answer = answers[item?.[idKey]];
+
+        if (typeof options.isAnswered === 'function') {
+            return options.isAnswered(item, answer);
+        }
+
+        return String(answer ?? '').trim().length > 0;
+    };
+    const answeredCount = computed(() => itemList.value.filter((item) => isAnswered(item)).length);
+    const isCurrentAnswered = computed(() => isAnswered(currentItem.value));
     const isComplete = computed(() => answeredCount.value === itemList.value.length);
     const progressPercent = computed(() => Math.round(((currentIndex.value + 1) / Math.max(itemList.value.length, 1)) * 100));
 

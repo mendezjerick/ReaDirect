@@ -13,10 +13,11 @@ import StatusBadge from '../../../Components/StatusBadge.vue';
 import { useStepAssessment } from '../../../Composables/useStepAssessment';
 
 const props = defineProps({ module: Object, items: Array });
-const step = useStepAssessment(props.items, { emptyMessage: 'Try this one before moving on.' });
 const form = useForm({ responses: [] });
 const audioFiles = reactive({});
 const audioDurations = reactive({});
+const hasAnswerOrAudio = (item, answer) => String(answer ?? '').trim().length > 0 || Boolean(audioFiles[item?.id]);
+const step = useStepAssessment(props.items, { emptyMessage: 'Try this one before moving on.', isAnswered: hasAnswerOrAudio });
 const agentMessage = ref('This is your mini mastery check. Do your best one item at a time.');
 const agentState = ref('encouraging');
 const progressLabel = computed(() => `Mastery ${step.currentIndex.value + 1} of ${props.items.length}`);
@@ -50,7 +51,7 @@ const submit = () => {
     form.responses = step.payload((item, answer) => ({
         module_attempt_item_id: item.id,
         answer,
-        transcript_source: 'manual',
+        transcript_source: String(answer ?? '').trim() ? 'manual' : 'stt_auto',
         audio: audioFiles[item.id] ?? null,
         duration_seconds: audioDurations[item.id] ?? null,
     }));

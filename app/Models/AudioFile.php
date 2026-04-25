@@ -30,11 +30,24 @@ class AudioFile extends Model
         'recording_context',
         'sync_status',
         'metadata',
+        'transcript',
+        'stt_confidence',
+        'stt_phonemes',
+        'stt_timestamps',
+        'stt_error',
+        'stt_completed_at',
     ];
 
     protected function casts(): array
     {
-        return ['metadata' => 'array', 'duration_seconds' => 'float'];
+        return [
+            'metadata' => 'array',
+            'duration_seconds' => 'float',
+            'stt_confidence' => 'float',
+            'stt_phonemes' => 'array',
+            'stt_timestamps' => 'array',
+            'stt_completed_at' => 'datetime',
+        ];
     }
 
     public function getRouteKeyName(): string

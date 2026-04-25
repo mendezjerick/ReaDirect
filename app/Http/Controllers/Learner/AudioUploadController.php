@@ -7,13 +7,14 @@ use App\Models\AssessmentAttempt;
 use App\Models\Learner;
 use App\Models\ModuleAttempt;
 use App\Services\AudioStorageService;
+use App\Services\STT\AudioTranscriptionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class AudioUploadController extends Controller
 {
-    public function store(Request $request, AudioStorageService $audioStorage): JsonResponse
+    public function store(Request $request, AudioStorageService $audioStorage, AudioTranscriptionService $transcription): JsonResponse
     {
         $validated = $request->validate([
             'audio' => ['required', 'file', 'max:10240', 'mimetypes:'.implode(',', AudioStorageService::ALLOWED_MIME_TYPES)],
@@ -47,6 +48,7 @@ class AudioUploadController extends Controller
                 'activity_type' => $validated['activity_type'] ?? null,
             ]
         );
+        $sttResult = $transcription->transcribeAudioFile($audioFile);
 
         return response()->json([
             'audio_file_id' => $audioFile->id,
@@ -54,6 +56,10 @@ class AudioUploadController extends Controller
             'mime_type' => $audioFile->mime_type,
             'file_size' => $audioFile->file_size,
             'duration_seconds' => $audioFile->duration_seconds,
+            'transcript' => $sttResult->transcript,
+            'stt_confidence' => $sttResult->confidence,
+            'transcript_source' => $sttResult->hasTranscript() ? 'stt_auto' : null,
+            'stt_error' => $sttResult->error,
         ]);
     }
 }

@@ -10,6 +10,7 @@ use App\Models\LearningContent;
 use App\Models\Module;
 use App\Models\ModuleActivity;
 use App\Models\ModuleActivityResponse;
+use App\Models\ModuleAttempt;
 use App\Models\School;
 use App\Models\SchoolClass;
 use App\Models\User;
@@ -196,6 +197,152 @@ class AudioRecordingTest extends TestCase
         $this->assertFalse($result->hasTranscript());
         $this->assertSame('stt_placeholder', $result->source);
         $this->assertFalse($result->metadata['real_asr']);
+    }
+
+    public function test_audio_upload_runs_configured_stt_and_stores_transcript_metadata(): void
+    {
+        Storage::fake('local');
+        config(['stt.mock.transcript' => 'cat']);
+        $learner = $this->learner();
+
+        $response = $this->withSession(['learner_id' => $learner->id])
+            ->postJson(route('learner.audio.upload'), [
+                'audio' => UploadedFile::fake()->create('word.webm', 100, 'audio/webm'),
+                'context_type' => 'module_activity',
+            ]);
+
+        $response->assertOk()
+            ->assertJsonPath('transcript', 'cat')
+            ->assertJsonPath('transcript_source', 'stt_auto');
+
+        $audioFile = AudioFile::firstOrFail();
+
+        $this->assertSame('cat', $audioFile->transcript);
+        $this->assertSame(0.5, $audioFile->stt_confidence);
+        $this->assertNotNull($audioFile->stt_completed_at);
+    }
+
+    public function test_assessment_submission_uses_stt_transcript_when_manual_answer_is_blank(): void
+    {
+        Storage::fake('local');
+        config(['stt.mock.transcript' => 'A']);
+        $attempt = $this->attemptWithTaskOneItems();
+        $responses = $attempt->selectedItems()
+            ->where('task_type', AssessmentItemSelectionService::TASK_1_LETTER)
+            ->orderBy('sequence')
+            ->get()
+            ->map(fn ($item, $index) => [
+                'assessment_attempt_item_id' => $item->id,
+                'answer' => $index === 0 ? '' : 'A',
+                'transcript_source' => $index === 0 ? 'stt_auto' : 'manual',
+                'audio' => $index === 0 ? UploadedFile::fake()->create('letter.webm', 100, 'audio/webm') : null,
+                'duration_seconds' => $index === 0 ? 2 : null,
+            ])
+            ->all();
+
+        $this->withSession(['learner_id' => $attempt->learner_id, 'assessment_attempt_id' => $attempt->id])
+            ->post(route('learner.diagnostic.task-1.store'), ['responses' => $responses])
+            ->assertRedirect(route('learner.diagnostic.task-routing'));
+
+        $response = AssessmentTaskResponse::whereNotNull('audio_file_id')->firstOrFail();
+
+        $this->assertSame('A', $response->learner_transcript);
+        $this->assertSame('stt_auto', $response->transcript_source);
+        $this->assertSame(0.5, $response->stt_confidence);
+        $this->assertTrue($response->is_correct);
+    }
+
+    public function test_manual_transcript_overrides_stt_for_scoring(): void
+    {
+        Storage::fake('local');
+        config(['stt.mock.transcript' => 'dog']);
+        [$learner, $module] = $this->moduleContext();
+        $learner->update(['current_module_id' => $module->id, 'current_stage' => 'module_practice']);
+        $this->seedModuleActivities($module, 'read_word', 5);
+        $selection = app(ModuleActivitySelectionService::class);
+        $attempt = $selection->startOrResumeModuleAttempt($learner, $module);
+        $items = $selection->selectPracticeItemsForAttempt($attempt, 'read_word', 5);
+        $responses = $items->map(fn ($item, $index) => [
+            'module_attempt_item_id' => $item->id,
+            'answer' => 'cat',
+            'transcript_source' => 'manual',
+            'audio' => $index === 0 ? UploadedFile::fake()->create('word.webm', 100, 'audio/webm') : null,
+            'duration_seconds' => $index === 0 ? 2 : null,
+        ])->all();
+
+        $this->withSession(['learner_id' => $learner->id, 'module_attempt_id' => $attempt->id])
+            ->post(route('learner.modules.activity.store', [$module, 'read_word']), ['responses' => $responses])
+            ->assertRedirect();
+
+        $response = ModuleActivityResponse::whereNotNull('audio_file_id')->firstOrFail();
+
+        $this->assertSame('cat', $response->learner_transcript);
+        $this->assertSame('manual', $response->transcript_source);
+        $this->assertNull($response->stt_confidence);
+        $this->assertTrue($response->is_correct);
+    }
+
+    public function test_teacher_can_save_reviewed_transcript_without_rescoring(): void
+    {
+        [$teacher, $learner] = $this->teacherWithLearner();
+        $audioFile = AudioFile::create([
+            'learner_id' => $learner->id,
+            'disk' => 'local',
+            'path' => 'audio/review.webm',
+            'file_path' => 'audio/review.webm',
+            'mime_type' => 'audio/webm',
+            'size_bytes' => 10,
+            'file_size' => 10,
+            'file_hash' => hash('sha256', 'review'),
+            'recording_context' => 'module_activity',
+            'sync_status' => 'synced',
+            'transcript' => 'cot',
+            'stt_confidence' => 0.42,
+        ]);
+        $module = Module::create([
+            'sequence' => 1,
+            'key' => 'module_1',
+            'title' => 'Letter Sounds',
+            'description' => 'Practice sounds',
+            'is_active' => true,
+        ]);
+        $attempt = ModuleAttempt::create([
+            'learner_id' => $learner->id,
+            'module_id' => $module->id,
+            'status' => 'practice_started',
+            'started_at' => now(),
+        ]);
+        $activity = ModuleActivity::create([
+            'module_id' => $module->id,
+            'sequence' => 1,
+            'activity_type' => 'read_word',
+            'title' => 'Read cat',
+            'configuration' => ['expected_answer' => 'cat'],
+        ]);
+        $response = ModuleActivityResponse::create([
+            'module_attempt_id' => $attempt->id,
+            'module_activity_id' => $activity->id,
+            'audio_file_id' => $audioFile->id,
+            'response_text' => 'cot',
+            'learner_answer' => 'cot',
+            'learner_transcript' => 'cot',
+            'transcript_source' => 'stt_auto',
+            'expected_answer' => 'cat',
+            'is_correct' => false,
+            'score' => 0,
+        ]);
+        $audioFile->update(['module_activity_response_id' => $response->id]);
+
+        $this->actingAs($teacher)
+            ->put(route('teacher.audio.transcript.update', $audioFile), ['transcript' => 'cat'])
+            ->assertRedirect();
+
+        $response->refresh();
+
+        $this->assertSame('cat', $response->learner_transcript);
+        $this->assertSame('teacher_review', $response->transcript_source);
+        $this->assertFalse($response->is_correct);
+        $this->assertSame(0.0, (float) $response->score);
     }
 
     private function learner(): Learner

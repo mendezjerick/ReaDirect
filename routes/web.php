@@ -10,6 +10,7 @@ use App\Http\Controllers\Learner\ModuleController;
 use App\Http\Controllers\Learner\ModuleMasteryController;
 use App\Http\Controllers\Teacher\TeacherAnalyticsController;
 use App\Http\Controllers\Teacher\AudioPlaybackController;
+use App\Http\Controllers\Teacher\AudioTranscriptController;
 use App\Http\Controllers\Teacher\TeacherAssessmentReviewController;
 use App\Http\Controllers\Teacher\TeacherDashboardController;
 use App\Http\Controllers\Teacher\TeacherLearnerController;
@@ -83,4 +84,5 @@ Route::middleware('auth')->prefix('teacher')->name('teacher.')->group(function (
     Route::get('/reports/pdf-placeholder', [TeacherReportController::class, 'pdfPlaceholder'])->name('reports.pdf-placeholder');
     Route::get('/analytics', TeacherAnalyticsController::class)->name('analytics');
     Route::get('/audio/{audioFile}/play', AudioPlaybackController::class)->name('audio.play');
+    Route::put('/audio/{audioFile}/transcript', [AudioTranscriptController::class, 'update'])->name('audio.transcript.update');
 });

@@ -19,6 +19,8 @@ class ModuleActivityResponse extends Model
         'response_text',
         'learner_answer',
         'transcript_source',
+        'learner_transcript',
+        'stt_confidence',
         'expected_answer',
         'is_correct',
         'score',
@@ -38,6 +40,7 @@ class ModuleActivityResponse extends Model
         return [
             'is_correct' => 'boolean',
             'score' => 'float',
+            'stt_confidence' => 'float',
             'retry_count' => 'integer',
             'is_mastery_item' => 'boolean',
             'metadata' => 'array',

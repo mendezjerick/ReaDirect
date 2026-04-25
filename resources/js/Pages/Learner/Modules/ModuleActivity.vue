@@ -20,11 +20,12 @@ const props = defineProps({
     nextActivityType: String,
 });
 
-const step = useStepAssessment(props.items, { emptyMessage: 'Try this one before moving on.' });
 const form = useForm({ responses: [] });
 const retries = reactive({});
 const audioFiles = reactive({});
 const audioDurations = reactive({});
+const hasAnswerOrAudio = (item, answer) => String(answer ?? '').trim().length > 0 || Boolean(audioFiles[item?.id]);
+const step = useStepAssessment(props.items, { emptyMessage: 'Try this one before moving on.', isAnswered: hasAnswerOrAudio });
 const coachMessage = ref('Read the prompt, then type what you said. I will help you practice.');
 const coachState = ref('speaking');
 
@@ -102,6 +103,13 @@ const tryCurrent = () => {
     const item = step.currentItem.value;
     const answer = step.answers[item.id];
 
+    if (!String(answer ?? '').trim() && audioFiles[item.id]) {
+        step.feedback.value = 'Voice saved. I will check the transcript when you finish.';
+        coachMessage.value = 'Voice saved. I will check the transcript when you finish.';
+        coachState.value = 'listening';
+        return true;
+    }
+
     if (!isAccepted(item, answer)) {
         retries[item.id] = (retries[item.id] ?? 0) + 1;
         const message = feedbackFor(item, answer);
@@ -124,7 +132,7 @@ const submit = () => {
         module_attempt_item_id: item.id,
         answer,
         retry_count: retries[item.id] ?? 0,
-        transcript_source: 'manual',
+        transcript_source: String(answer ?? '').trim() ? 'manual' : 'stt_auto',
         audio: audioFiles[item.id] ?? null,
         duration_seconds: audioDurations[item.id] ?? null,
     }));

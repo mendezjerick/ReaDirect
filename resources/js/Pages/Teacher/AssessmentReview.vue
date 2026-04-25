@@ -1,5 +1,6 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, reactive } from 'vue';
+import { router } from '@inertiajs/vue3';
 import TeacherLayout from '../../Layouts/TeacherLayout.vue';
 import PageHeader from '../../Components/PageHeader.vue';
 import DashboardCard from '../../Components/DashboardCard.vue';
@@ -26,6 +27,30 @@ const audioRows = computed(() => [
     ...props.task2bResponses.map((row) => ({ task: 'Task 2B', ...row })),
     ...props.comprehensionResponses.map((row) => ({ task: 'Comprehension', ...row })),
 ].filter((row) => row.audio));
+
+const transcriptDrafts = reactive({});
+
+const transcriptValue = (row) => {
+    const key = row.audio.public_id;
+
+    if (!(key in transcriptDrafts)) {
+        transcriptDrafts[key] = row.audio.transcript ?? row.answer ?? '';
+    }
+
+    return transcriptDrafts[key];
+};
+
+const updateTranscript = (row, value) => {
+    transcriptDrafts[row.audio.public_id] = value;
+};
+
+const saveTranscript = (row) => {
+    router.put(row.audio.transcript_update_url, {
+        transcript: transcriptDrafts[row.audio.public_id] ?? '',
+    }, {
+        preserveScroll: true,
+    });
+};
 </script>
 
 <template>
@@ -91,9 +116,12 @@ const audioRows = computed(() => [
                             <th class="px-4 py-3">Task</th>
                             <th class="px-4 py-3">Item</th>
                             <th class="px-4 py-3">Transcript Source</th>
+                            <th class="px-4 py-3">Transcript</th>
+                            <th class="px-4 py-3">Confidence</th>
                             <th class="px-4 py-3">Type</th>
                             <th class="px-4 py-3">Size</th>
                             <th class="px-4 py-3">Playback</th>
+                            <th class="px-4 py-3">Teacher Review</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-border">
@@ -101,10 +129,24 @@ const audioRows = computed(() => [
                             <td class="px-4 py-3 font-bold text-text">{{ row.task }}</td>
                             <td class="px-4 py-3 text-muted">{{ row.item }}</td>
                             <td class="px-4 py-3 text-muted">{{ row.transcript_source ?? 'manual' }}</td>
+                            <td class="px-4 py-3 text-muted">{{ row.audio.transcript ?? row.answer ?? '-' }}</td>
+                            <td class="px-4 py-3 text-muted">{{ row.audio.stt_confidence !== null && row.audio.stt_confidence !== undefined ? `${Math.round(row.audio.stt_confidence * 100)}%` : '-' }}</td>
                             <td class="px-4 py-3 text-muted">{{ row.audio.mime_type ?? '-' }}</td>
                             <td class="px-4 py-3 text-muted">{{ row.audio.file_size ?? '-' }} bytes</td>
                             <td class="px-4 py-3">
                                 <audio controls class="h-9 w-56" :src="row.audio.play_url" />
+                            </td>
+                            <td class="px-4 py-3">
+                                <div class="grid min-w-64 gap-2">
+                                    <textarea
+                                        class="min-h-20 rounded-xl border border-border px-3 py-2 text-sm text-text focus:border-primary focus:outline-none"
+                                        :value="transcriptValue(row)"
+                                        @input="updateTranscript(row, $event.target.value)"
+                                    />
+                                    <button type="button" class="rounded-xl bg-primary px-3 py-2 text-xs font-black text-white" @click="saveTranscript(row)">
+                                        Save transcript
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                     </tbody>

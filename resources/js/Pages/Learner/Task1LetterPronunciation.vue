@@ -13,10 +13,11 @@ import ModuleProgressBar from '../../Components/ModuleProgressBar.vue';
 import { useStepAssessment } from '../../Composables/useStepAssessment';
 
 const props = defineProps({ items: Array });
-const step = useStepAssessment(props.items, { emptyMessage: 'Try this one before moving on.' });
 const form = useForm({ responses: [] });
 const audioFiles = reactive({});
 const audioDurations = reactive({});
+const hasAnswerOrAudio = (item, answer) => String(answer ?? '').trim().length > 0 || Boolean(audioFiles[item?.id]);
+const step = useStepAssessment(props.items, { emptyMessage: 'Try this one before moving on.', isAnswered: hasAnswerOrAudio });
 const agentMessage = ref('Say this letter clearly. Type what was said before moving on.');
 const agentState = ref('listening');
 const neutralMessages = ['Thank you. Let us continue.', 'Good effort. Let us go to the next one.', 'I heard your answer. Let us keep going.'];
@@ -37,7 +38,7 @@ const submit = () => {
     form.responses = step.payload((item, answer) => ({
         assessment_attempt_item_id: item.id,
         answer,
-        transcript_source: 'manual',
+        transcript_source: String(answer ?? '').trim() ? 'manual' : 'stt_auto',
         audio: audioFiles[item.id] ?? null,
         duration_seconds: audioDurations[item.id] ?? null,
     }));

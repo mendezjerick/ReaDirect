@@ -24,6 +24,7 @@ class AssessmentTaskResponse extends Model
         'expected_answer',
         'learner_transcript',
         'transcript_source',
+        'stt_confidence',
         'selected_answer',
         'response_text',
         'is_correct',
@@ -41,7 +42,7 @@ class AssessmentTaskResponse extends Model
 
     protected function casts(): array
     {
-        return ['is_correct' => 'boolean', 'score' => 'float', 'metadata' => 'array', 'metadata_json' => 'array'];
+        return ['is_correct' => 'boolean', 'score' => 'float', 'stt_confidence' => 'float', 'metadata' => 'array', 'metadata_json' => 'array'];
     }
 
     public function attempt(): BelongsTo
