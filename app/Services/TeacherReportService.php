@@ -30,7 +30,7 @@ class TeacherReportService
     public function learnerDiagnosticCsv(User $teacher, Learner $learner): StreamedResponse
     {
         $this->access->authorizeLearner($teacher, $learner);
-        $attempt = AssessmentAttempt::where('learner_id', $learner->id)->where('attempt_type', 'diagnostic')->latest()->first();
+        $attempt = AssessmentAttempt::where('learner_id', $learner->id)->where('attempt_type', 'diagnostic')->where('is_sandbox', false)->latest()->first();
 
         $rows = [[
             'Learner Code', 'Learner Name', 'Status', 'Task 1', 'Task 2A', 'Task 2B',
@@ -60,7 +60,7 @@ class TeacherReportService
     public function learnerModuleProgressCsv(User $teacher, Learner $learner): StreamedResponse
     {
         $this->access->authorizeLearner($teacher, $learner);
-        $attempts = ModuleAttempt::with('module')->where('learner_id', $learner->id)->latest()->get();
+        $attempts = ModuleAttempt::with('module')->where('learner_id', $learner->id)->where('is_sandbox', false)->latest()->get();
 
         $rows = [['Learner Code', 'Learner Name', 'Module', 'Status', 'Score', 'Mastery Decision', 'Rule Applied', 'Completed At']];
 
@@ -102,8 +102,8 @@ class TeacherReportService
     public function learnerFinalComparisonCsv(User $teacher, Learner $learner): StreamedResponse
     {
         $this->access->authorizeLearner($teacher, $learner);
-        $initial = AssessmentAttempt::where('learner_id', $learner->id)->where('attempt_type', 'diagnostic')->latest()->first();
-        $final = AssessmentAttempt::where('learner_id', $learner->id)->where('attempt_type', 'final_reassessment')->latest()->first();
+        $initial = AssessmentAttempt::where('learner_id', $learner->id)->where('attempt_type', 'diagnostic')->where('is_sandbox', false)->latest()->first();
+        $final = AssessmentAttempt::where('learner_id', $learner->id)->where('attempt_type', 'final_reassessment')->where('is_sandbox', false)->latest()->first();
         $comparison = $final?->comparison_summary ?? [];
 
         $rows = [['Metric', 'Initial', 'Final', 'Delta', 'Percent Change']];
@@ -127,8 +127,8 @@ class TeacherReportService
         $rows = [['Learner Code', 'Learner Name', 'Class', 'Current Stage', 'Current Module', 'CRLA Level', 'Reading Classification', 'Latest Mastery Decision']];
 
         foreach ($learners as $learner) {
-            $diagnostic = $learner->assessmentAttempts()->where('attempt_type', 'diagnostic')->latest()->first();
-            $mastery = $learner->moduleAttempts()->latest()->first();
+            $diagnostic = $learner->assessmentAttempts()->where('attempt_type', 'diagnostic')->where('is_sandbox', false)->latest()->first();
+            $mastery = $learner->moduleAttempts()->where('is_sandbox', false)->latest()->first();
             $rows[] = [
                 $learner->learner_code,
                 trim($learner->first_name.' '.$learner->last_name),

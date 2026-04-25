@@ -24,11 +24,12 @@ class Learner extends Model
         'birthdate',
         'grade_level',
         'metadata',
+        'is_active',
     ];
 
     protected function casts(): array
     {
-        return ['birthdate' => 'date', 'metadata' => 'array'];
+        return ['birthdate' => 'date', 'metadata' => 'array', 'is_active' => 'boolean'];
     }
 
     public function user(): BelongsTo

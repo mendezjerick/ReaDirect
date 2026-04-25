@@ -34,6 +34,7 @@ class AssessmentAttempt extends Model
         'rule_applied',
         'decision_reason',
         'comparison_summary',
+        'is_sandbox',
         'started_at',
         'completed_at',
     ];
@@ -47,6 +48,7 @@ class AssessmentAttempt extends Model
             'incorrect_words' => 'integer',
             'comprehension_correct_count' => 'integer',
             'comparison_summary' => 'array',
+            'is_sandbox' => 'boolean',
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
         ];

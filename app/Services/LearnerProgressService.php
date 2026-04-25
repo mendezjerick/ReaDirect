@@ -14,15 +14,18 @@ class LearnerProgressService
         $latestDiagnostic = AssessmentAttempt::with('assignedModule')
             ->where('learner_id', $learner->id)
             ->where('attempt_type', 'diagnostic')
+            ->where('is_sandbox', false)
             ->latest()
             ->first();
         $latestFinal = AssessmentAttempt::query()
             ->where('learner_id', $learner->id)
             ->where('attempt_type', 'final_reassessment')
+            ->where('is_sandbox', false)
             ->latest()
             ->first();
         $moduleAttempts = ModuleAttempt::with(['module', 'responses'])
             ->where('learner_id', $learner->id)
+            ->where('is_sandbox', false)
             ->latest()
             ->get();
         $latestRecommendation = Recommendation::with('recommendedModule')
@@ -90,6 +93,7 @@ class LearnerProgressService
     {
         $attempts = ModuleAttempt::with(['module', 'responses.moduleAttemptItem', 'responses.audioFile'])
             ->where('learner_id', $learner->id)
+            ->where('is_sandbox', false)
             ->latest()
             ->get();
 
@@ -193,6 +197,7 @@ class LearnerProgressService
 
         $final = AssessmentAttempt::where('learner_id', $diagnostic?->learner_id)
             ->where('attempt_type', 'final_reassessment')
+            ->where('is_sandbox', false)
             ->latest()
             ->first();
 

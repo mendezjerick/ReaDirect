@@ -11,11 +11,11 @@ class ModuleAttempt extends Model
 {
     use HasPublicId;
 
-    protected $fillable = ['public_id', 'learner_id', 'module_id', 'status', 'score', 'mastery_decision', 'rule_applied', 'decision_reason', 'started_at', 'completed_at'];
+    protected $fillable = ['public_id', 'learner_id', 'module_id', 'status', 'score', 'mastery_decision', 'rule_applied', 'decision_reason', 'is_sandbox', 'started_at', 'completed_at'];
 
     protected function casts(): array
     {
-        return ['score' => 'float', 'started_at' => 'datetime', 'completed_at' => 'datetime'];
+        return ['score' => 'float', 'is_sandbox' => 'boolean', 'started_at' => 'datetime', 'completed_at' => 'datetime'];
     }
 
     public function learner(): BelongsTo

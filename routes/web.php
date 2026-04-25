@@ -2,6 +2,18 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\FinalAssessmentController;
+use App\Http\Controllers\Admin\AdminAgentController;
+use App\Http\Controllers\Admin\AdminAssessmentContentController;
+use App\Http\Controllers\Admin\AdminAuditLogController;
+use App\Http\Controllers\Admin\AdminDashboardController;
+use App\Http\Controllers\Admin\AdminLearnerController;
+use App\Http\Controllers\Admin\AdminModuleContentController;
+use App\Http\Controllers\Admin\AdminPromptTemplateController;
+use App\Http\Controllers\Admin\AdminRuleController;
+use App\Http\Controllers\Admin\AdminSchoolController;
+use App\Http\Controllers\Admin\AdminSystemMonitoringController;
+use App\Http\Controllers\Admin\AdminTeacherController;
+use App\Http\Controllers\Admin\AdminTestingController;
 use App\Http\Controllers\Learner\DiagnosticAssessmentController;
 use App\Http\Controllers\Learner\LearnerAccessController;
 use App\Http\Controllers\Learner\LearnerDashboardController;
@@ -95,4 +107,53 @@ Route::middleware('auth')->prefix('teacher')->name('teacher.')->group(function (
     Route::get('/analytics', TeacherAnalyticsController::class)->name('analytics');
     Route::get('/audio/{audioFile}/play', AudioPlaybackController::class)->name('audio.play');
     Route::put('/audio/{audioFile}/transcript', [AudioTranscriptController::class, 'update'])->name('audio.transcript.update');
+});
+
+Route::middleware('auth')->prefix('admin')->name('admin.')->group(function (): void {
+    Route::get('/dashboard', AdminDashboardController::class)->name('dashboard');
+
+    Route::resource('schools', AdminSchoolController::class)->except(['destroy']);
+    Route::post('/schools/{school}/deactivate', [AdminSchoolController::class, 'deactivate'])->name('schools.deactivate');
+    Route::post('/schools/{school}/reactivate', [AdminSchoolController::class, 'reactivate'])->name('schools.reactivate');
+
+    Route::resource('teachers', AdminTeacherController::class)->parameters(['teachers' => 'teacher'])->except(['destroy']);
+    Route::post('/teachers/{teacher}/deactivate', [AdminTeacherController::class, 'deactivate'])->name('teachers.deactivate');
+    Route::post('/teachers/{teacher}/reactivate', [AdminTeacherController::class, 'reactivate'])->name('teachers.reactivate');
+
+    Route::resource('learners', AdminLearnerController::class)->except(['destroy']);
+    Route::post('/learners/{learner}/deactivate', [AdminLearnerController::class, 'deactivate'])->name('learners.deactivate');
+    Route::post('/learners/{learner}/reactivate', [AdminLearnerController::class, 'reactivate'])->name('learners.reactivate');
+
+    Route::resource('assessment-content', AdminAssessmentContentController::class)->parameters(['assessment-content' => 'assessmentContent'])->except(['destroy']);
+    Route::post('/assessment-content/{assessmentContent}/deactivate', [AdminAssessmentContentController::class, 'deactivate'])->name('assessment-content.deactivate');
+    Route::post('/assessment-content/{assessmentContent}/reactivate', [AdminAssessmentContentController::class, 'reactivate'])->name('assessment-content.reactivate');
+
+    Route::resource('module-content', AdminModuleContentController::class)->parameters(['module-content' => 'moduleContent'])->except(['destroy']);
+    Route::post('/module-content/{moduleContent}/deactivate', [AdminModuleContentController::class, 'deactivate'])->name('module-content.deactivate');
+    Route::post('/module-content/{moduleContent}/reactivate', [AdminModuleContentController::class, 'reactivate'])->name('module-content.reactivate');
+
+    Route::get('/rules/history', [AdminRuleController::class, 'history'])->name('rules.history');
+    Route::resource('rules', AdminRuleController::class)->parameters(['rules' => 'rule'])->only(['index', 'show', 'edit', 'update']);
+
+    Route::resource('agents', AdminAgentController::class)->only(['index', 'show', 'edit', 'update']);
+    Route::get('/prompts/history', [AdminPromptTemplateController::class, 'history'])->name('prompts.history');
+    Route::resource('prompts', AdminPromptTemplateController::class)->parameters(['prompts' => 'prompt'])->except(['destroy']);
+
+    Route::get('/audit-logs', [AdminAuditLogController::class, 'index'])->name('audit-logs.index');
+    Route::get('/audit-logs/export', [AdminAuditLogController::class, 'export'])->name('audit-logs.export');
+    Route::get('/system-monitoring', AdminSystemMonitoringController::class)->name('system-monitoring.index');
+
+    Route::prefix('testing')->name('testing.')->group(function (): void {
+        Route::get('/', [AdminTestingController::class, 'index'])->name('index');
+        Route::get('/learners', [AdminTestingController::class, 'learners'])->name('learners');
+        Route::get('/flow-jump', [AdminTestingController::class, 'flowJump'])->name('flow-jump');
+        Route::get('/jump/{target}', [AdminTestingController::class, 'jump'])->name('jump');
+        Route::post('/start-sandbox', [AdminTestingController::class, 'startSandbox'])->name('start-sandbox');
+        Route::post('/exit', [AdminTestingController::class, 'exit'])->name('exit');
+        Route::get('/learner/{learner}/jump', [AdminTestingController::class, 'learnerJump'])->name('learner-jump');
+        Route::get('/assessment/{assessmentAttempt}/debug', [AdminTestingController::class, 'assessmentDebug'])->name('assessment.debug');
+        Route::get('/module/{moduleAttempt}/debug', [AdminTestingController::class, 'moduleDebug'])->name('module.debug');
+        Route::get('/stt/{audioFile}/debug', [AdminTestingController::class, 'sttDebug'])->name('stt.debug');
+        Route::get('/llm/{interaction}/debug', [AdminTestingController::class, 'llmDebug'])->name('llm.debug');
+    });
 });

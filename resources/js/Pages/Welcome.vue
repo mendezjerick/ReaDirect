@@ -1,14 +1,56 @@
 <script setup>
 import { Link, usePage } from '@inertiajs/vue3';
+import { computed } from 'vue';
 import { BookOpen, Mic, Trophy } from 'lucide-vue-next';
 import AppLayout from '../Layouts/AppLayout.vue';
 import RewardBadge from '../Components/RewardBadge.vue';
 
 const page = usePage();
+const roles = computed(() => page.props.auth?.roles ?? []);
+const isLoggedIn = computed(() => Boolean(page.props.auth?.user));
+const dashboardLink = computed(() => {
+    if (roles.value.includes('system_admin') || roles.value.includes('school_admin')) {
+        return { href: '/admin/dashboard', label: 'Admin dashboard' };
+    }
+
+    if (roles.value.includes('teacher')) {
+        return { href: '/teacher/dashboard', label: 'Teacher dashboard' };
+    }
+
+    return { href: '/learner/dashboard', label: 'Learner dashboard' };
+});
 </script>
 
 <template>
     <AppLayout>
+        <template #nav>
+            <div class="flex items-center gap-2">
+                <Link
+                    v-if="!isLoggedIn"
+                    href="/login"
+                    class="rounded-xl border border-primary px-4 py-2 text-sm font-black text-primary hover:bg-primary-light"
+                >
+                    Login
+                </Link>
+                <template v-else>
+                    <Link
+                        :href="dashboardLink.href"
+                        class="rounded-xl border border-primary px-4 py-2 text-sm font-black text-primary hover:bg-primary-light"
+                    >
+                        {{ dashboardLink.label }}
+                    </Link>
+                    <Link
+                        href="/logout"
+                        method="post"
+                        as="button"
+                        class="rounded-xl bg-primary px-4 py-2 text-sm font-black text-white hover:bg-primary-dark"
+                    >
+                        Logout
+                    </Link>
+                </template>
+            </div>
+        </template>
+
         <section class="grid min-h-[calc(100vh-120px)] items-center gap-8 py-6 md:grid-cols-[1.1fr_0.9fr]">
             <div>
                 <RewardBadge title="Grade 1 Reading Practice" />
@@ -20,12 +62,12 @@ const page = usePage();
                     <Link href="/learner/access" class="inline-flex min-h-14 items-center justify-center rounded-2xl bg-primary px-6 text-lg font-black text-white shadow-lg shadow-primary/20 hover:bg-primary-dark">
                         Start reading
                     </Link>
-                    <a v-if="!page.props.auth?.user" href="/login" class="inline-flex min-h-14 items-center justify-center rounded-2xl border-2 border-primary bg-surface px-6 text-lg font-black text-primary hover:bg-primary-light">
-                        Teacher login
-                    </a>
-                    <a v-else href="/teacher/dashboard" class="inline-flex min-h-14 items-center justify-center rounded-2xl border-2 border-primary bg-surface px-6 text-lg font-black text-primary hover:bg-primary-light">
-                        Teacher dashboard
-                    </a>
+                    <Link v-if="!isLoggedIn" href="/login" class="inline-flex min-h-14 items-center justify-center rounded-2xl border-2 border-primary bg-surface px-6 text-lg font-black text-primary hover:bg-primary-light">
+                        Login
+                    </Link>
+                    <Link v-else :href="dashboardLink.href" class="inline-flex min-h-14 items-center justify-center rounded-2xl border-2 border-primary bg-surface px-6 text-lg font-black text-primary hover:bg-primary-light">
+                        {{ dashboardLink.label }}
+                    </Link>
                 </div>
             </div>
             <div class="rounded-[36px] border border-border bg-surface p-6 shadow-2xl shadow-primary/10">

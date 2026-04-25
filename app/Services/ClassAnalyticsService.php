@@ -18,12 +18,14 @@ class ClassAnalyticsService
         $learnerIds = $learners->pluck('id');
         $diagnostics = AssessmentAttempt::whereIn('learner_id', $learnerIds)
             ->where('attempt_type', 'diagnostic')
+            ->where('is_sandbox', false)
             ->latest()
             ->get()
             ->unique('learner_id')
             ->values();
         $mastery = ModuleAttempt::with(['module', 'learner'])
             ->whereIn('learner_id', $learnerIds)
+            ->where('is_sandbox', false)
             ->latest()
             ->get();
 

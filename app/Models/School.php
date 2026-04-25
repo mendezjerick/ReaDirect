@@ -10,11 +10,11 @@ class School extends Model
 {
     use HasPublicId;
 
-    protected $fillable = ['public_id', 'name', 'district', 'division', 'metadata'];
+    protected $fillable = ['public_id', 'name', 'district', 'division', 'metadata', 'is_active'];
 
     protected function casts(): array
     {
-        return ['metadata' => 'array'];
+        return ['metadata' => 'array', 'is_active' => 'boolean'];
     }
 
     public function classes(): HasMany

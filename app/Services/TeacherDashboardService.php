@@ -43,6 +43,7 @@ class TeacherDashboardService
     {
         return AssessmentAttempt::whereIn('learner_id', $learnerIds)
             ->where('attempt_type', 'final_reassessment')
+            ->where('is_sandbox', false)
             ->latest()
             ->get()
             ->unique('learner_id')
@@ -53,6 +54,7 @@ class TeacherDashboardService
     {
         return AssessmentAttempt::whereIn('learner_id', $learnerIds)
             ->where('attempt_type', 'diagnostic')
+            ->where('is_sandbox', false)
             ->latest()
             ->get()
             ->unique('learner_id')
@@ -62,6 +64,7 @@ class TeacherDashboardService
     private function latestMastery(Collection $learnerIds): Collection
     {
         return ModuleAttempt::whereIn('learner_id', $learnerIds)
+            ->where('is_sandbox', false)
             ->latest()
             ->get()
             ->unique('learner_id')
@@ -100,6 +103,7 @@ class TeacherDashboardService
     {
         $diagnostics = AssessmentAttempt::with('learner')
             ->whereIn('learner_id', $learnerIds)
+            ->where('is_sandbox', false)
             ->latest()
             ->limit(5)
             ->get()
@@ -111,6 +115,7 @@ class TeacherDashboardService
 
         $modules = ModuleAttempt::with(['learner', 'module'])
             ->whereIn('learner_id', $learnerIds)
+            ->where('is_sandbox', false)
             ->latest()
             ->limit(5)
             ->get()

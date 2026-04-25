@@ -4,8 +4,8 @@ import AuthLayout from '../../Layouts/AuthLayout.vue';
 import PrimaryButton from '../../Components/PrimaryButton.vue';
 
 const form = useForm({
-    email: 'teacher@example.com',
-    password: 'password',
+    email: '',
+    password: '',
     remember: true,
 });
 

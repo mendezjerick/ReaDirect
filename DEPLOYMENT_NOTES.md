@@ -68,3 +68,10 @@ Database backups do not include separately stored audio files. Back up private f
 - Store learner audio in private storage.
 - Do not expose raw database backups.
 - Encrypt production backups.
+
+## Admin And Testing Mode
+
+- Phase 11 adds `/admin/*` routes for system administration and QA.
+- Only authorized users should receive `system_admin` or `school_admin` roles.
+- Testing / QA Mode creates sandbox attempts and debug views for authorized admins only.
+- Sandbox attempts are excluded from teacher-facing reports by default.

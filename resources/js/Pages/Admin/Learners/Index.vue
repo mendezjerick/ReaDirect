@@ -1,0 +1,9 @@
+<script setup>
+import { Link, router } from '@inertiajs/vue3';
+import AdminLayout from '../../../Layouts/AdminLayout.vue';
+import DashboardCard from '../../../Components/DashboardCard.vue';
+import StatusBadge from '../../../Components/StatusBadge.vue';
+defineProps({ learners: Object, filters: Object });
+const filter = (e) => router.get('/admin/learners', Object.fromEntries(new FormData(e.target).entries()), { preserveState: true });
+</script>
+<template><AdminLayout><div class="mb-5 flex justify-between"><h1 class="text-3xl font-black">Learners</h1><Link href="/admin/learners/create" class="rounded-xl bg-primary px-4 py-2 font-black text-white">Create</Link></div><DashboardCard><form class="flex gap-2" @submit.prevent="filter"><input name="search" :value="filters.search" class="w-full rounded-xl border p-2" placeholder="Search learners"><button class="rounded-xl bg-primary px-4 font-black text-white">Filter</button></form></DashboardCard><DashboardCard class="mt-4"><table class="w-full text-left text-sm"><thead><tr class="bg-primary-light text-primary"><th class="p-3">Learner</th><th class="p-3">School/Class</th><th class="p-3">Stage</th><th class="p-3">Module</th><th class="p-3">Status</th><th class="p-3">Action</th></tr></thead><tbody><tr v-for="learner in learners.data" :key="learner.public_id" class="border-t"><td class="p-3 font-bold">{{ learner.learner_code }}<br><span class="font-normal">{{ learner.first_name }} {{ learner.last_name }}</span></td><td class="p-3">{{ learner.school?.name }} / {{ learner.school_class?.name ?? '-' }}</td><td class="p-3">{{ learner.current_stage ?? '-' }}</td><td class="p-3">{{ learner.current_module?.title ?? '-' }}</td><td class="p-3"><StatusBadge :status="learner.is_active ? 'Active' : 'Inactive'" /></td><td class="p-3"><Link class="font-black text-primary" :href="`/admin/learners/${learner.public_id}`">View</Link></td></tr></tbody></table></DashboardCard></AdminLayout></template>

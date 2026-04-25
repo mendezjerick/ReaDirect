@@ -1,5 +1,6 @@
 <script setup>
 import SyncStatusBadge from '../Components/SyncStatusBadge.vue';
+import AdminTestingToolbar from '../Components/Admin/AdminTestingToolbar.vue';
 
 defineProps({
     progress: { type: Number, default: 0 },
@@ -8,6 +9,7 @@ defineProps({
 
 <template>
     <div class="min-h-screen bg-background text-text">
+        <AdminTestingToolbar />
         <header class="sticky top-0 z-20 border-b border-border bg-surface/95 backdrop-blur">
             <div class="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">
                 <a href="/" class="text-xl font-black text-primary md:text-2xl">ReaDirect</a>
