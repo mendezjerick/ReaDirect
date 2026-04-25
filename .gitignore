@@ -27,3 +27,6 @@ _ide_helper.php
 Homestead.json
 Homestead.yaml
 Thumbs.db
+content-bank/import/*
+!content-bank/import/.gitkeep
+!content-bank/import/README.md

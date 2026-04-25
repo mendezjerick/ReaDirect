@@ -1,0 +1,16 @@
+id,passage_id,sequence,question_text,question_type,correct_answer,accepted_answers,choice_a,choice_b,choice_c,choice_d,difficulty,points,is_active
+CQ-001,PASS-001,1,Where do Ana and Ben play?,multiple_choice,park,"park|the park|at the park",park,school,house,store,easy,1,1
+CQ-002,PASS-001,2,What animal do they see?,multiple_choice,dog,"dog|a dog|small dog",cat,dog,bird,fish,easy,1,1
+CQ-003,PASS-001,3,What does Ana roll?,multiple_choice,ball,"ball|the ball|red ball",book,ball,cup,hat,easy,1,1
+CQ-004,PASS-001,4,What does Ben give the dog?,multiple_choice,water,"water|dog water|some water",milk,food,water,toy,easy,1,1
+CQ-005,PASS-001,5,Who calls them to eat?,multiple_choice,Mom,"Mom|mother|their mom",Dad,Mom,teacher,friend,easy,1,1
+CQ-006,PASS-002,1,What does Leo have?,multiple_choice,kite,"kite|a kite|little kite",ball,kite,book,cup,easy,1,1
+CQ-007,PASS-002,2,Where does Leo run?,multiple_choice,yard,"yard|the yard|in the yard",yard,park,room,store,easy,1,1
+CQ-008,PASS-002,3,Who holds the string?,multiple_choice,Mia,"Mia|his sister|sister Mia",Leo,Mia,Dad,Mom,easy,1,1
+CQ-009,PASS-002,4,Who claps from the porch?,multiple_choice,Dad,"Dad|his dad|father",Mia,Dad,teacher,friend,easy,1,1
+CQ-010,PASS-002,5,What helps the kite fly?,multiple_choice,wind,"wind|soft wind|the wind",rain,wind,snow,moon,easy,1,1
+CQ-011,PASS-003,1,What animals do Nina and Omar feed?,multiple_choice,hens,"hens|the hens|hen",dogs,hens,fish,ducks,easy,1,1
+CQ-012,PASS-003,2,What do the hens peck?,multiple_choice,corn,"corn|the corn",rice,corn,bread,grass,easy,1,1
+CQ-013,PASS-003,3,What does one hen find?,multiple_choice,bug,"bug|a bug",ball,bug,seed,leaf,easy,1,1
+CQ-014,PASS-003,4,What does Omar put in the pan?,multiple_choice,water,"water|some water",water,milk,corn,soup,easy,1,1
+CQ-015,PASS-003,5,How many eggs does Nina count?,multiple_choice,six,"six|6|six eggs",two,four,six,ten,easy,1,1

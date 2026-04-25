@@ -1,0 +1,31 @@
+id,module_key,activity_type,sequence,prompt_text,target_word,expected_answer,accepted_answers,word_family,difficulty,points,is_mastery_item,is_active
+M2-RW001,module_2,read_word,1,Read the word cat.,cat,cat,"cat",at,easy,1,0,1
+M2-RW002,module_2,read_word,2,Read the word dog.,dog,dog,"dog",og,easy,1,0,1
+M2-RW003,module_2,read_word,3,Read the word sun.,sun,sun,"sun",un,easy,1,0,1
+M2-RW004,module_2,read_word,4,Read the word pen.,pen,pen,"pen",en,easy,1,0,1
+M2-RW005,module_2,read_word,5,Read the word cup.,cup,cup,"cup",up,easy,1,0,1
+M2-WF001,module_2,word_family_drill,6,Read a word in the at family: bat.,bat,bat,"bat",at,easy,1,0,1
+M2-WF002,module_2,word_family_drill,7,Read a word in the an family: man.,man,man,"man",an,easy,1,0,1
+M2-WF003,module_2,word_family_drill,8,Read a word in the ip family: lip.,lip,lip,"lip",ip,easy,1,0,1
+M2-WF004,module_2,word_family_drill,9,Read a word in the op family: hop.,hop,hop,"hop",op,easy,1,0,1
+M2-WF005,module_2,word_family_drill,10,Read a word in the et family: pet.,pet,pet,"pet",et,easy,1,0,1
+M2-MP001,module_2,minimal_pair,11,Read this word: pin.,pin,pin,"pin",in,easy,1,0,1
+M2-MP002,module_2,minimal_pair,12,Read this word: pan.,pan,pan,"pan",an,easy,1,0,1
+M2-MP003,module_2,minimal_pair,13,Read this word: tap.,tap,tap,"tap",ap,easy,1,0,1
+M2-MP004,module_2,minimal_pair,14,Read this word: top.,top,top,"top",op,easy,1,0,1
+M2-MP005,module_2,minimal_pair,15,Read this word: bit.,bit,bit,"bit",it,easy,1,0,1
+M2-WA001,module_2,word_accuracy_challenge,16,Read the word fast: red.,red,red,"red",ed,easy,1,0,1
+M2-WA002,module_2,word_accuracy_challenge,17,Read the word fast: box.,box,box,"box",ox,easy,1,0,1
+M2-WA003,module_2,word_accuracy_challenge,18,Read the word fast: fish.,fish,fish,"fish",ish,easy,1,0,1
+M2-WA004,module_2,word_accuracy_challenge,19,Read the word fast: run.,run,run,"run",un,easy,1,0,1
+M2-WA005,module_2,word_accuracy_challenge,20,Read the word fast: sit.,sit,sit,"sit",it,easy,1,0,1
+M2-MC001,module_2,mastery_check,21,Read the word cat.,cat,cat,"cat",at,easy,1,1,1
+M2-MC002,module_2,mastery_check,22,Read the word bat.,bat,bat,"bat",at,easy,1,1,1
+M2-MC003,module_2,mastery_check,23,Read the word dog.,dog,dog,"dog",og,easy,1,1,1
+M2-MC004,module_2,mastery_check,24,Read the word sun.,sun,sun,"sun",un,easy,1,1,1
+M2-MC005,module_2,mastery_check,25,Read the word pen.,pen,pen,"pen",en,easy,1,1,1
+M2-MC006,module_2,mastery_check,26,Read the word cup.,cup,cup,"cup",up,easy,1,1,1
+M2-MC007,module_2,mastery_check,27,Read the word red.,red,red,"red",ed,easy,1,1,1
+M2-MC008,module_2,mastery_check,28,Read the word box.,box,box,"box",ox,easy,1,1,1
+M2-MC009,module_2,mastery_check,29,Read the word fish.,fish,fish,"fish",ish,easy,1,1,1
+M2-MC010,module_2,mastery_check,30,Read the word run.,run,run,"run",un,easy,1,1,1
