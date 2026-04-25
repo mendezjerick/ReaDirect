@@ -27,4 +27,35 @@ class AgentSpeakerPanelStructureTest extends TestCase
         $this->assertStringContainsString("displayMode.value = 'placeholder'", $component);
         $this->assertStringContainsString('object-contain', $component);
     }
+
+    public function test_agent_speaker_panel_integrates_tts_controls(): void
+    {
+        $component = file_get_contents(dirname(__DIR__, 2).'/resources/js/Components/Learner/AgentSpeakerPanel.vue');
+
+        $this->assertStringContainsString('AgentSpeakerTTS', $component);
+        $this->assertStringContainsString('isSpeaking', $component);
+        $this->assertStringContainsString('readirect-agent-tts-muted', $component);
+        $this->assertStringContainsString('Unmute agent voice', $component);
+        $this->assertStringContainsString('Replay agent message', $component);
+    }
+
+    public function test_agent_speaker_tts_component_uses_web_speech_api_and_agent_voice_mapping(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $componentPath = $root.'/resources/js/Components/Agents/AgentSpeakerTTS.vue';
+
+        $this->assertFileExists($componentPath);
+
+        $component = file_get_contents($componentPath);
+
+        $this->assertStringContainsString('speechSynthesis', $component);
+        $this->assertStringContainsString('SpeechSynthesisUtterance', $component);
+        $this->assertStringContainsString('voiceschanged', $component);
+        $this->assertStringContainsString('assessment', $component);
+        $this->assertStringContainsString('coach_feedback', $component);
+        $this->assertStringContainsString('evaluator', $component);
+        $this->assertStringContainsString('speakingStart', $component);
+        $this->assertStringContainsString('speakingEnd', $component);
+        $this->assertStringContainsString('Web Speech API not supported.', $component);
+    }
 }
