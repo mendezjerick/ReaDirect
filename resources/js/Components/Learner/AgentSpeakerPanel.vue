@@ -87,8 +87,6 @@ const stateLabel = computed(() => {
 
     return labels[effectiveState.value] ?? 'Ready';
 });
-const animationClass = computed(() => `agent-animate-${effectiveState.value}`);
-
 watch(() => [props.agentType, effectiveState.value], () => {
     displayMode.value = 'requested';
 });
@@ -166,12 +164,11 @@ const handleTtsError = (message) => {
             @error="handleTtsError"
         />
         <div class="grid justify-items-center">
-            <div class="grid place-items-end overflow-hidden rounded-[20px] bg-primary-light transition" :class="[compact ? 'h-24 w-20 md:h-24 md:w-20 lg:h-36 lg:w-32' : 'h-36 w-32 md:h-40 md:w-36 lg:h-52 lg:w-44', isSpeaking ? 'shadow-lg shadow-primary/25' : '']">
+            <div class="grid place-items-end overflow-hidden rounded-[20px] bg-white transition" :class="[compact ? 'h-24 w-20 md:h-24 md:w-20 lg:h-36 lg:w-32' : 'h-36 w-32 md:h-40 md:w-36 lg:h-52 lg:w-44', isSpeaking ? 'shadow-lg shadow-primary/25' : '']">
                 <video
                     v-if="isVideoAsset"
                     :key="imageSrc"
                     class="h-full w-full object-contain"
-                    :class="animationClass"
                     :aria-label="displayTitle"
                     autoplay
                     loop
@@ -186,10 +183,9 @@ const handleTtsError = (message) => {
                     :src="imageSrc"
                     :alt="displayTitle"
                     class="h-full w-full object-contain"
-                    :class="animationClass"
                     @error="handleImageError"
                 >
-                <div v-else class="grid size-full place-items-center bg-primary font-black text-white" :class="[animationClass, compact ? 'text-2xl' : 'text-4xl']">
+                <div v-else class="grid size-full place-items-center bg-primary font-black text-white" :class="compact ? 'text-2xl' : 'text-4xl'">
                     {{ agent.initials }}
                 </div>
             </div>
