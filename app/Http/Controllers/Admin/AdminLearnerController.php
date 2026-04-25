@@ -9,6 +9,7 @@ use App\Models\School;
 use App\Models\SchoolClass;
 use App\Services\Admin\AdminAccessService;
 use App\Services\Admin\AdminAuditService;
+use App\Services\Admin\AdminFilterOptionsService;
 use App\Services\LearnerProgressService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,20 +19,68 @@ use Inertia\Response;
 
 class AdminLearnerController extends Controller
 {
-    public function index(Request $request, AdminAccessService $access): Response
+    public function index(Request $request, AdminAccessService $access, AdminFilterOptionsService $options): Response
     {
         $access->ensureAdmin($request->user());
-        $search = $request->string('search')->toString();
+        $filters = [
+            'search' => trim($request->string('search')->toString()),
+            'school_id' => trim($request->string('school_id')->toString()),
+            'class_id' => trim($request->string('class_id')->toString()),
+            'status' => $options->activeValue($request->string('status')->toString()),
+            'current_module' => trim($request->string('current_module')->toString()),
+            'crla_level' => trim($request->string('crla_level')->toString()),
+            'reading_classification' => trim($request->string('reading_classification')->toString()),
+            'diagnostic_status' => trim($request->string('diagnostic_status')->toString()),
+            'final_status' => trim($request->string('final_status')->toString()),
+        ];
+        $moduleKeys = collect($options->moduleOptions())->pluck('value')->all();
+        if ($filters['current_module'] && ! in_array($filters['current_module'], $moduleKeys, true)) {
+            $filters['current_module'] = '';
+        }
+
         $learners = Learner::with(['school', 'schoolClass', 'currentModule'])
-            ->when($search, fn ($query) => $query->where(fn ($inner) => $inner
-                ->where('learner_code', 'like', "%{$search}%")
-                ->orWhere('first_name', 'like', "%{$search}%")
-                ->orWhere('last_name', 'like', "%{$search}%")))
+            ->when($filters['school_id'], fn ($query) => $query->where('school_id', $filters['school_id']))
+            ->when($filters['class_id'], fn ($query) => $query->where('class_id', $filters['class_id']))
+            ->when($filters['status'] === 'active', fn ($query) => $query->where('is_active', true))
+            ->when($filters['status'] === 'inactive', fn ($query) => $query->where('is_active', false))
+            ->when($filters['current_module'], fn ($query) => $query->whereHas('currentModule', fn ($module) => $module->where('key', $filters['current_module'])))
+            ->when($filters['crla_level'], fn ($query) => $query->whereHas('assessmentAttempts', fn ($attempt) => $attempt
+                ->where('attempt_type', 'diagnostic')
+                ->where('is_sandbox', false)
+                ->where('crla_classification', $filters['crla_level'])))
+            ->when($filters['reading_classification'], fn ($query) => $query->whereHas('assessmentAttempts', fn ($attempt) => $attempt
+                ->where('is_sandbox', false)
+                ->where('reading_classification', $filters['reading_classification'])))
+            ->when($filters['diagnostic_status'], fn ($query) => $query->whereHas('assessmentAttempts', fn ($attempt) => $attempt
+                ->where('attempt_type', 'diagnostic')
+                ->where('is_sandbox', false)
+                ->where('status', $filters['diagnostic_status'])))
+            ->when($filters['final_status'], fn ($query) => $query->whereHas('assessmentAttempts', fn ($attempt) => $attempt
+                ->where('attempt_type', 'final_reassessment')
+                ->where('is_sandbox', false)
+                ->where('status', $filters['final_status'])))
+            ->when($filters['search'], fn ($query) => $query->where(fn ($inner) => $inner
+                ->where('learner_code', 'like', "%{$filters['search']}%")
+                ->orWhere('first_name', 'like', "%{$filters['search']}%")
+                ->orWhere('last_name', 'like', "%{$filters['search']}%")))
             ->latest()
             ->paginate(25)
             ->withQueryString();
 
-        return Inertia::render('Admin/Learners/Index', ['learners' => $learners, 'filters' => ['search' => $search]]);
+        return Inertia::render('Admin/Learners/Index', [
+            'learners' => $learners,
+            'filters' => $filters,
+            'filterOptions' => [
+                'schools' => $options->schoolOptions(),
+                'classes' => $options->classOptions(),
+                'modules' => $options->moduleOptions(),
+                'statuses' => $options->statusOptions(),
+                'crlaLevels' => ['Full Refresher', 'Moderate Refresher', 'Light Refresher', 'Grade Ready'],
+                'readingClassifications' => ['Low Emerging Reader', 'High Emerging Reader', 'Developing Reader', 'Transitioning Reader', 'Reading at Grade Level'],
+                'diagnosticStatuses' => ['in_progress', 'task_1', 'task_1_completed', 'task_2_completed', 'module_placement_completed'],
+                'finalStatuses' => ['final_reassessment_started', 'final_reassessment_completed'],
+            ],
+        ]);
     }
 
     public function create(Request $request, AdminAccessService $access): Response

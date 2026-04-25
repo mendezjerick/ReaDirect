@@ -1,0 +1,136 @@
+<?php
+
+namespace App\Services\Admin;
+
+use App\Models\AgentProfile;
+use App\Models\Module;
+use App\Models\School;
+use App\Models\SchoolClass;
+use App\Models\User;
+use Spatie\Permission\Models\Role;
+
+class AdminFilterOptionsService
+{
+    public function statusOptions(): array
+    {
+        return [
+            ['label' => 'All statuses', 'value' => 'all'],
+            ['label' => 'Active', 'value' => 'active'],
+            ['label' => 'Inactive', 'value' => 'inactive'],
+        ];
+    }
+
+    public function moduleOptions(): array
+    {
+        return Module::query()
+            ->orderBy('sequence')
+            ->get(['id', 'key', 'title'])
+            ->map(fn (Module $module): array => [
+                'label' => $module->title,
+                'value' => $module->key,
+                'id' => $module->id,
+            ])
+            ->values()
+            ->all();
+    }
+
+    public function moduleActivityTypeOptions(): array
+    {
+        return [
+            ['label' => 'Hear and Repeat', 'value' => 'hear_and_repeat', 'module' => 'module_1'],
+            ['label' => 'See Letter, Say Sound', 'value' => 'see_letter_say_sound', 'module' => 'module_1'],
+            ['label' => 'Match Sound to Letter', 'value' => 'match_sound_to_letter', 'module' => 'module_1'],
+            ['label' => 'Sound Drill', 'value' => 'sound_drill', 'module' => 'module_1'],
+            ['label' => 'Read Word', 'value' => 'read_word', 'module' => 'module_2'],
+            ['label' => 'Word Family Drill', 'value' => 'word_family_drill', 'module' => 'module_2'],
+            ['label' => 'Minimal Pair', 'value' => 'minimal_pair', 'module' => 'module_2'],
+            ['label' => 'Word Accuracy Challenge', 'value' => 'word_accuracy_challenge', 'module' => 'module_2'],
+            ['label' => 'Read Sentence', 'value' => 'read_sentence', 'module' => 'module_3'],
+            ['label' => 'Read with Coach', 'value' => 'read_with_coach', 'module' => 'module_3'],
+            ['label' => 'Timed Sentence Reading', 'value' => 'timed_sentence_reading', 'module' => 'module_3'],
+            ['label' => 'Pause Practice', 'value' => 'pause_practice', 'module' => 'module_3'],
+            ['label' => 'Fluency Challenge', 'value' => 'fluency_challenge', 'module' => 'module_3'],
+            ['label' => 'Mastery Check', 'value' => 'mastery_check', 'module' => 'all'],
+        ];
+    }
+
+    public function assessmentContentTypeOptions(): array
+    {
+        return [
+            ['label' => 'Task 1 Letter Pronunciation', 'value' => 'task1_letter'],
+            ['label' => 'Task 2A Rhyming Words', 'value' => 'task2a_rhyme'],
+            ['label' => 'Task 2B Word-in-Sentence', 'value' => 'task2b_word_sentence'],
+            ['label' => 'Reading Passage', 'value' => 'reading_passage'],
+            ['label' => 'Comprehension Question', 'value' => 'comprehension_question'],
+        ];
+    }
+
+    public function assessmentContentTypeMap(): array
+    {
+        return [
+            'task1_letter' => ['task1_letter', 'task_1_letter', 'letter', 'crla_task_1_letter'],
+            'task2a_rhyme' => ['task2a_rhyme', 'task_2a_rhyme', 'rhyme_prompt', 'crla_task_2a_rhyme'],
+            'task2b_word_sentence' => ['task2b_word_sentence', 'task_2b_word_sentence', 'word_sentence', 'crla_task_2b_word_sentence'],
+            'reading_passage' => ['reading_passage'],
+            'comprehension_question' => ['comprehension_question'],
+        ];
+    }
+
+    public function schoolOptions(): array
+    {
+        return School::query()
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (School $school): array => ['label' => $school->name, 'value' => (string) $school->id])
+            ->all();
+    }
+
+    public function classOptions(): array
+    {
+        return SchoolClass::query()
+            ->with('school:id,name')
+            ->orderBy('name')
+            ->get(['id', 'school_id', 'name'])
+            ->map(fn (SchoolClass $class): array => [
+                'label' => trim(($class->school?->name ? $class->school->name.' / ' : '').$class->name),
+                'value' => (string) $class->id,
+                'school_id' => (string) $class->school_id,
+            ])
+            ->all();
+    }
+
+    public function roleOptions(): array
+    {
+        $roles = Role::query()->orderBy('name')->pluck('name')->all();
+
+        return collect($roles ?: ['system_admin', 'school_admin', 'teacher', 'student'])
+            ->map(fn (string $role): array => ['label' => str_replace('_', ' ', ucfirst($role)), 'value' => $role])
+            ->values()
+            ->all();
+    }
+
+    public function agentTypeOptions(): array
+    {
+        return [
+            ['label' => 'Assessment Agent', 'value' => 'assessment'],
+            ['label' => 'Coach + Feedback Agent', 'value' => 'coach_feedback'],
+            ['label' => 'Evaluator / Recommendation Agent', 'value' => 'evaluator'],
+            ['label' => 'Evaluator / Recommendation Agent', 'value' => AgentProfile::EVALUATOR_RECOMMENDATION],
+        ];
+    }
+
+    public function promptStatusOptions(): array
+    {
+        return [
+            ['label' => 'All statuses', 'value' => 'all'],
+            ['label' => 'Draft', 'value' => 'draft'],
+            ['label' => 'Active', 'value' => 'active'],
+            ['label' => 'Inactive', 'value' => 'inactive'],
+        ];
+    }
+
+    public function activeValue(?string $value): string
+    {
+        return in_array($value, ['active', 'inactive', 'all'], true) ? $value : 'all';
+    }
+}

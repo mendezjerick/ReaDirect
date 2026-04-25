@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\School;
 use App\Services\Admin\AdminAccessService;
 use App\Services\Admin\AdminAuditService;
+use App\Services\Admin\AdminFilterOptionsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -13,20 +14,37 @@ use Inertia\Response;
 
 class AdminSchoolController extends Controller
 {
-    public function index(Request $request, AdminAccessService $access): Response
+    public function index(Request $request, AdminAccessService $access, AdminFilterOptionsService $options): Response
     {
         $access->ensureAdmin($request->user());
-        $search = $request->string('search')->toString();
+        $filters = [
+            'search' => trim($request->string('search')->toString()),
+            'status' => $options->activeValue($request->string('status')->toString()),
+            'district' => trim($request->string('district')->toString()),
+            'division' => trim($request->string('division')->toString()),
+        ];
 
         $schools = School::withCount(['classes', 'learners'])
-            ->when($search, fn ($query) => $query->where('name', 'like', "%{$search}%"))
+            ->when($filters['status'] === 'active', fn ($query) => $query->where('is_active', true))
+            ->when($filters['status'] === 'inactive', fn ($query) => $query->where('is_active', false))
+            ->when($filters['district'], fn ($query) => $query->where('district', $filters['district']))
+            ->when($filters['division'], fn ($query) => $query->where('division', $filters['division']))
+            ->when($filters['search'], fn ($query) => $query->where(fn ($inner) => $inner
+                ->where('name', 'like', "%{$filters['search']}%")
+                ->orWhere('district', 'like', "%{$filters['search']}%")
+                ->orWhere('division', 'like', "%{$filters['search']}%")))
             ->orderBy('name')
             ->paginate(25)
             ->withQueryString();
 
         return Inertia::render('Admin/Schools/Index', [
             'schools' => $schools,
-            'filters' => ['search' => $search],
+            'filters' => $filters,
+            'filterOptions' => [
+                'statuses' => $options->statusOptions(),
+                'districts' => School::query()->whereNotNull('district')->select('district')->distinct()->orderBy('district')->pluck('district')->map(fn ($district) => ['label' => $district, 'value' => $district])->values(),
+                'divisions' => School::query()->whereNotNull('division')->select('division')->distinct()->orderBy('division')->pluck('division')->map(fn ($division) => ['label' => $division, 'value' => $division])->values(),
+            ],
         ]);
     }
 

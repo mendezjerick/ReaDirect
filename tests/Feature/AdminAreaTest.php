@@ -4,8 +4,11 @@ namespace Tests\Feature;
 
 use App\Models\AssessmentAttempt;
 use App\Models\AssessmentAttemptItem;
+use App\Models\AgentProfile;
+use App\Models\AuditLog;
 use App\Models\LearningContent;
 use App\Models\Learner;
+use App\Models\LlmPromptTemplate;
 use App\Models\Module;
 use App\Models\ModuleActivity;
 use App\Models\ModuleAttempt;
@@ -183,6 +186,144 @@ class AdminAreaTest extends TestCase
         $this->assertStringNotContainsString(',5,', $csv);
     }
 
+    public function test_admin_module_content_filters_use_real_module_activity_fields(): void
+    {
+        $admin = $this->userWithRole('system_admin');
+        [$module1, $module2, $module3] = $this->moduleContentFilterData();
+
+        $this->actingAs($admin)
+            ->get(route('admin.module-content.index', ['module' => 'module_2']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/ModuleContent/Index')
+                ->has('activities.data', 2)
+                ->where('activities.data.0.module.key', 'module_2')
+                ->where('activities.data.1.module.key', 'module_2'));
+
+        $this->actingAs($admin)
+            ->get(route('admin.module-content.index', ['activity_type' => 'read_word']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('activities.data', 1)
+                ->where('activities.data.0.activity_type', 'read_word')
+                ->where('activities.data.0.module.key', 'module_2'));
+
+        $this->actingAs($admin)
+            ->get(route('admin.module-content.index', ['module' => 'module_2', 'search' => 'cat']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('activities.data', 1)
+                ->where('activities.data.0.title', 'Read cat'));
+
+        $this->actingAs($admin)
+            ->get(route('admin.module-content.index', ['is_mastery_item' => 'mastery']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('activities.data', 1)
+                ->where('activities.data.0.activity_type', 'mastery_check'));
+
+        $this->actingAs($admin)
+            ->get(route('admin.module-content.index', ['status' => 'inactive']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('activities.data', 1)
+                ->where('activities.data.0.module.key', $module3->key));
+    }
+
+    public function test_admin_assessment_content_filters_use_canonical_content_type_keys(): void
+    {
+        $admin = $this->userWithRole('system_admin');
+        LearningContent::create(['content_type' => 'letter', 'title' => 'Letter A', 'prompt' => 'A', 'difficulty' => 'easy', 'is_active' => true]);
+        LearningContent::create(['content_type' => 'rhyme_prompt', 'title' => 'Cat rhyme', 'prompt' => 'cat', 'difficulty' => 'easy', 'is_active' => true]);
+        LearningContent::create(['content_type' => 'word_sentence', 'title' => 'Find cat', 'prompt' => 'I see a cat.', 'difficulty' => 'medium', 'is_active' => false]);
+        LearningContent::create(['content_type' => 'reading_passage', 'title' => 'Passage', 'prompt' => 'Read this.', 'difficulty' => 'medium', 'is_active' => true]);
+        LearningContent::create(['content_type' => 'comprehension_question', 'title' => 'Question', 'prompt' => 'Who?', 'difficulty' => 'hard', 'is_active' => true]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.assessment-content.index', ['content_type' => 'task2b_word_sentence']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('items.data', 1)
+                ->where('items.data.0.content_type', 'word_sentence'));
+
+        $this->actingAs($admin)
+            ->get(route('admin.assessment-content.index', ['content_type' => 'task1_letter']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('items.data', 1)
+                ->where('items.data.0.title', 'Letter A'));
+
+        $this->actingAs($admin)
+            ->get(route('admin.assessment-content.index', ['status' => 'inactive']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('items.data', 1)
+                ->where('items.data.0.title', 'Find cat'));
+    }
+
+    public function test_admin_people_and_school_filters_are_applied(): void
+    {
+        $admin = $this->userWithRole('system_admin');
+        $schoolA = School::create(['name' => 'North School', 'district' => 'North', 'division' => 'A', 'is_active' => true]);
+        $schoolB = School::create(['name' => 'South School', 'district' => 'South', 'division' => 'B', 'is_active' => false]);
+        $classA = SchoolClass::create(['school_id' => $schoolA->id, 'name' => 'Blue', 'grade_level' => 'Grade 1']);
+        $classB = SchoolClass::create(['school_id' => $schoolB->id, 'name' => 'Green', 'grade_level' => 'Grade 1']);
+        $module = Module::create(['sequence' => 1, 'key' => 'module_1', 'title' => 'Letter and Sound Learning', 'is_active' => true]);
+        Learner::create(['school_id' => $schoolA->id, 'class_id' => $classA->id, 'current_module_id' => $module->id, 'learner_code' => 'N-1', 'first_name' => 'Nina', 'grade_level' => 'Grade 1', 'is_active' => true]);
+        Learner::create(['school_id' => $schoolB->id, 'class_id' => $classB->id, 'learner_code' => 'S-1', 'first_name' => 'Sam', 'grade_level' => 'Grade 1', 'is_active' => false]);
+        $teacherA = $this->userWithRole('teacher');
+        $teacherB = $this->userWithRole('teacher');
+        $teacherB->update(['is_active' => false]);
+        $classA->update(['teacher_id' => $teacherA->id]);
+        $classB->update(['teacher_id' => $teacherB->id]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.schools.index', ['status' => 'inactive']))
+            ->assertInertia(fn (Assert $page) => $page->has('schools.data', 1)->where('schools.data.0.name', 'South School'));
+
+        $this->actingAs($admin)
+            ->get(route('admin.teachers.index', ['school_id' => $schoolA->id]))
+            ->assertInertia(fn (Assert $page) => $page->has('teachers.data', 1)->where('teachers.data.0.id', $teacherA->id));
+
+        $this->actingAs($admin)
+            ->get(route('admin.learners.index', ['school_id' => $schoolA->id, 'current_module' => 'module_1']))
+            ->assertInertia(fn (Assert $page) => $page->has('learners.data', 1)->where('learners.data.0.learner_code', 'N-1'));
+    }
+
+    public function test_admin_agent_prompt_audit_and_testing_filters_are_applied(): void
+    {
+        $admin = $this->userWithRole('system_admin');
+        $assessmentAgent = AgentProfile::create(['key' => 'assessment', 'name' => 'Assessment Agent', 'agent_type' => 'assessment', 'purpose' => 'Assess', 'is_active' => true]);
+        $coachAgent = AgentProfile::create(['key' => 'coach', 'name' => 'Coach Agent', 'agent_type' => 'coach_feedback', 'purpose' => 'Coach', 'is_active' => false]);
+        LlmPromptTemplate::create(['agent_profile_id' => $assessmentAgent->id, 'key' => 'assessment_prompt', 'version' => 1, 'status' => 'active', 'template' => 'Assess']);
+        LlmPromptTemplate::create(['agent_profile_id' => $coachAgent->id, 'key' => 'coach_feedback', 'version' => 1, 'status' => 'draft', 'template' => 'Coach']);
+        AuditLog::create(['user_id' => $admin->id, 'action' => 'admin.testing.flow_jump', 'auditable_type' => Learner::class, 'auditable_id' => 100, 'ip_address' => '127.0.0.1']);
+        AuditLog::create(['user_id' => $admin->id, 'action' => 'admin.prompt.updated', 'auditable_type' => LlmPromptTemplate::class, 'auditable_id' => 200, 'ip_address' => '127.0.0.1']);
+        $learner = $this->learner();
+        $module = Module::create(['sequence' => 1, 'key' => 'module_1', 'title' => 'Module 1', 'is_active' => true]);
+        AssessmentAttempt::create(['learner_id' => $learner->id, 'attempt_type' => 'diagnostic', 'status' => 'task_1', 'is_sandbox' => true]);
+        ModuleAttempt::create(['learner_id' => $learner->id, 'module_id' => $module->id, 'status' => 'completed', 'is_sandbox' => false]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.agents.index', ['agent_type' => 'coach_feedback']))
+            ->assertInertia(fn (Assert $page) => $page->has('agents', 1)->where('agents.0.key', 'coach'));
+
+        $this->actingAs($admin)
+            ->get(route('admin.prompts.index', ['agent_type' => 'assessment', 'status' => 'active']))
+            ->assertInertia(fn (Assert $page) => $page->has('prompts.data', 1)->where('prompts.data.0.key', 'assessment_prompt'));
+
+        $this->actingAs($admin)
+            ->get(route('admin.audit-logs.index', ['action' => 'admin.prompt.updated']))
+            ->assertInertia(fn (Assert $page) => $page->has('logs.data', 1)->where('logs.data.0.action', 'admin.prompt.updated'));
+
+        $this->actingAs($admin)
+            ->get(route('admin.testing.index', ['attempt_type' => 'module', 'sandbox' => 'live']))
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('sandboxAssessments', 0)
+                ->has('sandboxModules', 1)
+                ->where('sandboxModules.0.status', 'completed'));
+    }
+
     private function userWithRole(string $role): User
     {
         Role::findOrCreate($role);
@@ -295,6 +436,41 @@ class AdminAreaTest extends TestCase
         ]);
 
         return [$module, $activityType];
+    }
+
+    private function moduleContentFilterData(): array
+    {
+        $modules = [];
+        foreach ([1 => ['module_1', 'Letter and Sound Learning'], 2 => ['module_2', 'Word Reading'], 3 => ['module_3', 'Sentence Reading and Fluency']] as $sequence => [$key, $title]) {
+            $modules[$key] = Module::create(['sequence' => $sequence, 'key' => $key, 'title' => $title, 'is_active' => true]);
+        }
+
+        $this->createModuleActivity($modules['module_1'], 'hear_and_repeat', 'Say A', true, false);
+        $this->createModuleActivity($modules['module_2'], 'read_word', 'Read cat', true, false);
+        $this->createModuleActivity($modules['module_2'], 'mastery_check', 'Mastery word', true, true);
+        $this->createModuleActivity($modules['module_3'], 'read_sentence', 'Read sentence', false, false);
+
+        return [$modules['module_1'], $modules['module_2'], $modules['module_3']];
+    }
+
+    private function createModuleActivity(Module $module, string $activityType, string $title, bool $active, bool $mastery): ModuleActivity
+    {
+        $content = LearningContent::create([
+            'content_type' => 'module_activity',
+            'title' => $title,
+            'prompt' => $title,
+            'difficulty' => 'grade_1',
+            'is_active' => $active,
+        ]);
+
+        return ModuleActivity::create([
+            'module_id' => $module->id,
+            'learning_content_id' => $content->id,
+            'sequence' => $mastery ? 100 : 1,
+            'activity_type' => $activityType,
+            'title' => $title,
+            'configuration' => ['is_active' => $active, 'is_mastery_item' => $mastery],
+        ]);
     }
 
     private function teacherWithLearner(): array

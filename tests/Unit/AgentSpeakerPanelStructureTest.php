@@ -11,6 +11,7 @@ class AgentSpeakerPanelStructureTest extends TestCase
         $root = dirname(__DIR__, 2);
 
         $this->assertFileExists($root.'/public/assets/agents/assessment/idle.png');
+        $this->assertFileExists($root.'/public/assets/agents/assessment/idle.webm');
         $this->assertFileExists($root.'/public/assets/agents/coach_feedback/idle.png');
         $this->assertFileExists($root.'/public/assets/agents/evaluator/idle.png');
     }
@@ -23,6 +24,8 @@ class AgentSpeakerPanelStructureTest extends TestCase
         $this->assertStringContainsString('Coach + Feedback Agent', $component);
         $this->assertStringContainsString('Evaluator / Recommendation Agent', $component);
         $this->assertStringContainsString('handleImageError', $component);
+        $this->assertStringContainsString('idle.webm', $component);
+        $this->assertStringContainsString('type="video/webm"', $component);
         $this->assertStringContainsString("displayMode.value = 'idle'", $component);
         $this->assertStringContainsString("displayMode.value = 'placeholder'", $component);
         $this->assertStringContainsString('object-contain', $component);

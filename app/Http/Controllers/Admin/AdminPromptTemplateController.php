@@ -7,6 +7,7 @@ use App\Models\AgentProfile;
 use App\Models\LlmPromptTemplate;
 use App\Services\Admin\AdminAccessService;
 use App\Services\Admin\AdminAuditService;
+use App\Services\Admin\AdminFilterOptionsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -14,12 +15,42 @@ use Inertia\Response;
 
 class AdminPromptTemplateController extends Controller
 {
-    public function index(Request $request, AdminAccessService $access): Response
+    public function index(Request $request, AdminAccessService $access, AdminFilterOptionsService $options): Response
     {
         $access->ensureAdmin($request->user());
+        $filters = [
+            'search' => trim($request->string('search')->toString()),
+            'prompt_type' => trim($request->string('prompt_type')->toString()),
+            'agent_type' => trim($request->string('agent_type')->toString()),
+            'status' => $request->string('status', 'all')->toString(),
+        ];
+        if (! in_array($filters['status'], ['all', 'draft', 'active', 'inactive'], true)) {
+            $filters['status'] = 'all';
+        }
 
         return Inertia::render('Admin/Prompts/Index', [
-            'prompts' => LlmPromptTemplate::with('agentProfile')->orderBy('key')->orderByDesc('version')->paginate(25),
+            'prompts' => LlmPromptTemplate::with('agentProfile')
+                ->when($filters['prompt_type'], fn ($query) => $query->where('key', 'like', "%{$filters['prompt_type']}%"))
+                ->when($filters['agent_type'], function ($query) use ($filters): void {
+                    $types = $filters['agent_type'] === 'evaluator'
+                        ? ['evaluator', AgentProfile::EVALUATOR_RECOMMENDATION]
+                        : [$filters['agent_type']];
+                    $query->whereHas('agentProfile', fn ($agent) => $agent->whereIn('agent_type', $types));
+                })
+                ->when($filters['status'] !== 'all', fn ($query) => $query->where('status', $filters['status']))
+                ->when($filters['search'], fn ($query) => $query->where(fn ($inner) => $inner
+                    ->where('key', 'like', "%{$filters['search']}%")
+                    ->orWhere('template', 'like', "%{$filters['search']}%")))
+                ->orderBy('key')
+                ->orderByDesc('version')
+                ->paginate(25)
+                ->withQueryString(),
+            'filters' => $filters,
+            'filterOptions' => [
+                'promptTypes' => LlmPromptTemplate::query()->select('key')->distinct()->orderBy('key')->pluck('key')->map(fn ($key) => ['label' => $key, 'value' => $key])->values(),
+                'agentTypes' => $options->agentTypeOptions(),
+                'statuses' => $options->promptStatusOptions(),
+            ],
         ]);
     }
 

@@ -7,6 +7,7 @@ use App\Models\Module;
 use App\Models\ModuleActivity;
 use App\Services\Admin\AdminAccessService;
 use App\Services\Admin\AdminAuditService;
+use App\Services\Admin\AdminFilterOptionsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -14,14 +15,47 @@ use Inertia\Response;
 
 class AdminModuleContentController extends Controller
 {
-    public function index(Request $request, AdminAccessService $access): Response
+    public function index(Request $request, AdminAccessService $access, AdminFilterOptionsService $options): Response
     {
         $access->ensureAdmin($request->user());
-        $search = $request->string('search')->toString();
-        $moduleKey = $request->string('module')->toString();
-        $activities = ModuleActivity::with('module')
-            ->when($moduleKey, fn ($query) => $query->whereHas('module', fn ($module) => $module->where('key', $moduleKey)))
-            ->when($search, fn ($query) => $query->where(fn ($inner) => $inner->where('title', 'like', "%{$search}%")->orWhere('activity_type', 'like', "%{$search}%")))
+        $filters = [
+            'search' => trim($request->string('search')->toString()),
+            'module' => trim($request->string('module')->toString()),
+            'activity_type' => trim($request->string('activity_type')->toString()),
+            'is_mastery_item' => in_array($request->string('is_mastery_item')->toString(), ['all', 'practice', 'mastery'], true) ? $request->string('is_mastery_item')->toString() : 'all',
+            'status' => $options->activeValue($request->string('status')->toString()),
+        ];
+
+        $moduleKeys = collect($options->moduleOptions())->pluck('value')->all();
+        if ($filters['module'] && ! in_array($filters['module'], $moduleKeys, true)) {
+            $filters['module'] = '';
+        }
+
+        $activityTypes = collect($options->moduleActivityTypeOptions())->pluck('value')->unique()->all();
+        if ($filters['activity_type'] && ! in_array($filters['activity_type'], $activityTypes, true)) {
+            $filters['activity_type'] = '';
+        }
+
+        $activities = ModuleActivity::with(['module', 'learningContent'])
+            ->when($filters['module'], fn ($query) => $query->whereHas('module', fn ($module) => $module->where('key', $filters['module'])))
+            ->when($filters['activity_type'], fn ($query) => $query->where('activity_type', $filters['activity_type']))
+            ->when($filters['is_mastery_item'] === 'mastery', fn ($query) => $query->where(fn ($inner) => $inner
+                ->where('activity_type', 'mastery_check')
+                ->orWhere('configuration->is_mastery_item', true)))
+            ->when($filters['is_mastery_item'] === 'practice', fn ($query) => $query
+                ->where('activity_type', '!=', 'mastery_check')
+                ->where(fn ($inner) => $inner->whereNull('configuration->is_mastery_item')->orWhere('configuration->is_mastery_item', false)))
+            ->when($filters['status'] === 'active', fn ($query) => $query->where(fn ($inner) => $inner
+                ->where('configuration->is_active', true)
+                ->orWhere(fn ($fallback) => $fallback->whereNull('configuration->is_active')->whereHas('learningContent', fn ($content) => $content->where('is_active', true)))))
+            ->when($filters['status'] === 'inactive', fn ($query) => $query->where(fn ($inner) => $inner
+                ->where('configuration->is_active', false)
+                ->orWhereHas('learningContent', fn ($content) => $content->where('is_active', false))))
+            ->when($filters['search'], fn ($query) => $query->where(fn ($inner) => $inner
+                ->where('title', 'like', "%{$filters['search']}%")
+                ->orWhere('activity_type', 'like', "%{$filters['search']}%")
+                ->orWhereHas('module', fn ($module) => $module->where('title', 'like', "%{$filters['search']}%"))
+                ->orWhereHas('learningContent', fn ($content) => $content->where('title', 'like', "%{$filters['search']}%")->orWhere('prompt', 'like', "%{$filters['search']}%"))))
             ->orderBy('module_id')
             ->orderBy('sequence')
             ->paginate(25)
@@ -30,7 +64,17 @@ class AdminModuleContentController extends Controller
         return Inertia::render('Admin/ModuleContent/Index', [
             'activities' => $activities,
             'modules' => Module::orderBy('sequence')->get(['id', 'key', 'title']),
-            'filters' => ['search' => $search, 'module' => $moduleKey],
+            'filters' => $filters,
+            'filterOptions' => [
+                'modules' => $options->moduleOptions(),
+                'activityTypes' => $options->moduleActivityTypeOptions(),
+                'mastery' => [
+                    ['label' => 'Practice and mastery', 'value' => 'all'],
+                    ['label' => 'Practice only', 'value' => 'practice'],
+                    ['label' => 'Mastery only', 'value' => 'mastery'],
+                ],
+                'statuses' => $options->statusOptions(),
+            ],
         ]);
     }
 

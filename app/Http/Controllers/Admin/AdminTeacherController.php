@@ -8,6 +8,7 @@ use App\Models\SchoolClass;
 use App\Models\User;
 use App\Services\Admin\AdminAccessService;
 use App\Services\Admin\AdminAuditService;
+use App\Services\Admin\AdminFilterOptionsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -17,18 +18,40 @@ use Inertia\Response;
 
 class AdminTeacherController extends Controller
 {
-    public function index(Request $request, AdminAccessService $access): Response
+    public function index(Request $request, AdminAccessService $access, AdminFilterOptionsService $options): Response
     {
         $access->ensureAdmin($request->user());
-        $search = $request->string('search')->toString();
-        $teachers = User::role('teacher')
+        $filters = [
+            'search' => trim($request->string('search')->toString()),
+            'school_id' => trim($request->string('school_id')->toString()),
+            'status' => $options->activeValue($request->string('status')->toString()),
+            'role' => trim($request->string('role', 'teacher')->toString()) ?: 'teacher',
+        ];
+        $roleValues = collect($options->roleOptions())->pluck('value')->all();
+        if ($filters['role'] !== 'all' && ! in_array($filters['role'], $roleValues, true)) {
+            $filters['role'] = 'teacher';
+        }
+
+        $teachers = User::query()
+            ->when($filters['role'] !== 'all', fn ($query) => $query->whereHas('roles', fn ($role) => $role->where('name', $filters['role'])))
             ->withCount('teachingClasses')
-            ->when($search, fn ($query) => $query->where(fn ($inner) => $inner->where('name', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%")))
+            ->when($filters['school_id'], fn ($query) => $query->whereHas('teachingClasses', fn ($class) => $class->where('school_id', $filters['school_id'])))
+            ->when($filters['status'] === 'active', fn ($query) => $query->where('is_active', true))
+            ->when($filters['status'] === 'inactive', fn ($query) => $query->where('is_active', false))
+            ->when($filters['search'], fn ($query) => $query->where(fn ($inner) => $inner->where('name', 'like', "%{$filters['search']}%")->orWhere('email', 'like', "%{$filters['search']}%")))
             ->orderBy('name')
             ->paginate(25)
             ->withQueryString();
 
-        return Inertia::render('Admin/Teachers/Index', ['teachers' => $teachers, 'filters' => ['search' => $search]]);
+        return Inertia::render('Admin/Teachers/Index', [
+            'teachers' => $teachers,
+            'filters' => $filters,
+            'filterOptions' => [
+                'schools' => $options->schoolOptions(),
+                'statuses' => $options->statusOptions(),
+                'roles' => array_merge([['label' => 'All roles', 'value' => 'all']], $options->roleOptions()),
+            ],
+        ]);
     }
 
     public function create(Request $request, AdminAccessService $access): Response

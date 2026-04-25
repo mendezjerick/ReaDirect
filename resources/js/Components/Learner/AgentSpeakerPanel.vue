@@ -47,10 +47,29 @@ const isMuted = ref(storedMutedPreference());
 
 const agent = computed(() => agents[props.agentType] ?? agents.assessment);
 const effectiveState = computed(() => (isSpeaking.value ? 'speaking' : (props.state || 'idle')));
-const requestedSrc = computed(() => `${agent.value.base}/${effectiveState.value}.png`);
+const prefersAssessmentWebmIdle = computed(() => props.agentType === 'assessment');
+const requestedSrc = computed(() => {
+    if (prefersAssessmentWebmIdle.value && effectiveState.value === 'idle') {
+        return `${agent.value.base}/idle.webm`;
+    }
+
+    return `${agent.value.base}/${effectiveState.value}.png`;
+});
+const idleWebmSrc = computed(() => `${agent.value.base}/idle.webm`);
 const idleSrc = computed(() => `${agent.value.base}/idle.png`);
-const imageSrc = computed(() => (displayMode.value === 'requested' ? requestedSrc.value : idleSrc.value));
+const imageSrc = computed(() => {
+    if (displayMode.value === 'requested') {
+        return requestedSrc.value;
+    }
+
+    if (displayMode.value === 'idle_webm') {
+        return idleWebmSrc.value;
+    }
+
+    return idleSrc.value;
+});
 const showPlaceholder = computed(() => displayMode.value === 'placeholder');
+const isVideoAsset = computed(() => !showPlaceholder.value && imageSrc.value.endsWith('.webm'));
 const displayTitle = computed(() => props.title || agent.value.label);
 const stateLabel = computed(() => {
     const labels = {
@@ -81,7 +100,22 @@ watch(isMuted, (value) => {
 });
 
 const handleImageError = () => {
+    if (displayMode.value === 'requested' && prefersAssessmentWebmIdle.value && effectiveState.value !== 'idle') {
+        displayMode.value = 'idle_webm';
+        return;
+    }
+
+    if (displayMode.value === 'requested' && prefersAssessmentWebmIdle.value) {
+        displayMode.value = 'idle';
+        return;
+    }
+
     if (displayMode.value === 'requested' && effectiveState.value !== 'idle') {
+        displayMode.value = 'idle';
+        return;
+    }
+
+    if (displayMode.value === 'idle_webm') {
         displayMode.value = 'idle';
         return;
     }
@@ -133,8 +167,22 @@ const handleTtsError = (message) => {
         />
         <div class="grid justify-items-center">
             <div class="grid place-items-end overflow-hidden rounded-[20px] bg-primary-light transition" :class="[compact ? 'h-24 w-20 md:h-24 md:w-20 lg:h-36 lg:w-32' : 'h-36 w-32 md:h-40 md:w-36 lg:h-52 lg:w-44', isSpeaking ? 'shadow-lg shadow-primary/25' : '']">
+                <video
+                    v-if="isVideoAsset"
+                    :key="imageSrc"
+                    class="h-full w-full object-contain"
+                    :class="animationClass"
+                    :aria-label="displayTitle"
+                    autoplay
+                    loop
+                    muted
+                    playsinline
+                    @error="handleImageError"
+                >
+                    <source :src="imageSrc" type="video/webm">
+                </video>
                 <img
-                    v-if="!showPlaceholder"
+                    v-else-if="!showPlaceholder"
                     :src="imageSrc"
                     :alt="displayTitle"
                     class="h-full w-full object-contain"

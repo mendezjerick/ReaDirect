@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\LearningContent;
 use App\Services\Admin\AdminAccessService;
 use App\Services\Admin\AdminAuditService;
+use App\Services\Admin\AdminFilterOptionsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -14,14 +15,29 @@ use Inertia\Response;
 
 class AdminAssessmentContentController extends Controller
 {
-    public function index(Request $request, AdminAccessService $access): Response
+    public function index(Request $request, AdminAccessService $access, AdminFilterOptionsService $options): Response
     {
         $access->ensureAdmin($request->user());
-        $search = $request->string('search')->toString();
-        $type = $request->string('content_type')->toString();
+        $filters = [
+            'search' => trim($request->string('search')->toString()),
+            'content_type' => trim($request->string('content_type')->toString()),
+            'difficulty' => trim($request->string('difficulty')->toString()),
+            'status' => $options->activeValue($request->string('status')->toString()),
+        ];
+        $typeMap = $options->assessmentContentTypeMap();
+        if ($filters['content_type'] && ! array_key_exists($filters['content_type'], $typeMap)) {
+            $filters['content_type'] = '';
+        }
+
         $items = LearningContent::query()
-            ->when($type, fn ($query) => $query->where('content_type', $type))
-            ->when($search, fn ($query) => $query->where(fn ($inner) => $inner->where('title', 'like', "%{$search}%")->orWhere('prompt', 'like', "%{$search}%")))
+            ->when($filters['content_type'], fn ($query) => $query->whereIn('content_type', $typeMap[$filters['content_type']]))
+            ->when($filters['difficulty'], fn ($query) => $query->where('difficulty', $filters['difficulty']))
+            ->when($filters['status'] === 'active', fn ($query) => $query->where('is_active', true))
+            ->when($filters['status'] === 'inactive', fn ($query) => $query->where('is_active', false))
+            ->when($filters['search'], fn ($query) => $query->where(fn ($inner) => $inner
+                ->where('title', 'like', "%{$filters['search']}%")
+                ->orWhere('prompt', 'like', "%{$filters['search']}%")
+                ->orWhere('content_type', 'like', "%{$filters['search']}%")))
             ->orderBy('content_type')
             ->latest()
             ->paginate(25)
@@ -29,8 +45,12 @@ class AdminAssessmentContentController extends Controller
 
         return Inertia::render('Admin/AssessmentContent/Index', [
             'items' => $items,
-            'filters' => ['search' => $search, 'content_type' => $type],
-            'contentTypes' => LearningContent::query()->select('content_type')->distinct()->orderBy('content_type')->pluck('content_type'),
+            'filters' => $filters,
+            'contentTypes' => $options->assessmentContentTypeOptions(),
+            'filterOptions' => [
+                'difficulties' => LearningContent::query()->whereNotNull('difficulty')->select('difficulty')->distinct()->orderBy('difficulty')->pluck('difficulty')->map(fn ($difficulty) => ['label' => $difficulty, 'value' => $difficulty])->values(),
+                'statuses' => $options->statusOptions(),
+            ],
         ]);
     }
 
