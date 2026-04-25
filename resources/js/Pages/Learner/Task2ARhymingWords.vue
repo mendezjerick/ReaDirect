@@ -1,5 +1,5 @@
 <script setup>
-import { reactive } from 'vue';
+import { reactive, ref } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import LearnerLayout from '../../Layouts/LearnerLayout.vue';
 import PromptCard from '../../Components/PromptCard.vue';
@@ -17,6 +17,9 @@ const step = useStepAssessment(props.items, { emptyMessage: 'Let us answer this 
 const form = useForm({ responses: [] });
 const audioFiles = reactive({});
 const audioDurations = reactive({});
+const agentMessage = ref('Say one word that rhymes with this word.');
+const agentState = ref('listening');
+const neutralMessages = ['Thank you. Let us continue.', 'Good effort. Let us go to the next one.', 'I heard your answer. Let us keep going.'];
 
 const rememberAudio = (item, file) => {
     audioFiles[item.id] = file;
@@ -42,6 +45,15 @@ const submit = () => {
 };
 
 const handlePrimary = () => {
+    if (!step.validateCurrent()) {
+        agentMessage.value = 'Let us answer this first.';
+        agentState.value = 'speaking';
+        return;
+    }
+
+    agentMessage.value = neutralMessages[step.currentIndex.value % neutralMessages.length];
+    agentState.value = 'speaking';
+
     if (step.isLast.value) {
         submit();
         return;
@@ -54,15 +66,15 @@ const handlePrimary = () => {
 <template>
     <LearnerLayout :progress="48">
         <template #agent>
-            <AgentSpeakerPanel compact agent-type="assessment" state="listening" message="Say one word that rhymes with this word." />
+            <AgentSpeakerPanel compact agent-type="assessment" :state="agentState" :message="agentMessage" />
         </template>
 
-        <section class="mx-auto grid max-w-2xl gap-4">
+        <section class="mx-auto grid max-w-xl gap-3">
             <StatusBadge :status="`Rhyme ${step.currentIndex.value + 1} of ${items.length}`" />
             <ModuleProgressBar :value="step.progressPercent.value" />
             <PromptCard label="Say a word that rhymes with" :prompt="step.currentItem.value.prompt" size="word" />
-            <div class="rounded-[28px] border border-border bg-surface p-5 shadow-lg shadow-primary/10">
-                <div class="grid gap-4 md:grid-cols-[240px_1fr] md:items-center">
+            <div class="rounded-[24px] border border-border bg-surface p-4 shadow-lg shadow-primary/10">
+                <div class="grid gap-3 md:grid-cols-[220px_1fr] md:items-center">
                     <AudioRecorder
                         compact
                         :max-duration-seconds="30"
@@ -70,7 +82,7 @@ const handlePrimary = () => {
                         @recorded="(file) => rememberAudio(step.currentItem.value, file)"
                         @cleared="() => clearAudio(step.currentItem.value)"
                     />
-                    <input v-model="step.answers[step.currentItem.value.id]" class="w-full rounded-2xl border-2 border-border px-5 py-4 text-xl font-black focus:border-primary focus:outline-none" placeholder="Type a rhyming word">
+                    <input v-model="step.answers[step.currentItem.value.id]" class="w-full rounded-2xl border-2 border-border px-4 py-3 text-lg font-black focus:border-primary focus:outline-none" placeholder="Type a rhyming word">
                 </div>
                 <p v-if="step.feedback.value" class="mt-4 rounded-2xl bg-accent px-4 py-3 text-lg font-black text-text">{{ step.feedback.value }}</p>
             </div>

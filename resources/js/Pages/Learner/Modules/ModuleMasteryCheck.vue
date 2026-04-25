@@ -1,5 +1,5 @@
 <script setup>
-import { computed, reactive, watch } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import LearnerLayout from '../../../Layouts/LearnerLayout.vue';
 import AgentSpeakerPanel from '../../../Components/Learner/AgentSpeakerPanel.vue';
@@ -17,6 +17,8 @@ const step = useStepAssessment(props.items, { emptyMessage: 'Try this one before
 const form = useForm({ responses: [] });
 const audioFiles = reactive({});
 const audioDurations = reactive({});
+const agentMessage = ref('This is your mini mastery check. Do your best one item at a time.');
+const agentState = ref('encouraging');
 const progressLabel = computed(() => `Mastery ${step.currentIndex.value + 1} of ${props.items.length}`);
 
 watch(
@@ -25,6 +27,8 @@ watch(
         step.reset(props.items);
         Object.keys(audioFiles).forEach((key) => delete audioFiles[key]);
         Object.keys(audioDurations).forEach((key) => delete audioDurations[key]);
+        agentMessage.value = 'This is your mini mastery check. Do your best one item at a time.';
+        agentState.value = 'encouraging';
         form.clearErrors();
         form.responses = [];
     }
@@ -54,7 +58,14 @@ const submit = () => {
 };
 
 const handlePrimary = () => {
-    if (!step.validateCurrent()) return;
+    if (!step.validateCurrent()) {
+        agentMessage.value = 'Let us answer this first.';
+        agentState.value = 'encouraging';
+        return;
+    }
+
+    agentMessage.value = 'Answer saved. Keep going.';
+    agentState.value = 'speaking';
 
     if (step.isLast.value) {
         submit();
@@ -68,18 +79,18 @@ const handlePrimary = () => {
 <template>
     <LearnerLayout :progress="90">
         <template #agent>
-            <AgentSpeakerPanel compact agent-type="coach_feedback" state="encouraging" message="This is your mini mastery check. Do your best one item at a time." />
+            <AgentSpeakerPanel compact agent-type="coach_feedback" :state="agentState" :message="agentMessage" />
         </template>
 
-        <section class="mx-auto grid max-w-2xl gap-4">
+        <section class="mx-auto grid max-w-xl gap-3">
             <div class="flex items-center justify-between">
                 <StatusBadge status="Mini Mastery Check" variant="primary" />
                 <StatusBadge :status="progressLabel" />
             </div>
             <ModuleProgressBar :value="step.progressPercent.value" />
             <PromptCard label="Check" :prompt="step.currentItem.value.prompt" size="word" />
-            <div class="rounded-[28px] border border-border bg-surface p-5 shadow-lg shadow-primary/10">
-                <div class="grid gap-4 md:grid-cols-[240px_1fr] md:items-center">
+            <div class="rounded-[24px] border border-border bg-surface p-4 shadow-lg shadow-primary/10">
+                <div class="grid gap-3 md:grid-cols-[220px_1fr] md:items-center">
                     <AudioRecorder
                         compact
                         :max-duration-seconds="45"
@@ -89,7 +100,7 @@ const handlePrimary = () => {
                     />
                     <label class="grid gap-2 text-lg font-black text-text">
                         Your answer
-                        <input v-model="step.answers[step.currentItem.value.id]" class="rounded-2xl border-2 border-border px-5 py-4 text-xl font-black focus:border-primary focus:outline-none" placeholder="Type answer">
+                        <input v-model="step.answers[step.currentItem.value.id]" class="rounded-2xl border-2 border-border px-4 py-3 text-lg font-black focus:border-primary focus:outline-none" placeholder="Type answer">
                     </label>
                 </div>
                 <p v-if="step.feedback.value" class="mt-4 rounded-2xl bg-accent px-4 py-3 text-lg font-black text-text">{{ step.feedback.value }}</p>

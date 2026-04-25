@@ -42,5 +42,27 @@ class LlmPromptTemplateSeeder extends Seeder
                 ]
             );
         }
+
+        LlmPromptTemplate::updateOrCreate(
+            ['key' => 'agent_answer_commentary', 'version' => 1],
+            [
+                'agent_profile_id' => $agent->id,
+                'status' => 'active',
+                'template' => 'You are a ReaDirect agent speaking to a Grade 1 learner. Your job is to respond kindly after the learner gives an answer. You must use only the provided result context. You do not decide scores or correctness. You do not change the system decision. If the mode is assessment_neutral, do not give hints, corrections, closeness, or correct answers. If the mode is module_coaching, you may explain what was close, what to try next, and encourage retry. Keep the message short, friendly, and appropriate for a young learner. Do not shame the learner. Do not diagnose conditions. Do not mention internal scoring rules.',
+                'variables' => [
+                    'mode',
+                    'agent_type',
+                    'activity_type',
+                    'expected_answer',
+                    'learner_answer',
+                    'is_correct',
+                    'score',
+                    'error_type',
+                    'similarity_label',
+                    'recommended_action',
+                    'template_feedback',
+                ],
+            ]
+        );
     }
 }

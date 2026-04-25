@@ -1,5 +1,5 @@
 <script setup>
-import { reactive } from 'vue';
+import { reactive, ref } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import LearnerLayout from '../../Layouts/LearnerLayout.vue';
 import AgentSpeakerPanel from '../../Components/Learner/AgentSpeakerPanel.vue';
@@ -16,6 +16,9 @@ const step = useStepAssessment(props.items, { emptyMessage: 'Almost there! Finis
 const form = useForm({ responses: [] });
 const audioFiles = reactive({});
 const audioDurations = reactive({});
+const agentMessage = ref('Read the highlighted word in the sentence.');
+const agentState = ref('listening');
+const neutralMessages = ['Thank you. Let us continue.', 'Good effort. Let us go to the next one.', 'I heard your answer. Let us keep going.'];
 
 const rememberAudio = (item, file) => {
     audioFiles[item.id] = file;
@@ -47,6 +50,15 @@ const submit = () => {
 };
 
 const handlePrimary = () => {
+    if (!step.validateCurrent()) {
+        agentMessage.value = 'Almost there! Finish this item to continue.';
+        agentState.value = 'speaking';
+        return;
+    }
+
+    agentMessage.value = neutralMessages[step.currentIndex.value % neutralMessages.length];
+    agentState.value = 'speaking';
+
     if (step.isLast.value) {
         submit();
         return;
@@ -59,23 +71,23 @@ const handlePrimary = () => {
 <template>
     <LearnerLayout :progress="58">
         <template #agent>
-            <AgentSpeakerPanel compact agent-type="assessment" state="listening" message="Read the highlighted word in the sentence." />
+            <AgentSpeakerPanel compact agent-type="assessment" :state="agentState" :message="agentMessage" />
         </template>
 
-        <section class="mx-auto grid max-w-2xl gap-4">
+        <section class="mx-auto grid max-w-xl gap-3">
             <StatusBadge :status="`Word ${step.currentIndex.value + 1} of ${items.length}`" />
             <ModuleProgressBar :value="step.progressPercent.value" />
-            <div class="rounded-[32px] border border-border bg-surface p-7 text-center shadow-xl shadow-primary/10">
-                <p class="text-lg font-black text-muted">Read the sentence</p>
-                <p class="mt-4 text-3xl font-black leading-snug text-text md:text-4xl">
+            <div class="rounded-[28px] border border-border bg-surface p-5 text-center shadow-xl shadow-primary/10">
+                <p class="text-base font-black text-muted">Read the sentence</p>
+                <p class="mt-3 text-2xl font-black leading-snug text-text md:text-3xl">
                     <template v-for="(part, index) in parts(step.currentItem.value)" :key="index">
                         <mark v-if="part.toLowerCase() === (step.currentItem.value.payload?.target_word ?? '').toLowerCase()" class="rounded-xl bg-accent px-2">{{ part }}</mark>
                         <span v-else>{{ part }}</span>
                     </template>
                 </p>
             </div>
-            <div class="rounded-[28px] border border-border bg-surface p-5 shadow-lg shadow-primary/10">
-                <div class="grid gap-4 md:grid-cols-[240px_1fr] md:items-center">
+            <div class="rounded-[24px] border border-border bg-surface p-4 shadow-lg shadow-primary/10">
+                <div class="grid gap-3 md:grid-cols-[220px_1fr] md:items-center">
                     <AudioRecorder
                         compact
                         :max-duration-seconds="30"
@@ -83,7 +95,7 @@ const handlePrimary = () => {
                         @recorded="(file) => rememberAudio(step.currentItem.value, file)"
                         @cleared="() => clearAudio(step.currentItem.value)"
                     />
-                    <input v-model="step.answers[step.currentItem.value.id]" class="w-full rounded-2xl border-2 border-border px-5 py-4 text-xl font-black focus:border-primary focus:outline-none" placeholder="Type the target word read">
+                    <input v-model="step.answers[step.currentItem.value.id]" class="w-full rounded-2xl border-2 border-border px-4 py-3 text-lg font-black focus:border-primary focus:outline-none" placeholder="Type the target word read">
                 </div>
                 <p v-if="step.feedback.value" class="mt-4 rounded-2xl bg-accent px-4 py-3 text-lg font-black text-text">{{ step.feedback.value }}</p>
             </div>

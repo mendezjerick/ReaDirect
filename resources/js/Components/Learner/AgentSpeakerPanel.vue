@@ -58,9 +58,9 @@ const handleImageError = () => {
 </script>
 
 <template>
-    <section class="grid gap-3 rounded-[28px] border border-border bg-surface shadow-xl shadow-primary/10 md:items-center" :class="compact ? 'p-3 md:grid-cols-[112px_1fr]' : 'p-4 md:grid-cols-[220px_1fr]'">
+    <section class="agent-speaker-panel grid gap-3 rounded-[24px] border border-border bg-surface shadow-xl shadow-primary/10 md:items-center" :class="compact ? 'p-2.5 md:grid-cols-[86px_1fr] lg:grid-cols-1' : 'p-3 md:grid-cols-[132px_1fr] lg:grid-cols-1'">
         <div class="grid justify-items-center">
-            <div class="grid place-items-end overflow-hidden rounded-[24px] bg-primary-light" :class="compact ? 'h-28 w-24 md:h-32 md:w-28' : 'h-64 w-52'">
+            <div class="grid place-items-end overflow-hidden rounded-[20px] bg-primary-light" :class="compact ? 'h-24 w-20 md:h-24 md:w-20 lg:h-36 lg:w-32' : 'h-36 w-32 md:h-40 md:w-36 lg:h-52 lg:w-44'">
                 <img
                     v-if="!showPlaceholder"
                     :src="imageSrc"
@@ -74,21 +74,21 @@ const handleImageError = () => {
                 </div>
             </div>
         </div>
-        <div class="relative rounded-[24px] border-2 border-primary-light bg-background shadow-sm" :class="compact ? 'p-4' : 'p-5'">
-            <span class="absolute left-1/2 top-0 size-4 -translate-x-1/2 -translate-y-1/2 rotate-45 border-l-2 border-t-2 border-primary-light bg-background md:left-0 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2" aria-hidden="true" />
+        <div class="relative rounded-[22px] border-2 border-primary-light bg-background shadow-sm" :class="compact ? 'p-3 lg:p-4' : 'p-4'">
+            <span class="absolute left-1/2 top-0 size-4 -translate-x-1/2 -translate-y-1/2 rotate-45 border-l-2 border-t-2 border-primary-light bg-background md:left-0 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 lg:left-1/2 lg:top-0 lg:-translate-x-1/2 lg:-translate-y-1/2" aria-hidden="true" />
             <div class="flex flex-wrap items-start justify-between gap-3">
                 <div>
                     <p class="font-black uppercase text-primary" :class="compact ? 'text-xs' : 'text-sm'">{{ displayTitle }}</p>
                     <p v-if="subtitle" class="mt-1 text-sm font-bold text-muted">{{ subtitle }}</p>
                 </div>
                 <div class="flex items-center gap-2">
-                    <span class="rounded-full bg-primary-light px-2.5 py-1 text-[11px] font-black text-primary">{{ stateLabel }}</span>
+                    <span class="rounded-full bg-primary-light px-2 py-0.5 text-[10px] font-black text-primary">{{ stateLabel }}</span>
                     <button v-if="showAudioButton" type="button" disabled class="grid size-9 place-items-center rounded-full bg-border text-muted" aria-label="Audio coming soon">
                         <Volume2 class="size-4" />
                     </button>
                 </div>
             </div>
-            <p class="font-black leading-relaxed text-text" :class="compact ? 'mt-2 text-base md:text-lg' : 'mt-4 text-xl'">
+            <p class="font-black leading-snug text-text" :class="compact ? 'mt-2 text-sm md:text-base lg:text-[17px]' : 'mt-3 text-lg'">
                 {{ message }}
             </p>
         </div>

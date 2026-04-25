@@ -41,17 +41,17 @@ const handlePrimary = () => {
             <AgentSpeakerPanel compact agent-type="assessment" state="speaking" message="Choose the best answer for this question." />
         </template>
 
-        <section class="mx-auto grid max-w-2xl gap-4">
+        <section class="mx-auto grid max-w-xl gap-3">
             <StatusBadge :status="`Question ${step.currentIndex.value + 1} of ${questions.length}`" />
             <ModuleProgressBar :value="step.progressPercent.value" />
-            <div class="rounded-[32px] border border-border bg-surface p-6 shadow-xl shadow-primary/10">
-                <p class="text-2xl font-black text-text">{{ step.currentItem.value.question_text }}</p>
-                <div class="mt-5 grid gap-3">
+            <div class="rounded-[28px] border border-border bg-surface p-5 shadow-xl shadow-primary/10">
+                <p class="text-xl font-black text-text md:text-2xl">{{ step.currentItem.value.question_text }}</p>
+                <div class="mt-4 grid gap-2.5">
                     <button
                         v-for="(choice, key) in step.currentItem.value.choices"
                         :key="key"
                         type="button"
-                        class="rounded-2xl border-2 p-4 text-left text-lg font-black"
+                        class="rounded-2xl border-2 px-4 py-3 text-left text-base font-black md:text-lg"
                         :class="step.answers[step.currentItem.value.id] === choice ? 'border-primary bg-primary-light text-primary' : 'border-border bg-surface text-text hover:border-primary'"
                         @click="choose(choice)"
                     >

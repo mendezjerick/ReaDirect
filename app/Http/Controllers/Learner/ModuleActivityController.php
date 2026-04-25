@@ -9,7 +9,7 @@ use App\Models\ModuleActivityResponse;
 use App\Models\ModuleAttempt;
 use App\Models\ModuleAttemptItem;
 use App\Services\AudioStorageService;
-use App\Services\LLM\CoachFeedbackLLMService;
+use App\Services\Agents\AgentCommentaryService;
 use App\Services\ModuleActivitySelectionService;
 use App\Services\ModuleFeedbackService;
 use App\Services\ModuleScoringService;
@@ -58,7 +58,7 @@ class ModuleActivityController extends Controller
         ModuleScoringService $scoring,
         ModuleFeedbackService $feedback,
         AudioStorageService $audioStorage,
-        CoachFeedbackLLMService $coachFeedback
+        AgentCommentaryService $commentary
     ): RedirectResponse {
         $learner = $this->learner($request);
         $this->authorizeModule($learner, $module);
@@ -68,7 +68,7 @@ class ModuleActivityController extends Controller
         $validated = $request->validate($this->responseRules($items->count()), $this->friendlyValidationMessages());
         $this->validateSubmittedItemSet($items, $validated['responses']);
 
-        $this->persistResponses($attempt, $items, $validated['responses'], $scoring, $feedback, $audioStorage, $coachFeedback, $module, $activityType, false);
+        $this->persistResponses($attempt, $items, $validated['responses'], $scoring, $feedback, $audioStorage, $commentary, $module, $activityType, false);
 
         $activityTypes = $selection->practiceActivityTypes($module);
         $nextActivityType = $this->nextActivityType($activityTypes, $activityType);
@@ -87,7 +87,7 @@ class ModuleActivityController extends Controller
         ModuleScoringService $scoring,
         ModuleFeedbackService $feedback,
         AudioStorageService $audioStorage,
-        CoachFeedbackLLMService $coachFeedback,
+        AgentCommentaryService $commentary,
         Module $module,
         string $activityType,
         bool $isMastery
@@ -141,23 +141,32 @@ class ModuleActivityController extends Controller
                 $audioStorage->attachToModuleResponse($audioFile, $response->id);
             }
 
+            $agentCommentary = $commentary->generateCommentary([
+                'mode' => 'module_coaching',
+                'agent_type' => 'coach_feedback',
+                'learner_id' => $attempt->learner_id,
+                'source_type' => 'module_activity_response',
+                'source_id' => $response->id,
+                'module_key' => $module->key,
+                'activity_type' => $activityType,
+                'expected_answer' => $score['expected_answer'],
+                'learner_answer' => $answer,
+                'is_correct' => $score['is_correct'],
+                'score' => $score['score'],
+                'max_score' => $score['possible_score'],
+                'error_type' => $score['error_type'] ?? null,
+                'recommended_action' => $score['is_correct'] ? 'continue' : 'try_again',
+                'template_feedback' => $templateFeedback,
+                'retry_instruction' => $template['retry_instruction'] ?? '',
+                'is_module' => true,
+                'can_give_hint' => true,
+            ]);
+
             $response->update([
-                'feedback_text' => $coachFeedback->generateFeedback([
-                    'learner_id' => $attempt->learner_id,
-                    'source_type' => 'module_activity_response',
-                    'source_id' => $response->id,
-                    'prompt_key' => $score['is_correct'] ? 'coach_feedback_correct' : 'coach_feedback_incorrect',
-                    'module_key' => $module->key,
-                    'activity_type' => $activityType,
-                    'expected_answer' => $score['expected_answer'],
-                    'learner_response' => $answer,
-                    'is_correct' => $score['is_correct'],
-                    'error_type' => $score['error_type'] ?? null,
-                    'recommended_action' => $score['is_correct'] ? 'continue' : 'try_again',
-                    'template_feedback' => $templateFeedback,
-                    'retry_instruction' => $template['retry_instruction'] ?? '',
-                    'max_words' => 30,
-                ]),
+                'feedback_text' => $agentCommentary['message'],
+                'agent_commentary_text' => $agentCommentary['message'],
+                'agent_commentary_source' => $agentCommentary['source'],
+                'agent_type' => $agentCommentary['agent_type'],
             ]);
 
             $item->update(['answered_at' => now()]);

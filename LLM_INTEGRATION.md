@@ -97,6 +97,16 @@ Generated output is trimmed, markdown is removed, and output is limited. The app
 
 Rejected output falls back to the existing child-friendly template.
 
+## Agent Commentary
+
+Phase 7.5 adds short post-answer commentary for the fixed agents.
+
+- Assessment Agent uses `assessment_neutral` mode and does not call the LLM.
+- Coach + Feedback Agent uses `module_coaching` mode and may call the LLM for wording.
+- Evaluator / Recommendation Agent uses `evaluator_summary` mode and may call the LLM to explain already-computed next steps.
+
+The LLM still does not decide correctness, scores, classifications, placement, or mastery. It only rewrites or improves the child-facing message from structured rule-based context.
+
 ## Privacy Notes
 
 - API keys stay server-side.

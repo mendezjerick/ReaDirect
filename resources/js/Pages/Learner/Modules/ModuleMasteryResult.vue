@@ -31,7 +31,7 @@ const actionHref = (decision, module, nextModule) => {
 <template>
     <LearnerLayout :progress="100">
         <template #agent>
-            <AgentSpeakerPanel agent-type="coach_feedback" state="celebrating" :message="decision.user_friendly_message" />
+            <AgentSpeakerPanel agent-type="evaluator" state="celebrating" :message="decision.user_friendly_message" />
         </template>
 
         <section class="mx-auto grid max-w-2xl gap-5 text-center">

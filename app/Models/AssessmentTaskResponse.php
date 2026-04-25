@@ -32,6 +32,9 @@ class AssessmentTaskResponse extends Model
         'error_type',
         'response_time_seconds',
         'rule_applied',
+        'agent_commentary_text',
+        'agent_commentary_source',
+        'agent_type',
         'metadata',
         'metadata_json',
     ];

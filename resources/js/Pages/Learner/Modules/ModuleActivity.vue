@@ -30,6 +30,41 @@ const coachState = ref('speaking');
 
 const normalize = (value) => String(value ?? '').toLowerCase().trim().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ');
 const isAccepted = (item, answer) => item.accepted_answers.map(normalize).includes(normalize(answer));
+const distance = (a, b) => {
+    const left = normalize(a);
+    const right = normalize(b);
+    const matrix = Array.from({ length: left.length + 1 }, (_, i) => [i]);
+    for (let j = 1; j <= right.length; j += 1) matrix[0][j] = j;
+    for (let i = 1; i <= left.length; i += 1) {
+        for (let j = 1; j <= right.length; j += 1) {
+            matrix[i][j] = Math.min(
+                matrix[i - 1][j] + 1,
+                matrix[i][j - 1] + 1,
+                matrix[i - 1][j - 1] + (left[i - 1] === right[j - 1] ? 0 : 1)
+            );
+        }
+    }
+    return matrix[left.length][right.length];
+};
+const similarityLabel = (expected, answer) => {
+    const actual = normalize(answer);
+    const target = normalize(expected);
+    if (!actual) return 'blank';
+    if (actual === target) return 'exact';
+    const maxLength = Math.max(target.length, actual.length, 1);
+    const percent = (1 - distance(target, actual) / maxLength) * 100;
+    if (distance(target, actual) === 1 || percent >= 80) return 'very_close';
+    if (percent >= 60) return 'close';
+    if (percent >= 35) return 'somewhat_close';
+    return 'far';
+};
+const feedbackFor = (item, answer) => {
+    const expected = item.payload?.expected_answer ?? item.payload?.target_word ?? item.accepted_answers[0] ?? '';
+    const label = similarityLabel(expected, answer);
+    if (label === 'very_close') return 'Good try! That was very close. Let us fix one small sound.';
+    if (label === 'close' || label === 'somewhat_close') return 'Great effort! You are getting close. Let us try it slowly.';
+    return 'Good effort! Let us listen again and try one more time.';
+};
 
 const progressLabel = computed(() => `Activity ${step.currentIndex.value + 1} of ${props.items.length}`);
 
@@ -69,9 +104,10 @@ const tryCurrent = () => {
 
     if (!isAccepted(item, answer)) {
         retries[item.id] = (retries[item.id] ?? 0) + 1;
-        step.feedback.value = 'Great effort! Try this one again.';
-        coachMessage.value = 'Great effort! Listen carefully, then try again.';
-        coachState.value = 'confused';
+        const message = feedbackFor(item, answer);
+        step.feedback.value = message;
+        coachMessage.value = message;
+        coachState.value = message.includes('close') ? 'encouraging' : 'thinking';
         return false;
     }
 
@@ -113,15 +149,15 @@ const handlePrimary = () => {
             <AgentSpeakerPanel compact agent-type="coach_feedback" :state="coachState" :message="coachMessage" />
         </template>
 
-        <section class="mx-auto grid max-w-2xl gap-4">
+        <section class="mx-auto grid max-w-xl gap-3">
             <div class="flex items-center justify-between">
                 <StatusBadge :status="activityLabel" variant="primary" />
                 <StatusBadge :status="progressLabel" />
             </div>
             <ModuleProgressBar :value="step.progressPercent.value" />
             <PromptCard label="Practice" :prompt="step.currentItem.value.prompt" size="word" />
-            <div class="rounded-[28px] border border-border bg-surface p-5 shadow-lg shadow-primary/10">
-                <div class="grid gap-4 md:grid-cols-[240px_1fr] md:items-center">
+            <div class="rounded-[24px] border border-border bg-surface p-4 shadow-lg shadow-primary/10">
+                <div class="grid gap-3 md:grid-cols-[220px_1fr] md:items-center">
                     <AudioRecorder
                         compact
                         :max-duration-seconds="45"
@@ -131,7 +167,7 @@ const handlePrimary = () => {
                     />
                     <label class="grid gap-2 text-lg font-black text-text">
                         Your answer
-                        <input v-model="step.answers[step.currentItem.value.id]" class="rounded-2xl border-2 border-border px-5 py-4 text-xl font-black focus:border-primary focus:outline-none" placeholder="Type answer">
+                        <input v-model="step.answers[step.currentItem.value.id]" class="rounded-2xl border-2 border-border px-4 py-3 text-lg font-black focus:border-primary focus:outline-none" placeholder="Type answer">
                     </label>
                 </div>
                 <p v-if="step.feedback.value" class="mt-4 rounded-2xl bg-primaryLight px-4 py-3 text-lg font-black text-primaryDark">{{ step.feedback.value }}</p>
