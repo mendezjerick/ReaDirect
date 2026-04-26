@@ -12,7 +12,7 @@ class TranscriptResolver
     ) {
     }
 
-    public function resolve(?string $manualTranscript, ?AudioFile $audioFile): array
+    public function resolve(?string $manualTranscript, ?AudioFile $audioFile, array $options = []): array
     {
         $manual = $this->sanitizer->sanitize($manualTranscript);
 
@@ -34,7 +34,7 @@ class TranscriptResolver
             ];
         }
 
-        $result = $this->transcription->transcribeAudioFile($audioFile);
+        $result = $this->transcription->transcribeAudioFile($audioFile, $options);
 
         return [
             'transcript' => $result->hasTranscript() ? $result->transcript : '',

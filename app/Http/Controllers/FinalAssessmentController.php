@@ -6,6 +6,7 @@ use App\Models\AgentProfile;
 use App\Models\AssessmentAttempt;
 use App\Models\AssessmentAttemptItem;
 use App\Models\AssessmentTaskResponse;
+use App\Models\AudioFile;
 use App\Models\Learner;
 use App\Models\LearningContent;
 use App\Services\AnswerMatchingService;
@@ -94,7 +95,7 @@ class FinalAssessmentController extends Controller
             'task-1' => $this->submitTaskOne($request, $attempt, $itemSelection, $answerMatching, $audioStorage, $transcripts, $crla),
             'task-2a' => $this->submitTaskTwoA($request, $attempt, $itemSelection, $answerMatching, $audioStorage, $transcripts),
             'task-2b' => $this->submitTaskTwoB($request, $attempt, $itemSelection, $answerMatching, $audioStorage, $transcripts, $crla),
-            'passage' => $this->submitPassage($request, $attempt, $reading, $audioStorage, $audioTranscription),
+            'passage' => $this->submitPassage($request, $attempt, $itemSelection, $reading, $audioStorage, $audioTranscription),
             'comprehension' => $this->submitComprehension($request, $attempt, $itemSelection, $answerMatching, $reading, $comparison),
             default => abort(404),
         };
@@ -193,17 +194,27 @@ class FinalAssessmentController extends Controller
     private function submitPassage(
         Request $request,
         AssessmentAttempt $attempt,
+        AssessmentItemSelectionService $itemSelection,
         ReadingComprehensionScoringService $reading,
         AudioStorageService $audioStorage,
         AudioTranscriptionService $audioTranscription
     ): RedirectResponse {
         $validated = $request->validate([
             'incorrect_words' => ['required', 'integer', 'min:0', 'max:50'],
-            'audio' => ['nullable', 'file', 'max:10240', 'mimetypes:'.implode(',', AudioStorageService::ALLOWED_MIME_TYPES)],
+            'audio' => AudioStorageService::validationRules(),
+            'audio_file_id' => ['nullable', 'integer', 'exists:audio_files,id'],
             'duration_seconds' => ['nullable', 'numeric', 'min:0', 'max:600'],
         ], $this->friendlyValidationMessages());
+        $passage = $itemSelection->selectReadingPassageForAttempt($attempt);
+        $incorrectWords = (int) $validated['incorrect_words'];
+        $audioFile = isset($validated['audio_file_id']) && $validated['audio_file_id']
+            ? AudioFile::query()
+                ->where('learner_id', $attempt->learner_id)
+                ->where('assessment_attempt_id', $attempt->id)
+                ->find($validated['audio_file_id'])
+            : null;
 
-        if ($request->hasFile('audio')) {
+        if (! $audioFile && $request->hasFile('audio')) {
             $audioFile = $audioStorage->store(
                 file: $request->file('audio'),
                 learner: $attempt->learner,
@@ -211,12 +222,27 @@ class FinalAssessmentController extends Controller
                 assessmentAttempt: $attempt,
                 durationSeconds: isset($validated['duration_seconds']) ? (float) $validated['duration_seconds'] : null
             );
-            $audioTranscription->transcribeAudioFile($audioFile);
+        }
+
+        if ($audioFile) {
+            $transcriptText = trim((string) $audioFile->transcript);
+
+            if ($transcriptText === '') {
+                $sttResult = $audioTranscription->transcribeAudioFile($audioFile, $this->sttOptionsForPassage($passage));
+                $transcriptText = trim((string) $sttResult->transcript);
+            }
+
+            if ($transcriptText !== '') {
+                $incorrectWords = $reading->calculateIncorrectWordCount(
+                    (string) ($passage?->prompt_snapshot['prompt'] ?? ''),
+                    $transcriptText,
+                );
+            }
         }
 
         $attempt->update([
-            'incorrect_words' => (int) $validated['incorrect_words'],
-            'reading_accuracy' => $reading->calculateAccuracyPercentage((int) $validated['incorrect_words']),
+            'incorrect_words' => $incorrectWords,
+            'reading_accuracy' => $reading->calculateAccuracyPercentage($incorrectWords),
             'status' => 'passage_completed',
         ]);
 
@@ -460,6 +486,11 @@ class FinalAssessmentController extends Controller
         return $payload['expected_answer'] ?? $payload['target_word'] ?? $item->prompt_snapshot['prompt'] ?? null;
     }
 
+    private function sttOptionsForPassage(?AssessmentAttemptItem $passage): array
+    {
+        return [];
+    }
+
     private function questionsForPassage(?AssessmentAttemptItem $passage): array
     {
         $passageCsvId = $passage?->source_csv_id;
@@ -490,7 +521,7 @@ class FinalAssessmentController extends Controller
             'responses.*.assessment_attempt_item_id' => ['required', 'integer', 'exists:assessment_attempt_items,id'],
             'responses.*.answer' => ['nullable', 'string', 'max:255'],
             'responses.*.transcript_source' => ['nullable', 'string', 'in:manual,stt_auto,stt_placeholder,teacher_review,future_asr'],
-            'responses.*.audio' => ['nullable', 'file', 'max:10240', 'mimetypes:'.implode(',', AudioStorageService::ALLOWED_MIME_TYPES)],
+            'responses.*.audio' => AudioStorageService::validationRules(),
             'responses.*.duration_seconds' => ['nullable', 'numeric', 'min:0', 'max:600'],
         ];
     }

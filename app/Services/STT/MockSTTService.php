@@ -4,7 +4,7 @@ namespace App\Services\STT;
 
 class MockSTTService implements SpeechToTextServiceInterface
 {
-    public function transcribeAudio(string $filePath): SpeechToTextResult
+    public function transcribeAudio(string $filePath, array $options = []): SpeechToTextResult
     {
         return new SpeechToTextResult(
             transcript: config('stt.mock.transcript'),
@@ -20,6 +20,6 @@ class MockSTTService implements SpeechToTextServiceInterface
 
     public function transcribeAudioChunked(string $filePath, array $options = []): SpeechToTextResult
     {
-        return $this->transcribeAudio($filePath);
+        return $this->transcribeAudio($filePath, $options);
     }
 }

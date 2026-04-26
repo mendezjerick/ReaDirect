@@ -13,12 +13,46 @@ class AudioStorageService
 {
     public const ALLOWED_MIME_TYPES = [
         'audio/webm',
+        'video/webm',
         'audio/wav',
         'audio/x-wav',
         'audio/mpeg',
         'audio/mp4',
         'audio/ogg',
     ];
+
+    public const ALLOWED_EXTENSIONS = [
+        'webm',
+        'weba',
+        'wav',
+        'mp3',
+        'mp4',
+        'm4a',
+        'ogg',
+    ];
+
+    public static function validationRules(bool $required = false): array
+    {
+        return [
+            $required ? 'required' : 'nullable',
+            'file',
+            'max:10240',
+            static function (string $attribute, mixed $value, \Closure $fail): void {
+                if (! $value instanceof UploadedFile) {
+                    return;
+                }
+
+                $mimeType = strtolower((string) $value->getMimeType());
+                $extension = strtolower((string) $value->getClientOriginalExtension());
+
+                if (in_array($mimeType, self::ALLOWED_MIME_TYPES, true) || in_array($extension, self::ALLOWED_EXTENSIONS, true)) {
+                    return;
+                }
+
+                $fail('The '.$attribute.' field must be a file of type: '.implode(', ', self::ALLOWED_EXTENSIONS).'.');
+            },
+        ];
+    }
 
     public function store(
         UploadedFile $file,

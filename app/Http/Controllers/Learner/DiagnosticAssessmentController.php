@@ -7,6 +7,7 @@ use App\Models\AgentProfile;
 use App\Models\AssessmentAttempt;
 use App\Models\AssessmentAttemptItem;
 use App\Models\AssessmentTaskResponse;
+use App\Models\AudioFile;
 use App\Models\Learner;
 use App\Models\LearningContent;
 use App\Models\Module;
@@ -60,6 +61,7 @@ class DiagnosticAssessmentController extends Controller
 
         return Inertia::render('Learner/Task1LetterPronunciation', [
             'items' => $this->itemsForForm($items),
+            'assessmentAttemptId' => $attempt->id,
         ]);
     }
 
@@ -97,10 +99,18 @@ class DiagnosticAssessmentController extends Controller
     public function taskRouting(Request $request): Response
     {
         $attempt = $this->attempt($request);
+        $storedRoute = $request->session()->get('task_one_route', []);
+        $requiresTask2A = (int) $attempt->task_1_score <= 6;
+        $route = [
+            'requires_task_2a' => $storedRoute['requires_task_2a'] ?? $requiresTask2A,
+            'assigned_task_2a_score' => $storedRoute['assigned_task_2a_score'] ?? ($requiresTask2A ? null : 10),
+            'next_task' => $storedRoute['next_task'] ?? ($requiresTask2A ? 'task_2a' : 'task_2b'),
+            'rule_applied' => $storedRoute['rule_applied'] ?? 'CRLA_TASK_1_ROUTING_V1',
+        ];
 
         return Inertia::render('Learner/TaskRoutingResult', [
             'attempt' => $attempt->only('task_1_score', 'task_2a_score', 'decision_reason'),
-            'route' => $request->session()->get('task_one_route', []),
+            'route' => $route,
         ]);
     }
 
@@ -145,6 +155,7 @@ class DiagnosticAssessmentController extends Controller
 
         return Inertia::render('Learner/Task2BWordInSentence', [
             'items' => $this->itemsForForm($items),
+            'assessmentAttemptId' => $attempt->id,
         ]);
     }
 
@@ -197,6 +208,7 @@ class DiagnosticAssessmentController extends Controller
 
         return Inertia::render('Learner/PassageReading', [
             'passage' => $this->itemForForm($passage),
+            'assessmentAttemptId' => $attempt->id,
         ]);
     }
 
@@ -204,12 +216,22 @@ class DiagnosticAssessmentController extends Controller
     {
         $validated = $request->validate([
             'incorrect_words' => ['required', 'integer', 'min:0', 'max:50'],
-            'audio' => ['nullable', 'file', 'max:10240', 'mimetypes:'.implode(',', AudioStorageService::ALLOWED_MIME_TYPES)],
+            'audio' => AudioStorageService::validationRules(),
+            'audio_file_id' => ['nullable', 'integer', 'exists:audio_files,id'],
             'duration_seconds' => ['nullable', 'numeric', 'min:0', 'max:600'],
         ], $this->friendlyValidationMessages());
 
         $attempt = $this->attempt($request);
-        if ($request->hasFile('audio')) {
+        $passage = app(AssessmentItemSelectionService::class)->selectReadingPassageForAttempt($attempt);
+        $incorrectWords = (int) $validated['incorrect_words'];
+        $audioFile = isset($validated['audio_file_id']) && $validated['audio_file_id']
+            ? AudioFile::query()
+                ->where('learner_id', $attempt->learner_id)
+                ->where('assessment_attempt_id', $attempt->id)
+                ->find($validated['audio_file_id'])
+            : null;
+
+        if (! $audioFile && $request->hasFile('audio')) {
             $audioFile = $audioStorage->store(
                 file: $request->file('audio'),
                 learner: $attempt->learner,
@@ -217,12 +239,27 @@ class DiagnosticAssessmentController extends Controller
                 assessmentAttempt: $attempt,
                 durationSeconds: isset($validated['duration_seconds']) ? (float) $validated['duration_seconds'] : null
             );
-            $transcription->transcribeAudioFile($audioFile);
         }
-        $accuracy = $reading->calculateAccuracyPercentage((int) $validated['incorrect_words']);
+
+        if ($audioFile) {
+            $transcriptText = trim((string) $audioFile->transcript);
+
+            if ($transcriptText === '') {
+                $sttResult = $transcription->transcribeAudioFile($audioFile, $this->sttOptionsForPassage($passage));
+                $transcriptText = trim((string) $sttResult->transcript);
+            }
+
+            if ($transcriptText !== '') {
+                $incorrectWords = $reading->calculateIncorrectWordCount(
+                    (string) ($passage?->prompt_snapshot['prompt'] ?? ''),
+                    $transcriptText,
+                );
+            }
+        }
+        $accuracy = $reading->calculateAccuracyPercentage($incorrectWords);
 
         $attempt->update([
-            'incorrect_words' => (int) $validated['incorrect_words'],
+            'incorrect_words' => $incorrectWords,
             'reading_accuracy' => $accuracy,
             'status' => 'passage_completed',
         ]);
@@ -382,7 +419,13 @@ class DiagnosticAssessmentController extends Controller
         foreach ($items as $item) {
             $submittedIndex = collect($responses)->search(fn ($response) => (int) ($response['assessment_attempt_item_id'] ?? 0) === (int) $item->id);
             $submitted = $submittedIndex === false ? [] : $responses[$submittedIndex];
-            $audioFile = isset($submitted['audio']) && $submitted['audio']
+            $audioFile = isset($submitted['audio_file_id']) && $submitted['audio_file_id']
+                ? AudioFile::where('learner_id', $attempt->learner_id)
+                    ->where('assessment_attempt_id', $attempt->id)
+                    ->find($submitted['audio_file_id'])
+                : null;
+
+            $audioFile = $audioFile ?: (isset($submitted['audio']) && $submitted['audio']
                 ? $audioStorage->store(
                     file: $submitted['audio'],
                     learner: $attempt->learner,
@@ -391,8 +434,8 @@ class DiagnosticAssessmentController extends Controller
                     durationSeconds: isset($submitted['duration_seconds']) ? (float) $submitted['duration_seconds'] : null,
                     metadata: ['assessment_attempt_item_id' => $item->id, 'task_type' => $item->task_type]
                 )
-                : null;
-            $resolved = $transcripts->resolve($submitted['answer'] ?? null, $audioFile);
+                : null);
+            $resolved = $transcripts->resolve($submitted['answer'] ?? null, $audioFile, $this->sttOptionsForAssessmentItem($item));
             $answer = $resolved['transcript'];
             $transcriptSource = $resolved['source'];
 
@@ -488,6 +531,24 @@ class DiagnosticAssessmentController extends Controller
         return $payload['expected_answer'] ?? $payload['target_word'] ?? $item->prompt_snapshot['prompt'] ?? null;
     }
 
+    private function sttOptionsForAssessmentItem(AssessmentAttemptItem $item): array
+    {
+        return match ($item->task_type) {
+            'crla_task_1_letter' => [
+                'prompt' => (string) ($item->prompt_snapshot['prompt'] ?? ''),
+            ],
+            'crla_task_2b_sentence' => [
+                'prompt' => (string) ($item->prompt_snapshot['prompt'] ?? ''),
+            ],
+            default => [],
+        };
+    }
+
+    private function sttOptionsForPassage(?AssessmentAttemptItem $passage): array
+    {
+        return [];
+    }
+
     private function questionsForPassage(?AssessmentAttemptItem $passage): array
     {
         $passageCsvId = $passage?->source_csv_id;
@@ -518,7 +579,8 @@ class DiagnosticAssessmentController extends Controller
             'responses.*.assessment_attempt_item_id' => ['required', 'integer', 'exists:assessment_attempt_items,id'],
             'responses.*.answer' => ['nullable', 'string', 'max:255'],
             'responses.*.transcript_source' => ['nullable', 'string', 'in:manual,stt_auto,stt_placeholder,teacher_review,future_asr'],
-            'responses.*.audio' => ['nullable', 'file', 'max:10240', 'mimetypes:'.implode(',', AudioStorageService::ALLOWED_MIME_TYPES)],
+            'responses.*.audio_file_id' => ['nullable', 'integer', 'exists:audio_files,id'],
+            'responses.*.audio' => AudioStorageService::validationRules(),
             'responses.*.duration_seconds' => ['nullable', 'numeric', 'min:0', 'max:600'],
         ];
     }

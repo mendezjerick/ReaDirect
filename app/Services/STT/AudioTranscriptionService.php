@@ -13,12 +13,12 @@ class AudioTranscriptionService
     ) {
     }
 
-    public function transcribeAudioFile(AudioFile $audioFile): SpeechToTextResult
+    public function transcribeAudioFile(AudioFile $audioFile, array $options = []): SpeechToTextResult
     {
         $disk = $audioFile->disk ?: 'local';
         $path = $audioFile->file_path ?: $audioFile->path;
         $absolutePath = Storage::disk($disk)->path($path);
-        $result = $this->speechToText->transcribeAudio($absolutePath);
+        $result = $this->speechToText->transcribeAudio($absolutePath, $options);
         $transcript = $this->sanitizer->sanitize($result->transcript);
         $result = $result->withTranscript($transcript === '' ? null : $transcript);
 

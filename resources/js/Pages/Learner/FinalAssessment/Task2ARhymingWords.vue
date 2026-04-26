@@ -64,7 +64,7 @@ const handlePrimary = () => {
             <PromptCard label="Say a word that rhymes with" :prompt="step.currentItem.value.prompt" size="word" />
             <div class="rounded-[24px] border border-border bg-surface p-4 shadow-lg shadow-primary/10">
                 <div class="grid gap-3 md:grid-cols-[220px_1fr] md:items-center">
-                    <AudioRecorder compact :max-duration-seconds="30" label="Rhyme voice" @recorded="(file) => rememberAudio(step.currentItem.value, file)" @cleared="() => clearAudio(step.currentItem.value)" />
+                    <AudioRecorder :key="step.currentItem.value.id" compact :max-duration-seconds="30" label="Rhyme voice" @recorded="(file) => rememberAudio(step.currentItem.value, file)" @cleared="() => clearAudio(step.currentItem.value)" />
                     <input v-model="step.answers[step.currentItem.value.id]" class="w-full rounded-2xl border-2 border-border px-4 py-3 text-lg font-black focus:border-primary focus:outline-none" placeholder="Type or record a rhyming word">
                 </div>
                 <p v-if="step.feedback.value" class="mt-4 rounded-2xl bg-accent px-4 py-3 text-lg font-black text-text">{{ step.feedback.value }}</p>

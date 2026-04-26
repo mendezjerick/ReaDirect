@@ -32,3 +32,4 @@ content-bank/import/*
 !content-bank/import/README.md
 content-bank/work/*
 !content-bank/work/.gitkeep
+tools/
