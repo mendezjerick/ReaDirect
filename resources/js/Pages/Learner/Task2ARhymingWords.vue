@@ -77,6 +77,7 @@ const handlePrimary = () => {
             <div class="rounded-[24px] border border-border bg-surface p-4 shadow-lg shadow-primary/10">
                 <div class="grid gap-3 md:grid-cols-[220px_1fr] md:items-center">
                     <AudioRecorder
+                        :key="step.currentItem.value.id"
                         compact
                         :max-duration-seconds="30"
                         label="Rhyme voice"

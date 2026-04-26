@@ -78,7 +78,7 @@ const handlePrimary = () => {
             <PromptCard :label="`Letter ${step.currentItem.value.sequence}`" :prompt="step.currentItem.value.prompt" size="letter" />
             <div class="rounded-[24px] border border-border bg-surface p-4 shadow-lg shadow-primary/10">
                 <div class="grid gap-3 md:grid-cols-[220px_1fr] md:items-center">
-                    <AudioRecorder compact :max-duration-seconds="30" label="Letter voice" @recorded="(file) => rememberAudio(step.currentItem.value, file)" @cleared="() => clearAudio(step.currentItem.value)" />
+                    <AudioRecorder :key="step.currentItem.value.id" compact :max-duration-seconds="30" label="Letter voice" @recorded="(file) => rememberAudio(step.currentItem.value, file)" @cleared="() => clearAudio(step.currentItem.value)" />
                     <label class="grid gap-2 text-lg font-black text-text">
                         What did the learner say?
                         <input v-model="step.answers[step.currentItem.value.id]" class="rounded-2xl border-2 border-border px-4 py-3 text-lg font-black focus:border-primary focus:outline-none" placeholder="Type answer or record voice">

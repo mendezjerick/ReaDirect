@@ -12,7 +12,7 @@ class WhisperCppSTTService implements SpeechToTextServiceInterface
     {
     }
 
-    public function transcribeAudio(string $filePath): SpeechToTextResult
+    public function transcribeAudio(string $filePath, array $options = []): SpeechToTextResult
     {
         if (! config('stt.whisper_cpp.enabled')) {
             return $this->failure('Whisper.cpp STT is disabled.');
@@ -37,7 +37,7 @@ class WhisperCppSTTService implements SpeechToTextServiceInterface
                 $workingFile = $temporaryFile;
             }
 
-            $transcript = $this->runWhisper($workingFile, $modelPath);
+            $transcript = $this->runWhisper($workingFile, $modelPath, $options);
             $transcript = $this->sanitizer->sanitize($transcript);
 
             return new SpeechToTextResult(
@@ -63,10 +63,10 @@ class WhisperCppSTTService implements SpeechToTextServiceInterface
 
     public function transcribeAudioChunked(string $filePath, array $options = []): SpeechToTextResult
     {
-        return $this->transcribeAudio($filePath);
+        return $this->transcribeAudio($filePath, $options);
     }
 
-    private function runWhisper(string $filePath, string $modelPath): string
+    private function runWhisper(string $filePath, string $modelPath, array $options = []): string
     {
         $outputBase = tempnam(sys_get_temp_dir(), 'readirect-whisper-');
 
@@ -84,10 +84,26 @@ class WhisperCppSTTService implements SpeechToTextServiceInterface
             $filePath,
             '-l',
             config('stt.language', 'en'),
+            '-bs',
+            (string) ($options['beam_size'] ?? 5),
+            '-bo',
+            (string) ($options['best_of'] ?? 5),
+            '-tp',
+            (string) ($options['temperature'] ?? 0),
+            '-tpi',
+            (string) ($options['temperature_inc'] ?? 0),
+            '-sow',
+            '-sns',
             '-otxt',
             '-of',
             $outputBase,
         ];
+
+        $prompt = trim((string) ($options['prompt'] ?? ''));
+
+        if ($prompt !== '') {
+            array_push($command, '--prompt', $prompt, '--carry-initial-prompt');
+        }
 
         $extraArgs = trim((string) config('stt.whisper_cpp.extra_args', ''));
 

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Learner;
 
 use App\Http\Controllers\Controller;
 use App\Models\AssessmentAttempt;
+use App\Models\AssessmentAttemptItem;
 use App\Models\Learner;
 use App\Models\ModuleAttempt;
 use App\Services\AudioStorageService;
@@ -17,7 +18,7 @@ class AudioUploadController extends Controller
     public function store(Request $request, AudioStorageService $audioStorage, AudioTranscriptionService $transcription): JsonResponse
     {
         $validated = $request->validate([
-            'audio' => ['required', 'file', 'max:10240', 'mimetypes:'.implode(',', AudioStorageService::ALLOWED_MIME_TYPES)],
+            'audio' => AudioStorageService::validationRules(true),
             'context_type' => ['required', 'string', Rule::in(['assessment_task', 'module_activity', 'passage_reading', 'comprehension_optional'])],
             'assessment_attempt_id' => ['nullable', 'integer', 'exists:assessment_attempts,id'],
             'module_attempt_id' => ['nullable', 'integer', 'exists:module_attempts,id'],
@@ -48,7 +49,7 @@ class AudioUploadController extends Controller
                 'activity_type' => $validated['activity_type'] ?? null,
             ]
         );
-        $sttResult = $transcription->transcribeAudioFile($audioFile);
+        $sttResult = $transcription->transcribeAudioFile($audioFile, $this->sttOptions($assessmentAttempt, $validated));
 
         return response()->json([
             'audio_file_id' => $audioFile->id,
@@ -61,5 +62,30 @@ class AudioUploadController extends Controller
             'transcript_source' => $sttResult->hasTranscript() ? 'stt_auto' : null,
             'stt_error' => $sttResult->error,
         ]);
+    }
+
+    private function sttOptions(?AssessmentAttempt $assessmentAttempt, array $validated): array
+    {
+        if (($validated['context_type'] ?? null) !== 'assessment_task' || ! $assessmentAttempt || ! isset($validated['item_id'])) {
+            return [];
+        }
+
+        $item = AssessmentAttemptItem::query()
+            ->where('assessment_attempt_id', $assessmentAttempt->id)
+            ->find($validated['item_id']);
+
+        if (! $item) {
+            return [];
+        }
+
+        return match ($validated['task_type'] ?? $item->task_type) {
+            'crla_task_1_letter' => [
+                'prompt' => (string) ($item->prompt_snapshot['prompt'] ?? ''),
+            ],
+            'crla_task_2b_sentence' => [
+                'prompt' => (string) ($item->prompt_snapshot['prompt'] ?? ''),
+            ],
+            default => [],
+        };
     }
 }

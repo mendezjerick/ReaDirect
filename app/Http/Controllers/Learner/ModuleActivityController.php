@@ -247,7 +247,7 @@ class ModuleActivityController extends Controller
             'responses.*.answer' => ['nullable', 'string', 'max:255'],
             'responses.*.retry_count' => ['nullable', 'integer', 'min:0'],
             'responses.*.transcript_source' => ['nullable', 'string', 'in:manual,stt_auto,stt_placeholder,teacher_review,future_asr'],
-            'responses.*.audio' => ['nullable', 'file', 'max:10240', 'mimetypes:audio/webm,audio/wav,audio/x-wav,audio/mpeg,audio/mp4,audio/ogg'],
+            'responses.*.audio' => AudioStorageService::validationRules(),
             'responses.*.duration_seconds' => ['nullable', 'numeric', 'min:0', 'max:600'],
         ];
     }

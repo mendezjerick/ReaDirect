@@ -29,7 +29,7 @@ const submit = () => form.post('/final-assessment/passage/submit', { forceFormDa
 <template>
     <LearnerLayout :progress="72">
         <template #agent>
-            <AgentSpeakerPanel agent-type="assessment" state="listening" message="Read the passage aloud for your final reading check." />
+            <AgentSpeakerPanel agent-type="assessment" state="listening" message="Read the passage aloud for your final reading check. I will estimate incorrect words from your recording, and the number field is a fallback if transcription fails." />
         </template>
         <div class="mx-auto grid max-w-2xl gap-3">
             <div class="flex items-center justify-between">
@@ -42,7 +42,7 @@ const submit = () => form.post('/final-assessment/passage/submit', { forceFormDa
             <div class="grid gap-3 rounded-[24px] border border-border bg-surface p-4 shadow-lg shadow-primary/10 md:grid-cols-[220px_1fr]">
                 <AudioRecorder compact :max-duration-seconds="60" label="Passage voice" @recorded="rememberAudio" @cleared="clearAudio" />
                 <label class="grid content-center gap-2 text-lg font-black text-text">
-                    Incorrect words for review
+                    Incorrect words fallback if auto-check fails
                     <input v-model="form.incorrect_words" type="number" min="0" max="50" class="rounded-2xl border-2 border-border px-4 py-3 text-lg font-black focus:border-primary focus:outline-none">
                 </label>
             </div>
