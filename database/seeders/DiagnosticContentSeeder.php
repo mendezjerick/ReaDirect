@@ -8,6 +8,7 @@ use Illuminate\Database\Seeder;
 class DiagnosticContentSeeder extends Seeder
 {
     private string $basePath;
+    private ?array $enrichmentIndex = null;
 
     public function __construct()
     {
@@ -26,6 +27,7 @@ class DiagnosticContentSeeder extends Seeder
     private function seedTaskOneLetters(): void
     {
         foreach ($this->csv('task1_letter_pronunciation.csv') as $row) {
+            $enrichment = $this->enrichmentFor($row['id']);
             LearningContent::updateOrCreate(
                 ['content_type' => 'letter', 'title' => 'Letter '.$row['prompt_text']],
                 [
@@ -36,8 +38,10 @@ class DiagnosticContentSeeder extends Seeder
                         'expected_answer' => $row['expected_answer'],
                         'expected_phoneme' => $row['expected_phoneme'],
                         'points' => (int) $row['points'],
+                        'enrichment' => $enrichment,
                     ],
                     'accepted_answers' => $this->pipeList($row['accepted_answers']),
+                    'enrichment_metadata' => $enrichment,
                     'difficulty' => $row['difficulty'],
                     'is_active' => $this->active($row['is_active']),
                 ]
@@ -48,6 +52,7 @@ class DiagnosticContentSeeder extends Seeder
     private function seedTaskTwoARhymes(): void
     {
         foreach ($this->csv('task2a_rhyming_words.csv') as $row) {
+            $enrichment = $this->enrichmentFor($row['id']);
             LearningContent::updateOrCreate(
                 ['content_type' => 'rhyme_prompt', 'title' => 'Rhyme '.$row['prompt_text']],
                 [
@@ -57,8 +62,10 @@ class DiagnosticContentSeeder extends Seeder
                         'sequence' => (int) $row['sequence'],
                         'expected_rhyme_family' => $row['expected_rhyme_family'],
                         'points' => (int) $row['points'],
+                        'enrichment' => $enrichment,
                     ],
                     'accepted_answers' => $this->pipeList($row['accepted_answers']),
+                    'enrichment_metadata' => $enrichment,
                     'difficulty' => $row['difficulty'],
                     'is_active' => $this->active($row['is_active']),
                 ]
@@ -69,6 +76,7 @@ class DiagnosticContentSeeder extends Seeder
     private function seedTaskTwoBWords(): void
     {
         foreach ($this->csv('task2b_word_in_sentence.csv') as $row) {
+            $enrichment = $this->enrichmentFor($row['id']);
             LearningContent::updateOrCreate(
                 ['content_type' => 'word_sentence', 'title' => 'Word sentence '.$row['id']],
                 [
@@ -79,8 +87,10 @@ class DiagnosticContentSeeder extends Seeder
                         'target_word' => $row['target_word'],
                         'expected_answer' => $row['expected_answer'],
                         'points' => (int) $row['points'],
+                        'enrichment' => $enrichment,
                     ],
                     'accepted_answers' => $this->pipeList($row['accepted_answers']),
+                    'enrichment_metadata' => $enrichment,
                     'difficulty' => $row['difficulty'],
                     'is_active' => $this->active($row['is_active']),
                 ]
@@ -91,6 +101,7 @@ class DiagnosticContentSeeder extends Seeder
     private function seedReadingPassages(): void
     {
         foreach ($this->csv('reading_passages.csv') as $row) {
+            $enrichment = $this->enrichmentFor($row['id']);
             LearningContent::updateOrCreate(
                 ['content_type' => 'reading_passage', 'title' => $row['title']],
                 [
@@ -100,8 +111,10 @@ class DiagnosticContentSeeder extends Seeder
                         'word_count' => (int) $row['word_count'],
                         'expected_reading_time_seconds' => (int) $row['expected_reading_time_seconds'],
                         'max_time_seconds' => (int) $row['max_time_seconds'],
+                        'enrichment' => $enrichment,
                     ],
                     'accepted_answers' => null,
+                    'enrichment_metadata' => $enrichment,
                     'difficulty' => $row['difficulty'],
                     'is_active' => $this->active($row['is_active']),
                 ]
@@ -112,6 +125,7 @@ class DiagnosticContentSeeder extends Seeder
     private function seedComprehensionQuestions(): void
     {
         foreach ($this->csv('comprehension_questions.csv') as $row) {
+            $enrichment = $this->enrichmentFor($row['id']);
             LearningContent::updateOrCreate(
                 ['content_type' => 'comprehension_question', 'title' => $row['id']],
                 [
@@ -129,8 +143,10 @@ class DiagnosticContentSeeder extends Seeder
                             'D' => $row['choice_d'],
                         ],
                         'points' => (int) $row['points'],
+                        'enrichment' => $enrichment,
                     ],
                     'accepted_answers' => $this->pipeList($row['accepted_answers']),
+                    'enrichment_metadata' => $enrichment,
                     'difficulty' => $row['difficulty'],
                     'is_active' => $this->active($row['is_active']),
                 ]
@@ -162,5 +178,66 @@ class DiagnosticContentSeeder extends Seeder
     private function active(string|int|null $value): bool
     {
         return (int) $value === 1;
+    }
+
+    private function enrichmentFor(string $promptId): array
+    {
+        $index = $this->enrichmentIndex();
+
+        return $index[$promptId] ?? [];
+    }
+
+    private function enrichmentIndex(): array
+    {
+        if ($this->enrichmentIndex !== null) {
+            return $this->enrichmentIndex;
+        }
+
+        $path = $this->basePath.DIRECTORY_SEPARATOR.'enriched'.DIRECTORY_SEPARATOR.'enriched_content_index.csv';
+
+        if (! is_file($path)) {
+            return $this->enrichmentIndex = [];
+        }
+
+        $rows = $this->readCsvPath($path);
+        $fields = [
+            'expected_phonemes',
+            'initial_phoneme',
+            'vowel_phonemes',
+            'final_phoneme',
+            'phoneme_pattern',
+            'skill_tag',
+            'skill_group',
+            'error_focus',
+            'target_position',
+            'target_phoneme',
+            'difficulty_level',
+            'difficulty_score',
+            'adaptive_bucket',
+            'recommended_for_error_type',
+            'needs_manual_review',
+        ];
+
+        return $this->enrichmentIndex = collect($rows)
+            ->filter(fn (array $row) => ($row['source_group'] ?? null) === 'assessment')
+            ->mapWithKeys(fn (array $row) => [
+                $row['prompt_id'] => collect($row)->only($fields)->filter(fn ($value) => $value !== '')->all(),
+            ])
+            ->all();
+    }
+
+    private function readCsvPath(string $path): array
+    {
+        $handle = fopen($path, 'r');
+        $headers = fgetcsv($handle, null, ',', '"', '\\');
+        $rows = [];
+
+        while (($data = fgetcsv($handle, null, ',', '"', '\\')) !== false) {
+            $rows[] = array_combine($headers, $data);
+        }
+
+        fclose($handle);
+
+        return $rows;
     }
 }

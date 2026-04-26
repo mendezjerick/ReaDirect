@@ -36,6 +36,15 @@ class AudioFile extends Model
         'stt_timestamps',
         'stt_error',
         'stt_completed_at',
+        'ai_provider',
+        'ai_model',
+        'ai_request_id',
+        'ai_transcript',
+        'ai_normalized_transcript',
+        'ai_confidence',
+        'ai_error',
+        'ai_warnings',
+        'ai_completed_at',
     ];
 
     protected function casts(): array
@@ -47,7 +56,15 @@ class AudioFile extends Model
             'stt_phonemes' => 'array',
             'stt_timestamps' => 'array',
             'stt_completed_at' => 'datetime',
+            'ai_confidence' => 'float',
+            'ai_warnings' => 'array',
+            'ai_completed_at' => 'datetime',
         ];
+    }
+
+    public function hasAiAnalysis(): bool
+    {
+        return $this->ai_completed_at !== null || $this->ai_transcript !== null || $this->ai_error !== null;
     }
 
     public function getRouteKeyName(): string

@@ -13,14 +13,13 @@ use App\Models\LearningContent;
 use App\Models\Module;
 use App\Models\Recommendation;
 use App\Services\AnswerMatchingService;
+use App\Services\AI\AIAnalysisResolver;
 use App\Services\Agents\AgentCommentaryService;
 use App\Services\AssessmentItemSelectionService;
 use App\Services\AudioStorageService;
 use App\Services\CrlaScoringService;
 use App\Services\ModulePlacementService;
 use App\Services\ReadingComprehensionScoringService;
-use App\Services\STT\AudioTranscriptionService;
-use App\Services\STT\TranscriptResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -70,7 +69,7 @@ class DiagnosticAssessmentController extends Controller
         AssessmentItemSelectionService $itemSelection,
         AnswerMatchingService $answerMatching,
         AudioStorageService $audioStorage,
-        TranscriptResolver $transcripts,
+        AIAnalysisResolver $analysis,
         AgentCommentaryService $commentary,
         CrlaScoringService $crla
     ): RedirectResponse {
@@ -78,7 +77,7 @@ class DiagnosticAssessmentController extends Controller
 
         $attempt = $this->attempt($request);
         $items = $itemSelection->getLockedItemsForAttempt($attempt, AssessmentItemSelectionService::TASK_1_LETTER);
-        $score = $this->scoreTextResponses($attempt, $items, $validated['responses'], $answerMatching, $audioStorage, $transcripts, $commentary, 'CRLA_TASK_1_SCORING_V1');
+        $score = $this->scoreTextResponses($attempt, $items, $validated['responses'], $answerMatching, $audioStorage, $analysis, $commentary, 'CRLA_TASK_1_SCORING_V1');
         $route = $crla->routeTaskOne($score);
 
         $attempt->update([
@@ -134,14 +133,14 @@ class DiagnosticAssessmentController extends Controller
         AssessmentItemSelectionService $itemSelection,
         AnswerMatchingService $answerMatching,
         AudioStorageService $audioStorage,
-        TranscriptResolver $transcripts,
+        AIAnalysisResolver $analysis,
         AgentCommentaryService $commentary
     ): RedirectResponse {
         $validated = $request->validate($this->textResponseRules(10), $this->friendlyValidationMessages());
 
         $attempt = $this->attempt($request);
         $items = $itemSelection->getLockedItemsForAttempt($attempt, AssessmentItemSelectionService::TASK_2A_RHYME);
-        $score = $this->scoreTextResponses($attempt, $items, $validated['responses'], $answerMatching, $audioStorage, $transcripts, $commentary, 'CRLA_TASK_2A_SCORING_V1');
+        $score = $this->scoreTextResponses($attempt, $items, $validated['responses'], $answerMatching, $audioStorage, $analysis, $commentary, 'CRLA_TASK_2A_SCORING_V1');
 
         $attempt->update(['task_2a_score' => $score, 'status' => 'task_2a_completed']);
 
@@ -164,7 +163,7 @@ class DiagnosticAssessmentController extends Controller
         AssessmentItemSelectionService $itemSelection,
         AnswerMatchingService $answerMatching,
         AudioStorageService $audioStorage,
-        TranscriptResolver $transcripts,
+        AIAnalysisResolver $analysis,
         AgentCommentaryService $commentary,
         CrlaScoringService $crla
     ): RedirectResponse {
@@ -172,7 +171,7 @@ class DiagnosticAssessmentController extends Controller
 
         $attempt = $this->attempt($request);
         $items = $itemSelection->getLockedItemsForAttempt($attempt, AssessmentItemSelectionService::TASK_2B_WORD_SENTENCE);
-        $taskTwoBScore = $this->scoreTextResponses($attempt, $items, $validated['responses'], $answerMatching, $audioStorage, $transcripts, $commentary, 'CRLA_TASK_2B_SCORING_V1');
+        $taskTwoBScore = $this->scoreTextResponses($attempt, $items, $validated['responses'], $answerMatching, $audioStorage, $analysis, $commentary, 'CRLA_TASK_2B_SCORING_V1');
         $taskTwoAScore = (int) $attempt->task_2a_score;
         $totalScore = $crla->calculateTotalScore((int) $attempt->task_1_score, $taskTwoAScore, $taskTwoBScore);
         $classification = $crla->classifyTotalScore($totalScore);
@@ -212,7 +211,7 @@ class DiagnosticAssessmentController extends Controller
         ]);
     }
 
-    public function storePassage(Request $request, ReadingComprehensionScoringService $reading, AudioStorageService $audioStorage, AudioTranscriptionService $transcription): RedirectResponse
+    public function storePassage(Request $request, ReadingComprehensionScoringService $reading, AudioStorageService $audioStorage, AIAnalysisResolver $analysis): RedirectResponse
     {
         $validated = $request->validate([
             'incorrect_words' => ['required', 'integer', 'min:0', 'max:50'],
@@ -245,8 +244,14 @@ class DiagnosticAssessmentController extends Controller
             $transcriptText = trim((string) $audioFile->transcript);
 
             if ($transcriptText === '') {
-                $sttResult = $transcription->transcribeAudioFile($audioFile, $this->sttOptionsForPassage($passage));
-                $transcriptText = trim((string) $sttResult->transcript);
+                $resolved = $analysis->resolve(null, $audioFile, [
+                    'expected_text' => (string) ($passage?->prompt_snapshot['prompt'] ?? ''),
+                    'prompt_id' => $passage?->source_csv_id,
+                    'task_type' => 'reading_passage',
+                    'content_metadata' => ['prompt_snapshot' => $passage?->prompt_snapshot ?? []],
+                    'debug' => (bool) config('readirect_ai.debug.show_admin_debug'),
+                ], $this->sttOptionsForPassage($passage));
+                $transcriptText = trim((string) $resolved['transcript']);
             }
 
             if ($transcriptText !== '') {
@@ -410,7 +415,7 @@ class DiagnosticAssessmentController extends Controller
         array $responses,
         AnswerMatchingService $answerMatching,
         AudioStorageService $audioStorage,
-        TranscriptResolver $transcripts,
+        AIAnalysisResolver $analysis,
         AgentCommentaryService $commentary,
         string $rule
     ): int {
@@ -435,7 +440,14 @@ class DiagnosticAssessmentController extends Controller
                     metadata: ['assessment_attempt_item_id' => $item->id, 'task_type' => $item->task_type]
                 )
                 : null);
-            $resolved = $transcripts->resolve($submitted['answer'] ?? null, $audioFile, $this->sttOptionsForAssessmentItem($item));
+            $acceptedAnswers = $item->prompt_snapshot['accepted_answers'] ?? [];
+            $expectedAnswer = $this->expectedAnswer($item);
+            $resolved = $analysis->resolve(
+                $submitted['answer'] ?? null,
+                $audioFile,
+                $this->analysisContext($item, $expectedAnswer, $acceptedAnswers),
+                $this->sttOptionsForAssessmentItem($item)
+            );
             $answer = $resolved['transcript'];
             $transcriptSource = $resolved['source'];
 
@@ -445,7 +457,6 @@ class DiagnosticAssessmentController extends Controller
                 ]);
             }
 
-            $acceptedAnswers = $item->prompt_snapshot['accepted_answers'] ?? [];
             $isCorrect = $answerMatching->isAcceptedAnswer($answer, $acceptedAnswers);
             $score += $isCorrect ? 1 : 0;
             $agentCommentary = $commentary->generateCommentary([
@@ -455,7 +466,7 @@ class DiagnosticAssessmentController extends Controller
                 'source_type' => 'assessment_task_response',
                 'source_id' => null,
                 'task_type' => $item->task_type,
-                'expected_answer' => $this->expectedAnswer($item),
+                'expected_answer' => $expectedAnswer,
                 'learner_answer' => $answer,
                 'is_correct' => $isCorrect,
                 'score' => $isCorrect ? 1 : 0,
@@ -467,7 +478,7 @@ class DiagnosticAssessmentController extends Controller
             ]);
             $response = AssessmentTaskResponse::updateOrCreate(
                 ['assessment_attempt_id' => $attempt->id, 'assessment_attempt_item_id' => $item->id],
-                [
+                array_merge([
                     'learner_id' => $attempt->learner_id,
                     'learning_content_id' => $item->learning_content_id,
                     'audio_file_id' => $audioFile?->id,
@@ -475,7 +486,7 @@ class DiagnosticAssessmentController extends Controller
                     'task_type' => $item->task_type,
                     'item_number' => $item->sequence,
                     'prompt' => $item->prompt_snapshot['prompt'] ?? null,
-                    'expected_answer' => $this->expectedAnswer($item),
+                    'expected_answer' => $expectedAnswer,
                     'learner_transcript' => $answer,
                     'transcript_source' => $transcriptSource,
                     'stt_confidence' => $resolved['confidence'],
@@ -489,7 +500,7 @@ class DiagnosticAssessmentController extends Controller
                     'agent_type' => $agentCommentary['agent_type'],
                     'metadata' => ['source_csv_id' => $item->source_csv_id],
                     'metadata_json' => ['prompt_snapshot' => $item->prompt_snapshot],
-                ]
+                ], $analysis->responseFields($resolved['ai_response'] ?? null))
             );
 
             if ($audioFile) {
@@ -529,6 +540,18 @@ class DiagnosticAssessmentController extends Controller
         $payload = $item->prompt_snapshot['payload'] ?? [];
 
         return $payload['expected_answer'] ?? $payload['target_word'] ?? $item->prompt_snapshot['prompt'] ?? null;
+    }
+
+    private function analysisContext(AssessmentAttemptItem $item, ?string $expectedAnswer, array $acceptedAnswers): array
+    {
+        return [
+            'expected_text' => $expectedAnswer,
+            'accepted_answers' => $acceptedAnswers,
+            'prompt_id' => $item->source_csv_id,
+            'task_type' => $item->task_type,
+            'content_metadata' => ['prompt_snapshot' => $item->prompt_snapshot],
+            'debug' => (bool) config('readirect_ai.debug.show_admin_debug'),
+        ];
     }
 
     private function sttOptionsForAssessmentItem(AssessmentAttemptItem $item): array
@@ -578,7 +601,7 @@ class DiagnosticAssessmentController extends Controller
             'responses' => ['required', 'array', 'size:'.$requiredCount],
             'responses.*.assessment_attempt_item_id' => ['required', 'integer', 'exists:assessment_attempt_items,id'],
             'responses.*.answer' => ['nullable', 'string', 'max:255'],
-            'responses.*.transcript_source' => ['nullable', 'string', 'in:manual,stt_auto,stt_placeholder,teacher_review,future_asr'],
+            'responses.*.transcript_source' => ['nullable', 'string', 'in:manual,ai_asr,stt_auto,stt_placeholder,teacher_review,future_asr'],
             'responses.*.audio_file_id' => ['nullable', 'integer', 'exists:audio_files,id'],
             'responses.*.audio' => AudioStorageService::validationRules(),
             'responses.*.duration_seconds' => ['nullable', 'numeric', 'min:0', 'max:600'],

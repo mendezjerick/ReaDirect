@@ -10,13 +10,12 @@ use App\Models\AudioFile;
 use App\Models\Learner;
 use App\Models\LearningContent;
 use App\Services\AnswerMatchingService;
+use App\Services\AI\AIAnalysisResolver;
 use App\Services\Assessment\FinalAssessmentComparisonService;
 use App\Services\AssessmentItemSelectionService;
 use App\Services\AudioStorageService;
 use App\Services\CrlaScoringService;
 use App\Services\ReadingComprehensionScoringService;
-use App\Services\STT\AudioTranscriptionService;
-use App\Services\STT\TranscriptResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -83,19 +82,18 @@ class FinalAssessmentController extends Controller
         AssessmentItemSelectionService $itemSelection,
         AnswerMatchingService $answerMatching,
         AudioStorageService $audioStorage,
-        TranscriptResolver $transcripts,
+        AIAnalysisResolver $analysis,
         CrlaScoringService $crla,
         ReadingComprehensionScoringService $reading,
-        AudioTranscriptionService $audioTranscription,
         FinalAssessmentComparisonService $comparison
     ): RedirectResponse {
         $attempt = $this->attempt($request);
 
         return match ($taskKey) {
-            'task-1' => $this->submitTaskOne($request, $attempt, $itemSelection, $answerMatching, $audioStorage, $transcripts, $crla),
-            'task-2a' => $this->submitTaskTwoA($request, $attempt, $itemSelection, $answerMatching, $audioStorage, $transcripts),
-            'task-2b' => $this->submitTaskTwoB($request, $attempt, $itemSelection, $answerMatching, $audioStorage, $transcripts, $crla),
-            'passage' => $this->submitPassage($request, $attempt, $itemSelection, $reading, $audioStorage, $audioTranscription),
+            'task-1' => $this->submitTaskOne($request, $attempt, $itemSelection, $answerMatching, $audioStorage, $analysis, $crla),
+            'task-2a' => $this->submitTaskTwoA($request, $attempt, $itemSelection, $answerMatching, $audioStorage, $analysis),
+            'task-2b' => $this->submitTaskTwoB($request, $attempt, $itemSelection, $answerMatching, $audioStorage, $analysis, $crla),
+            'passage' => $this->submitPassage($request, $attempt, $itemSelection, $reading, $audioStorage, $analysis),
             'comprehension' => $this->submitComprehension($request, $attempt, $itemSelection, $answerMatching, $reading, $comparison),
             default => abort(404),
         };
@@ -129,12 +127,12 @@ class FinalAssessmentController extends Controller
         AssessmentItemSelectionService $itemSelection,
         AnswerMatchingService $answerMatching,
         AudioStorageService $audioStorage,
-        TranscriptResolver $transcripts,
+        AIAnalysisResolver $analysis,
         CrlaScoringService $crla
     ): RedirectResponse {
         $validated = $request->validate($this->textResponseRules(10), $this->friendlyValidationMessages());
         $items = $itemSelection->getLockedItemsForAttempt($attempt, AssessmentItemSelectionService::TASK_1_LETTER);
-        $score = $this->scoreTextResponses($attempt, $items, $validated['responses'], $answerMatching, $audioStorage, $transcripts, 'FINAL_CRLA_TASK_1_SCORING_V1');
+        $score = $this->scoreTextResponses($attempt, $items, $validated['responses'], $answerMatching, $audioStorage, $analysis, 'FINAL_CRLA_TASK_1_SCORING_V1');
         $route = $crla->routeTaskOne($score);
 
         $attempt->update([
@@ -156,11 +154,11 @@ class FinalAssessmentController extends Controller
         AssessmentItemSelectionService $itemSelection,
         AnswerMatchingService $answerMatching,
         AudioStorageService $audioStorage,
-        TranscriptResolver $transcripts
+        AIAnalysisResolver $analysis
     ): RedirectResponse {
         $validated = $request->validate($this->textResponseRules(10), $this->friendlyValidationMessages());
         $items = $itemSelection->getLockedItemsForAttempt($attempt, AssessmentItemSelectionService::TASK_2A_RHYME);
-        $score = $this->scoreTextResponses($attempt, $items, $validated['responses'], $answerMatching, $audioStorage, $transcripts, 'FINAL_CRLA_TASK_2A_SCORING_V1');
+        $score = $this->scoreTextResponses($attempt, $items, $validated['responses'], $answerMatching, $audioStorage, $analysis, 'FINAL_CRLA_TASK_2A_SCORING_V1');
 
         $attempt->update(['task_2a_score' => $score, 'status' => 'task_2a_completed']);
 
@@ -173,12 +171,12 @@ class FinalAssessmentController extends Controller
         AssessmentItemSelectionService $itemSelection,
         AnswerMatchingService $answerMatching,
         AudioStorageService $audioStorage,
-        TranscriptResolver $transcripts,
+        AIAnalysisResolver $analysis,
         CrlaScoringService $crla
     ): RedirectResponse {
         $validated = $request->validate($this->textResponseRules(10), $this->friendlyValidationMessages());
         $items = $itemSelection->getLockedItemsForAttempt($attempt, AssessmentItemSelectionService::TASK_2B_WORD_SENTENCE);
-        $taskTwoBScore = $this->scoreTextResponses($attempt, $items, $validated['responses'], $answerMatching, $audioStorage, $transcripts, 'FINAL_CRLA_TASK_2B_SCORING_V1');
+        $taskTwoBScore = $this->scoreTextResponses($attempt, $items, $validated['responses'], $answerMatching, $audioStorage, $analysis, 'FINAL_CRLA_TASK_2B_SCORING_V1');
         $totalScore = $crla->calculateTotalScore((int) $attempt->task_1_score, (int) $attempt->task_2a_score, $taskTwoBScore);
 
         $attempt->update([
@@ -197,7 +195,7 @@ class FinalAssessmentController extends Controller
         AssessmentItemSelectionService $itemSelection,
         ReadingComprehensionScoringService $reading,
         AudioStorageService $audioStorage,
-        AudioTranscriptionService $audioTranscription
+        AIAnalysisResolver $analysis
     ): RedirectResponse {
         $validated = $request->validate([
             'incorrect_words' => ['required', 'integer', 'min:0', 'max:50'],
@@ -228,8 +226,14 @@ class FinalAssessmentController extends Controller
             $transcriptText = trim((string) $audioFile->transcript);
 
             if ($transcriptText === '') {
-                $sttResult = $audioTranscription->transcribeAudioFile($audioFile, $this->sttOptionsForPassage($passage));
-                $transcriptText = trim((string) $sttResult->transcript);
+                $resolved = $analysis->resolve(null, $audioFile, [
+                    'expected_text' => (string) ($passage?->prompt_snapshot['prompt'] ?? ''),
+                    'prompt_id' => $passage?->source_csv_id,
+                    'task_type' => 'final_reading_passage',
+                    'content_metadata' => ['prompt_snapshot' => $passage?->prompt_snapshot ?? [], 'is_final_reassessment' => true],
+                    'debug' => (bool) config('readirect_ai.debug.show_admin_debug'),
+                ], $this->sttOptionsForPassage($passage));
+                $transcriptText = trim((string) $resolved['transcript']);
             }
 
             if ($transcriptText !== '') {
@@ -319,7 +323,7 @@ class FinalAssessmentController extends Controller
         array $responses,
         AnswerMatchingService $answerMatching,
         AudioStorageService $audioStorage,
-        TranscriptResolver $transcripts,
+        AIAnalysisResolver $analysis,
         string $rule
     ): int {
         $score = 0;
@@ -337,7 +341,13 @@ class FinalAssessmentController extends Controller
                     metadata: ['assessment_attempt_item_id' => $item->id, 'task_type' => $item->task_type]
                 )
                 : null;
-            $resolved = $transcripts->resolve($submitted['answer'] ?? null, $audioFile);
+            $acceptedAnswers = $item->prompt_snapshot['accepted_answers'] ?? [];
+            $expectedAnswer = $this->expectedAnswer($item);
+            $resolved = $analysis->resolve(
+                $submitted['answer'] ?? null,
+                $audioFile,
+                $this->analysisContext($item, $expectedAnswer, $acceptedAnswers)
+            );
             $answer = $resolved['transcript'];
 
             if (trim($answer) === '') {
@@ -346,12 +356,12 @@ class FinalAssessmentController extends Controller
                 ]);
             }
 
-            $isCorrect = $answerMatching->isAcceptedAnswer($answer, $item->prompt_snapshot['accepted_answers'] ?? []);
+            $isCorrect = $answerMatching->isAcceptedAnswer($answer, $acceptedAnswers);
             $score += $isCorrect ? 1 : 0;
 
             $response = AssessmentTaskResponse::updateOrCreate(
                 ['assessment_attempt_id' => $attempt->id, 'assessment_attempt_item_id' => $item->id],
-                [
+                array_merge([
                     'learner_id' => $attempt->learner_id,
                     'learning_content_id' => $item->learning_content_id,
                     'audio_file_id' => $audioFile?->id,
@@ -359,7 +369,7 @@ class FinalAssessmentController extends Controller
                     'task_type' => $item->task_type,
                     'item_number' => $item->sequence,
                     'prompt' => $item->prompt_snapshot['prompt'] ?? null,
-                    'expected_answer' => $this->expectedAnswer($item),
+                    'expected_answer' => $expectedAnswer,
                     'learner_transcript' => $answer,
                     'transcript_source' => $resolved['source'],
                     'stt_confidence' => $resolved['confidence'],
@@ -370,7 +380,7 @@ class FinalAssessmentController extends Controller
                     'rule_applied' => $rule,
                     'metadata' => ['source_csv_id' => $item->source_csv_id, 'is_final_reassessment' => true],
                     'metadata_json' => ['prompt_snapshot' => $item->prompt_snapshot],
-                ]
+                ], $analysis->responseFields($resolved['ai_response'] ?? null))
             );
 
             if ($audioFile) {
@@ -486,6 +496,18 @@ class FinalAssessmentController extends Controller
         return $payload['expected_answer'] ?? $payload['target_word'] ?? $item->prompt_snapshot['prompt'] ?? null;
     }
 
+    private function analysisContext(AssessmentAttemptItem $item, ?string $expectedAnswer, array $acceptedAnswers): array
+    {
+        return [
+            'expected_text' => $expectedAnswer,
+            'accepted_answers' => $acceptedAnswers,
+            'prompt_id' => $item->source_csv_id,
+            'task_type' => 'final_'.$item->task_type,
+            'content_metadata' => ['prompt_snapshot' => $item->prompt_snapshot, 'is_final_reassessment' => true],
+            'debug' => (bool) config('readirect_ai.debug.show_admin_debug'),
+        ];
+    }
+
     private function sttOptionsForPassage(?AssessmentAttemptItem $passage): array
     {
         return [];
@@ -520,7 +542,7 @@ class FinalAssessmentController extends Controller
             'responses' => ['required', 'array', 'size:'.$requiredCount],
             'responses.*.assessment_attempt_item_id' => ['required', 'integer', 'exists:assessment_attempt_items,id'],
             'responses.*.answer' => ['nullable', 'string', 'max:255'],
-            'responses.*.transcript_source' => ['nullable', 'string', 'in:manual,stt_auto,stt_placeholder,teacher_review,future_asr'],
+            'responses.*.transcript_source' => ['nullable', 'string', 'in:manual,ai_asr,stt_auto,stt_placeholder,teacher_review,future_asr'],
             'responses.*.audio' => AudioStorageService::validationRules(),
             'responses.*.duration_seconds' => ['nullable', 'numeric', 'min:0', 'max:600'],
         ];

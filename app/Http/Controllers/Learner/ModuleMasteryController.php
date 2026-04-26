@@ -8,13 +8,13 @@ use App\Models\Module;
 use App\Models\ModuleActivityResponse;
 use App\Models\ModuleAttempt;
 use App\Models\ModuleAttemptItem;
+use App\Services\AI\AIAnalysisResolver;
 use App\Services\AudioStorageService;
 use App\Services\Agents\AgentCommentaryService;
 use App\Services\ModuleActivitySelectionService;
 use App\Services\ModuleFeedbackService;
 use App\Services\ModuleMasteryService;
 use App\Services\ModuleScoringService;
-use App\Services\STT\TranscriptResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -48,7 +48,7 @@ class ModuleMasteryController extends Controller
         ModuleFeedbackService $feedback,
         ModuleMasteryService $mastery,
         AudioStorageService $audioStorage,
-        TranscriptResolver $transcripts,
+        AIAnalysisResolver $analysis,
         AgentCommentaryService $commentary
     ): RedirectResponse {
         $learner = $this->learner($request);
@@ -78,7 +78,13 @@ class ModuleMasteryController extends Controller
                 );
             }
 
-            $resolved = $transcripts->resolve($submitted['answer'] ?? null, $audioFile);
+            $expectedAnswer = $this->expectedAnswer($item);
+            $acceptedAnswers = $item->prompt_snapshot['accepted_answers'] ?? [];
+            $resolved = $analysis->resolve(
+                $submitted['answer'] ?? null,
+                $audioFile,
+                $this->analysisContext($item, $module, $expectedAnswer, $acceptedAnswers)
+            );
             $answer = $resolved['transcript'];
 
             if (trim($answer) === '') {
@@ -95,7 +101,7 @@ class ModuleMasteryController extends Controller
 
             $response = ModuleActivityResponse::updateOrCreate(
                 ['module_attempt_id' => $attempt->id, 'module_attempt_item_id' => $item->id],
-                [
+                array_merge([
                     'module_activity_id' => $item->module_activity_id,
                     'audio_file_id' => $audioFile?->id,
                     'transcript_source' => $resolved['source'],
@@ -112,7 +118,7 @@ class ModuleMasteryController extends Controller
                     'error_type' => $score['error_type'],
                     'metadata' => ['source_csv_id' => $item->source_csv_id],
                     'metadata_json' => ['prompt_snapshot' => $item->prompt_snapshot],
-                ]
+                ], $analysis->responseFields($resolved['ai_response'] ?? null))
             );
 
             if ($audioFile) {
@@ -222,6 +228,27 @@ class ModuleMasteryController extends Controller
         }
     }
 
+    private function expectedAnswer(ModuleAttemptItem $item): ?string
+    {
+        $payload = $item->prompt_snapshot['payload'] ?? [];
+
+        return $payload['expected_answer'] ?? $payload['target_word'] ?? $item->prompt_snapshot['prompt'] ?? null;
+    }
+
+    private function analysisContext(ModuleAttemptItem $item, Module $module, ?string $expectedAnswer, array $acceptedAnswers): array
+    {
+        return [
+            'expected_text' => $expectedAnswer,
+            'accepted_answers' => $acceptedAnswers,
+            'prompt_id' => $item->source_csv_id,
+            'module_key' => $module->key,
+            'activity_type' => 'mastery_check',
+            'task_type' => 'module_mastery',
+            'content_metadata' => ['prompt_snapshot' => $item->prompt_snapshot],
+            'debug' => (bool) config('readirect_ai.debug.show_admin_debug'),
+        ];
+    }
+
     private function itemsForForm(Collection $items): array
     {
         return $items->map(fn (ModuleAttemptItem $item) => [
@@ -242,7 +269,7 @@ class ModuleMasteryController extends Controller
             'responses' => ['required', 'array', 'size:'.$requiredCount],
             'responses.*.module_attempt_item_id' => ['required', 'integer', 'exists:module_attempt_items,id'],
             'responses.*.answer' => ['nullable', 'string', 'max:255'],
-            'responses.*.transcript_source' => ['nullable', 'string', 'in:manual,stt_auto,stt_placeholder,teacher_review,future_asr'],
+            'responses.*.transcript_source' => ['nullable', 'string', 'in:manual,ai_asr,stt_auto,stt_placeholder,teacher_review,future_asr'],
             'responses.*.audio' => AudioStorageService::validationRules(),
             'responses.*.duration_seconds' => ['nullable', 'numeric', 'min:0', 'max:600'],
         ];

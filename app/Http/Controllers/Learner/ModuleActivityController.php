@@ -8,12 +8,12 @@ use App\Models\Module;
 use App\Models\ModuleActivityResponse;
 use App\Models\ModuleAttempt;
 use App\Models\ModuleAttemptItem;
+use App\Services\AI\AIAnalysisResolver;
 use App\Services\AudioStorageService;
 use App\Services\Agents\AgentCommentaryService;
 use App\Services\ModuleActivitySelectionService;
 use App\Services\ModuleFeedbackService;
 use App\Services\ModuleScoringService;
-use App\Services\STT\TranscriptResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -59,7 +59,7 @@ class ModuleActivityController extends Controller
         ModuleScoringService $scoring,
         ModuleFeedbackService $feedback,
         AudioStorageService $audioStorage,
-        TranscriptResolver $transcripts,
+        AIAnalysisResolver $analysis,
         AgentCommentaryService $commentary
     ): RedirectResponse {
         $learner = $this->learner($request);
@@ -70,7 +70,7 @@ class ModuleActivityController extends Controller
         $validated = $request->validate($this->responseRules($items->count()), $this->friendlyValidationMessages());
         $this->validateSubmittedItemSet($items, $validated['responses']);
 
-        $this->persistResponses($attempt, $items, $validated['responses'], $scoring, $feedback, $audioStorage, $transcripts, $commentary, $module, $activityType, false);
+        $this->persistResponses($attempt, $items, $validated['responses'], $scoring, $feedback, $audioStorage, $analysis, $commentary, $module, $activityType, false);
 
         $activityTypes = $selection->practiceActivityTypes($module);
         $nextActivityType = $this->nextActivityType($activityTypes, $activityType);
@@ -89,7 +89,7 @@ class ModuleActivityController extends Controller
         ModuleScoringService $scoring,
         ModuleFeedbackService $feedback,
         AudioStorageService $audioStorage,
-        TranscriptResolver $transcripts,
+        AIAnalysisResolver $analysis,
         AgentCommentaryService $commentary,
         Module $module,
         string $activityType,
@@ -114,7 +114,13 @@ class ModuleActivityController extends Controller
                 );
             }
 
-            $resolved = $transcripts->resolve($submitted['answer'] ?? null, $audioFile);
+            $expectedAnswer = $this->expectedAnswer($item);
+            $acceptedAnswers = $item->prompt_snapshot['accepted_answers'] ?? [];
+            $resolved = $analysis->resolve(
+                $submitted['answer'] ?? null,
+                $audioFile,
+                $this->analysisContext($item, $module, $activityType, $expectedAnswer, $acceptedAnswers)
+            );
             $answer = $resolved['transcript'];
 
             if (trim($answer) === '') {
@@ -131,7 +137,7 @@ class ModuleActivityController extends Controller
 
             $response = ModuleActivityResponse::updateOrCreate(
                 ['module_attempt_id' => $attempt->id, 'module_attempt_item_id' => $item->id],
-                [
+                array_merge([
                     'module_activity_id' => $item->module_activity_id,
                     'audio_file_id' => $audioFile?->id,
                     'transcript_source' => $resolved['source'],
@@ -148,7 +154,7 @@ class ModuleActivityController extends Controller
                     'error_type' => $score['error_type'],
                     'metadata' => ['source_csv_id' => $item->source_csv_id],
                     'metadata_json' => ['prompt_snapshot' => $item->prompt_snapshot],
-                ]
+                ], $analysis->responseFields($resolved['ai_response'] ?? null))
             );
 
             if ($audioFile) {
@@ -234,6 +240,27 @@ class ModuleActivityController extends Controller
         return $activityTypes[$index + 1] ?? null;
     }
 
+    private function expectedAnswer(ModuleAttemptItem $item): ?string
+    {
+        $payload = $item->prompt_snapshot['payload'] ?? [];
+
+        return $payload['expected_answer'] ?? $payload['target_word'] ?? $item->prompt_snapshot['prompt'] ?? null;
+    }
+
+    private function analysisContext(ModuleAttemptItem $item, Module $module, string $activityType, ?string $expectedAnswer, array $acceptedAnswers): array
+    {
+        return [
+            'expected_text' => $expectedAnswer,
+            'accepted_answers' => $acceptedAnswers,
+            'prompt_id' => $item->source_csv_id,
+            'module_key' => $module->key,
+            'activity_type' => $activityType,
+            'task_type' => 'module_activity',
+            'content_metadata' => ['prompt_snapshot' => $item->prompt_snapshot],
+            'debug' => (bool) config('readirect_ai.debug.show_admin_debug'),
+        ];
+    }
+
     private function activityLabel(string $activityType): string
     {
         return str($activityType)->replace('_', ' ')->title()->toString();
@@ -246,7 +273,7 @@ class ModuleActivityController extends Controller
             'responses.*.module_attempt_item_id' => ['required', 'integer', 'exists:module_attempt_items,id'],
             'responses.*.answer' => ['nullable', 'string', 'max:255'],
             'responses.*.retry_count' => ['nullable', 'integer', 'min:0'],
-            'responses.*.transcript_source' => ['nullable', 'string', 'in:manual,stt_auto,stt_placeholder,teacher_review,future_asr'],
+            'responses.*.transcript_source' => ['nullable', 'string', 'in:manual,ai_asr,stt_auto,stt_placeholder,teacher_review,future_asr'],
             'responses.*.audio' => AudioStorageService::validationRules(),
             'responses.*.duration_seconds' => ['nullable', 'numeric', 'min:0', 'max:600'],
         ];

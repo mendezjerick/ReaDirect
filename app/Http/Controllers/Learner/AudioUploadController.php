@@ -7,15 +7,16 @@ use App\Models\AssessmentAttempt;
 use App\Models\AssessmentAttemptItem;
 use App\Models\Learner;
 use App\Models\ModuleAttempt;
+use App\Models\ModuleAttemptItem;
+use App\Services\AI\AIAnalysisResolver;
 use App\Services\AudioStorageService;
-use App\Services\STT\AudioTranscriptionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class AudioUploadController extends Controller
 {
-    public function store(Request $request, AudioStorageService $audioStorage, AudioTranscriptionService $transcription): JsonResponse
+    public function store(Request $request, AudioStorageService $audioStorage, AIAnalysisResolver $analysis): JsonResponse
     {
         $validated = $request->validate([
             'audio' => AudioStorageService::validationRules(true),
@@ -49,7 +50,12 @@ class AudioUploadController extends Controller
                 'activity_type' => $validated['activity_type'] ?? null,
             ]
         );
-        $sttResult = $transcription->transcribeAudioFile($audioFile, $this->sttOptions($assessmentAttempt, $validated));
+        $resolved = $analysis->resolve(
+            null,
+            $audioFile,
+            $this->analysisContext($assessmentAttempt, $moduleAttempt, $validated),
+            $this->sttOptions($assessmentAttempt, $validated)
+        );
 
         return response()->json([
             'audio_file_id' => $audioFile->id,
@@ -57,10 +63,11 @@ class AudioUploadController extends Controller
             'mime_type' => $audioFile->mime_type,
             'file_size' => $audioFile->file_size,
             'duration_seconds' => $audioFile->duration_seconds,
-            'transcript' => $sttResult->transcript,
-            'stt_confidence' => $sttResult->confidence,
-            'transcript_source' => $sttResult->hasTranscript() ? 'stt_auto' : null,
-            'stt_error' => $sttResult->error,
+            'transcript' => $resolved['transcript'],
+            'stt_confidence' => $resolved['confidence'],
+            'transcript_source' => trim((string) $resolved['transcript']) !== '' ? $resolved['source'] : null,
+            'stt_error' => $resolved['stt_result']?->error,
+            'ai_error' => $resolved['ai_response']['error'] ?? null,
         ]);
     }
 
@@ -87,5 +94,45 @@ class AudioUploadController extends Controller
             ],
             default => [],
         };
+    }
+
+    private function analysisContext(?AssessmentAttempt $assessmentAttempt, ?ModuleAttempt $moduleAttempt, array $validated): array
+    {
+        $item = $this->assessmentItem($assessmentAttempt, $validated) ?? $this->moduleItem($moduleAttempt, $validated);
+        $snapshot = $item?->prompt_snapshot ?? [];
+        $payload = $snapshot['payload'] ?? [];
+
+        return [
+            'expected_text' => $payload['expected_answer'] ?? $payload['target_word'] ?? $snapshot['prompt'] ?? null,
+            'accepted_answers' => $snapshot['accepted_answers'] ?? [],
+            'prompt_id' => $item?->source_csv_id,
+            'module_key' => $moduleAttempt?->module?->key,
+            'activity_type' => $validated['activity_type'] ?? $item?->activity_type ?? null,
+            'task_type' => $validated['task_type'] ?? $item?->task_type ?? null,
+            'content_metadata' => ['prompt_snapshot' => $snapshot],
+            'debug' => (bool) config('readirect_ai.debug.show_admin_debug'),
+        ];
+    }
+
+    private function assessmentItem(?AssessmentAttempt $assessmentAttempt, array $validated): ?AssessmentAttemptItem
+    {
+        if (! $assessmentAttempt || ! isset($validated['item_id'])) {
+            return null;
+        }
+
+        return AssessmentAttemptItem::query()
+            ->where('assessment_attempt_id', $assessmentAttempt->id)
+            ->find($validated['item_id']);
+    }
+
+    private function moduleItem(?ModuleAttempt $moduleAttempt, array $validated): ?ModuleAttemptItem
+    {
+        if (! $moduleAttempt || ! isset($validated['item_id'])) {
+            return null;
+        }
+
+        return ModuleAttemptItem::query()
+            ->where('module_attempt_id', $moduleAttempt->id)
+            ->find($validated['item_id']);
     }
 }

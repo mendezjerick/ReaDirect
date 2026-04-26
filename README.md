@@ -159,6 +159,11 @@ STT_WHISPER_CPP_ENABLED=false
 STT_WHISPER_CPP_BINARY_PATH=whisper-cli
 STT_WHISPER_CPP_MODEL_PATH=
 STT_TIMEOUT_SECONDS=30
+
+READIRECT_AI_ENABLED=true
+READIRECT_AI_BASE_URL=http://127.0.0.1:8001
+READIRECT_AI_API_TOKEN=
+READIRECT_AI_TIMEOUT_SECONDS=60
 ```
 
 Database variables connect Laravel to PostgreSQL.
@@ -166,6 +171,12 @@ Database variables connect Laravel to PostgreSQL.
 OpenAI variables are server-side only. Keep `OPENAI_ENABLED=false` unless you are testing real LLM feedback. Put real API keys only in your private `.env`.
 
 STT variables control transcript generation. Use `STT_PROVIDER=mock` for normal setup. Use `whisper_cpp` only when the local binary and model path are configured.
+
+ReaDirect AI variables connect Laravel to the separate `ReaDirect-AI-ASR` FastAPI service. The fine-tuned Whisper model runs in that separate service; this Laravel repo only calls it over HTTP and stores advisory analysis signals. Start it from the AI repo with:
+
+```powershell
+uvicorn api.main:app --reload --host 127.0.0.1 --port 8001
+```
 
 The `SEED_ADMIN_*` values in `.env.example` are safe local reference values. The current project creates admins through an Artisan command, not an automatic admin seeder.
 
@@ -579,6 +590,11 @@ powershell -ExecutionPolicy Bypass -File scripts/export-content-bank.ps1
 - `DEPLOYMENT_NOTES.md`
 - `STT_INTEGRATION.md`
 - `LLM_INTEGRATION.md`
+- `docs/ai-service/LARAVEL_AI_INTEGRATION.md`
+- `docs/ai-service/AI_ASR_EXTERNAL_FILES_GUIDE.md`
+- `docs/ai-service/FINAL_HANDOFF_CHECKLIST.md`
+- `docs/ai-service/LARAVEL_INTEGRATION_CONTRACT.md`
+- `docs/ai-service/API_EXAMPLES.md`
 - `ADMIN_DASHBOARD.md`
 - `ADMIN_TESTING_MODE.md`
 - `ADMIN_FILTERS.md`
