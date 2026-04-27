@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\FinalAssessmentController;
 use App\Http\Controllers\Admin\AdminAgentController;
 use App\Http\Controllers\Admin\AdminAssessmentContentController;
@@ -107,10 +108,16 @@ Route::middleware('auth')->prefix('teacher')->name('teacher.')->group(function (
     Route::get('/analytics', TeacherAnalyticsController::class)->name('analytics');
     Route::get('/audio/{audioFile}/play', AudioPlaybackController::class)->name('audio.play');
     Route::put('/audio/{audioFile}/transcript', [AudioTranscriptController::class, 'update'])->name('audio.transcript.update');
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit')->defaults('layout', 'teacher');
+    Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
 });
 
 Route::middleware('auth')->prefix('admin')->name('admin.')->group(function (): void {
     Route::get('/dashboard', AdminDashboardController::class)->name('dashboard');
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit')->defaults('layout', 'admin');
+    Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
 
     Route::resource('schools', AdminSchoolController::class)->except(['destroy']);
     Route::post('/schools/{school}/deactivate', [AdminSchoolController::class, 'deactivate'])->name('schools.deactivate');

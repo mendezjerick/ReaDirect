@@ -101,14 +101,20 @@ class AudioUploadController extends Controller
         $item = $this->assessmentItem($assessmentAttempt, $validated) ?? $this->moduleItem($moduleAttempt, $validated);
         $snapshot = $item?->prompt_snapshot ?? [];
         $payload = $snapshot['payload'] ?? [];
+        $taskType = $validated['task_type'] ?? $item?->task_type ?? null;
+
+        $expectedText = match ($taskType) {
+            'crla_task_2b_sentence' => $snapshot['prompt'] ?? $payload['expected_answer'] ?? $payload['target_word'] ?? null,
+            default => $payload['expected_answer'] ?? $payload['target_word'] ?? $snapshot['prompt'] ?? null,
+        };
 
         return [
-            'expected_text' => $payload['expected_answer'] ?? $payload['target_word'] ?? $snapshot['prompt'] ?? null,
+            'expected_text' => $expectedText,
             'accepted_answers' => $snapshot['accepted_answers'] ?? [],
             'prompt_id' => $item?->source_csv_id,
             'module_key' => $moduleAttempt?->module?->key,
             'activity_type' => $validated['activity_type'] ?? $item?->activity_type ?? null,
-            'task_type' => $validated['task_type'] ?? $item?->task_type ?? null,
+            'task_type' => $taskType,
             'content_metadata' => ['prompt_snapshot' => $snapshot],
             'debug' => (bool) config('readirect_ai.debug.show_admin_debug'),
         ];

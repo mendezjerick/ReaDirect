@@ -33,7 +33,4 @@ content-bank/import/*
 content-bank/work/*
 !content-bank/work/.gitkeep
 tools/
-import/*.zip
-import/extracted/
-content-bank/import/*.zip
-database/seed-data/readirect/enriched/generated-temp/
+readirect-whisper-base-en-v1-hf

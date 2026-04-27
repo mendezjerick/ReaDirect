@@ -9,35 +9,161 @@
 @theme {
     --font-sans: 'Nunito', 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
-    --color-primary: #2563EB;
-    --color-primary-light: #DBEAFE;
-    --color-primary-dark: #1D4ED8;
+    --color-primary: #3B82F6;
+    --color-primary-light: #EFF6FF;
+    --color-primary-dark: #2563EB;
     --color-accent: #FACC15;
     --color-success: #22C55E;
     --color-warning: #F97316;
     --color-danger: #EF4444;
     --color-surface: #FFFFFF;
-    --color-background: #F8FBFF;
+    --color-background: #F4F6FA;
     --color-text: #1E293B;
-    --color-muted: #64748B;
-    --color-border: #E2E8F0;
+    --color-muted: #94A3B8;
+    --color-border: #E8ECF2;
 }
 
 html {
-    background: #F8FBFF;
+    background: var(--color-background);
+    scroll-behavior: smooth;
 }
 
 body {
-    color: #1E293B;
+    color: var(--color-text);
     font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
 }
 
+/* ─── Focus Styles ─────────────────────────────────── */
+:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    border-radius: 0.5rem;
+}
+
+:focus:not(:focus-visible) {
+    outline: none;
+}
+
+/* ─── Smooth Transitions on Interactive Elements ───── */
 button,
 a {
-    transition: transform 150ms ease, box-shadow 150ms ease, background-color 150ms ease, border-color 150ms ease;
+    transition: transform 120ms ease, box-shadow 120ms ease, background-color 150ms ease, border-color 150ms ease, color 150ms ease;
 }
 
 button:active,
 a:active {
-    transform: translateY(1px) scale(0.99);
+    transform: scale(0.98);
+}
+
+/* ─── Form Elements ─────────────────────────────────── */
+input[type='text'],
+input[type='email'],
+input[type='password'],
+input[type='search'],
+input[type='date'],
+input[type='number'],
+input[type='tel'],
+textarea,
+select {
+    background-color: var(--color-surface);
+    border-color: var(--color-border);
+    color: var(--color-text);
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+input[type='text']:focus,
+input[type='email']:focus,
+input[type='password']:focus,
+input[type='search']:focus,
+input[type='date']:focus,
+input[type='number']:focus,
+input[type='tel']:focus,
+textarea:focus,
+select:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    outline: none;
+}
+
+/* ─── Table Polish ──────────────────────────────────── */
+tbody tr {
+    transition: background-color 120ms ease;
+}
+
+tbody tr:hover {
+    background-color: var(--color-background);
+}
+
+/* ─── Custom Scrollbar ──────────────────────────────── */
+::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--color-muted);
+}
+
+/* ─── Flash Message Transitions ─────────────────────── */
+.flash-enter-active,
+.flash-leave-active {
+    transition: opacity 250ms ease, transform 250ms ease;
+}
+
+.flash-enter-from,
+.flash-leave-to {
+    opacity: 0;
+    transform: translateY(-6px);
+}
+
+/* ─── Overlay Transition ─────────────────────────────── */
+.overlay-enter-active,
+.overlay-leave-active {
+    transition: opacity 250ms ease;
+}
+
+.overlay-enter-from,
+.overlay-leave-to {
+    opacity: 0;
+}
+
+/* ─── Sidebar Slide Transition ───────────────────────── */
+.sidebar-enter-active,
+.sidebar-leave-active {
+    transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-enter-from,
+.sidebar-leave-to {
+    transform: translateX(-100%);
+}
+
+/* ─── Card Entrance Animation ────────────────────────── */
+@keyframes card-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.card-in {
+    animation: card-in 300ms ease both;
+}
+
+/* ─── Gentle Pulse (for health/status indicators) ────── */
+@keyframes pulse-soft {
+    0%, 100% { opacity: 0.85; transform: scale(1); }
+    50%      { opacity: 1;    transform: scale(1.04); }
+}
+
+.animate-pulse-soft {
+    animation: pulse-soft 2.4s ease-in-out infinite;
 }
