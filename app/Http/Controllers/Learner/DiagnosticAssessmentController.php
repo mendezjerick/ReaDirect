@@ -20,6 +20,7 @@ use App\Services\AudioStorageService;
 use App\Services\CrlaScoringService;
 use App\Services\ModulePlacementService;
 use App\Services\ReadingComprehensionScoringService;
+use App\Services\SentenceReadingScoringService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -165,13 +166,15 @@ class DiagnosticAssessmentController extends Controller
         AudioStorageService $audioStorage,
         AIAnalysisResolver $analysis,
         AgentCommentaryService $commentary,
-        CrlaScoringService $crla
+        CrlaScoringService $crla,
+        SentenceReadingScoringService $sentenceScoring
     ): RedirectResponse {
         $validated = $request->validate($this->textResponseRules(10), $this->friendlyValidationMessages());
 
         $attempt = $this->attempt($request);
         $items = $itemSelection->getLockedItemsForAttempt($attempt, AssessmentItemSelectionService::TASK_2B_WORD_SENTENCE);
-        $taskTwoBScore = $this->scoreTextResponses($attempt, $items, $validated['responses'], $answerMatching, $audioStorage, $analysis, $commentary, 'CRLA_TASK_2B_SCORING_V1');
+        $taskTwoBReview = $this->scoreSentenceResponses($attempt, $items, $validated['responses'], $audioStorage, $analysis, $commentary, $sentenceScoring, 'CRLA_TASK_2B_SCORING_V2');
+        $taskTwoBScore = $taskTwoBReview['task_score'];
         $taskTwoAScore = (int) $attempt->task_2a_score;
         $totalScore = $crla->calculateTotalScore((int) $attempt->task_1_score, $taskTwoAScore, $taskTwoBScore);
         $classification = $crla->classifyTotalScore($totalScore);
@@ -192,6 +195,7 @@ class DiagnosticAssessmentController extends Controller
 
         return Inertia::render('Learner/CrlaSummary', [
             'attempt' => $attempt->only('task_1_score', 'task_2a_score', 'task_2b_score', 'crla_total_score', 'crla_classification'),
+            'taskTwoBReview' => $this->taskTwoBSummary($attempt),
         ]);
     }
 
@@ -413,7 +417,6 @@ class DiagnosticAssessmentController extends Controller
         AssessmentAttempt $attempt,
         Collection $items,
         array $responses,
-        AnswerMatchingService $answerMatching,
         AudioStorageService $audioStorage,
         AIAnalysisResolver $analysis,
         AgentCommentaryService $commentary,
@@ -513,6 +516,117 @@ class DiagnosticAssessmentController extends Controller
         return $score;
     }
 
+    private function scoreSentenceResponses(
+        AssessmentAttempt $attempt,
+        Collection $items,
+        array $responses,
+        AudioStorageService $audioStorage,
+        AIAnalysisResolver $analysis,
+        AgentCommentaryService $commentary,
+        SentenceReadingScoringService $sentenceScoring,
+        string $rule
+    ): array {
+        $evaluations = [];
+
+        foreach ($items as $item) {
+            $submittedIndex = collect($responses)->search(fn ($response) => (int) ($response['assessment_attempt_item_id'] ?? 0) === (int) $item->id);
+            $submitted = $submittedIndex === false ? [] : $responses[$submittedIndex];
+            $audioFile = isset($submitted['audio_file_id']) && $submitted['audio_file_id']
+                ? AudioFile::where('learner_id', $attempt->learner_id)
+                    ->where('assessment_attempt_id', $attempt->id)
+                    ->find($submitted['audio_file_id'])
+                : null;
+
+            $audioFile = $audioFile ?: (isset($submitted['audio']) && $submitted['audio']
+                ? $audioStorage->store(
+                    file: $submitted['audio'],
+                    learner: $attempt->learner,
+                    recordingContext: 'assessment_task',
+                    assessmentAttempt: $attempt,
+                    durationSeconds: isset($submitted['duration_seconds']) ? (float) $submitted['duration_seconds'] : null,
+                    metadata: ['assessment_attempt_item_id' => $item->id, 'task_type' => $item->task_type]
+                )
+                : null);
+
+            $acceptedAnswers = $item->prompt_snapshot['accepted_answers'] ?? [];
+            $expectedAnswer = $this->expectedAnswer($item);
+            $resolved = $analysis->resolve(
+                $submitted['answer'] ?? null,
+                $audioFile,
+                $this->analysisContext($item, $expectedAnswer, $acceptedAnswers),
+                $this->sttOptionsForAssessmentItem($item)
+            );
+            $answer = $resolved['transcript'];
+            $transcriptSource = $resolved['source'];
+
+            if (trim($answer) === '') {
+                throw ValidationException::withMessages([
+                    'responses.'.($submittedIndex === false ? 0 : $submittedIndex).'.answer' => 'Let us answer this first.',
+                ]);
+            }
+
+            $sentencePrompt = (string) ($item->prompt_snapshot['prompt'] ?? $expectedAnswer ?? '');
+            $evaluation = $sentenceScoring->evaluate($sentencePrompt, $answer, $audioFile?->duration_seconds, $resolved['ai_response'] ?? null);
+            $evaluations[] = $evaluation;
+
+            $isCorrect = ($evaluation['accuracy_percentage'] ?? 0) >= 80;
+            $agentCommentary = $commentary->generateCommentary([
+                'mode' => 'assessment_neutral',
+                'agent_type' => AgentProfile::ASSESSMENT,
+                'learner_id' => $attempt->learner_id,
+                'source_type' => 'assessment_task_response',
+                'source_id' => null,
+                'task_type' => $item->task_type,
+                'expected_answer' => $expectedAnswer,
+                'learner_answer' => $answer,
+                'is_correct' => $isCorrect,
+                'score' => $evaluation['score_ten'] ?? 0,
+                'max_score' => 10,
+                'template_feedback' => 'Thank you. Let us continue.',
+                'attempt_number' => $item->sequence,
+                'is_assessment' => true,
+                'can_give_hint' => false,
+            ]);
+
+            $response = AssessmentTaskResponse::updateOrCreate(
+                ['assessment_attempt_id' => $attempt->id, 'assessment_attempt_item_id' => $item->id],
+                array_merge([
+                    'learner_id' => $attempt->learner_id,
+                    'learning_content_id' => $item->learning_content_id,
+                    'audio_file_id' => $audioFile?->id,
+                    'task_key' => $item->task_type,
+                    'task_type' => $item->task_type,
+                    'item_number' => $item->sequence,
+                    'prompt' => $item->prompt_snapshot['prompt'] ?? null,
+                    'expected_answer' => $expectedAnswer,
+                    'learner_transcript' => $answer,
+                    'transcript_source' => $transcriptSource,
+                    'stt_confidence' => $resolved['confidence'],
+                    'response_text' => $answer,
+                    'is_correct' => $isCorrect,
+                    'score' => $evaluation['score_ten'] ?? 0,
+                    'error_type' => $isCorrect ? null : 'incorrect_general',
+                    'rule_applied' => $rule,
+                    'agent_commentary_text' => $agentCommentary['message'],
+                    'agent_commentary_source' => $agentCommentary['source'],
+                    'agent_type' => $agentCommentary['agent_type'],
+                    'metadata' => ['source_csv_id' => $item->source_csv_id],
+                    'metadata_json' => array_merge([
+                        'prompt_snapshot' => $item->prompt_snapshot,
+                    ], $evaluation),
+                ], $analysis->responseFields($resolved['ai_response'] ?? null))
+            );
+
+            if ($audioFile) {
+                $audioStorage->attachToAssessmentResponse($audioFile, $response->id);
+            }
+
+            $item->update(['answered_at' => now()]);
+        }
+
+        return $sentenceScoring->summarize($evaluations);
+    }
+
     private function itemsForForm(Collection $items): array
     {
         return $items->map(fn (AssessmentAttemptItem $item) => $this->itemForForm($item))->values()->all();
@@ -544,8 +658,13 @@ class DiagnosticAssessmentController extends Controller
 
     private function analysisContext(AssessmentAttemptItem $item, ?string $expectedAnswer, array $acceptedAnswers): array
     {
+        $expectedText = match ($item->task_type) {
+            'crla_task_2b_sentence' => $item->prompt_snapshot['prompt'] ?? $expectedAnswer,
+            default => $expectedAnswer,
+        };
+
         return [
-            'expected_text' => $expectedAnswer,
+            'expected_text' => $expectedText,
             'accepted_answers' => $acceptedAnswers,
             'prompt_id' => $item->source_csv_id,
             'task_type' => $item->task_type,
@@ -570,6 +689,51 @@ class DiagnosticAssessmentController extends Controller
     private function sttOptionsForPassage(?AssessmentAttemptItem $passage): array
     {
         return [];
+    }
+
+    private function taskTwoBSummary(AssessmentAttempt $attempt): ?array
+    {
+        $responses = $attempt->responses()
+            ->where('task_type', AssessmentItemSelectionService::TASK_2B_WORD_SENTENCE)
+            ->orderBy('item_number')
+            ->get();
+
+        if ($responses->isEmpty()) {
+            return null;
+        }
+
+        $averageAccuracy = (int) round($responses->avg(fn ($response) => (float) ($response->metadata_json['accuracy_percentage'] ?? 0)) ?? 0);
+        $labelCounts = $responses
+            ->map(fn ($response) => $response->metadata_json['feedback_label'] ?? SentenceReadingScoringService::RIGHT_WORDS_BUT_UNCLEAR)
+            ->countBy();
+
+        $feedbackLabel = match (true) {
+            $averageAccuracy >= 90 => SentenceReadingScoringService::MOSTLY_CORRECT,
+            ($labelCounts[SentenceReadingScoringService::A_LITTLE_RUSHED] ?? 0) >= max(1, (int) ceil($responses->count() / 3)) => SentenceReadingScoringService::A_LITTLE_RUSHED,
+            ($labelCounts[SentenceReadingScoringService::MISSING_ONE_WORD] ?? 0) >= max(1, (int) ceil($responses->count() / 3)) => SentenceReadingScoringService::MISSING_ONE_WORD,
+            default => SentenceReadingScoringService::RIGHT_WORDS_BUT_UNCLEAR,
+        };
+
+        return [
+            'average_accuracy_percentage' => $averageAccuracy,
+            'feedback_label' => $feedbackLabel,
+            'items' => $responses->map(fn ($response) => [
+                'item_number' => $response->item_number,
+                'prompt' => $response->prompt,
+                'accuracy_percentage' => (int) ($response->metadata_json['accuracy_percentage'] ?? 0),
+                'feedback_label' => $response->metadata_json['feedback_label'] ?? SentenceReadingScoringService::RIGHT_WORDS_BUT_UNCLEAR,
+                'text_accuracy_percentage' => (int) ($response->metadata_json['text_accuracy_percentage'] ?? 0),
+                'phoneme_similarity_percentage' => isset($response->metadata_json['phoneme_similarity_percentage']) ? (int) $response->metadata_json['phoneme_similarity_percentage'] : null,
+                'target_word' => $response->metadata_json['target_word'] ?? null,
+                'actual_target_word' => $response->metadata_json['actual_target_word'] ?? null,
+                'target_word_phoneme_similarity_percentage' => isset($response->metadata_json['target_word_phoneme_similarity_percentage']) ? (int) $response->metadata_json['target_word_phoneme_similarity_percentage'] : null,
+                'target_word_error_type' => $response->metadata_json['target_word_error_type'] ?? null,
+                'matched_words' => (int) ($response->metadata_json['matched_words'] ?? 0),
+                'total_words' => (int) ($response->metadata_json['total_words'] ?? 0),
+                'missing_words' => (int) ($response->metadata_json['missing_words'] ?? 0),
+                'pronunciation_verified' => (bool) ($response->metadata_json['pronunciation_verified'] ?? false),
+            ])->values()->all(),
+        ];
     }
 
     private function questionsForPassage(?AssessmentAttemptItem $passage): array

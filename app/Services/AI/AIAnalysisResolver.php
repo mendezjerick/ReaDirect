@@ -24,11 +24,11 @@ class AIAnalysisResolver
         if ($this->shouldUseAi()) {
             $aiResponse = $this->callAi($manual, $audioFile, $context);
 
-            if (($aiResponse['ok'] ?? false) && $this->extractTranscript($aiResponse) !== '') {
+            if (($aiResponse['ok'] ?? false) && $this->extractTranscript($aiResponse, $context) !== '') {
                 $this->storeAudioAiFields($audioFile, $aiResponse);
 
                 return $this->resolved(
-                    transcript: $this->extractTranscript($aiResponse),
+                    transcript: $this->extractTranscript($aiResponse, $context),
                     source: 'ai_asr',
                     confidence: $aiResponse['confidence'] ?? null,
                     aiResponse: $aiResponse,
@@ -130,8 +130,20 @@ class AIAnalysisResolver
         return Storage::disk($disk)->path($path);
     }
 
-    private function extractTranscript(array $aiResponse): string
+    private function extractTranscript(array $aiResponse, array $context = []): string
     {
+        $taskType = (string) ($context['task_type'] ?? '');
+
+        // Task 2B needs the AI service's raw spacing behavior so fast/blurred
+        // speech does not get "prettified" into a clean sentence.
+        if ($taskType === 'crla_task_2b_sentence') {
+            $rawTranscript = $aiResponse['transcript'] ?? '';
+
+            if (trim((string) $rawTranscript) !== '') {
+                return $this->sanitizer->sanitize($rawTranscript);
+            }
+        }
+
         return $this->sanitizer->sanitize($aiResponse['normalized_transcript'] ?? $aiResponse['transcript'] ?? '');
     }
 

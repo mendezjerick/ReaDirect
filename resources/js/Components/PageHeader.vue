@@ -4,7 +4,7 @@ defineProps({ title: String, subtitle: { type: String, default: '' } });
 
 <template>
     <header class="mb-6">
-        <p v-if="subtitle" class="text-sm font-black uppercase text-primary">{{ subtitle }}</p>
-        <h1 class="text-3xl font-black text-text md:text-4xl">{{ title }}</h1>
+        <h1 class="text-2xl font-extrabold text-text">{{ title }}</h1>
+        <p v-if="subtitle" class="mt-1 text-sm font-medium text-muted">{{ subtitle }}</p>
     </header>
 </template>

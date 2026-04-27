@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 
 const props = defineProps({
     disabled: { type: Boolean, default: false },
@@ -7,6 +7,7 @@ const props = defineProps({
     required: { type: Boolean, default: false },
     label: { type: String, default: 'Voice recording' },
     compact: { type: Boolean, default: false },
+    spacebarEnabled: { type: Boolean, default: true },
 });
 
 const emit = defineEmits(['recorded', 'cleared', 'error', 'stateChanged']);
@@ -35,8 +36,8 @@ const statusLabel = computed(() => {
 
 const helperText = computed(() => {
     const messages = {
-        ready: 'Tap to record.',
-        recording: "I'm listening.",
+        ready: props.spacebarEnabled ? 'Tap to record or press Space.' : 'Tap to record.',
+        recording: props.spacebarEnabled ? "I'm listening. Press Space to stop." : "I'm listening.",
         processing: 'Saving your voice.',
         saved: 'Great, your voice was saved.',
         retry: "Let's try recording again.",
@@ -75,6 +76,16 @@ const clearRecording = () => {
     errorMessage.value = '';
     setStatus('ready');
     emit('cleared');
+};
+
+const isEditableTarget = (target) => {
+    if (!target || !(target instanceof HTMLElement)) {
+        return false;
+    }
+
+    const tagName = target.tagName?.toLowerCase();
+
+    return target.isContentEditable || ['input', 'textarea', 'select', 'button'].includes(tagName);
 };
 
 const startRecording = async () => {
@@ -126,7 +137,31 @@ const stopRecording = () => {
     }
 };
 
+const handleSpacebar = (event) => {
+    if (!props.spacebarEnabled || props.disabled || event.code !== 'Space' || event.repeat || isEditableTarget(event.target)) {
+        return;
+    }
+
+    if (status.value === 'processing') {
+        return;
+    }
+
+    event.preventDefault();
+
+    if (status.value === 'recording') {
+        stopRecording();
+        return;
+    }
+
+    startRecording();
+};
+
+onMounted(() => {
+    window.addEventListener('keydown', handleSpacebar);
+});
+
 onBeforeUnmount(() => {
+    window.removeEventListener('keydown', handleSpacebar);
     clearTimer();
     stopTracks();
     if (audioUrl.value) {
@@ -188,6 +223,14 @@ onBeforeUnmount(() => {
 
             <span class="w-12 text-right text-sm font-black text-muted">{{ duration }}s</span>
         </div>
+
+        <p
+            v-if="spacebarEnabled"
+            class="mt-3 rounded-2xl bg-surface px-3 py-2 text-xs font-black text-primaryDark"
+        >
+            Press <span class="rounded-lg border border-border bg-white px-2 py-1 text-[11px] font-black text-primary">Space</span>
+            to {{ status === 'recording' ? 'stop recording' : 'record' }}.
+        </p>
 
         <audio v-if="audioUrl" class="mt-3 w-full" controls :src="audioUrl" />
         <p v-if="required && !audioUrl" class="mt-2 text-xs font-bold text-muted">Recording is optional when a typed transcript is provided.</p>

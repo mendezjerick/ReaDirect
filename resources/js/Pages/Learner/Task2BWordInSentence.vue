@@ -23,12 +23,23 @@ const transcriptSources = reactive({});
 const generatedTranscripts = reactive({});
 const uploadErrors = reactive({});
 const uploading = reactive({});
-const hasAnswerOrAudio = (item, answer) => String(answer ?? '').trim().length > 0 || Boolean(audioFiles[item?.id]);
+const hasUsableTranscript = (item, answer) => {
+    const expectedPrompt = String(item?.prompt ?? '').trim();
+    const normalizedAnswer = String(answer ?? '').trim();
+
+    if (!normalizedAnswer) return false;
+    if (/^\d+$/.test(normalizedAnswer)) return false;
+    if (!expectedPrompt) return normalizedAnswer.length > 0;
+
+    return normalizedAnswer.length >= Math.max(4, Math.floor(expectedPrompt.length * 0.4));
+};
+const hasAnswerOrAudio = (item, answer) => Boolean(uploadedAudioIds[item?.id]) && hasUsableTranscript(item, answer);
 const step = useStepAssessment(props.items, { emptyMessage: 'Almost there! Finish this item to continue.', isAnswered: hasAnswerOrAudio });
 const agentMessage = ref('Read the full sentence aloud. I will transcribe it, and you can correct the transcript before moving on.');
 const agentState = ref('listening');
 const neutralMessages = ['Thank you. Let us continue.', 'Good effort. Let us go to the next one.', 'I heard your answer. Let us keep going.'];
 const isCurrentUploading = computed(() => Boolean(uploading[step.currentItem.value?.id]));
+const currentHasUploadedAudio = computed(() => Boolean(uploadedAudioIds[step.currentItem.value?.id]));
 
 const rememberAudio = (item, file) => {
     audioFiles[item.id] = file;
@@ -129,9 +140,17 @@ const submit = () => {
 };
 
 const handlePrimary = () => {
-    if (!step.validateCurrent()) {
-        agentMessage.value = 'Almost there! Finish this item to continue.';
+    if (!currentHasUploadedAudio.value) {
+        agentMessage.value = 'Please record this sentence first so we can transcribe what you said.';
         agentState.value = 'speaking';
+        step.feedback.value = 'Record the sentence before going to the next one.';
+        return;
+    }
+
+    if (!hasUsableTranscript(step.currentItem.value, step.answers[step.currentItem.value.id])) {
+        agentMessage.value = 'Please wait for the transcript, or correct it so it matches what you said.';
+        agentState.value = 'speaking';
+        step.feedback.value = 'We need a usable transcript for this sentence before continuing.';
         return;
     }
 
