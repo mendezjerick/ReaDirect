@@ -417,6 +417,7 @@ class DiagnosticAssessmentController extends Controller
         AssessmentAttempt $attempt,
         Collection $items,
         array $responses,
+        AnswerMatchingService $answerMatching,
         AudioStorageService $audioStorage,
         AIAnalysisResolver $analysis,
         AgentCommentaryService $commentary,
@@ -678,6 +679,11 @@ class DiagnosticAssessmentController extends Controller
         return match ($item->task_type) {
             'crla_task_1_letter' => [
                 'prompt' => (string) ($item->prompt_snapshot['prompt'] ?? ''),
+                'model_path' => $this->letterModelPath(),
+                'beam_size' => 1,
+                'best_of' => 1,
+                'temperature' => 0,
+                'temperature_inc' => 0,
             ],
             'crla_task_2b_sentence' => [
                 'prompt' => (string) ($item->prompt_snapshot['prompt'] ?? ''),
@@ -757,6 +763,17 @@ class DiagnosticAssessmentController extends Controller
                 'choices' => $content->payload['choices'] ?? [],
             ])
             ->all();
+    }
+
+    private function letterModelPath(): ?string
+    {
+        $tinyModelPath = config('stt.whisper_cpp.letter_model_path');
+
+        if (is_string($tinyModelPath) && $tinyModelPath !== '' && is_file($tinyModelPath)) {
+            return $tinyModelPath;
+        }
+
+        return config('stt.whisper_cpp.model_path');
     }
 
     private function textResponseRules(int $requiredCount): array

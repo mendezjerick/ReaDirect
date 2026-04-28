@@ -10,13 +10,19 @@ use App\Models\ModuleAttempt;
 use App\Models\ModuleAttemptItem;
 use App\Services\AI\AIAnalysisResolver;
 use App\Services\AudioStorageService;
+use App\Services\STT\AudioTranscriptionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class AudioUploadController extends Controller
 {
-    public function store(Request $request, AudioStorageService $audioStorage, AIAnalysisResolver $analysis): JsonResponse
+    public function store(
+        Request $request,
+        AudioStorageService $audioStorage,
+        AIAnalysisResolver $analysis,
+        AudioTranscriptionService $transcription
+    ): JsonResponse
     {
         $validated = $request->validate([
             'audio' => AudioStorageService::validationRules(true),
@@ -50,12 +56,11 @@ class AudioUploadController extends Controller
                 'activity_type' => $validated['activity_type'] ?? null,
             ]
         );
-        $resolved = $analysis->resolve(
-            null,
-            $audioFile,
-            $this->analysisContext($assessmentAttempt, $moduleAttempt, $validated),
-            $this->sttOptions($assessmentAttempt, $validated)
-        );
+        $context = $this->analysisContext($assessmentAttempt, $moduleAttempt, $validated);
+        $sttOptions = $this->sttOptions($assessmentAttempt, $validated);
+        $resolved = $this->shouldUseFastLetterPath($validated)
+            ? $this->fastLetterResolution($audioFile, $transcription, $sttOptions)
+            : $analysis->resolve(null, $audioFile, $context, $sttOptions);
 
         return response()->json([
             'audio_file_id' => $audioFile->id,
@@ -88,6 +93,11 @@ class AudioUploadController extends Controller
         return match ($validated['task_type'] ?? $item->task_type) {
             'crla_task_1_letter' => [
                 'prompt' => (string) ($item->prompt_snapshot['prompt'] ?? ''),
+                'model_path' => $this->letterModelPath(),
+                'beam_size' => 1,
+                'best_of' => 1,
+                'temperature' => 0,
+                'temperature_inc' => 0,
             ],
             'crla_task_2b_sentence' => [
                 'prompt' => (string) ($item->prompt_snapshot['prompt'] ?? ''),
@@ -140,5 +150,35 @@ class AudioUploadController extends Controller
         return ModuleAttemptItem::query()
             ->where('module_attempt_id', $moduleAttempt->id)
             ->find($validated['item_id']);
+    }
+
+    private function shouldUseFastLetterPath(array $validated): bool
+    {
+        return ($validated['context_type'] ?? null) === 'assessment_task'
+            && ($validated['task_type'] ?? null) === 'crla_task_1_letter';
+    }
+
+    private function fastLetterResolution($audioFile, AudioTranscriptionService $transcription, array $sttOptions): array
+    {
+        $result = $transcription->transcribeAudioFile($audioFile, $sttOptions);
+
+        return [
+            'transcript' => trim((string) $result->transcript),
+            'source' => $result->hasTranscript() ? 'stt_auto' : 'manual',
+            'confidence' => $result->confidence,
+            'stt_result' => $result,
+            'ai_response' => null,
+        ];
+    }
+
+    private function letterModelPath(): ?string
+    {
+        $tinyModelPath = config('stt.whisper_cpp.letter_model_path');
+
+        if (is_string($tinyModelPath) && $tinyModelPath !== '' && is_file($tinyModelPath)) {
+            return $tinyModelPath;
+        }
+
+        return config('stt.whisper_cpp.model_path');
     }
 }
