@@ -14,6 +14,7 @@ return [
         'enabled' => filter_var(env('STT_WHISPER_CPP_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
         'binary_path' => env('STT_WHISPER_CPP_BINARY_PATH', 'whisper-cli'),
         'model_path' => env('STT_WHISPER_CPP_MODEL_PATH'),
+        'letter_model_path' => env('STT_WHISPER_CPP_LETTER_MODEL_PATH'),
         'ffmpeg_path' => env('STT_FFMPEG_PATH', 'ffmpeg'),
         'convert_to_wav' => filter_var(env('STT_CONVERT_TO_WAV', false), FILTER_VALIDATE_BOOLEAN),
         'extra_args' => env('STT_WHISPER_CPP_EXTRA_ARGS', ''),

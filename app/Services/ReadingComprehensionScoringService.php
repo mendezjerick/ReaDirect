@@ -37,6 +37,41 @@ class ReadingComprehensionScoringService
         return min($distance, 50);
     }
 
+    public function analyzePassageReading(string $expectedPassage, string $transcript): array
+    {
+        $expectedWords = $this->normalizedWords($expectedPassage);
+        $actualWords = $this->normalizedWords($transcript);
+
+        if ($expectedWords === []) {
+            return [
+                'incorrect_count' => 0,
+                'semantic_matches' => 0,
+                'exact_matches' => 0,
+            ];
+        }
+
+        $exactMatches = 0;
+        $semanticMatches = 0;
+        $pairCount = min(count($expectedWords), count($actualWords));
+
+        for ($index = 0; $index < $pairCount; $index++) {
+            if ($expectedWords[$index] === $actualWords[$index]) {
+                $exactMatches++;
+                continue;
+            }
+
+            if ($this->isMeaningPreservingMatch($expectedWords[$index], $actualWords[$index])) {
+                $semanticMatches++;
+            }
+        }
+
+        return [
+            'incorrect_count' => $this->calculateIncorrectWordCount($expectedPassage, $transcript),
+            'semantic_matches' => $semanticMatches,
+            'exact_matches' => $exactMatches,
+        ];
+    }
+
     public function calculateComprehensionPercentage(int $correctAnswers, int $totalQuestions = 5): float
     {
         if ($correctAnswers < 0 || $totalQuestions <= 0 || $correctAnswers > $totalQuestions) {
@@ -99,7 +134,7 @@ class ReadingComprehensionScoringService
 
         for ($i = 1; $i <= $expectedCount; $i++) {
             for ($j = 1; $j <= $actualCount; $j++) {
-                $cost = $expectedWords[$i - 1] === $actualWords[$j - 1] ? 0 : 1;
+                $cost = $this->wordsEquivalent($expectedWords[$i - 1], $actualWords[$j - 1]) ? 0 : 1;
                 $distances[$i][$j] = min(
                     $distances[$i - 1][$j] + 1,
                     $distances[$i][$j - 1] + 1,
@@ -109,5 +144,59 @@ class ReadingComprehensionScoringService
         }
 
         return $distances[$expectedCount][$actualCount];
+    }
+
+    private function wordsEquivalent(string $expectedWord, string $actualWord): bool
+    {
+        return $expectedWord === $actualWord || $this->isMeaningPreservingMatch($expectedWord, $actualWord);
+    }
+
+    private function isMeaningPreservingMatch(string $expectedWord, string $actualWord): bool
+    {
+        return $this->canonicalWord($expectedWord) === $this->canonicalWord($actualWord);
+    }
+
+    private function canonicalWord(string $word): string
+    {
+        $word = strtolower(trim($word));
+
+        if ($word === '') {
+            return '';
+        }
+
+        $canonicalGroups = [
+            ['small', 'little'],
+            ['big', 'large'],
+            ['mom', 'mother', 'mama'],
+            ['dad', 'father', 'papa'],
+            ['job', 'work'],
+            ['kid', 'child'],
+            ['kids', 'children'],
+            ['see', 'saw', 'seen'],
+            ['run', 'runs', 'ran', 'running'],
+            ['hop', 'hops', 'hopped', 'hopping'],
+            ['wash', 'washes', 'washed', 'washing'],
+            ['count', 'counts', 'counted', 'counting'],
+            ['eat', 'eats', 'ate', 'eating'],
+            ['find', 'finds', 'found', 'finding'],
+            ['say', 'says', 'said', 'saying'],
+            ['fill', 'fills', 'filled', 'filling'],
+            ['feed', 'feeds', 'fed', 'feeding'],
+            ['hen', 'hens'],
+            ['egg', 'eggs'],
+            ['hand', 'hands'],
+            ['bee', 'be'],
+            ['sea', 'see'],
+            ['two', 'too', 'to'],
+            ['one', 'won'],
+        ];
+
+        foreach ($canonicalGroups as $group) {
+            if (in_array($word, $group, true)) {
+                return $group[0];
+            }
+        }
+
+        return $word;
     }
 }

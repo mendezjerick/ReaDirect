@@ -22,7 +22,7 @@ class WhisperCppSTTService implements SpeechToTextServiceInterface
             return $this->failure('Audio file was not found.');
         }
 
-        $modelPath = config('stt.whisper_cpp.model_path');
+        $modelPath = $options['model_path'] ?? config('stt.whisper_cpp.model_path');
 
         if (! $modelPath || ! is_file($modelPath)) {
             return $this->failure('Whisper.cpp model file is not configured.');

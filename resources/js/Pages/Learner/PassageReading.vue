@@ -19,7 +19,45 @@ const transcript = ref('');
 const uploadError = ref('');
 const uploading = ref(false);
 
+const canonicalGroups = [
+    ['small', 'little'],
+    ['big', 'large'],
+    ['mom', 'mother', 'mama'],
+    ['dad', 'father', 'papa'],
+    ['job', 'work'],
+    ['kid', 'child'],
+    ['kids', 'children'],
+    ['see', 'saw', 'seen'],
+    ['run', 'runs', 'ran', 'running'],
+    ['hop', 'hops', 'hopped', 'hopping'],
+    ['wash', 'washes', 'washed', 'washing'],
+    ['count', 'counts', 'counted', 'counting'],
+    ['eat', 'eats', 'ate', 'eating'],
+    ['find', 'finds', 'found', 'finding'],
+    ['say', 'says', 'said', 'saying'],
+    ['fill', 'fills', 'filled', 'filling'],
+    ['feed', 'feeds', 'fed', 'feeding'],
+    ['hen', 'hens'],
+    ['egg', 'eggs'],
+    ['hand', 'hands'],
+    ['bee', 'be'],
+    ['sea', 'see'],
+    ['two', 'too', 'to'],
+    ['one', 'won'],
+];
+
 const normalizeWord = (word) => word.toLowerCase().replace(/[^a-z0-9]/gi, '');
+const canonicalWord = (word) => {
+    const normalized = normalizeWord(word);
+
+    for (const group of canonicalGroups) {
+        if (group.includes(normalized)) {
+            return group[0];
+        }
+    }
+
+    return normalized;
+};
 const wordTokens = (text) => text.match(/\S+|\s+/g) ?? [];
 const compactWords = (text) => wordTokens(text)
     .filter((token) => !/^\s+$/.test(token))
@@ -44,11 +82,13 @@ const buildDiff = (expectedText, actualText) => {
 
     for (let i = 1; i <= expectedWords.length; i += 1) {
         for (let j = 1; j <= actualWords.length; j += 1) {
-            const replaceCost = expectedWords[i - 1].normalized === actualWords[j - 1].normalized ? 0 : 1;
+            const semanticMatch = canonicalWord(expectedWords[i - 1].raw) === canonicalWord(actualWords[j - 1].raw);
+            const exactMatch = expectedWords[i - 1].normalized === actualWords[j - 1].normalized;
+            const replaceCost = exactMatch || semanticMatch ? 0 : 1;
             const candidates = [
                 { cost: costs[i - 1][j] + 1, op: 'delete' },
                 { cost: costs[i][j - 1] + 1, op: 'insert' },
-                { cost: costs[i - 1][j - 1] + replaceCost, op: replaceCost === 0 ? 'match' : 'replace' },
+                { cost: costs[i - 1][j - 1] + replaceCost, op: exactMatch ? 'match' : (semanticMatch ? 'semantic' : 'replace') },
             ].sort((a, b) => a.cost - b.cost);
 
             costs[i][j] = candidates[0].cost;
@@ -65,6 +105,14 @@ const buildDiff = (expectedText, actualText) => {
         const op = ops[i][j];
 
         if (op === 'match') {
+            i -= 1;
+            j -= 1;
+            continue;
+        }
+
+        if (op === 'semantic') {
+            expectedStatus[i - 1] = 'semantic';
+            actualStatus[j - 1] = 'semantic';
             i -= 1;
             j -= 1;
             continue;
@@ -95,6 +143,7 @@ const buildDiff = (expectedText, actualText) => {
 
     return {
         incorrectCount: costs[expectedWords.length][actualWords.length],
+        semanticCount: expectedStatus.filter((status) => status === 'semantic').length,
         expectedWords,
         expectedStatus,
         actualWords,
@@ -197,7 +246,7 @@ const submit = () => form.post('/learner/diagnostic/passage', { forceFormData: t
             <AgentSpeakerPanel
                 agent-type="assessment"
                 :state="uploading ? 'speaking' : 'listening'"
-                :message="uploading ? 'Transcribing your reading and checking it against the passage.' : 'Read the passage aloud. I will transcribe what you actually said and mark mismatches in red.'"
+                :message="uploading ? 'Transcribing your reading and checking it against the passage.' : 'Read the passage aloud. I will transcribe what you actually said, mark true mismatches in red, and show meaning-preserving swaps in orange.'"
             />
         </template>
         <div class="mx-auto grid max-w-2xl gap-3">
@@ -211,6 +260,7 @@ const submit = () => form.post('/learner/diagnostic/passage', { forceFormData: t
                         <span
                             :class="{
                                 'rounded-lg bg-danger/15 px-1 text-danger': token.status === 'incorrect' || token.status === 'missing',
+                                'rounded-lg bg-warning/15 px-1 text-warning': token.status === 'semantic',
                             }"
                         >{{ token.text }}</span>
                     </template>
@@ -234,6 +284,7 @@ const submit = () => form.post('/learner/diagnostic/passage', { forceFormData: t
                                         class="mr-2 inline-block rounded-lg px-1"
                                         :class="{
                                             'bg-danger/15 text-danger': diff.actualStatus[index] === 'incorrect' || diff.actualStatus[index] === 'extra',
+                                            'bg-warning/15 text-warning': diff.actualStatus[index] === 'semantic',
                                         }"
                                     >{{ word.raw }}</span>
                                 </template>
@@ -247,6 +298,9 @@ const submit = () => form.post('/learner/diagnostic/passage', { forceFormData: t
                         Incorrect words
                         <input v-model="form.incorrect_words" type="number" min="0" max="50" class="rounded-2xl border-2 border-border px-4 py-3 text-lg font-black focus:border-primary focus:outline-none">
                     </label>
+                    <p v-if="diff.semanticCount > 0" class="rounded-2xl bg-warning/15 px-4 py-3 text-sm font-black text-warning">
+                        {{ diff.semanticCount }} meaning-preserving word {{ diff.semanticCount === 1 ? 'swap was' : 'swaps were' }} understood and not counted as a full mismatch.
+                    </p>
                     <p v-if="uploadError" class="rounded-2xl bg-warning/15 px-4 py-3 text-sm font-black text-warning">
                         {{ uploadError }}
                     </p>

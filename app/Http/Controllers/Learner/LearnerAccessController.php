@@ -21,7 +21,11 @@ class LearnerAccessController extends Controller
         $learner = Learner::where('learner_code', $validated['learner_code'])->firstOrFail();
 
         $request->session()->put('learner_id', $learner->id);
+        $request->session()->forget([
+            'assessment_attempt_id',
+            'task_one_route',
+        ]);
 
-        return redirect()->route('learner.dashboard');
+        return redirect()->route('learner.diagnostic.start');
     }
 }
