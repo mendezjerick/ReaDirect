@@ -445,8 +445,8 @@ class DiagnosticAssessmentController extends Controller
                     metadata: ['assessment_attempt_item_id' => $item->id, 'task_type' => $item->task_type]
                 )
                 : null);
-            $acceptedAnswers = $item->prompt_snapshot['accepted_answers'] ?? [];
             $expectedAnswer = $this->expectedAnswer($item);
+            $acceptedAnswers = $this->acceptedAnswersForItem($item, $expectedAnswer);
             $resolved = $analysis->resolve(
                 $submitted['answer'] ?? null,
                 $audioFile,
@@ -550,8 +550,8 @@ class DiagnosticAssessmentController extends Controller
                 )
                 : null);
 
-            $acceptedAnswers = $item->prompt_snapshot['accepted_answers'] ?? [];
             $expectedAnswer = $this->expectedAnswer($item);
+            $acceptedAnswers = $this->acceptedAnswersForItem($item, $expectedAnswer);
             $resolved = $analysis->resolve(
                 $submitted['answer'] ?? null,
                 $audioFile,
@@ -567,7 +567,7 @@ class DiagnosticAssessmentController extends Controller
                 ]);
             }
 
-            $sentencePrompt = (string) ($item->prompt_snapshot['prompt'] ?? $expectedAnswer ?? '');
+            $sentencePrompt = (string) ($expectedAnswer ?? $item->prompt_snapshot['prompt'] ?? '');
             $evaluation = $sentenceScoring->evaluate($sentencePrompt, $answer, $audioFile?->duration_seconds, $resolved['ai_response'] ?? null);
             $evaluations[] = $evaluation;
 
@@ -646,7 +646,7 @@ class DiagnosticAssessmentController extends Controller
             'source_csv_id' => $item->source_csv_id,
             'prompt' => $item->prompt_snapshot['prompt'] ?? '',
             'title' => $item->prompt_snapshot['title'] ?? '',
-            'payload' => $item->prompt_snapshot['payload'] ?? [],
+            'payload' => $this->payloadForForm($item),
             'accepted_answers' => $item->prompt_snapshot['accepted_answers'] ?? [],
         ];
     }
@@ -655,18 +655,51 @@ class DiagnosticAssessmentController extends Controller
     {
         $payload = $item->prompt_snapshot['payload'] ?? [];
 
+        if ($item->task_type === AssessmentItemSelectionService::TASK_2A_RHYME) {
+            return $payload['expected_answer']
+                ?? $payload['target_word']
+                ?? collect($item->prompt_snapshot['accepted_answers'] ?? [])->first()
+                ?? null;
+        }
+
+        if ($item->task_type === AssessmentItemSelectionService::TASK_2B_WORD_SENTENCE) {
+            return $payload['target_word'] ?? $payload['expected_answer'] ?? $item->prompt_snapshot['prompt'] ?? null;
+        }
+
         return $payload['expected_answer'] ?? $payload['target_word'] ?? $item->prompt_snapshot['prompt'] ?? null;
+    }
+
+    private function acceptedAnswersForItem(AssessmentAttemptItem $item, ?string $expectedAnswer): array
+    {
+        if ($item->task_type === AssessmentItemSelectionService::TASK_2A_RHYME) {
+            return trim((string) $expectedAnswer) !== '' ? [$expectedAnswer] : [];
+        }
+
+        return $item->prompt_snapshot['accepted_answers'] ?? [];
+    }
+
+    private function payloadForForm(AssessmentAttemptItem $item): array
+    {
+        $payload = $item->prompt_snapshot['payload'] ?? [];
+
+        if ($item->task_type === AssessmentItemSelectionService::TASK_2A_RHYME) {
+            $target = $payload['target_word']
+                ?? $payload['expected_answer']
+                ?? collect($item->prompt_snapshot['accepted_answers'] ?? [])->first();
+
+            if ($target) {
+                $payload['target_word'] = $target;
+                $payload['expected_answer'] = $target;
+            }
+        }
+
+        return $payload;
     }
 
     private function analysisContext(AssessmentAttemptItem $item, ?string $expectedAnswer, array $acceptedAnswers): array
     {
-        $expectedText = match ($item->task_type) {
-            'crla_task_2b_sentence' => $item->prompt_snapshot['prompt'] ?? $expectedAnswer,
-            default => $expectedAnswer,
-        };
-
         return [
-            'expected_text' => $expectedText,
+            'expected_text' => $expectedAnswer,
             'accepted_answers' => $acceptedAnswers,
             'prompt_id' => $item->source_csv_id,
             'task_type' => $item->task_type,

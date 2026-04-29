@@ -62,10 +62,12 @@ class FinalAssessmentController extends Controller
         return match ($taskKey) {
             'task-1' => Inertia::render('Learner/FinalAssessment/Task1LetterPronunciation', [
                 'items' => $this->itemsForForm($this->taskItems($attempt, $itemSelection, AssessmentItemSelectionService::TASK_1_LETTER)),
+                'assessmentAttemptId' => $attempt->id,
             ]),
             'task-2a' => $this->showTaskTwoA($attempt, $itemSelection, $crla),
             'task-2b' => Inertia::render('Learner/FinalAssessment/Task2BWordInSentence', [
                 'items' => $this->itemsForForm($this->taskItems($attempt, $itemSelection, AssessmentItemSelectionService::TASK_2B_WORD_SENTENCE)),
+                'assessmentAttemptId' => $attempt->id,
             ]),
             'passage' => Inertia::render('Learner/FinalAssessment/PassageReading', [
                 'passage' => $this->itemForForm($this->readingPassage($attempt, $itemSelection)),
@@ -85,6 +87,7 @@ class FinalAssessmentController extends Controller
         AudioStorageService $audioStorage,
         AIAnalysisResolver $analysis,
         CrlaScoringService $crla,
+        SentenceReadingScoringService $sentenceScoring,
         ReadingComprehensionScoringService $reading,
         FinalAssessmentComparisonService $comparison
     ): RedirectResponse {
@@ -93,7 +96,7 @@ class FinalAssessmentController extends Controller
         return match ($taskKey) {
             'task-1' => $this->submitTaskOne($request, $attempt, $itemSelection, $answerMatching, $audioStorage, $analysis, $crla),
             'task-2a' => $this->submitTaskTwoA($request, $attempt, $itemSelection, $answerMatching, $audioStorage, $analysis),
-            'task-2b' => $this->submitTaskTwoB($request, $attempt, $itemSelection, $answerMatching, $audioStorage, $analysis, $crla),
+            'task-2b' => $this->submitTaskTwoB($request, $attempt, $itemSelection, $answerMatching, $audioStorage, $analysis, $crla, $sentenceScoring),
             'passage' => $this->submitPassage($request, $attempt, $itemSelection, $reading, $audioStorage, $analysis),
             'comprehension' => $this->submitComprehension($request, $attempt, $itemSelection, $answerMatching, $reading, $comparison),
             default => abort(404),
@@ -334,7 +337,13 @@ class FinalAssessmentController extends Controller
         foreach ($items as $item) {
             $submittedIndex = collect($responses)->search(fn ($response) => (int) ($response['assessment_attempt_item_id'] ?? 0) === (int) $item->id);
             $submitted = $submittedIndex === false ? [] : $responses[$submittedIndex];
-            $audioFile = isset($submitted['audio']) && $submitted['audio']
+            $audioFile = isset($submitted['audio_file_id']) && $submitted['audio_file_id']
+                ? AudioFile::where('learner_id', $attempt->learner_id)
+                    ->where('assessment_attempt_id', $attempt->id)
+                    ->find($submitted['audio_file_id'])
+                : null;
+
+            $audioFile = $audioFile ?: (isset($submitted['audio']) && $submitted['audio']
                 ? $audioStorage->store(
                     file: $submitted['audio'],
                     learner: $attempt->learner,
@@ -343,9 +352,9 @@ class FinalAssessmentController extends Controller
                     durationSeconds: isset($submitted['duration_seconds']) ? (float) $submitted['duration_seconds'] : null,
                     metadata: ['assessment_attempt_item_id' => $item->id, 'task_type' => $item->task_type]
                 )
-                : null;
-            $acceptedAnswers = $item->prompt_snapshot['accepted_answers'] ?? [];
+                : null);
             $expectedAnswer = $this->expectedAnswer($item);
+            $acceptedAnswers = $this->acceptedAnswersForItem($item, $expectedAnswer);
             $resolved = $analysis->resolve(
                 $submitted['answer'] ?? null,
                 $audioFile,
@@ -410,7 +419,13 @@ class FinalAssessmentController extends Controller
         foreach ($items as $item) {
             $submittedIndex = collect($responses)->search(fn ($response) => (int) ($response['assessment_attempt_item_id'] ?? 0) === (int) $item->id);
             $submitted = $submittedIndex === false ? [] : $responses[$submittedIndex];
-            $audioFile = isset($submitted['audio']) && $submitted['audio']
+            $audioFile = isset($submitted['audio_file_id']) && $submitted['audio_file_id']
+                ? AudioFile::where('learner_id', $attempt->learner_id)
+                    ->where('assessment_attempt_id', $attempt->id)
+                    ->find($submitted['audio_file_id'])
+                : null;
+
+            $audioFile = $audioFile ?: (isset($submitted['audio']) && $submitted['audio']
                 ? $audioStorage->store(
                     file: $submitted['audio'],
                     learner: $attempt->learner,
@@ -419,9 +434,9 @@ class FinalAssessmentController extends Controller
                     durationSeconds: isset($submitted['duration_seconds']) ? (float) $submitted['duration_seconds'] : null,
                     metadata: ['assessment_attempt_item_id' => $item->id, 'task_type' => $item->task_type]
                 )
-                : null;
-            $acceptedAnswers = $item->prompt_snapshot['accepted_answers'] ?? [];
+                : null);
             $expectedAnswer = $this->expectedAnswer($item);
+            $acceptedAnswers = $this->acceptedAnswersForItem($item, $expectedAnswer);
             $resolved = $analysis->resolve(
                 $submitted['answer'] ?? null,
                 $audioFile,
@@ -435,7 +450,7 @@ class FinalAssessmentController extends Controller
                 ]);
             }
 
-            $sentencePrompt = (string) ($item->prompt_snapshot['prompt'] ?? $expectedAnswer ?? '');
+            $sentencePrompt = (string) ($expectedAnswer ?? $item->prompt_snapshot['prompt'] ?? '');
             $evaluation = $sentenceScoring->evaluate($sentencePrompt, $answer, $audioFile?->duration_seconds, $resolved['ai_response'] ?? null);
             $evaluations[] = $evaluation;
             $isCorrect = ($evaluation['accuracy_percentage'] ?? 0) >= 80;
@@ -528,6 +543,7 @@ class FinalAssessmentController extends Controller
 
         return Inertia::render('Learner/FinalAssessment/Task2ARhymingWords', [
             'items' => $this->itemsForForm($this->taskItems($attempt, $itemSelection, AssessmentItemSelectionService::TASK_2A_RHYME)),
+            'assessmentAttemptId' => $attempt->id,
         ]);
     }
 
@@ -567,7 +583,7 @@ class FinalAssessmentController extends Controller
             'source_csv_id' => $item->source_csv_id,
             'prompt' => $item->prompt_snapshot['prompt'] ?? '',
             'title' => $item->prompt_snapshot['title'] ?? '',
-            'payload' => $item->prompt_snapshot['payload'] ?? [],
+            'payload' => $this->payloadForForm($item),
             'accepted_answers' => $item->prompt_snapshot['accepted_answers'] ?? [],
         ];
     }
@@ -576,7 +592,45 @@ class FinalAssessmentController extends Controller
     {
         $payload = $item->prompt_snapshot['payload'] ?? [];
 
+        if ($item->task_type === AssessmentItemSelectionService::TASK_2A_RHYME) {
+            return $payload['expected_answer']
+                ?? $payload['target_word']
+                ?? collect($item->prompt_snapshot['accepted_answers'] ?? [])->first()
+                ?? null;
+        }
+
+        if ($item->task_type === AssessmentItemSelectionService::TASK_2B_WORD_SENTENCE) {
+            return $payload['target_word'] ?? $payload['expected_answer'] ?? $item->prompt_snapshot['prompt'] ?? null;
+        }
+
         return $payload['expected_answer'] ?? $payload['target_word'] ?? $item->prompt_snapshot['prompt'] ?? null;
+    }
+
+    private function acceptedAnswersForItem(AssessmentAttemptItem $item, ?string $expectedAnswer): array
+    {
+        if ($item->task_type === AssessmentItemSelectionService::TASK_2A_RHYME) {
+            return trim((string) $expectedAnswer) !== '' ? [$expectedAnswer] : [];
+        }
+
+        return $item->prompt_snapshot['accepted_answers'] ?? [];
+    }
+
+    private function payloadForForm(AssessmentAttemptItem $item): array
+    {
+        $payload = $item->prompt_snapshot['payload'] ?? [];
+
+        if ($item->task_type === AssessmentItemSelectionService::TASK_2A_RHYME) {
+            $target = $payload['target_word']
+                ?? $payload['expected_answer']
+                ?? collect($item->prompt_snapshot['accepted_answers'] ?? [])->first();
+
+            if ($target) {
+                $payload['target_word'] = $target;
+                $payload['expected_answer'] = $target;
+            }
+        }
+
+        return $payload;
     }
 
     private function analysisContext(AssessmentAttemptItem $item, ?string $expectedAnswer, array $acceptedAnswers): array
@@ -585,7 +639,7 @@ class FinalAssessmentController extends Controller
             'expected_text' => $expectedAnswer,
             'accepted_answers' => $acceptedAnswers,
             'prompt_id' => $item->source_csv_id,
-            'task_type' => 'final_'.$item->task_type,
+            'task_type' => $item->task_type,
             'content_metadata' => ['prompt_snapshot' => $item->prompt_snapshot, 'is_final_reassessment' => true],
             'debug' => (bool) config('readirect_ai.debug.show_admin_debug'),
         ];
@@ -626,6 +680,7 @@ class FinalAssessmentController extends Controller
             'responses.*.assessment_attempt_item_id' => ['required', 'integer', 'exists:assessment_attempt_items,id'],
             'responses.*.answer' => ['nullable', 'string', 'max:255'],
             'responses.*.transcript_source' => ['nullable', 'string', 'in:manual,ai_asr,stt_auto,stt_placeholder,teacher_review,future_asr'],
+            'responses.*.audio_file_id' => ['nullable', 'integer', 'exists:audio_files,id'],
             'responses.*.audio' => AudioStorageService::validationRules(),
             'responses.*.duration_seconds' => AudioStorageService::durationValidationRules(),
         ];

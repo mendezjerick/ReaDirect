@@ -62,6 +62,50 @@ class FinalAssessmentTest extends TestCase
         $this->assertSame(10, AssessmentTaskResponse::where('assessment_attempt_id', $final->id)->count());
     }
 
+    public function test_final_task_two_b_accepts_highlighted_word_responses(): void
+    {
+        [$learner] = $this->learnerWithBaselineDiagnostic();
+        $final = AssessmentAttempt::create([
+            'learner_id' => $learner->id,
+            'attempt_type' => 'final_reassessment',
+            'status' => 'task_2b',
+            'task_1_score' => 10,
+            'task_2a_score' => 10,
+            'started_at' => now(),
+        ]);
+
+        foreach (range(1, 10) as $index) {
+            $final->selectedItems()->create([
+                'source_csv_id' => 'FINAL-T2B-'.$index,
+                'task_type' => AssessmentItemSelectionService::TASK_2B_WORD_SENTENCE,
+                'sequence' => $index,
+                'prompt_snapshot' => [
+                    'prompt' => 'I see a cat.',
+                    'payload' => ['target_word' => 'cat', 'expected_answer' => 'cat'],
+                    'accepted_answers' => ['cat'],
+                ],
+                'selected_at' => now(),
+            ]);
+        }
+
+        $responses = $final->selectedItems()
+            ->where('task_type', AssessmentItemSelectionService::TASK_2B_WORD_SENTENCE)
+            ->orderBy('sequence')
+            ->get()
+            ->map(fn ($item) => [
+                'assessment_attempt_item_id' => $item->id,
+                'answer' => 'cat',
+                'transcript_source' => 'manual',
+            ])
+            ->all();
+
+        $this->withSession(['learner_id' => $learner->id, 'final_assessment_attempt_id' => $final->id])
+            ->post(route('final-assessment.task.submit', 'task-2b'), ['responses' => $responses])
+            ->assertRedirect(route('final-assessment.task', 'passage'));
+
+        $this->assertGreaterThanOrEqual(8, (int) $final->refresh()->task_2b_score);
+    }
+
     public function test_final_comparison_service_calculates_deltas_and_percent_change(): void
     {
         $comparison = app(FinalAssessmentComparisonService::class)->computeInitialVsFinal(

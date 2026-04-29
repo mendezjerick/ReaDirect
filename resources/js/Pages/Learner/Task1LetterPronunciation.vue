@@ -24,8 +24,9 @@ const transcriptSources = reactive({});
 const generatedTranscripts = reactive({});
 const uploadErrors = reactive({});
 const uploading = reactive({});
-const answerFor = (item) => String(step.answers[item?.id] ?? generatedTranscripts[item?.id] ?? '').trim();
-const sourceFor = (item) => String(step.answers[item?.id] ?? '').trim()
+const manualAnswerFor = (item) => String(step.answers[item?.id] ?? '').trim();
+const answerFor = (item) => manualAnswerFor(item) || String(generatedTranscripts[item?.id] ?? '').trim();
+const sourceFor = (item) => manualAnswerFor(item)
     ? 'manual'
     : (transcriptSources[item?.id] ?? (generatedTranscripts[item?.id] ? 'stt_auto' : 'manual'));
 const hasAnswerOrAudio = (item) => answerFor(item).length > 0 || Boolean(audioFiles[item?.id]);

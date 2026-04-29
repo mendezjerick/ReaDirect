@@ -23,23 +23,25 @@ const transcriptSources = reactive({});
 const generatedTranscripts = reactive({});
 const uploadErrors = reactive({});
 const uploading = reactive({});
-const answerFor = (item) => String(step.answers[item?.id] ?? generatedTranscripts[item?.id] ?? '').trim();
-const sourceFor = (item) => String(step.answers[item?.id] ?? '').trim()
+const manualAnswerFor = (item) => String(step.answers[item?.id] ?? '').trim();
+const answerFor = (item) => manualAnswerFor(item) || String(generatedTranscripts[item?.id] ?? '').trim();
+const sourceFor = (item) => manualAnswerFor(item)
     ? 'manual'
     : (transcriptSources[item?.id] ?? (generatedTranscripts[item?.id] ? 'stt_auto' : 'manual'));
 const hasUsableTranscript = (item, answer) => {
-    const expectedPrompt = String(item?.prompt ?? '').trim();
-    const normalizedAnswer = String(answer ?? answerFor(item) ?? '').trim();
+    const expectedPrompt = String(item?.payload?.target_word ?? item?.payload?.expected_answer ?? item?.prompt ?? '').trim();
+    const manualAnswer = String(answer ?? '').trim();
+    const normalizedAnswer = manualAnswer || answerFor(item);
 
     if (!normalizedAnswer) return false;
     if (/^\d+$/.test(normalizedAnswer)) return false;
     if (!expectedPrompt) return normalizedAnswer.length > 0;
 
-    return normalizedAnswer.length >= Math.max(4, Math.floor(expectedPrompt.length * 0.4));
+    return normalizedAnswer.length >= Math.max(2, Math.floor(expectedPrompt.length * 0.6));
 };
 const hasAnswerOrAudio = (item, answer) => Boolean(uploadedAudioIds[item?.id]) && hasUsableTranscript(item, answer);
 const step = useStepAssessment(props.items, { emptyMessage: 'Almost there! Finish this item to continue.', isAnswered: hasAnswerOrAudio });
-const agentMessage = ref('Read the full sentence aloud. I will transcribe it, and you can correct the transcript before moving on.');
+const agentMessage = ref('Read the highlighted word aloud. I will transcribe it, and you can correct the transcript before moving on.');
 const agentState = ref('listening');
 const neutralMessages = ['Thank you. Let us continue.', 'Good effort. Let us go to the next one.', 'I heard your answer. Let us keep going.'];
 const isCurrentUploading = computed(() => Boolean(uploading[step.currentItem.value?.id]));
@@ -102,6 +104,7 @@ const uploadAudio = async (item, file) => {
         if (transcript) {
             generatedTranscripts[item.id] = transcript;
             transcriptSources[item.id] = result.transcript_source ?? 'stt_auto';
+            step.feedback.value = '';
             agentMessage.value = `Transcript ready: ${transcript}`;
             agentState.value = 'speaking';
             return;
@@ -143,16 +146,16 @@ const submit = () => {
 
 const handlePrimary = () => {
     if (!currentHasUploadedAudio.value) {
-        agentMessage.value = 'Please record this sentence first so we can transcribe what you said.';
+        agentMessage.value = 'Please record the highlighted word first so we can transcribe what you said.';
         agentState.value = 'speaking';
-        step.feedback.value = 'Record the sentence before going to the next one.';
+        step.feedback.value = 'Record the highlighted word before going to the next one.';
         return;
     }
 
     if (!hasUsableTranscript(step.currentItem.value, answerFor(step.currentItem.value))) {
         agentMessage.value = 'Please wait for the transcript, or correct it so it matches what you said.';
         agentState.value = 'speaking';
-        step.feedback.value = 'We need a usable transcript for this sentence before continuing.';
+        step.feedback.value = 'We need a usable transcript for this word before continuing.';
         return;
     }
 
@@ -187,7 +190,7 @@ const handlePrimary = () => {
             </div>
             <ModuleProgressBar :value="step.progressPercent.value" />
             <div class="rounded-[28px] border border-border bg-surface p-5 text-center shadow-xl shadow-primary/10">
-                <p class="text-base font-black text-muted">Read the sentence</p>
+                <p class="text-base font-black text-muted">Read the highlighted word</p>
                 <p class="mt-3 text-2xl font-black leading-snug text-text md:text-3xl">
                     <template v-for="(part, index) in parts(step.currentItem.value)" :key="index">
                         <mark v-if="part.toLowerCase() === (step.currentItem.value.payload?.target_word ?? '').toLowerCase()" class="rounded-xl bg-accent px-2">{{ part }}</mark>

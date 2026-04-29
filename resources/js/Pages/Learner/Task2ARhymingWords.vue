@@ -23,13 +23,15 @@ const transcriptSources = reactive({});
 const generatedTranscripts = reactive({});
 const uploadErrors = reactive({});
 const uploading = reactive({});
-const answerFor = (item) => String(step.answers[item?.id] ?? generatedTranscripts[item?.id] ?? '').trim();
-const sourceFor = (item) => String(step.answers[item?.id] ?? '').trim()
+const manualAnswerFor = (item) => String(step.answers[item?.id] ?? '').trim();
+const answerFor = (item) => manualAnswerFor(item) || String(generatedTranscripts[item?.id] ?? '').trim();
+const sourceFor = (item) => manualAnswerFor(item)
     ? 'manual'
     : (transcriptSources[item?.id] ?? (generatedTranscripts[item?.id] ? 'stt_auto' : 'manual'));
-const hasAnswerOrAudio = (item) => answerFor(item).length > 0 || Boolean(audioFiles[item?.id]);
+const hasAnswerOrAudio = (item) => answerFor(item).length > 0;
 const step = useStepAssessment(props.items, { emptyMessage: 'Almost there! Finish this item to continue.', isAnswered: hasAnswerOrAudio });
-const agentMessage = ref('Say one word that rhymes with the prompt. I will transcribe what I heard before you move on.');
+const targetWordFor = (item) => item?.payload?.target_word ?? item?.payload?.expected_answer ?? item?.accepted_answers?.[0] ?? '';
+const agentMessage = ref('Read the second rhyming word. I will transcribe what I heard before you move on.');
 const agentState = ref('listening');
 const neutralMessages = ['Thank you. Let us continue.', 'Good effort. Let us go to the next one.', 'I heard your answer. Let us keep going.'];
 const isCurrentUploading = computed(() => Boolean(uploading[step.currentItem.value?.id]));
@@ -162,8 +164,12 @@ const handlePrimary = () => {
             </div>
             <ModuleProgressBar :value="step.progressPercent.value" />
             <div class="rounded-[28px] border border-border bg-surface p-5 text-center shadow-xl shadow-primary/10">
-                <p class="text-base font-black text-muted">Say a word that rhymes with</p>
-                <p class="mt-3 text-4xl font-black leading-snug text-text md:text-5xl">{{ step.currentItem.value.prompt }}</p>
+                <p class="text-base font-black text-muted">Read the second word</p>
+                <div class="mt-3 flex items-center justify-center gap-3 text-4xl font-black leading-snug text-text md:text-5xl">
+                    <span>{{ step.currentItem.value.prompt }}</span>
+                    <span class="text-muted">-</span>
+                    <mark class="rounded-2xl bg-accent px-3 py-1">{{ targetWordFor(step.currentItem.value) }}</mark>
+                </div>
             </div>
             <div class="rounded-[24px] border border-border bg-surface p-4 shadow-lg shadow-primary/10">
                 <div class="grid gap-3 md:grid-cols-[220px_1fr] md:items-center">
@@ -171,7 +177,7 @@ const handlePrimary = () => {
                         :key="step.currentItem.value.id"
                         compact
                         :max-duration-seconds="30"
-                        label="Rhyme voice"
+                        label="Second word voice"
                         @recorded="(file) => rememberAudio(step.currentItem.value, file)"
                         @cleared="() => clearAudio(step.currentItem.value)"
                     />
@@ -208,7 +214,7 @@ const handlePrimary = () => {
                 <SecondaryButton v-if="!step.isFirst.value" @click="step.goBack">Back</SecondaryButton>
                 <span v-else />
                 <PrimaryButton :disabled="form.processing || isCurrentUploading" :class="{ 'opacity-70': !step.isCurrentAnswered.value || isCurrentUploading }" @click="handlePrimary">
-                    {{ step.isLast.value ? 'Check rhymes' : 'Next' }}
+                    {{ step.isLast.value ? 'Check words' : 'Next' }}
                 </PrimaryButton>
             </div>
         </BottomActionBar>

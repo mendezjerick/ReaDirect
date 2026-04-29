@@ -66,6 +66,33 @@ class DiagnosticAssessmentValidationTest extends TestCase
             ->assertSessionHasErrors('responses.0.answer');
     }
 
+    public function test_task_two_a_scores_the_paired_second_word_only(): void
+    {
+        $attempt = $this->attemptWithLockedItems(AssessmentItemSelectionService::TASK_2A_RHYME, 'rhyme_prompt');
+
+        $attempt->selectedItems()
+            ->where('task_type', AssessmentItemSelectionService::TASK_2A_RHYME)
+            ->get()
+            ->each(function ($item): void {
+                $snapshot = $item->prompt_snapshot;
+                $snapshot['prompt'] = 'cat';
+                $snapshot['payload'] = array_merge($snapshot['payload'] ?? [], [
+                    'target_word' => 'bat',
+                    'expected_answer' => 'bat',
+                ]);
+                $snapshot['accepted_answers'] = ['bat', 'hat', 'mat'];
+                $item->update(['prompt_snapshot' => $snapshot]);
+            });
+
+        $this->withSession(['assessment_attempt_id' => $attempt->id])
+            ->post(route('learner.diagnostic.task-2a.store'), [
+                'responses' => $this->responsesFor($attempt, AssessmentItemSelectionService::TASK_2A_RHYME, 'hat'),
+            ])
+            ->assertRedirect(route('learner.diagnostic.task-2b'));
+
+        $this->assertSame(0, (int) $attempt->refresh()->task_2a_score);
+    }
+
     public function test_task_two_b_submission_with_missing_answer_is_rejected(): void
     {
         $attempt = $this->attemptWithLockedItems(AssessmentItemSelectionService::TASK_2B_WORD_SENTENCE, 'word_sentence');
@@ -75,6 +102,20 @@ class DiagnosticAssessmentValidationTest extends TestCase
         $this->withSession(['assessment_attempt_id' => $attempt->id])
             ->post(route('learner.diagnostic.task-2b.store'), ['responses' => $responses])
             ->assertSessionHasErrors('responses.0.answer');
+    }
+
+    public function test_task_two_b_scores_the_highlighted_word_not_the_full_sentence(): void
+    {
+        $attempt = $this->attemptWithLockedItems(AssessmentItemSelectionService::TASK_2B_WORD_SENTENCE, 'word_sentence');
+        $attempt->update(['task_1_score' => 10, 'task_2a_score' => 10]);
+
+        $this->withSession(['assessment_attempt_id' => $attempt->id])
+            ->post(route('learner.diagnostic.task-2b.store'), [
+                'responses' => $this->responsesFor($attempt, AssessmentItemSelectionService::TASK_2B_WORD_SENTENCE, 'cat'),
+            ])
+            ->assertRedirect(route('learner.diagnostic.crla-summary'));
+
+        $this->assertGreaterThanOrEqual(8, (int) $attempt->refresh()->task_2b_score);
     }
 
     public function test_passage_reading_missing_incorrect_words_is_rejected(): void

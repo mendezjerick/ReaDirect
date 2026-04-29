@@ -1,7 +1,7 @@
 id,agent_type,script_key,script_text,usage_context,is_active
 AS-001,assessment_agent,diagnostic_intro,We will do a short reading check. Listen carefully and try your best.,diagnostic_intro,1
 AS-002,assessment_agent,task1_instruction,Look at the letter. Say the letter clearly when you are ready.,task1_letter_pronunciation,1
-AS-003,assessment_agent,task2a_instruction,Listen to the word. Say one word that rhymes with it.,task2a_rhyming_words,1
+AS-003,assessment_agent,task2a_instruction,Listen to the two rhyming words. Say the second word.,task2a_rhyming_words,1
 AS-004,assessment_agent,task2b_instruction,Read the sentence. Pay close attention to the target word.,task2b_word_in_sentence,1
 AS-005,assessment_agent,passage_instruction,Read the passage aloud. Keep reading until the timer stops.,reading_passage,1
 AS-006,assessment_agent,comprehension_instruction,Choose the best answer for each question about the passage.,comprehension_questions,1

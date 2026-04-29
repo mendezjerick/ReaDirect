@@ -113,10 +113,9 @@ class AudioUploadController extends Controller
         $payload = $snapshot['payload'] ?? [];
         $taskType = $validated['task_type'] ?? $item?->task_type ?? null;
 
-        $expectedText = match ($taskType) {
-            'crla_task_2b_sentence' => $snapshot['prompt'] ?? $payload['expected_answer'] ?? $payload['target_word'] ?? null,
-            default => $payload['expected_answer'] ?? $payload['target_word'] ?? $snapshot['prompt'] ?? null,
-        };
+        $expectedText = $taskType === 'crla_task_2b_sentence'
+            ? ($payload['target_word'] ?? $payload['expected_answer'] ?? $snapshot['prompt'] ?? null)
+            : ($payload['expected_answer'] ?? $payload['target_word'] ?? $snapshot['prompt'] ?? null);
 
         return [
             'expected_text' => $expectedText,

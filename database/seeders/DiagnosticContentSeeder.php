@@ -60,11 +60,13 @@ class DiagnosticContentSeeder extends Seeder
                     'payload' => [
                         'source_csv_id' => $row['id'],
                         'sequence' => (int) $row['sequence'],
+                        'target_word' => $this->taskTwoATargetWord($row),
+                        'expected_answer' => $this->taskTwoATargetWord($row),
                         'expected_rhyme_family' => $row['expected_rhyme_family'],
                         'points' => (int) $row['points'],
                         'enrichment' => $enrichment,
                     ],
-                    'accepted_answers' => $this->pipeList($row['accepted_answers']),
+                    'accepted_answers' => [$this->taskTwoATargetWord($row)],
                     'enrichment_metadata' => $enrichment,
                     'difficulty' => $row['difficulty'],
                     'is_active' => $this->active($row['is_active']),
@@ -173,6 +175,11 @@ class DiagnosticContentSeeder extends Seeder
     private function pipeList(?string $value): array
     {
         return array_values(array_filter(array_map('trim', explode('|', (string) $value))));
+    }
+
+    private function taskTwoATargetWord(array $row): string
+    {
+        return trim((string) ($row['target_word'] ?? $row['expected_answer'] ?? $this->pipeList($row['accepted_answers'] ?? '')[0] ?? ''));
     }
 
     private function active(string|int|null $value): bool
