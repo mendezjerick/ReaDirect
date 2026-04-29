@@ -126,6 +126,7 @@ class DiagnosticAssessmentController extends Controller
 
         return Inertia::render('Learner/Task2ARhymingWords', [
             'items' => $this->itemsForForm($items),
+            'assessmentAttemptId' => $attempt->id,
         ]);
     }
 

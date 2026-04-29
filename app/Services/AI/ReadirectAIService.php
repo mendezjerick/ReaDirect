@@ -198,6 +198,12 @@ class ReadirectAIService
     {
         unset($payload['api_token'], $payload['token']);
 
+        foreach (['content_metadata', 'current_context'] as $key) {
+            if (array_key_exists($key, $payload) && $payload[$key] === []) {
+                $payload[$key] = (object) [];
+            }
+        }
+
         return $payload;
     }
 }

@@ -154,6 +154,10 @@ class AudioUploadController extends Controller
 
     private function shouldUseFastLetterPath(array $validated): bool
     {
+        if ((bool) config('readirect_ai.enabled')) {
+            return false;
+        }
+
         return ($validated['context_type'] ?? null) === 'assessment_task'
             && ($validated['task_type'] ?? null) === 'crla_task_1_letter';
     }

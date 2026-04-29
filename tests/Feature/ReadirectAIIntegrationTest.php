@@ -84,6 +84,14 @@ class ReadirectAIIntegrationTest extends TestCase
         $this->assertSame('hf_whisper_local', $audioFile->ai_provider);
         $this->assertSame('req-123', $audioFile->ai_request_id);
         $this->assertNotNull($audioFile->ai_completed_at);
+
+        Http::assertSent(function ($request) {
+            $payload = json_decode($request->body());
+
+            return $request->url() === 'http://ai.test/analyze-audio'
+                && $payload->expected_text === 'cat'
+                && $payload->content_metadata instanceof \stdClass;
+        });
     }
 
     public function test_ai_analysis_resolver_falls_back_to_existing_stt_when_ai_fails(): void

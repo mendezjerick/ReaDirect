@@ -24,7 +24,11 @@ const transcriptSources = reactive({});
 const generatedTranscripts = reactive({});
 const uploadErrors = reactive({});
 const uploading = reactive({});
-const hasAnswerOrAudio = (item, answer) => String(answer ?? '').trim().length > 0 || Boolean(audioFiles[item?.id]);
+const answerFor = (item) => String(step.answers[item?.id] ?? generatedTranscripts[item?.id] ?? '').trim();
+const sourceFor = (item) => String(step.answers[item?.id] ?? '').trim()
+    ? 'manual'
+    : (transcriptSources[item?.id] ?? (generatedTranscripts[item?.id] ? 'stt_auto' : 'manual'));
+const hasAnswerOrAudio = (item) => answerFor(item).length > 0 || Boolean(audioFiles[item?.id]);
 const step = useStepAssessment(props.items, { emptyMessage: 'Try this one before moving on.', isAnswered: hasAnswerOrAudio });
 const agentMessage = ref('Say this letter clearly. I will transcribe it, and you can correct the transcript before moving on.');
 const agentState = ref('listening');
@@ -50,7 +54,6 @@ const clearAudio = (item) => {
 
 const setAnswer = (item, value) => {
     step.answers[item.id] = value;
-    transcriptSources[item.id] = String(value ?? '').trim() ? 'manual' : (generatedTranscripts[item.id] ? 'stt_auto' : 'manual');
 };
 
 const uploadAudio = async (item, file) => {
@@ -88,8 +91,7 @@ const uploadAudio = async (item, file) => {
         uploadedAudioIds[item.id] = result.audio_file_id;
         if (transcript) {
             generatedTranscripts[item.id] = transcript;
-            step.answers[item.id] = transcript;
-            transcriptSources[item.id] = 'stt_auto';
+            transcriptSources[item.id] = result.transcript_source ?? 'stt_auto';
             agentMessage.value = `Transcript ready: ${transcript}`;
             agentState.value = 'speaking';
             return;
@@ -112,10 +114,10 @@ const uploadAudio = async (item, file) => {
 const submit = () => {
     if (!step.validateCurrent()) return;
 
-    form.responses = step.payload((item, answer) => ({
+    form.responses = step.payload((item) => ({
         assessment_attempt_item_id: item.id,
-        answer,
-        transcript_source: transcriptSources[item.id] ?? (String(answer ?? '').trim() ? 'manual' : 'stt_auto'),
+        answer: answerFor(item),
+        transcript_source: sourceFor(item),
         audio_file_id: uploadedAudioIds[item.id] ?? null,
         audio: uploadedAudioIds[item.id] ? null : (audioFiles[item.id] ?? null),
         duration_seconds: audioDurations[item.id] ?? null,
@@ -171,15 +173,26 @@ const handlePrimary = () => {
                         @recorded="(file) => rememberAudio(step.currentItem.value, file)"
                         @cleared="() => clearAudio(step.currentItem.value)"
                     />
-                    <label class="grid gap-2 text-lg font-black text-text">
-                        Transcript
-                        <input
-                            :value="step.answers[step.currentItem.value.id]"
-                            class="rounded-2xl border-2 border-border px-4 py-3 text-lg font-black focus:border-primary focus:outline-none"
-                            :placeholder="isCurrentUploading ? 'Generating transcript...' : 'Transcript appears here after recording'"
-                            @input="setAnswer(step.currentItem.value, $event.target.value)"
-                        >
-                    </label>
+                    <div class="grid gap-3">
+                        <label class="grid gap-2 text-lg font-black text-text">
+                            AI transcription
+                            <textarea
+                                :value="generatedTranscripts[step.currentItem.value.id] ?? ''"
+                                class="min-h-20 resize-none rounded-2xl border-2 border-border bg-background px-4 py-3 text-lg font-black text-text focus:border-primary focus:outline-none"
+                                readonly
+                                :placeholder="isCurrentUploading ? 'Generating transcription...' : 'The AI transcription appears here'"
+                            />
+                        </label>
+                        <label class="grid gap-2 text-sm font-black text-muted">
+                            Developer override
+                            <input
+                                :value="step.answers[step.currentItem.value.id]"
+                                class="rounded-2xl border-2 border-border px-4 py-3 text-base font-black text-text focus:border-primary focus:outline-none"
+                                placeholder="Optional fallback text"
+                                @input="setAnswer(step.currentItem.value, $event.target.value)"
+                            >
+                        </label>
+                    </div>
                 </div>
                 <p v-if="uploadErrors[step.currentItem.value.id]" class="mt-4 rounded-2xl bg-warning/15 px-4 py-3 text-sm font-black text-warning">
                     {{ uploadErrors[step.currentItem.value.id] }}

@@ -123,6 +123,67 @@ const isEditableTarget = (target) => {
     return target.isContentEditable || ['input', 'textarea', 'select', 'button'].includes(tagName);
 };
 
+const audioBufferToWavBlob = (audioBuffer) => {
+    const channelCount = 1;
+    const sampleRate = audioBuffer.sampleRate;
+    const source = audioBuffer.getChannelData(0);
+    const bytesPerSample = 2;
+    const blockAlign = channelCount * bytesPerSample;
+    const buffer = new ArrayBuffer(44 + source.length * bytesPerSample);
+    const view = new DataView(buffer);
+
+    const writeString = (offset, value) => {
+        for (let index = 0; index < value.length; index += 1) {
+            view.setUint8(offset + index, value.charCodeAt(index));
+        }
+    };
+
+    writeString(0, 'RIFF');
+    view.setUint32(4, 36 + source.length * bytesPerSample, true);
+    writeString(8, 'WAVE');
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, channelCount, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * blockAlign, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, 16, true);
+    writeString(36, 'data');
+    view.setUint32(40, source.length * bytesPerSample, true);
+
+    let offset = 44;
+    for (let index = 0; index < source.length; index += 1, offset += 2) {
+        const sample = Math.max(-1, Math.min(1, source[index]));
+        view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
+    }
+
+    return new Blob([view], { type: 'audio/wav' });
+};
+
+const convertRecordingToWav = async (blob) => {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+
+    if (!AudioContextClass) {
+        return { blob, durationSeconds: duration.value, extension: 'webm' };
+    }
+
+    const context = new AudioContextClass();
+
+    try {
+        const arrayBuffer = await blob.arrayBuffer();
+        const audioBuffer = await context.decodeAudioData(arrayBuffer.slice(0));
+
+        return {
+            blob: audioBufferToWavBlob(audioBuffer),
+            durationSeconds: audioBuffer.duration,
+            extension: 'wav',
+        };
+    } finally {
+        await context.close();
+    }
+};
+
 const startRecording = async () => {
     if (props.disabled || status.value === 'recording') return;
 
@@ -139,17 +200,26 @@ const startRecording = async () => {
             }
         };
 
-        mediaRecorder.value.onstop = () => {
+        mediaRecorder.value.onstop = async () => {
             const durationSeconds = duration.value;
             clearTimer();
             setStatus('processing');
             const blob = new Blob(chunks.value, { type: mediaRecorder.value?.mimeType || 'audio/webm' });
-            const file = new File([blob], `readirect-recording-${Date.now()}.webm`, { type: blob.type });
-            file.durationSeconds = durationSeconds;
-            audioUrl.value = URL.createObjectURL(blob);
-            stopTracks();
-            setStatus('saved');
-            emit('recorded', file);
+
+            try {
+                const converted = await convertRecordingToWav(blob);
+                const file = new File([converted.blob], `readirect-recording-${Date.now()}.${converted.extension}`, { type: converted.blob.type });
+                file.durationSeconds = converted.durationSeconds || durationSeconds;
+                audioUrl.value = URL.createObjectURL(converted.blob);
+                stopTracks();
+                setStatus('saved');
+                emit('recorded', file);
+            } catch (error) {
+                stopTracks();
+                errorMessage.value = 'Could not prepare the recording for transcription. Please record again.';
+                setStatus('error');
+                emit('error', errorMessage.value);
+            }
         };
 
         mediaRecorder.value.start();

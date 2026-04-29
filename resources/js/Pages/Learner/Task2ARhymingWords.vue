@@ -23,9 +23,13 @@ const transcriptSources = reactive({});
 const generatedTranscripts = reactive({});
 const uploadErrors = reactive({});
 const uploading = reactive({});
-const hasAnswerOrAudio = (item, answer) => String(answer ?? '').trim().length > 0 || Boolean(audioFiles[item?.id]);
+const answerFor = (item) => String(step.answers[item?.id] ?? generatedTranscripts[item?.id] ?? '').trim();
+const sourceFor = (item) => String(step.answers[item?.id] ?? '').trim()
+    ? 'manual'
+    : (transcriptSources[item?.id] ?? (generatedTranscripts[item?.id] ? 'stt_auto' : 'manual'));
+const hasAnswerOrAudio = (item) => answerFor(item).length > 0 || Boolean(audioFiles[item?.id]);
 const step = useStepAssessment(props.items, { emptyMessage: 'Almost there! Finish this item to continue.', isAnswered: hasAnswerOrAudio });
-const agentMessage = ref('Read the full sentence aloud and say each word clearly. I will transcribe what I heard before you move on.');
+const agentMessage = ref('Say one word that rhymes with the prompt. I will transcribe what I heard before you move on.');
 const agentState = ref('listening');
 const neutralMessages = ['Thank you. Let us continue.', 'Good effort. Let us go to the next one.', 'I heard your answer. Let us keep going.'];
 const isCurrentUploading = computed(() => Boolean(uploading[step.currentItem.value?.id]));
@@ -49,7 +53,6 @@ const clearAudio = (item) => {
 
 const setAnswer = (item, value) => {
     step.answers[item.id] = value;
-    transcriptSources[item.id] = String(value ?? '').trim() ? 'manual' : (generatedTranscripts[item.id] ? 'stt_auto' : 'manual');
 };
 
 const uploadAudio = async (item, file) => {
@@ -63,7 +66,7 @@ const uploadAudio = async (item, file) => {
         payload.append('context_type', 'assessment_task');
         payload.append('assessment_attempt_id', String(props.assessmentAttemptId));
         payload.append('item_id', String(item.id));
-        payload.append('task_type', 'crla_task_2b_sentence');
+        payload.append('task_type', 'crla_task_2a_rhyme');
         if (audioDurations[item.id] != null) {
             payload.append('duration_seconds', String(audioDurations[item.id]));
         }
@@ -87,8 +90,7 @@ const uploadAudio = async (item, file) => {
         uploadedAudioIds[item.id] = result.audio_file_id;
         if (transcript) {
             generatedTranscripts[item.id] = transcript;
-            step.answers[item.id] = transcript;
-            transcriptSources[item.id] = 'stt_auto';
+            transcriptSources[item.id] = result.transcript_source ?? 'stt_auto';
             agentMessage.value = `Transcript ready: ${transcript}`;
             agentState.value = 'speaking';
             return;
@@ -108,24 +110,18 @@ const uploadAudio = async (item, file) => {
     }
 };
 
-const parts = (item) => {
-    const target = item.payload?.target_word ?? '';
-    if (!target) return [item.prompt];
-    return item.prompt.split(new RegExp(`(${target})`, 'i'));
-};
-
 const submit = () => {
     if (!step.validateCurrent()) return;
 
-    form.responses = step.payload((item, answer) => ({
+    form.responses = step.payload((item) => ({
         assessment_attempt_item_id: item.id,
-        answer,
-        transcript_source: transcriptSources[item.id] ?? (String(answer ?? '').trim() ? 'manual' : 'stt_auto'),
+        answer: answerFor(item),
+        transcript_source: sourceFor(item),
         audio_file_id: uploadedAudioIds[item.id] ?? null,
         audio: uploadedAudioIds[item.id] ? null : (audioFiles[item.id] ?? null),
         duration_seconds: audioDurations[item.id] ?? null,
     }));
-    form.post('/learner/diagnostic/task-2b', { forceFormData: true });
+    form.post('/learner/diagnostic/task-2a', { forceFormData: true });
 };
 
 const handlePrimary = () => {
@@ -161,18 +157,13 @@ const handlePrimary = () => {
 
         <section class="mx-auto grid max-w-xl gap-3">
             <div class="flex items-center justify-between">
-                <StatusBadge :status="`Sentence ${step.currentIndex.value + 1} of ${items.length}`" />
+                <StatusBadge :status="`Rhyme ${step.currentIndex.value + 1} of ${items.length}`" />
                 <StatusBadge :status="isCurrentUploading ? 'Transcribing' : 'Voice transcript'" variant="primary" />
             </div>
             <ModuleProgressBar :value="step.progressPercent.value" />
             <div class="rounded-[28px] border border-border bg-surface p-5 text-center shadow-xl shadow-primary/10">
-                <p class="text-base font-black text-muted">Read the sentence</p>
-                <p class="mt-3 text-2xl font-black leading-snug text-text md:text-3xl">
-                    <template v-for="(part, index) in parts(step.currentItem.value)" :key="index">
-                        <mark v-if="part.toLowerCase() === (step.currentItem.value.payload?.target_word ?? '').toLowerCase()" class="rounded-xl bg-accent px-2">{{ part }}</mark>
-                        <span v-else>{{ part }}</span>
-                    </template>
-                </p>
+                <p class="text-base font-black text-muted">Say a word that rhymes with</p>
+                <p class="mt-3 text-4xl font-black leading-snug text-text md:text-5xl">{{ step.currentItem.value.prompt }}</p>
             </div>
             <div class="rounded-[24px] border border-border bg-surface p-4 shadow-lg shadow-primary/10">
                 <div class="grid gap-3 md:grid-cols-[220px_1fr] md:items-center">
@@ -180,19 +171,30 @@ const handlePrimary = () => {
                         :key="step.currentItem.value.id"
                         compact
                         :max-duration-seconds="30"
-                        label="Sentence voice"
+                        label="Rhyme voice"
                         @recorded="(file) => rememberAudio(step.currentItem.value, file)"
                         @cleared="() => clearAudio(step.currentItem.value)"
                     />
-                    <label class="grid gap-2 text-lg font-black text-text">
-                        Transcript
-                        <input
-                            :value="step.answers[step.currentItem.value.id]"
-                            class="w-full rounded-2xl border-2 border-border px-4 py-3 text-lg font-black focus:border-primary focus:outline-none"
-                            :placeholder="isCurrentUploading ? 'Generating transcript...' : 'Transcript appears here after recording'"
-                            @input="setAnswer(step.currentItem.value, $event.target.value)"
-                        >
-                    </label>
+                    <div class="grid gap-3">
+                        <label class="grid gap-2 text-lg font-black text-text">
+                            AI transcription
+                            <textarea
+                                :value="generatedTranscripts[step.currentItem.value.id] ?? ''"
+                                class="min-h-20 resize-none rounded-2xl border-2 border-border bg-background px-4 py-3 text-lg font-black text-text focus:border-primary focus:outline-none"
+                                readonly
+                                :placeholder="isCurrentUploading ? 'Generating transcription...' : 'The AI transcription appears here'"
+                            />
+                        </label>
+                        <label class="grid gap-2 text-sm font-black text-muted">
+                            Developer override
+                            <input
+                                :value="step.answers[step.currentItem.value.id]"
+                                class="w-full rounded-2xl border-2 border-border px-4 py-3 text-base font-black text-text focus:border-primary focus:outline-none"
+                                placeholder="Optional fallback text"
+                                @input="setAnswer(step.currentItem.value, $event.target.value)"
+                            >
+                        </label>
+                    </div>
                 </div>
                 <p v-if="uploadErrors[step.currentItem.value.id]" class="mt-4 rounded-2xl bg-warning/15 px-4 py-3 text-sm font-black text-warning">
                     {{ uploadErrors[step.currentItem.value.id] }}
@@ -206,7 +208,7 @@ const handlePrimary = () => {
                 <SecondaryButton v-if="!step.isFirst.value" @click="step.goBack">Back</SecondaryButton>
                 <span v-else />
                 <PrimaryButton :disabled="form.processing || isCurrentUploading" :class="{ 'opacity-70': !step.isCurrentAnswered.value || isCurrentUploading }" @click="handlePrimary">
-                    {{ step.isLast.value ? 'Check sentence' : 'Next' }}
+                    {{ step.isLast.value ? 'Check rhymes' : 'Next' }}
                 </PrimaryButton>
             </div>
         </BottomActionBar>

@@ -20,6 +20,7 @@ use App\Services\SpeechToText\SpeechToTextServiceInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -234,6 +235,58 @@ class AudioRecordingTest extends TestCase
         $this->assertSame('cat', $audioFile->transcript);
         $this->assertSame(0.5, $audioFile->stt_confidence);
         $this->assertNotNull($audioFile->stt_completed_at);
+    }
+
+    public function test_task_one_letter_audio_upload_uses_ai_when_enabled(): void
+    {
+        Storage::fake('local');
+        config([
+            'readirect_ai.enabled' => true,
+            'readirect_ai.base_url' => 'http://ai.test',
+            'readirect_ai.endpoints.analyze_audio' => '/analyze-audio',
+        ]);
+        Http::fake([
+            'http://ai.test/analyze-audio' => Http::response([
+                'ok' => true,
+                'request_id' => 'letter-req-1',
+                'provider' => 'hf_whisper_local',
+                'model_size' => 'readirect-whisper-base-en-v1-hf',
+                'transcript' => 'A',
+                'normalized_transcript' => 'a',
+                'confidence' => null,
+                'similarity_label' => 'exact',
+                'warnings' => [],
+            ]),
+        ]);
+
+        $attempt = $this->attemptWithTaskOneItems();
+        $item = $attempt->selectedItems()
+            ->where('task_type', AssessmentItemSelectionService::TASK_1_LETTER)
+            ->firstOrFail();
+
+        $response = $this->withSession(['learner_id' => $attempt->learner_id])
+            ->postJson(route('learner.audio.upload'), [
+                'audio' => UploadedFile::fake()->create('letter.wav', 100, 'audio/wav'),
+                'context_type' => 'assessment_task',
+                'assessment_attempt_id' => $attempt->id,
+                'item_id' => $item->id,
+                'task_type' => AssessmentItemSelectionService::TASK_1_LETTER,
+                'duration_seconds' => 2,
+            ]);
+
+        $response->assertOk()
+            ->assertJsonPath('transcript', 'a')
+            ->assertJsonPath('transcript_source', 'ai_asr')
+            ->assertJsonPath('ai_error', null);
+
+        $audioFile = AudioFile::firstOrFail();
+
+        $this->assertSame('A', $audioFile->ai_transcript);
+        $this->assertSame('a', $audioFile->ai_normalized_transcript);
+        $this->assertSame('hf_whisper_local', $audioFile->ai_provider);
+        $this->assertSame('letter-req-1', $audioFile->ai_request_id);
+
+        Http::assertSent(fn ($request) => $request->url() === 'http://ai.test/analyze-audio');
     }
 
     public function test_assessment_submission_uses_stt_transcript_when_manual_answer_is_blank(): void
