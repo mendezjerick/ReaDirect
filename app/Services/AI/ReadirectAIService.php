@@ -48,6 +48,56 @@ class ReadirectAIService
         return (bool) ($response['ok'] ?? false);
     }
 
+    public function dashboardStatus(): array
+    {
+        $baseUrl = rtrim((string) config('readirect_ai.base_url'), '/');
+
+        if (! config('readirect_ai.enabled')) {
+            return [
+                'enabled' => false,
+                'connected' => false,
+                'status' => 'disabled',
+                'label' => 'AI service disabled',
+                'message' => 'ReaDirect AI is disabled in Laravel. Audio analysis will use configured fallback behavior.',
+                'base_url' => $baseUrl,
+                'troubleshooting_steps' => [
+                    'Set READIRECT_AI_ENABLED=true in the Laravel .env file.',
+                    'Start the FastAPI service from ReaDirect-AI-ASR.',
+                    'Confirm READIRECT_AI_BASE_URL points to the FastAPI host and port.',
+                ],
+            ];
+        }
+
+        $health = $this->health();
+        $connected = (bool) ($health['ok'] ?? false);
+        $version = $connected ? $this->version() : [];
+
+        return [
+            'enabled' => true,
+            'connected' => $connected,
+            'status' => $connected ? 'connected' : 'unavailable',
+            'label' => $connected ? 'AI service connected and running' : 'AI service not connected',
+            'message' => $connected
+                ? 'FastAPI is reachable. Laravel will delegate AI/ASR analysis to ReaDirect-AI-ASR.'
+                : 'Laravel could not reach the ReaDirect-AI-ASR FastAPI service.',
+            'base_url' => $baseUrl,
+            'service' => $health['service'] ?? $version['service'] ?? null,
+            'version' => $health['version'] ?? $version['version'] ?? null,
+            'asr_provider' => $health['asr_provider'] ?? data_get($version, 'config.asr.provider'),
+            'model_size' => data_get($version, 'config.asr.model_size'),
+            'content_index_loaded' => $health['content_index_loaded'] ?? null,
+            'cmudict_loaded' => $health['cmudict_loaded'] ?? null,
+            'error' => $health['error'] ?? null,
+            'warnings' => $health['warnings'] ?? [],
+            'troubleshooting_steps' => [
+                'Start FastAPI: run the AI repo service on the configured port, usually 8001.',
+                'Check READIRECT_AI_BASE_URL in Laravel and the FastAPI host/port in ReaDirect-AI-ASR.',
+                'If token auth is enabled, match READIRECT_AI_API_TOKEN in both repositories.',
+                'Verify the AI repo model path and ASR provider settings before production use.',
+            ],
+        ];
+    }
+
     private function get(string $endpointKey): array
     {
         if (! config('readirect_ai.enabled')) {

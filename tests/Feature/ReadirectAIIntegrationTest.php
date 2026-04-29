@@ -108,6 +108,39 @@ class ReadirectAIIntegrationTest extends TestCase
         $this->assertSame('offline', $resolved['ai_response']['error']);
     }
 
+    public function test_dashboard_status_reports_connected_ai_service(): void
+    {
+        config([
+            'readirect_ai.enabled' => true,
+            'readirect_ai.base_url' => 'http://ai.test',
+            'readirect_ai.endpoints.health' => '/health',
+            'readirect_ai.endpoints.version' => '/version',
+        ]);
+
+        Http::fake([
+            'http://ai.test/health' => Http::response([
+                'status' => 'ok',
+                'service' => 'ReaDirect AI/ASR Service',
+                'version' => '0.1.0',
+                'asr_provider' => 'hf_whisper_local',
+                'content_index_loaded' => true,
+                'cmudict_loaded' => true,
+            ]),
+            'http://ai.test/version' => Http::response([
+                'service' => 'ReaDirect AI/ASR Service',
+                'version' => '0.1.0',
+                'config' => ['asr' => ['provider' => 'hf_whisper_local', 'model_size' => 'readirect-whisper-base-en-v1-hf']],
+            ]),
+        ]);
+
+        $status = app(ReadirectAIService::class)->dashboardStatus();
+
+        $this->assertTrue($status['connected']);
+        $this->assertSame('connected', $status['status']);
+        $this->assertSame('hf_whisper_local', $status['asr_provider']);
+        $this->assertSame('readirect-whisper-base-en-v1-hf', $status['model_size']);
+    }
+
     public function test_response_fields_map_ai_response_to_storable_columns(): void
     {
         $fields = app(AIAnalysisResolver::class)->responseFields([

@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\FinalAssessmentController;
 use App\Http\Controllers\Admin\AdminAgentController;
+use App\Http\Controllers\Admin\AdminAIEnvironmentGuideController;
 use App\Http\Controllers\Admin\AdminAssessmentContentController;
 use App\Http\Controllers\Admin\AdminAuditLogController;
 use App\Http\Controllers\Admin\AdminDashboardController;
@@ -149,6 +150,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function (): v
     Route::get('/audit-logs', [AdminAuditLogController::class, 'index'])->name('audit-logs.index');
     Route::get('/audit-logs/export', [AdminAuditLogController::class, 'export'])->name('audit-logs.export');
     Route::get('/system-monitoring', AdminSystemMonitoringController::class)->name('system-monitoring.index');
+    Route::get('/ai-env-guide', AdminAIEnvironmentGuideController::class)->name('ai-env-guide');
 
     Route::prefix('testing')->name('testing.')->group(function (): void {
         Route::get('/', [AdminTestingController::class, 'index'])->name('index');

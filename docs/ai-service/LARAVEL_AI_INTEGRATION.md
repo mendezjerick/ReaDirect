@@ -17,15 +17,15 @@ Students do not call the AI service directly. Laravel calls it server-to-server.
 Terminal 1:
 
 ```powershell
-cd ReaDirect-AI-ASR
-python scripts/validate_ai_service_startup.py
-uvicorn api.main:app --reload --host 127.0.0.1 --port 8001
+cd ..\ReaDirect-AI-ASR
+python scripts\validate_ai_service_startup.py
+python -m uvicorn api.main:app --reload --host 127.0.0.1 --port 8001
 ```
 
 Terminal 2:
 
 ```powershell
-cd ReaDirect
+cd ..\ReaDirect
 php artisan serve
 npm run dev
 ```

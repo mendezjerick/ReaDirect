@@ -1,5 +1,6 @@
 <script setup>
 import AdminLayout from '../../Layouts/AdminLayout.vue';
+import AIServiceStatusBanner from '../../Components/AIServiceStatusBanner.vue';
 import DashboardCard from '../../Components/DashboardCard.vue';
 import ScoreCard from '../../Components/ScoreCard.vue';
 import StatusBadge from '../../Components/StatusBadge.vue';
@@ -17,7 +18,7 @@ import {
     TrendingUp,
 } from 'lucide-vue-next';
 
-defineProps({ dashboard: Object });
+defineProps({ dashboard: Object, aiService: Object });
 
 const statusVariant = (status) => {
     if (!status) return 'primary';
@@ -37,6 +38,12 @@ const statusVariant = (status) => {
             <h1 class="text-2xl font-extrabold text-text">Admin Dashboard</h1>
             <p class="mt-1 text-sm font-medium text-muted">Track performance and monitor the system across all schools and learners.</p>
         </div>
+
+        <AIServiceStatusBanner
+            :status="aiService"
+            troubleshooting-href="/admin/system-monitoring"
+            guide-href="/admin/ai-env-guide"
+        />
 
         <!-- ── Stat cards ─────────────────────────────────── -->
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
