@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Storage;
 
 class AudioStorageService
 {
+    public const MIN_TRANSCRIBABLE_SECONDS = 1;
+
     public const ALLOWED_MIME_TYPES = [
         'audio/webm',
         'video/webm',
@@ -51,6 +53,18 @@ class AudioStorageService
 
                 $fail('The '.$attribute.' field must be a file of type: '.implode(', ', self::ALLOWED_EXTENSIONS).'.');
             },
+        ];
+    }
+
+    public static function durationValidationRules(): array
+    {
+        return ['nullable', 'numeric', 'min:'.self::MIN_TRANSCRIBABLE_SECONDS, 'max:600'];
+    }
+
+    public static function durationValidationMessages(string $attribute = 'duration_seconds'): array
+    {
+        return [
+            $attribute.'.min' => 'Record at least '.self::MIN_TRANSCRIBABLE_SECONDS.' second so the transcript can be generated.',
         ];
     }
 

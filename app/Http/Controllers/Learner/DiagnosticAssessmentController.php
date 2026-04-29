@@ -221,7 +221,7 @@ class DiagnosticAssessmentController extends Controller
             'incorrect_words' => ['required', 'integer', 'min:0', 'max:50'],
             'audio' => AudioStorageService::validationRules(),
             'audio_file_id' => ['nullable', 'integer', 'exists:audio_files,id'],
-            'duration_seconds' => ['nullable', 'numeric', 'min:0', 'max:600'],
+            'duration_seconds' => AudioStorageService::durationValidationRules(),
         ], $this->friendlyValidationMessages());
 
         $attempt = $this->attempt($request);
@@ -785,7 +785,7 @@ class DiagnosticAssessmentController extends Controller
             'responses.*.transcript_source' => ['nullable', 'string', 'in:manual,ai_asr,stt_auto,stt_placeholder,teacher_review,future_asr'],
             'responses.*.audio_file_id' => ['nullable', 'integer', 'exists:audio_files,id'],
             'responses.*.audio' => AudioStorageService::validationRules(),
-            'responses.*.duration_seconds' => ['nullable', 'numeric', 'min:0', 'max:600'],
+            'responses.*.duration_seconds' => AudioStorageService::durationValidationRules(),
         ];
     }
 
@@ -798,6 +798,8 @@ class DiagnosticAssessmentController extends Controller
             'responses.*.answer.regex' => 'Try this item before moving on.',
             'incorrect_words.required' => 'Add the number of words to review before moving on.',
             'incorrect_words.integer' => 'Use a whole number for words to review.',
+            'duration_seconds.min' => 'Record at least 1 second so the transcript can be generated.',
+            'responses.*.duration_seconds.min' => 'Record at least 1 second so the transcript can be generated.',
         ];
     }
 }

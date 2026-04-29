@@ -271,7 +271,7 @@ class ModuleMasteryController extends Controller
             'responses.*.answer' => ['nullable', 'string', 'max:255'],
             'responses.*.transcript_source' => ['nullable', 'string', 'in:manual,ai_asr,stt_auto,stt_placeholder,teacher_review,future_asr'],
             'responses.*.audio' => AudioStorageService::validationRules(),
-            'responses.*.duration_seconds' => ['nullable', 'numeric', 'min:0', 'max:600'],
+            'responses.*.duration_seconds' => AudioStorageService::durationValidationRules(),
         ];
     }
 
@@ -294,6 +294,7 @@ class ModuleMasteryController extends Controller
             'responses.size' => 'Almost there! Finish all items to continue.',
             'responses.*.answer.required' => 'Let us answer this first.',
             'responses.*.answer.regex' => 'Try this item before moving on.',
+            'responses.*.duration_seconds.min' => 'Record at least 1 second so the transcript can be generated.',
         ];
     }
 }

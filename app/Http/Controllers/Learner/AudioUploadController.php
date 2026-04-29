@@ -32,8 +32,8 @@ class AudioUploadController extends Controller
             'item_id' => ['nullable', 'integer'],
             'task_type' => ['nullable', 'string', 'max:100'],
             'activity_type' => ['nullable', 'string', 'max:100'],
-            'duration_seconds' => ['nullable', 'numeric', 'min:0', 'max:600'],
-        ]);
+            'duration_seconds' => AudioStorageService::durationValidationRules(),
+        ], AudioStorageService::durationValidationMessages());
 
         $learner = Learner::find($request->session()->get('learner_id')) ?? Learner::firstOrFail();
         $assessmentAttempt = isset($validated['assessment_attempt_id'])

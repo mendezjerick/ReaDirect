@@ -71,6 +71,20 @@ class AudioRecordingTest extends TestCase
             ->assertJsonValidationErrors('audio');
     }
 
+    public function test_audio_upload_rejects_recordings_shorter_than_one_second(): void
+    {
+        $learner = $this->learner();
+
+        $this->withSession(['learner_id' => $learner->id])
+            ->postJson(route('learner.audio.upload'), [
+                'audio' => UploadedFile::fake()->create('short.webm', 10, 'audio/webm'),
+                'context_type' => 'assessment_task',
+                'duration_seconds' => 0.6,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('duration_seconds');
+    }
+
     public function test_audio_playback_is_authorized_for_assigned_teacher_only(): void
     {
         Storage::fake('local');
