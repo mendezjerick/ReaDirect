@@ -392,7 +392,10 @@ class FinalAssessmentController extends Controller
                     'error_type' => $isCorrect ? null : 'incorrect_general',
                     'rule_applied' => $rule,
                     'metadata' => ['source_csv_id' => $item->source_csv_id, 'is_final_reassessment' => true],
-                    'metadata_json' => ['prompt_snapshot' => $item->prompt_snapshot],
+                    'metadata_json' => [
+                        'prompt_snapshot' => $item->prompt_snapshot,
+                        'asr_scoring_debug' => $this->asrScoringDebug($attempt, $item, $expectedAnswer, $answer, $displayedAnswer, $isCorrect ? 1 : 0, $audioFile, $resolved),
+                    ],
                 ], $analysis->responseFields($resolved['ai_response'] ?? null))
             );
 
@@ -644,6 +647,48 @@ class FinalAssessmentController extends Controller
             'task_type' => $item->task_type,
             'content_metadata' => ['prompt_snapshot' => $item->prompt_snapshot, 'is_final_reassessment' => true],
             'debug' => (bool) config('readirect_ai.debug.show_admin_debug'),
+        ];
+    }
+
+    private function asrScoringDebug(
+        AssessmentAttempt $attempt,
+        AssessmentAttemptItem $item,
+        ?string $expectedAnswer,
+        string $scoringTranscript,
+        string $displayedTranscript,
+        mixed $scoreGiven,
+        ?AudioFile $audioFile,
+        array $resolved
+    ): array {
+        $ai = $resolved['ai_response'] ?? [];
+
+        return [
+            'learner_id' => $attempt->learner_id,
+            'attempt_id' => $attempt->id,
+            'assessment_type' => $attempt->attempt_type,
+            'module_type' => $item->prompt_snapshot['payload']['module_key'] ?? null,
+            'activity_type' => $item->task_type,
+            'item_id' => $item->id,
+            'expected_text' => $expectedAnswer,
+            'raw_transcript' => $ai['raw_transcript'] ?? $audioFile?->transcript ?? $scoringTranscript,
+            'corrected_transcript' => $ai['corrected_transcript'] ?? $scoringTranscript,
+            'displayed_transcript' => $ai['displayed_transcript'] ?? $displayedTranscript,
+            'raw_wer' => $ai['raw_wer'] ?? null,
+            'corrected_wer' => $ai['corrected_wer'] ?? null,
+            'score_given' => is_numeric($scoreGiven) ? (float) $scoreGiven : $scoreGiven,
+            'phonetic_similarity_score' => $ai['phonetic_similarity_score'] ?? null,
+            'threshold_used' => $ai['threshold_used'] ?? null,
+            'normalization_applied' => $ai['normalization_applied'] ?? false,
+            'normalization_reason' => $ai['normalization_reason'] ?? null,
+            'correction_strategy_used' => $ai['correction_strategy_used'] ?? null,
+            'accepted_by_exact_match' => $ai['accepted_by_exact_match'] ?? false,
+            'accepted_by_letter_normalization' => $ai['accepted_by_letter_normalization'] ?? false,
+            'accepted_by_letter_lattice' => $ai['accepted_by_letter_lattice'] ?? false,
+            'accepted_by_known_confusion' => $ai['accepted_by_known_confusion'] ?? false,
+            'accepted_by_phonetic_threshold' => $ai['accepted_by_phonetic_threshold'] ?? false,
+            'audio_file_path' => $audioFile?->file_path ?? $audioFile?->path,
+            'asr_confidence' => $resolved['confidence'],
+            'created_at' => now()->toDateTimeString(),
         ];
     }
 

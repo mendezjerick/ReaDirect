@@ -441,11 +441,14 @@ class DiagnosticAssessmentController extends Controller
 
     private function canUseDeveloperRetest(Request $request): bool
     {
-        if ($request->user()?->hasRole('system_admin') && $request->session()->get('admin_testing_mode')) {
-            return true;
+        if (! $request->user()?->hasRole('system_admin')) {
+            return false;
         }
 
-        return (bool) config('readirect_ai.debug.enable_developer_assessment_reset');
+        return (bool) (
+            $request->session()->get('admin_testing_mode')
+            || config('readirect_ai.debug.enable_developer_assessment_reset')
+        );
     }
 
     private function attempt(Request $request): AssessmentAttempt
@@ -769,6 +772,8 @@ class DiagnosticAssessmentController extends Controller
             'learner_id' => $attempt->learner_id,
             'attempt_id' => $attempt->id,
             'assessment_type' => $attempt->attempt_type,
+            'module_type' => $item->prompt_snapshot['payload']['module_key'] ?? null,
+            'activity_type' => $item->task_type,
             'item_id' => $item->id,
             'expected_text' => $expectedAnswer,
             'raw_transcript' => $ai['raw_transcript'] ?? $audioFile?->transcript ?? $scoringTranscript,
@@ -781,6 +786,10 @@ class DiagnosticAssessmentController extends Controller
             'normalization_applied' => $ai['normalization_applied'] ?? false,
             'normalization_reason' => $ai['normalization_reason'] ?? null,
             'correction_strategy_used' => $ai['correction_strategy_used'] ?? null,
+            'accepted_by_exact_match' => $ai['accepted_by_exact_match'] ?? false,
+            'accepted_by_letter_normalization' => $ai['accepted_by_letter_normalization'] ?? false,
+            'accepted_by_letter_lattice' => $ai['accepted_by_letter_lattice'] ?? false,
+            'accepted_by_known_confusion' => $ai['accepted_by_known_confusion'] ?? false,
             'accepted_by_phonetic_threshold' => $ai['accepted_by_phonetic_threshold'] ?? false,
             'threshold_used' => $ai['threshold_used'] ?? null,
             'audio_file_path' => $audioFile?->file_path ?? $audioFile?->path,
