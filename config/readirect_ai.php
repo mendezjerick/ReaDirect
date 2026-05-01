@@ -24,5 +24,6 @@ return [
     'debug' => [
         'show_admin_debug' => filter_var(env('READIRECT_AI_ADMIN_DEBUG', true), FILTER_VALIDATE_BOOLEAN),
         'show_student_debug' => false,
+        'enable_developer_assessment_reset' => filter_var(env('ENABLE_DEVELOPER_ASSESSMENT_RESET', false), FILTER_VALIDATE_BOOLEAN),
     ],
 ];

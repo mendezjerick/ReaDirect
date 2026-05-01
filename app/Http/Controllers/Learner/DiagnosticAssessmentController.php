@@ -32,7 +32,11 @@ class DiagnosticAssessmentController extends Controller
 {
     public function start(): Response
     {
-        return Inertia::render('Learner/DiagnosticStart');
+        return Inertia::render('Learner/DiagnosticStart', [
+            'developerRetest' => [
+                'enabled' => $this->canUseDeveloperRetest(request()),
+            ],
+        ]);
     }
 
     public function storeStart(Request $request, AssessmentItemSelectionService $itemSelection): RedirectResponse
@@ -40,18 +44,32 @@ class DiagnosticAssessmentController extends Controller
         $learner = $this->learner($request);
         $agent = AgentProfile::where('key', AgentProfile::ASSESSMENT)->first();
 
-        $attempt = AssessmentAttempt::create([
-            'learner_id' => $learner->id,
-            'agent_profile_id' => $agent?->id,
-            'attempt_type' => 'diagnostic',
-            'status' => 'task_1',
-            'started_at' => now(),
-        ]);
+        $attempt = $this->createDiagnosticAttempt($learner, (bool) $request->session()->get('admin_testing_mode'), $agent?->id);
 
         $itemSelection->selectTask1LettersForAttempt($attempt);
         $request->session()->put('assessment_attempt_id', $attempt->id);
+        if ($attempt->is_sandbox) {
+            $request->session()->put('admin_testing_assessment_attempt_id', $attempt->id);
+        }
 
         return redirect()->route('learner.diagnostic.task-1');
+    }
+
+    public function developerRetest(Request $request, AssessmentItemSelectionService $itemSelection): RedirectResponse
+    {
+        abort_unless($this->canUseDeveloperRetest($request), 403);
+
+        $learner = $this->learner($request);
+        $agent = AgentProfile::where('key', AgentProfile::ASSESSMENT)->first();
+        $attempt = $this->createDiagnosticAttempt($learner, true, $agent?->id);
+
+        $itemSelection->selectTask1LettersForAttempt($attempt);
+        $request->session()->put('assessment_attempt_id', $attempt->id);
+        $request->session()->put('admin_testing_assessment_attempt_id', $attempt->id);
+
+        return redirect()
+            ->route('learner.diagnostic.task-1')
+            ->with('success', 'Developer test attempt created. Previous attempts were preserved for QA review.');
     }
 
     public function taskOne(Request $request, AssessmentItemSelectionService $itemSelection): Response
@@ -409,6 +427,27 @@ class DiagnosticAssessmentController extends Controller
         return Learner::find($request->session()->get('learner_id')) ?? Learner::firstOrFail();
     }
 
+    private function createDiagnosticAttempt(Learner $learner, bool $sandbox = false, ?int $agentProfileId = null): AssessmentAttempt
+    {
+        return AssessmentAttempt::create([
+            'learner_id' => $learner->id,
+            'agent_profile_id' => $agentProfileId,
+            'attempt_type' => 'diagnostic',
+            'status' => 'task_1',
+            'is_sandbox' => $sandbox,
+            'started_at' => now(),
+        ]);
+    }
+
+    private function canUseDeveloperRetest(Request $request): bool
+    {
+        if ($request->user()?->hasRole('system_admin') && $request->session()->get('admin_testing_mode')) {
+            return true;
+        }
+
+        return (bool) config('readirect_ai.debug.enable_developer_assessment_reset');
+    }
+
     private function attempt(Request $request): AssessmentAttempt
     {
         return AssessmentAttempt::with('selectedItems')->findOrFail($request->session()->get('assessment_attempt_id'));
@@ -454,6 +493,7 @@ class DiagnosticAssessmentController extends Controller
                 $this->sttOptionsForAssessmentItem($item)
             );
             $answer = $resolved['transcript'];
+            $displayedAnswer = $resolved['displayed_transcript'] ?? $answer;
             $transcriptSource = $resolved['source'];
 
             if (trim($answer) === '') {
@@ -495,7 +535,7 @@ class DiagnosticAssessmentController extends Controller
                     'learner_transcript' => $answer,
                     'transcript_source' => $transcriptSource,
                     'stt_confidence' => $resolved['confidence'],
-                    'response_text' => $answer,
+                    'response_text' => $displayedAnswer,
                     'is_correct' => $isCorrect,
                     'score' => $isCorrect ? 1 : 0,
                     'error_type' => $isCorrect ? null : 'incorrect_general',
@@ -504,7 +544,10 @@ class DiagnosticAssessmentController extends Controller
                     'agent_commentary_source' => $agentCommentary['source'],
                     'agent_type' => $agentCommentary['agent_type'],
                     'metadata' => ['source_csv_id' => $item->source_csv_id],
-                    'metadata_json' => ['prompt_snapshot' => $item->prompt_snapshot],
+                    'metadata_json' => [
+                        'prompt_snapshot' => $item->prompt_snapshot,
+                        'asr_scoring_debug' => $this->asrScoringDebug($attempt, $item, $expectedAnswer, $answer, $displayedAnswer, $isCorrect ? 1 : 0, $audioFile, $resolved),
+                    ],
                 ], $analysis->responseFields($resolved['ai_response'] ?? null))
             );
 
@@ -559,6 +602,7 @@ class DiagnosticAssessmentController extends Controller
                 $this->sttOptionsForAssessmentItem($item)
             );
             $answer = $resolved['transcript'];
+            $displayedAnswer = $resolved['displayed_transcript'] ?? $answer;
             $transcriptSource = $resolved['source'];
 
             if (trim($answer) === '') {
@@ -604,7 +648,7 @@ class DiagnosticAssessmentController extends Controller
                     'learner_transcript' => $answer,
                     'transcript_source' => $transcriptSource,
                     'stt_confidence' => $resolved['confidence'],
-                    'response_text' => $answer,
+                    'response_text' => $displayedAnswer,
                     'is_correct' => $isCorrect,
                     'score' => $evaluation['score_ten'] ?? 0,
                     'error_type' => $isCorrect ? null : 'incorrect_general',
@@ -615,6 +659,7 @@ class DiagnosticAssessmentController extends Controller
                     'metadata' => ['source_csv_id' => $item->source_csv_id],
                     'metadata_json' => array_merge([
                         'prompt_snapshot' => $item->prompt_snapshot,
+                        'asr_scoring_debug' => $this->asrScoringDebug($attempt, $item, $expectedAnswer, $answer, $displayedAnswer, $evaluation['score_ten'] ?? 0, $audioFile, $resolved),
                     ], $evaluation),
                 ], $analysis->responseFields($resolved['ai_response'] ?? null))
             );
@@ -705,6 +750,42 @@ class DiagnosticAssessmentController extends Controller
             'task_type' => $item->task_type,
             'content_metadata' => ['prompt_snapshot' => $item->prompt_snapshot],
             'debug' => (bool) config('readirect_ai.debug.show_admin_debug'),
+        ];
+    }
+
+    private function asrScoringDebug(
+        AssessmentAttempt $attempt,
+        AssessmentAttemptItem $item,
+        ?string $expectedAnswer,
+        string $scoringTranscript,
+        string $displayedTranscript,
+        mixed $scoreGiven,
+        ?AudioFile $audioFile,
+        array $resolved
+    ): array {
+        $ai = $resolved['ai_response'] ?? [];
+
+        return [
+            'learner_id' => $attempt->learner_id,
+            'attempt_id' => $attempt->id,
+            'assessment_type' => $attempt->attempt_type,
+            'item_id' => $item->id,
+            'expected_text' => $expectedAnswer,
+            'raw_transcript' => $ai['raw_transcript'] ?? $audioFile?->transcript ?? $scoringTranscript,
+            'corrected_transcript' => $ai['corrected_transcript'] ?? $scoringTranscript,
+            'displayed_transcript' => $ai['displayed_transcript'] ?? $displayedTranscript,
+            'raw_wer' => $ai['raw_wer'] ?? null,
+            'corrected_wer' => $ai['corrected_wer'] ?? null,
+            'score_given' => is_numeric($scoreGiven) ? (float) $scoreGiven : $scoreGiven,
+            'phonetic_similarity_score' => $ai['phonetic_similarity_score'] ?? null,
+            'normalization_applied' => $ai['normalization_applied'] ?? false,
+            'normalization_reason' => $ai['normalization_reason'] ?? null,
+            'correction_strategy_used' => $ai['correction_strategy_used'] ?? null,
+            'accepted_by_phonetic_threshold' => $ai['accepted_by_phonetic_threshold'] ?? false,
+            'threshold_used' => $ai['threshold_used'] ?? null,
+            'audio_file_path' => $audioFile?->file_path ?? $audioFile?->path,
+            'asr_confidence' => $resolved['confidence'],
+            'created_at' => now()->toDateTimeString(),
         ];
     }
 

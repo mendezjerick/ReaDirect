@@ -88,7 +88,7 @@ const uploadAudio = async (item, file) => {
             throw new Error(result.message ?? 'Unable to transcribe the recording right now.');
         }
 
-        const transcript = String(result.transcript ?? '').trim();
+        const transcript = String(result.displayed_transcript ?? result.transcript ?? '').trim();
         uploadedAudioIds[item.id] = result.audio_file_id;
         if (transcript) {
             generatedTranscripts[item.id] = transcript;

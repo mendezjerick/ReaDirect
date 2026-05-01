@@ -361,6 +361,7 @@ class FinalAssessmentController extends Controller
                 $this->analysisContext($item, $expectedAnswer, $acceptedAnswers)
             );
             $answer = $resolved['transcript'];
+            $displayedAnswer = $resolved['displayed_transcript'] ?? $answer;
 
             if (trim($answer) === '') {
                 throw ValidationException::withMessages([
@@ -385,7 +386,7 @@ class FinalAssessmentController extends Controller
                     'learner_transcript' => $answer,
                     'transcript_source' => $resolved['source'],
                     'stt_confidence' => $resolved['confidence'],
-                    'response_text' => $answer,
+                    'response_text' => $displayedAnswer,
                     'is_correct' => $isCorrect,
                     'score' => $isCorrect ? 1 : 0,
                     'error_type' => $isCorrect ? null : 'incorrect_general',
@@ -443,6 +444,7 @@ class FinalAssessmentController extends Controller
                 $this->analysisContext($item, $expectedAnswer, $acceptedAnswers)
             );
             $answer = $resolved['transcript'];
+            $displayedAnswer = $resolved['displayed_transcript'] ?? $answer;
 
             if (trim($answer) === '') {
                 throw ValidationException::withMessages([
@@ -469,7 +471,7 @@ class FinalAssessmentController extends Controller
                     'learner_transcript' => $answer,
                     'transcript_source' => $resolved['source'],
                     'stt_confidence' => $resolved['confidence'],
-                    'response_text' => $answer,
+                    'response_text' => $displayedAnswer,
                     'is_correct' => $isCorrect,
                     'score' => $evaluation['score_ten'] ?? 0,
                     'error_type' => $isCorrect ? null : 'incorrect_general',

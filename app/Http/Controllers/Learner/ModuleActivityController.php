@@ -122,6 +122,7 @@ class ModuleActivityController extends Controller
                 $this->analysisContext($item, $module, $activityType, $expectedAnswer, $acceptedAnswers)
             );
             $answer = $resolved['transcript'];
+            $displayedAnswer = $resolved['displayed_transcript'] ?? $answer;
 
             if (trim($answer) === '') {
                 throw ValidationException::withMessages([
@@ -142,8 +143,8 @@ class ModuleActivityController extends Controller
                     'audio_file_id' => $audioFile?->id,
                     'transcript_source' => $resolved['source'],
                     'stt_confidence' => $resolved['confidence'],
-                    'response_text' => $answer,
-                    'learner_answer' => $answer,
+                    'response_text' => $displayedAnswer,
+                    'learner_answer' => $displayedAnswer,
                     'learner_transcript' => $answer,
                     'expected_answer' => $score['expected_answer'],
                     'is_correct' => $score['is_correct'],
@@ -170,7 +171,7 @@ class ModuleActivityController extends Controller
                 'module_key' => $module->key,
                 'activity_type' => $activityType,
                 'expected_answer' => $score['expected_answer'],
-                'learner_answer' => $answer,
+                'learner_answer' => $displayedAnswer,
                 'is_correct' => $score['is_correct'],
                 'score' => $score['score'],
                 'max_score' => $score['possible_score'],

@@ -58,8 +58,8 @@ class AIAnalysisResolver
         }
 
         return [
-            'ai_transcript' => $aiResponse['transcript'] ?? null,
-            'ai_normalized_transcript' => $aiResponse['normalized_transcript'] ?? null,
+            'ai_transcript' => $aiResponse['raw_transcript'] ?? $aiResponse['transcript'] ?? null,
+            'ai_normalized_transcript' => $aiResponse['corrected_transcript'] ?? $aiResponse['normalized_transcript'] ?? null,
             'ai_similarity_label' => $aiResponse['similarity_label'] ?? null,
             'ai_character_similarity' => $this->nullableFloat($aiResponse['character_similarity'] ?? null),
             'ai_token_similarity' => $this->nullableFloat($aiResponse['token_similarity'] ?? null),
@@ -132,6 +132,12 @@ class AIAnalysisResolver
 
     private function extractTranscript(array $aiResponse, array $context = []): string
     {
+        $correctedTranscript = $aiResponse['corrected_transcript'] ?? '';
+
+        if (trim((string) $correctedTranscript) !== '') {
+            return $this->sanitizer->sanitize($correctedTranscript);
+        }
+
         $taskType = (string) ($context['task_type'] ?? '');
 
         // Task 2B needs the AI service's raw spacing behavior so fast/blurred
@@ -147,10 +153,20 @@ class AIAnalysisResolver
         return $this->sanitizer->sanitize($aiResponse['normalized_transcript'] ?? $aiResponse['transcript'] ?? '');
     }
 
+    private function extractDisplayedTranscript(array $aiResponse, string $scoringTranscript): string
+    {
+        $displayed = $aiResponse['displayed_transcript'] ?? '';
+
+        return trim((string) $displayed) !== ''
+            ? $this->sanitizer->sanitize($displayed)
+            : $scoringTranscript;
+    }
+
     private function resolved(string $transcript, string $source, mixed $confidence, ?array $aiResponse, mixed $sttResult = null): array
     {
         return [
             'transcript' => $transcript,
+            'displayed_transcript' => $aiResponse ? $this->extractDisplayedTranscript($aiResponse, $transcript) : $transcript,
             'source' => $source,
             'confidence' => $confidence,
             'stt_result' => $sttResult,
@@ -168,8 +184,8 @@ class AIAnalysisResolver
             'ai_provider' => $aiResponse['provider'] ?? null,
             'ai_model' => $aiResponse['model_size'] ?? $aiResponse['model_path'] ?? null,
             'ai_request_id' => $aiResponse['request_id'] ?? null,
-            'ai_transcript' => $aiResponse['transcript'] ?? null,
-            'ai_normalized_transcript' => $aiResponse['normalized_transcript'] ?? null,
+            'ai_transcript' => $aiResponse['raw_transcript'] ?? $aiResponse['transcript'] ?? null,
+            'ai_normalized_transcript' => $aiResponse['corrected_transcript'] ?? $aiResponse['normalized_transcript'] ?? null,
             'ai_confidence' => $this->nullableFloat($aiResponse['confidence'] ?? null),
             'ai_error' => $aiResponse['error'] ?? null,
             'ai_warnings' => $aiResponse['warnings'] ?? null,

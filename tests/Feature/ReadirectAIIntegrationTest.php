@@ -94,6 +94,53 @@ class ReadirectAIIntegrationTest extends TestCase
         });
     }
 
+    public function test_ai_analysis_resolver_prefers_corrected_transcript_for_scoring_and_preserves_raw(): void
+    {
+        Storage::fake('local');
+        config([
+            'readirect_ai.enabled' => true,
+            'readirect_ai.base_url' => 'http://ai.test',
+            'readirect_ai.endpoints.analyze_audio' => '/analyze-audio',
+        ]);
+        Http::fake([
+            'http://ai.test/analyze-audio' => Http::response([
+                'ok' => true,
+                'request_id' => 'req-456',
+                'provider' => 'hf_whisper_local',
+                'transcript' => 'Read',
+                'normalized_transcript' => 'red',
+                'raw_transcript' => 'Read',
+                'corrected_transcript' => 'Red',
+                'displayed_transcript' => 'Red',
+                'raw_wer' => 1.0,
+                'corrected_wer' => 0.0,
+                'phonetic_similarity_score' => 0.95,
+                'normalization_applied' => true,
+                'normalization_reason' => 'ASR transcript is a known homophone or near-homophone of expected text',
+                'correction_strategy_used' => 'known_confusion_expected_prompt_alignment',
+                'accepted_by_phonetic_threshold' => true,
+                'threshold_used' => 0.82,
+                'warnings' => [],
+            ]),
+        ]);
+
+        $audioFile = $this->audioFile();
+
+        $resolved = app(AIAnalysisResolver::class)->resolve(null, $audioFile, [
+            'expected_text' => 'Red',
+            'accepted_answers' => ['Red'],
+        ]);
+
+        $audioFile->refresh();
+
+        $this->assertSame('Red', $resolved['transcript']);
+        $this->assertSame('Red', $resolved['displayed_transcript']);
+        $this->assertSame('Read', $audioFile->ai_transcript);
+        $this->assertSame('Red', $audioFile->ai_normalized_transcript);
+        $this->assertEquals(1.0, $resolved['ai_response']['raw_wer']);
+        $this->assertEquals(0.0, $resolved['ai_response']['corrected_wer']);
+    }
+
     public function test_ai_analysis_resolver_falls_back_to_existing_stt_when_ai_fails(): void
     {
         Storage::fake('local');
@@ -153,7 +200,12 @@ class ReadirectAIIntegrationTest extends TestCase
     {
         $fields = app(AIAnalysisResolver::class)->responseFields([
             'transcript' => 'cap',
-            'normalized_transcript' => 'cap',
+            'normalized_transcript' => 'cat',
+            'raw_transcript' => 'cap',
+            'corrected_transcript' => 'cat',
+            'displayed_transcript' => 'cat',
+            'raw_wer' => 1.0,
+            'corrected_wer' => 0.0,
             'similarity_label' => 'very_close',
             'character_similarity' => 0.67,
             'expected_phonemes' => ['K', 'AE', 'T'],
@@ -162,6 +214,7 @@ class ReadirectAIIntegrationTest extends TestCase
         ]);
 
         $this->assertSame('cap', $fields['ai_transcript']);
+        $this->assertSame('cat', $fields['ai_normalized_transcript']);
         $this->assertSame('very_close', $fields['ai_similarity_label']);
         $this->assertSame(['K', 'AE', 'T'], $fields['ai_expected_phonemes']);
         $this->assertSame('final_sound_error', $fields['ai_error_type']);

@@ -7,8 +7,11 @@ use App\Models\AssessmentTaskResponse;
 use App\Models\Learner;
 use App\Models\LearningContent;
 use App\Models\School;
+use App\Models\User;
 use App\Services\AssessmentItemSelectionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class DiagnosticAssessmentValidationTest extends TestCase
@@ -140,6 +143,60 @@ class DiagnosticAssessmentValidationTest extends TestCase
             ->assertSessionHasErrors('responses');
     }
 
+    public function test_normal_learner_cannot_see_or_use_developer_retest(): void
+    {
+        config(['readirect_ai.debug.enable_developer_assessment_reset' => false]);
+
+        $learner = $this->learner();
+
+        $this->withSession(['learner_id' => $learner->id])
+            ->get(route('learner.diagnostic.start'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Learner/DiagnosticStart')
+                ->where('developerRetest.enabled', false)
+            );
+
+        $this->withSession(['learner_id' => $learner->id])
+            ->post(route('learner.diagnostic.developer-retest'))
+            ->assertForbidden();
+    }
+
+    public function test_admin_developer_can_start_new_diagnostic_attempt_and_preserve_previous_attempt(): void
+    {
+        config(['readirect_ai.debug.enable_developer_assessment_reset' => false]);
+        $this->seedTaskOneLetters();
+        $admin = $this->admin();
+        $learner = $this->learner();
+        $previous = AssessmentAttempt::create([
+            'learner_id' => $learner->id,
+            'attempt_type' => 'diagnostic',
+            'status' => 'module_placement_completed',
+            'is_sandbox' => true,
+            'completed_at' => now(),
+        ]);
+
+        $this->actingAs($admin)
+            ->withSession(['learner_id' => $learner->id, 'admin_testing_mode' => true, 'admin_testing_learner_id' => $learner->id])
+            ->get(route('learner.diagnostic.start'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Learner/DiagnosticStart')
+                ->where('developerRetest.enabled', true)
+            );
+
+        $this->actingAs($admin)
+            ->withSession(['learner_id' => $learner->id, 'admin_testing_mode' => true, 'admin_testing_learner_id' => $learner->id])
+            ->post(route('learner.diagnostic.developer-retest'))
+            ->assertRedirect(route('learner.diagnostic.task-1'));
+
+        $this->assertDatabaseHas('assessment_attempts', ['id' => $previous->id, 'status' => 'module_placement_completed']);
+        $newAttempt = AssessmentAttempt::where('learner_id', $learner->id)->where('id', '!=', $previous->id)->latest()->firstOrFail();
+        $this->assertTrue($newAttempt->is_sandbox);
+        $this->assertSame('task_1', $newAttempt->status);
+        $this->assertSame(10, $newAttempt->selectedItems()->where('task_type', AssessmentItemSelectionService::TASK_1_LETTER)->count());
+    }
+
     private function attemptWithLockedItems(string $taskType, string $contentType): AssessmentAttempt
     {
         $attempt = $this->assessmentAttempt();
@@ -198,5 +255,45 @@ class DiagnosticAssessmentValidationTest extends TestCase
             'status' => 'in_progress',
             'started_at' => now(),
         ]);
+    }
+
+    private function learner(): Learner
+    {
+        $school = School::first() ?? School::create(['name' => 'Developer Retest School']);
+
+        return Learner::create([
+            'school_id' => $school->id,
+            'learner_code' => uniqid('QA-', false),
+            'first_name' => 'QA',
+            'grade_level' => 'Grade 1',
+        ]);
+    }
+
+    private function admin(): User
+    {
+        Role::findOrCreate('system_admin');
+        $user = User::create([
+            'name' => 'System Admin',
+            'email' => uniqid('admin-', false).'@example.test',
+            'password' => 'password',
+        ]);
+        $user->assignRole('system_admin');
+
+        return $user;
+    }
+
+    private function seedTaskOneLetters(): void
+    {
+        foreach (range('A', 'J') as $letter) {
+            LearningContent::create([
+                'content_type' => 'letter',
+                'title' => 'Letter '.$letter,
+                'prompt' => $letter,
+                'payload' => ['source_csv_id' => 'LETTER-'.$letter, 'expected_answer' => $letter],
+                'accepted_answers' => [$letter, strtolower($letter)],
+                'difficulty' => 'easy',
+                'is_active' => true,
+            ]);
+        }
     }
 }
