@@ -61,6 +61,8 @@ class AudioUploadController extends Controller
         $resolved = $this->shouldUseFastLetterPath($validated)
             ? $this->fastLetterResolution($audioFile, $transcription, $sttOptions)
             : $analysis->resolve(null, $audioFile, $context, $sttOptions);
+        $transcript = trim((string) ($resolved['transcript'] ?? ''));
+        $transcriptionMessage = $this->transcriptionMessage($resolved);
 
         return response()->json([
             'audio_file_id' => $audioFile->id,
@@ -68,26 +70,44 @@ class AudioUploadController extends Controller
             'mime_type' => $audioFile->mime_type,
             'file_size' => $audioFile->file_size,
             'duration_seconds' => $audioFile->duration_seconds,
+            'transcription_status' => $transcript !== '' ? 'transcribed' : 'failed',
+            'transcription_message' => $transcriptionMessage,
+            'message' => $transcriptionMessage,
             'transcript' => $resolved['transcript'],
             'displayed_transcript' => $resolved['displayed_transcript'] ?? $resolved['transcript'],
             'raw_transcript' => $resolved['ai_response']['raw_transcript'] ?? $resolved['transcript'],
+            'wav2vec2_transcript' => $resolved['ai_response']['wav2vec2_transcript'] ?? null,
             'corrected_transcript' => $resolved['ai_response']['corrected_transcript'] ?? $resolved['transcript'],
+            'expected_text' => $resolved['ai_response']['expected_text'] ?? $context['expected_text'] ?? null,
+            'prompt_type' => $resolved['ai_response']['prompt_type'] ?? $context['prompt_type'] ?? null,
+            'asr_route' => $resolved['ai_response']['asr_route'] ?? null,
+            'model_family' => $resolved['ai_response']['model_family'] ?? null,
+            'model_used' => $resolved['ai_response']['model_used'] ?? null,
             'raw_wer' => $resolved['ai_response']['raw_wer'] ?? null,
             'corrected_wer' => $resolved['ai_response']['corrected_wer'] ?? null,
+            'raw_cer' => $resolved['ai_response']['raw_cer'] ?? null,
+            'corrected_cer' => $resolved['ai_response']['corrected_cer'] ?? null,
             'phonetic_similarity_score' => $resolved['ai_response']['phonetic_similarity_score'] ?? null,
+            'composite_score' => $resolved['ai_response']['composite_score'] ?? null,
+            'accepted' => $resolved['ai_response']['accepted'] ?? null,
             'normalization_applied' => $resolved['ai_response']['normalization_applied'] ?? false,
             'normalization_reason' => $resolved['ai_response']['normalization_reason'] ?? null,
             'correction_strategy_used' => $resolved['ai_response']['correction_strategy_used'] ?? null,
             'accepted_by_exact_match' => $resolved['ai_response']['accepted_by_exact_match'] ?? false,
-            'accepted_by_letter_normalization' => $resolved['ai_response']['accepted_by_letter_normalization'] ?? false,
+            'accepted_by_letter_alias' => $resolved['ai_response']['accepted_by_letter_alias'] ?? $resolved['ai_response']['accepted_by_letter_normalization'] ?? false,
             'accepted_by_letter_lattice' => $resolved['ai_response']['accepted_by_letter_lattice'] ?? false,
+            'accepted_by_vowel_tail' => $resolved['ai_response']['accepted_by_vowel_tail'] ?? false,
             'accepted_by_known_confusion' => $resolved['ai_response']['accepted_by_known_confusion'] ?? false,
             'accepted_by_phonetic_threshold' => $resolved['ai_response']['accepted_by_phonetic_threshold'] ?? false,
+            'accepted_by_phoneme_evidence' => $resolved['ai_response']['accepted_by_phoneme_evidence'] ?? false,
+            'critical_phoneme' => $resolved['ai_response']['critical_phoneme'] ?? null,
+            'critical_phoneme_detected' => $resolved['ai_response']['critical_phoneme_detected'] ?? null,
             'threshold_used' => $resolved['ai_response']['threshold_used'] ?? null,
             'stt_confidence' => $resolved['confidence'],
-            'transcript_source' => trim((string) $resolved['transcript']) !== '' ? $resolved['source'] : null,
+            'transcript_source' => $transcript !== '' ? $resolved['source'] : null,
             'stt_error' => $resolved['stt_result']?->error,
             'ai_error' => $resolved['ai_response']['error'] ?? null,
+            'ai_warnings' => $resolved['ai_response']['warnings'] ?? [],
         ]);
     }
 
@@ -137,8 +157,18 @@ class AudioUploadController extends Controller
             'accepted_answers' => $snapshot['accepted_answers'] ?? [],
             'prompt_id' => $item?->source_csv_id,
             'module_key' => $moduleAttempt?->module?->key,
-            'activity_type' => $validated['activity_type'] ?? $item?->activity_type ?? null,
+            'module_type' => $moduleAttempt?->module?->key,
+            'activity_type' => $validated['activity_type'] ?? $item?->activity_type ?? $taskType,
+            'assessment_type' => $assessmentAttempt?->attempt_type ?? ($moduleAttempt ? 'module_activity' : null),
+            'item_id' => $item?->id ?? $validated['item_id'] ?? null,
+            'learner_id' => $assessmentAttempt?->learner_id ?? $moduleAttempt?->learner_id,
+            'attempt_id' => $assessmentAttempt?->id ?? $moduleAttempt?->id,
             'task_type' => $taskType,
+            'current_scoring_context' => [
+                'accepted_answers' => $snapshot['accepted_answers'] ?? [],
+                'source_csv_id' => $item?->source_csv_id,
+                'prompt_snapshot' => $snapshot,
+            ],
             'content_metadata' => ['prompt_snapshot' => $snapshot],
             'debug' => (bool) config('readirect_ai.debug.show_admin_debug'),
         ];
@@ -188,6 +218,43 @@ class AudioUploadController extends Controller
             'stt_result' => $result,
             'ai_response' => null,
         ];
+    }
+
+    private function transcriptionMessage(array $resolved): ?string
+    {
+        if (trim((string) ($resolved['transcript'] ?? '')) !== '') {
+            return null;
+        }
+
+        $aiError = $resolved['ai_response']['error'] ?? null;
+        $aiWarnings = $resolved['ai_response']['warnings'] ?? [];
+        $sttError = $resolved['stt_result']?->error ?? null;
+
+        if ($aiError === 'readirect_ai_unavailable') {
+            return 'Audio was saved, but Laravel could not connect to the ReaDirect AI service. Start the FastAPI service on the configured URL and try again.';
+        }
+
+        if ($aiError === 'unsupported_audio_type') {
+            return 'Audio was saved, but this file type is not supported for transcription. Use WAV, WebM, MP3, M4A, OGG, or FLAC.';
+        }
+
+        if ($aiError === 'audio_file_not_found') {
+            return 'Audio was saved, but the AI service could not read the stored file path.';
+        }
+
+        if (is_array($aiWarnings) && isset($aiWarnings[0]) && is_string($aiWarnings[0]) && $aiWarnings[0] !== '') {
+            return 'Audio was saved, but AI transcription did not return text: '.$aiWarnings[0];
+        }
+
+        if (is_string($aiError) && $aiError !== '') {
+            return 'Audio was saved, but AI transcription failed: '.$aiError.'.';
+        }
+
+        if (is_string($sttError) && $sttError !== '') {
+            return 'Audio was saved, but fallback speech-to-text failed: '.$sttError.'.';
+        }
+
+        return 'Audio was saved, but no transcript was produced. Check that the AI service is running and the recording contains clear speech.';
     }
 
     private function letterModelPath(): ?string

@@ -1,46 +1,13 @@
-# Main ReaDirect Repository Import Guide
+# Main Repo AI Import Guide
 
-The AI service remains a separate repository and service. Do not copy external training datasets into the main Laravel repository.
+This Laravel repository integrates with the ReaDirect-AI-ASR FastAPI service over HTTP.
 
-Do not copy:
+The active ASR architecture is Wav2Vec2-only. Do not copy model artifacts into Laravel. Keep ASR and phoneme model files in the AI repository and expose their status through FastAPI health/version metadata.
 
-- Speechocean762 archive
-- extracted Speechocean762 audio
-- training manifests
-- training JSONL files
-- model checkpoints
-- raw external datasets
+Laravel integration points:
 
-Runtime model artifacts stay in the AI service deployment path:
-
-```text
-ReaDirect-AI-ASR/model_artifacts/readirect-whisper-base-en-v1-hf/
-```
-
-Optional converted model:
-
-```text
-ReaDirect-AI-ASR/model_artifacts/readirect-whisper-base-en-v1-ct2/
-```
-
-Suggested main repo destinations:
-
-- Integration docs: `ReaDirect/docs/ai-service/`
-- Laravel `.env` values: `ReaDirect/.env` and `ReaDirect/.env.example`
-- Enriched content ZIP: `ReaDirect/content-bank/import/readirect-enriched-content.zip`
-- Reviewed enriched CSVs: `ReaDirect/database/seed-data/readirect/enriched/`
-
-Suggested future Laravel code locations:
-
-- `ReaDirect/app/Services/AI/ReadirectAIService.php`
-- `ReaDirect/config/readirect_ai.php`
-- `ReaDirect/tests/Feature/AI/`
-- admin debug pages as needed
-
-Laravel should call:
-
-```text
-http://127.0.0.1:8001/analyze-audio
-http://127.0.0.1:8001/analyze-text
-http://127.0.0.1:8001/recommend-next
-```
+- Configure `AI_ASR_SERVICE_URL` or `READIRECT_AI_BASE_URL`.
+- Send `expected_text` and prompt/activity/module metadata with ASR requests.
+- Use `corrected_transcript` for scoring when available.
+- Use `displayed_transcript` for learner UI when available.
+- Preserve `raw_transcript`, Wav2Vec2 metadata, scoring metadata, and phoneme evidence for admin QA.

@@ -99,7 +99,7 @@ const uploadAudio = async (item, file) => {
             throw new Error(result.message ?? 'Unable to transcribe the recording right now.');
         }
 
-        const transcript = String(result.displayed_transcript ?? result.transcript ?? '').trim();
+        const transcript = String(result.displayed_transcript ?? result.corrected_transcript ?? result.transcript ?? result.raw_transcript ?? '').trim();
         uploadedAudioIds[item.id] = result.audio_file_id;
         if (transcript) {
             generatedTranscripts[item.id] = transcript;
@@ -111,8 +111,8 @@ const uploadAudio = async (item, file) => {
         }
 
         transcriptSources[item.id] = 'manual';
-        uploadErrors[item.id] = 'No transcript was produced. Enter the transcript manually.';
-        agentMessage.value = 'No transcript was produced. Enter the transcript manually.';
+        uploadErrors[item.id] = result.transcription_message ?? result.message ?? 'No transcript was produced. Enter the transcript manually.';
+        agentMessage.value = uploadErrors[item.id];
         agentState.value = 'speaking';
     } catch (error) {
         transcriptSources[item.id] = 'manual';

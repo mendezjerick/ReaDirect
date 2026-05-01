@@ -58,10 +58,13 @@ class ReadirectAIIntegrationTest extends TestCase
             'http://ai.test/analyze-audio' => Http::response([
                 'ok' => true,
                 'request_id' => 'req-123',
-                'provider' => 'hf_whisper_local',
-                'model_size' => 'readirect-whisper-base-en-v1-hf',
+                'asr_route' => 'wav2vec2_only',
+                'model_family' => 'wav2vec2',
+                'model_used' => 'models/wav2vec2-readirect-asr',
                 'transcript' => 'cap',
-                'normalized_transcript' => 'cap',
+                'raw_transcript' => 'cap',
+                'corrected_transcript' => 'cap',
+                'displayed_transcript' => 'cap',
                 'confidence' => null,
                 'similarity_label' => 'very_close',
                 'error_type' => 'final_sound_error',
@@ -81,7 +84,8 @@ class ReadirectAIIntegrationTest extends TestCase
 
         $this->assertSame('cap', $resolved['transcript']);
         $this->assertSame('ai_asr', $resolved['source']);
-        $this->assertSame('hf_whisper_local', $audioFile->ai_provider);
+        $this->assertSame('wav2vec2', $audioFile->ai_provider);
+        $this->assertSame('models/wav2vec2-readirect-asr', $audioFile->ai_model);
         $this->assertSame('req-123', $audioFile->ai_request_id);
         $this->assertNotNull($audioFile->ai_completed_at);
 
@@ -90,6 +94,7 @@ class ReadirectAIIntegrationTest extends TestCase
 
             return $request->url() === 'http://ai.test/analyze-audio'
                 && $payload->expected_text === 'cat'
+                && $payload->prompt_type === 'word'
                 && $payload->content_metadata instanceof \stdClass;
         });
     }
@@ -106,7 +111,8 @@ class ReadirectAIIntegrationTest extends TestCase
             'http://ai.test/analyze-audio' => Http::response([
                 'ok' => true,
                 'request_id' => 'req-456',
-                'provider' => 'hf_whisper_local',
+                'model_family' => 'wav2vec2',
+                'model_used' => 'models/wav2vec2-readirect-asr',
                 'transcript' => 'Read',
                 'normalized_transcript' => 'red',
                 'raw_transcript' => 'Read',
@@ -177,14 +183,21 @@ class ReadirectAIIntegrationTest extends TestCase
                 'status' => 'ok',
                 'service' => 'ReaDirect AI/ASR Service',
                 'version' => '0.1.0',
-                'asr_provider' => 'hf_whisper_local',
+                'asr_architecture' => 'wav2vec2_only',
+                'active_asr_model' => 'Fine-tuned Wav2Vec2 mixed model',
+                'wav2vec2_asr_available' => true,
+                'wav2vec2_asr_model_name' => 'models/wav2vec2-readirect-asr',
+                'wav2vec2_phoneme_available' => true,
+                'wav2vec2_phoneme_model_name' => 'models/wav2vec2-phoneme',
+                'whisper_removed' => true,
+                'correction_layer_enabled' => true,
                 'content_index_loaded' => true,
                 'cmudict_loaded' => true,
             ]),
             'http://ai.test/version' => Http::response([
                 'service' => 'ReaDirect AI/ASR Service',
                 'version' => '0.1.0',
-                'config' => ['asr' => ['provider' => 'hf_whisper_local', 'model_size' => 'readirect-whisper-base-en-v1-hf']],
+                'config' => ['asr' => ['architecture' => 'wav2vec2_only', 'provider' => 'wav2vec2']],
             ]),
         ]);
 
@@ -192,8 +205,10 @@ class ReadirectAIIntegrationTest extends TestCase
 
         $this->assertTrue($status['connected']);
         $this->assertSame('connected', $status['status']);
-        $this->assertSame('hf_whisper_local', $status['asr_provider']);
-        $this->assertSame('readirect-whisper-base-en-v1-hf', $status['model_size']);
+        $this->assertSame('wav2vec2_only', $status['asr_architecture']);
+        $this->assertSame('wav2vec2', $status['asr_provider']);
+        $this->assertTrue($status['whisper_removed']);
+        $this->assertSame('models/wav2vec2-readirect-asr', $status['model_size']);
     }
 
     public function test_response_fields_map_ai_response_to_storable_columns(): void
@@ -209,7 +224,8 @@ class ReadirectAIIntegrationTest extends TestCase
             'similarity_label' => 'very_close',
             'character_similarity' => 0.67,
             'expected_phonemes' => ['K', 'AE', 'T'],
-            'actual_phonemes' => ['K', 'AE', 'P'],
+            'observed_phonemes' => ['K', 'AE', 'P'],
+            'phonetic_similarity_score' => 0.8,
             'error_type' => 'final_sound_error',
         ]);
 
@@ -217,8 +233,94 @@ class ReadirectAIIntegrationTest extends TestCase
         $this->assertSame('cat', $fields['ai_normalized_transcript']);
         $this->assertSame('very_close', $fields['ai_similarity_label']);
         $this->assertSame(['K', 'AE', 'T'], $fields['ai_expected_phonemes']);
+        $this->assertSame(['K', 'AE', 'P'], $fields['ai_actual_phonemes']);
+        $this->assertSame(0.8, $fields['ai_phoneme_similarity']);
         $this->assertSame('final_sound_error', $fields['ai_error_type']);
         $this->assertArrayHasKey('ai_analyzed_at', $fields);
+    }
+
+    public function test_ai_analysis_resolver_uses_displayed_transcript_fallbacks(): void
+    {
+        Storage::fake('local');
+        config([
+            'readirect_ai.enabled' => true,
+            'readirect_ai.base_url' => 'http://ai.test',
+            'readirect_ai.endpoints.analyze_audio' => '/analyze-audio',
+        ]);
+        Http::fake([
+            'http://ai.test/analyze-audio' => Http::response([
+                'ok' => true,
+                'transcript' => 'z',
+                'raw_transcript' => 'zy',
+                'corrected_transcript' => 'Z',
+                'accepted' => true,
+                'prompt_type' => 'letter',
+                'model_family' => 'wav2vec2',
+            ]),
+        ]);
+
+        $resolved = app(AIAnalysisResolver::class)->resolve(null, $this->audioFile(), [
+            'expected_text' => 'Z',
+            'accepted_answers' => ['Z'],
+        ]);
+
+        $this->assertSame('Z', $resolved['transcript']);
+        $this->assertSame('Z', $resolved['displayed_transcript']);
+        $this->assertTrue(app(AIAnalysisResolver::class)->acceptedForShortPrompt($resolved['ai_response']));
+    }
+
+    public function test_ai_analysis_resolver_falls_back_to_raw_when_corrected_and_transcript_missing(): void
+    {
+        Storage::fake('local');
+        config([
+            'readirect_ai.enabled' => true,
+            'readirect_ai.base_url' => 'http://ai.test',
+            'readirect_ai.endpoints.analyze_audio' => '/analyze-audio',
+        ]);
+        Http::fake([
+            'http://ai.test/analyze-audio' => Http::response([
+                'ok' => true,
+                'raw_transcript' => 'banana',
+                'accepted' => false,
+                'prompt_type' => 'word',
+            ]),
+        ]);
+
+        $resolved = app(AIAnalysisResolver::class)->resolve(null, $this->audioFile(), [
+            'expected_text' => 'ten',
+            'accepted_answers' => ['ten'],
+        ]);
+
+        $this->assertSame('banana', $resolved['transcript']);
+        $this->assertSame('banana', $resolved['displayed_transcript']);
+    }
+
+    public function test_sentence_display_is_not_forced_to_expected_text(): void
+    {
+        Storage::fake('local');
+        config([
+            'readirect_ai.enabled' => true,
+            'readirect_ai.base_url' => 'http://ai.test',
+            'readirect_ai.endpoints.analyze_audio' => '/analyze-audio',
+        ]);
+        Http::fake([
+            'http://ai.test/analyze-audio' => Http::response([
+                'ok' => true,
+                'prompt_type' => 'sentence',
+                'raw_transcript' => 'I see a three',
+                'corrected_transcript' => 'I see a three',
+                'displayed_transcript' => 'I see a three',
+                'accepted' => false,
+            ]),
+        ]);
+
+        $resolved = app(AIAnalysisResolver::class)->resolve(null, $this->audioFile(), [
+            'expected_text' => 'I see a tree',
+            'prompt_type' => 'sentence',
+        ]);
+
+        $this->assertSame('I see a three', $resolved['displayed_transcript']);
+        $this->assertFalse(app(AIAnalysisResolver::class)->acceptedForShortPrompt($resolved['ai_response']));
     }
 
     private function audioFile(): AudioFile

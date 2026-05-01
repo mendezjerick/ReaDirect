@@ -70,6 +70,14 @@ class AudioRecordingTest extends TestCase
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('audio');
+
+        $this->withSession(['learner_id' => $learner->id])
+            ->postJson(route('learner.audio.upload'), [
+                'audio' => UploadedFile::fake()->create('video-container.mp4', 10, 'audio/mp4'),
+                'context_type' => 'assessment_task',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('audio');
     }
 
     public function test_audio_upload_rejects_recordings_shorter_than_one_second(): void
@@ -249,10 +257,15 @@ class AudioRecordingTest extends TestCase
             'http://ai.test/analyze-audio' => Http::response([
                 'ok' => true,
                 'request_id' => 'letter-req-1',
-                'provider' => 'hf_whisper_local',
-                'model_size' => 'readirect-whisper-base-en-v1-hf',
-                'transcript' => 'A',
-                'normalized_transcript' => 'a',
+                'asr_route' => 'wav2vec2_only',
+                'model_family' => 'wav2vec2',
+                'model_used' => 'models/wav2vec2-readirect-asr',
+                'transcript' => 'l',
+                'raw_transcript' => 'l',
+                'corrected_transcript' => 'L',
+                'displayed_transcript' => 'L',
+                'accepted' => true,
+                'prompt_type' => 'letter',
                 'confidence' => null,
                 'similarity_label' => 'exact',
                 'warnings' => [],
@@ -275,18 +288,32 @@ class AudioRecordingTest extends TestCase
             ]);
 
         $response->assertOk()
-            ->assertJsonPath('transcript', 'a')
+            ->assertJsonPath('transcript', 'L')
+            ->assertJsonPath('displayed_transcript', 'L')
+            ->assertJsonPath('raw_transcript', 'l')
+            ->assertJsonPath('accepted', true)
             ->assertJsonPath('transcript_source', 'ai_asr')
             ->assertJsonPath('ai_error', null);
 
         $audioFile = AudioFile::firstOrFail();
 
-        $this->assertSame('A', $audioFile->ai_transcript);
-        $this->assertSame('a', $audioFile->ai_normalized_transcript);
-        $this->assertSame('hf_whisper_local', $audioFile->ai_provider);
+        $this->assertSame('l', $audioFile->ai_transcript);
+        $this->assertSame('L', $audioFile->ai_normalized_transcript);
+        $this->assertSame('wav2vec2', $audioFile->ai_provider);
+        $this->assertSame('models/wav2vec2-readirect-asr', $audioFile->ai_model);
         $this->assertSame('letter-req-1', $audioFile->ai_request_id);
 
-        Http::assertSent(fn ($request) => $request->url() === 'http://ai.test/analyze-audio');
+        Http::assertSent(function ($request) {
+            $payload = json_decode($request->body());
+
+            return $request->url() === 'http://ai.test/analyze-audio'
+                && $payload->expected_text === 'A'
+                && $payload->prompt_type === 'letter'
+                && $payload->activity_type === AssessmentItemSelectionService::TASK_1_LETTER
+                && $payload->item_id !== null
+                && $payload->learner_id !== null
+                && $payload->attempt_id !== null;
+        });
     }
 
     public function test_assessment_submission_uses_stt_transcript_when_manual_answer_is_blank(): void

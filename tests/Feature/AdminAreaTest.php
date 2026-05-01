@@ -18,6 +18,7 @@ use App\Models\SchoolClass;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -36,6 +37,54 @@ class AdminAreaTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/Dashboard')
                 ->has('dashboard.counts')
+            );
+    }
+
+    public function test_admin_dashboard_reports_wav2vec2_only_ai_status(): void
+    {
+        config([
+            'readirect_ai.enabled' => true,
+            'readirect_ai.base_url' => 'http://ai.test',
+            'readirect_ai.endpoints.health' => '/health',
+            'readirect_ai.endpoints.version' => '/version',
+        ]);
+        Http::fake([
+            'http://ai.test/health' => Http::response([
+                'ok' => true,
+                'asr_architecture' => 'wav2vec2_only',
+                'whisper_removed' => true,
+                'wav2vec2_asr_model_name' => 'models/wav2vec2-readirect-asr',
+            ]),
+            'http://ai.test/version' => Http::response(['ok' => true]),
+        ]);
+
+        $this->actingAs($this->userWithRole('system_admin'))
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('aiService.connected', true)
+                ->where('aiService.label', 'AI Service Connected')
+                ->where('aiService.asr_architecture', 'wav2vec2_only')
+                ->where('aiService.whisper_removed', true)
+                ->where('aiService.model_size', 'models/wav2vec2-readirect-asr')
+            );
+    }
+
+    public function test_developer_reset_visibility_is_admin_only(): void
+    {
+        config(['readirect_ai.debug.enable_developer_assessment_reset' => true]);
+
+        $this->get(route('learner.diagnostic.start'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('developerRetest.enabled', false)
+            );
+
+        $this->actingAs($this->userWithRole('system_admin'))
+            ->get(route('learner.diagnostic.start'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('developerRetest.enabled', true)
             );
     }
 

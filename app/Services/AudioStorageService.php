@@ -21,16 +21,17 @@ class AudioStorageService
         'audio/mpeg',
         'audio/mp4',
         'audio/ogg',
+        'audio/flac',
+        'audio/x-flac',
     ];
 
     public const ALLOWED_EXTENSIONS = [
         'webm',
-        'weba',
         'wav',
         'mp3',
-        'mp4',
         'm4a',
         'ogg',
+        'flac',
     ];
 
     public static function validationRules(bool $required = false): array
@@ -47,7 +48,11 @@ class AudioStorageService
                 $mimeType = strtolower((string) $value->getMimeType());
                 $extension = strtolower((string) $value->getClientOriginalExtension());
 
-                if (in_array($mimeType, self::ALLOWED_MIME_TYPES, true) || in_array($extension, self::ALLOWED_EXTENSIONS, true)) {
+                if (in_array($extension, self::ALLOWED_EXTENSIONS, true)) {
+                    return;
+                }
+
+                if ($extension === '' && in_array($mimeType, self::ALLOWED_MIME_TYPES, true)) {
                     return;
                 }
 

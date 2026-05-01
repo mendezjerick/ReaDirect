@@ -1,148 +1,47 @@
-# Laravel Integration Contract
+# Laravel AI Integration Contract
 
-Laravel remains the official scorer. The AI API provides analysis signals only.
+Laravel calls the FastAPI ASR service and does not run ASR inference locally.
 
-## What Laravel Sends
+## Request Fields
 
-For text analysis:
+ASR requests should include audio plus available scoring context:
 
-```json
-{
-  "prompt_id": "M2-001",
-  "expected_text": "cat",
-  "actual_text": "cap",
-  "accepted_answers": ["cat"],
-  "debug": false
-}
-```
-
-For audio analysis:
-
-```json
-{
-  "prompt_id": "M2-001",
-  "audio_path": "/private/path/audio.wav",
-  "expected_text": "cat",
-  "accepted_answers": ["cat"],
-  "learner_response_id": "123",
-  "attempt_id": "456",
-  "debug": false
-}
-```
-
-## What AI Returns
-
-Laravel can save:
-
-- `transcript`
-- `normalized_transcript`
-- `provider`
-- `model_size`
-- `is_correct`
-- `is_exact`
-- `is_accepted`
-- `character_similarity`
-- `token_similarity`
-- `similarity_label`
-- `expected_phonemes`
-- `actual_phonemes`
-- `phoneme_similarity`
-- `error_type`
-- `error_position`
-- `feedback_hint`
-- `coach_hint_key`
-- `learner_safe_summary`
-- `skill_signal`
-- `target_phoneme`
-- `target_position`
-- `recommended_practice_focus`
-- `recommended_action`
+- `expected_text`
+- `prompt_type`
+- `activity_type`
+- `module_type`
+- `assessment_type`
+- `item_id`
+- `learner_id`
+- `attempt_id`
+- `current_scoring_context`
 - `content_metadata`
-- `enrichment_metadata`
-- `warnings`
-- `error`
 
-## Fallback Behavior
+## Response Fields
 
-If the AI API is offline or returns `ok=false`, Laravel should fall back to existing rule-based scoring and store the AI error/warning only for admin review.
+Laravel consumes Wav2Vec2-only ASR responses with these fields when present:
 
-## Debug Fields
+- `raw_transcript`
+- `wav2vec2_transcript`
+- `corrected_transcript`
+- `displayed_transcript`
+- `expected_text`
+- `prompt_type`
+- `asr_route`
+- `model_family`
+- `model_used`
+- WER/CER fields
+- phoneme fields
+- acceptance flags
+- normalization/correction metadata
+- `debug_metadata`
 
-`debug_info` is returned only when request `debug=true` and API debug is enabled. Do not show raw debug data to students during strict assessment.
+Missing optional fields are safe.
 
-## Privacy
+## Transcript Selection
 
-Do not send learner names, emails, school identifiers, or private metadata to the AI service. Use anonymized IDs.
+Scoring uses `corrected_transcript`, then `transcript`, then `raw_transcript`.
 
-## Scoring Reminder
+Learner UI uses `displayed_transcript`, then `corrected_transcript`, then `transcript`, then `raw_transcript`.
 
-Official scoring remains in Laravel. AI fields support feedback, analysis, and future adaptive practice.
-
-The AI API should be treated as an analysis service, not as the sole scoring authority. ASR output may be imperfect, so Laravel should combine AI signals with rule-based assessment logic and administrative review tools.
-
-## Recommend Next Contract
-
-Endpoint:
-
-```text
-POST /recommend-next
-```
-
-Suggested Laravel `.env` value:
-
-```text
-READIRECT_AI_RECOMMEND_NEXT_ENDPOINT=/recommend-next
-```
-
-Laravel sends recent learner history, optional current module context, and optional candidate items from the Laravel database.
-
-Example:
-
-```json
-{
-  "learner_history": [
-    {
-      "prompt_id": "M2-001",
-      "expected_text": "cat",
-      "actual_text": "cap",
-      "is_correct": false,
-      "error_type": "final_sound_error",
-      "skill_signal": "final_consonant",
-      "target_phoneme": "T",
-      "difficulty_level": "easy"
-    }
-  ],
-  "current_context": {
-    "module_key": "module_2",
-    "activity_type": "read_word"
-  },
-  "candidate_items": [],
-  "top_k": 5
-}
-```
-
-The AI service returns:
-
-- `selected_item`
-- `ranked_candidates`
-- `learner_summary`
-- `recommendation`
-- `explanation`
-- `warnings`
-
-Laravel may save the recommendation and reason codes for audit/admin review, but Laravel should still enforce official module progression and item eligibility.
-
-## Laravel Environment Variables
-
-```text
-READIRECT_AI_ENABLED=true
-READIRECT_AI_BASE_URL=http://127.0.0.1:8001
-READIRECT_AI_API_TOKEN=
-READIRECT_AI_TIMEOUT_SECONDS=60
-READIRECT_AI_ANALYZE_AUDIO_ENDPOINT=/analyze-audio
-READIRECT_AI_ANALYZE_TEXT_ENDPOINT=/analyze-text
-READIRECT_AI_RECOMMEND_NEXT_ENDPOINT=/recommend-next
-READIRECT_AI_CONTENT_ITEM_ENDPOINT=/content-item
-```
-
-The main Laravel repository does not need Speechocean762, training JSONL files, training manifests, or checkpoints.
+Admin/debug views preserve raw and corrected/displayed transcript metadata.

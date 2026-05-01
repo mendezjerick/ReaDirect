@@ -5,6 +5,7 @@ namespace App\Services\AI;
 use App\Models\AudioFile;
 use App\Services\STT\AudioTranscriptionService;
 use App\Services\STT\TranscriptSanitizer;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class AIAnalysisResolver
@@ -64,8 +65,8 @@ class AIAnalysisResolver
             'ai_character_similarity' => $this->nullableFloat($aiResponse['character_similarity'] ?? null),
             'ai_token_similarity' => $this->nullableFloat($aiResponse['token_similarity'] ?? null),
             'ai_expected_phonemes' => $aiResponse['expected_phonemes'] ?? null,
-            'ai_actual_phonemes' => $aiResponse['actual_phonemes'] ?? null,
-            'ai_phoneme_similarity' => $this->nullableFloat($aiResponse['phoneme_similarity'] ?? null),
+            'ai_actual_phonemes' => $aiResponse['observed_phonemes'] ?? $aiResponse['actual_phonemes'] ?? null,
+            'ai_phoneme_similarity' => $this->nullableFloat($aiResponse['phonetic_similarity_score'] ?? $aiResponse['phoneme_similarity'] ?? null),
             'ai_error_type' => $aiResponse['error_type'] ?? null,
             'ai_error_position' => $aiResponse['error_position'] ?? null,
             'ai_feedback_hint' => $aiResponse['feedback_hint'] ?? null,
@@ -78,6 +79,21 @@ class AIAnalysisResolver
         ];
     }
 
+    public function acceptedForShortPrompt(?array $aiResponse): bool
+    {
+        if (! $aiResponse || ($aiResponse['accepted'] ?? null) !== true) {
+            return false;
+        }
+
+        $promptType = (string) ($aiResponse['prompt_type'] ?? '');
+
+        if ($promptType === '' && str_contains(trim((string) ($aiResponse['expected_text'] ?? '')), ' ')) {
+            return false;
+        }
+
+        return $promptType === '' || in_array($promptType, ['letter', 'word'], true);
+    }
+
     private function shouldUseAi(): bool
     {
         return (bool) config('readirect_ai.enabled');
@@ -86,6 +102,15 @@ class AIAnalysisResolver
     private function callAi(string $manual, ?AudioFile $audioFile, array $context): array
     {
         $payload = $this->payload($context);
+
+        if ($audioFile && trim((string) ($payload['expected_text'] ?? '')) === '') {
+            Log::warning('ASR request is missing expected_text; expected-centric scoring will be disabled in AI.', [
+                'activity_type' => $payload['activity_type'] ?? null,
+                'task_type' => $payload['task_type'] ?? null,
+                'item_id' => $payload['item_id'] ?? null,
+                'attempt_id' => $payload['attempt_id'] ?? null,
+            ]);
+        }
 
         if ($audioFile) {
             $payload['audio_path'] = $this->absoluteAudioPath($audioFile);
@@ -108,13 +133,22 @@ class AIAnalysisResolver
 
     private function payload(array $context): array
     {
+        $promptType = $context['prompt_type'] ?? $this->inferPromptType($context);
+
         return [
             'expected_text' => $context['expected_text'] ?? null,
+            'prompt_type' => $promptType,
             'accepted_answers' => array_values($context['accepted_answers'] ?? []),
             'prompt_id' => $context['prompt_id'] ?? null,
             'module_key' => $context['module_key'] ?? null,
+            'module_type' => $context['module_type'] ?? $context['module_key'] ?? null,
             'activity_type' => $context['activity_type'] ?? null,
+            'assessment_type' => $context['assessment_type'] ?? null,
             'task_type' => $context['task_type'] ?? null,
+            'item_id' => $context['item_id'] ?? null,
+            'learner_id' => $context['learner_id'] ?? null,
+            'attempt_id' => $context['attempt_id'] ?? null,
+            'current_scoring_context' => $context['current_scoring_context'] ?? [],
             'learner_history' => array_values($context['learner_history'] ?? []),
             'candidate_items' => array_values($context['candidate_items'] ?? []),
             'content_metadata' => $context['content_metadata'] ?? [],
@@ -132,34 +166,28 @@ class AIAnalysisResolver
 
     private function extractTranscript(array $aiResponse, array $context = []): string
     {
-        $correctedTranscript = $aiResponse['corrected_transcript'] ?? '';
+        foreach (['corrected_transcript', 'transcript', 'raw_transcript'] as $key) {
+            $value = $aiResponse[$key] ?? '';
 
-        if (trim((string) $correctedTranscript) !== '') {
-            return $this->sanitizer->sanitize($correctedTranscript);
-        }
-
-        $taskType = (string) ($context['task_type'] ?? '');
-
-        // Task 2B needs the AI service's raw spacing behavior so fast/blurred
-        // speech does not get "prettified" into a clean sentence.
-        if ($taskType === 'crla_task_2b_sentence') {
-            $rawTranscript = $aiResponse['transcript'] ?? '';
-
-            if (trim((string) $rawTranscript) !== '') {
-                return $this->sanitizer->sanitize($rawTranscript);
+            if (trim((string) $value) !== '') {
+                return $this->sanitizer->sanitize($value);
             }
         }
 
-        return $this->sanitizer->sanitize($aiResponse['normalized_transcript'] ?? $aiResponse['transcript'] ?? '');
+        return $this->sanitizer->sanitize($aiResponse['normalized_transcript'] ?? '');
     }
 
     private function extractDisplayedTranscript(array $aiResponse, string $scoringTranscript): string
     {
-        $displayed = $aiResponse['displayed_transcript'] ?? '';
+        foreach (['displayed_transcript', 'corrected_transcript', 'transcript', 'raw_transcript'] as $key) {
+            $value = $aiResponse[$key] ?? '';
 
-        return trim((string) $displayed) !== ''
-            ? $this->sanitizer->sanitize($displayed)
-            : $scoringTranscript;
+            if (trim((string) $value) !== '') {
+                return $this->sanitizer->sanitize($value);
+            }
+        }
+
+        return $scoringTranscript;
     }
 
     private function resolved(string $transcript, string $source, mixed $confidence, ?array $aiResponse, mixed $sttResult = null): array
@@ -181,8 +209,8 @@ class AIAnalysisResolver
         }
 
         $audioFile->update([
-            'ai_provider' => $aiResponse['provider'] ?? null,
-            'ai_model' => $aiResponse['model_size'] ?? $aiResponse['model_path'] ?? null,
+            'ai_provider' => $aiResponse['model_family'] ?? $aiResponse['provider'] ?? null,
+            'ai_model' => $aiResponse['model_used'] ?? $aiResponse['model_size'] ?? $aiResponse['model_path'] ?? null,
             'ai_request_id' => $aiResponse['request_id'] ?? null,
             'ai_transcript' => $aiResponse['raw_transcript'] ?? $aiResponse['transcript'] ?? null,
             'ai_normalized_transcript' => $aiResponse['corrected_transcript'] ?? $aiResponse['normalized_transcript'] ?? null,
@@ -196,5 +224,31 @@ class AIAnalysisResolver
     private function nullableFloat(mixed $value): ?float
     {
         return is_numeric($value) ? (float) $value : null;
+    }
+
+    private function inferPromptType(array $context): string
+    {
+        $taskType = (string) ($context['task_type'] ?? '');
+        $activityType = (string) ($context['activity_type'] ?? '');
+
+        if (str_contains($taskType, 'letter') || str_contains($activityType, 'letter')) {
+            return 'letter';
+        }
+
+        if (str_contains($taskType, 'sentence') || str_contains($activityType, 'sentence')) {
+            return 'sentence';
+        }
+
+        $expected = trim((string) ($context['expected_text'] ?? ''));
+
+        if ($expected === '') {
+            return 'unknown';
+        }
+
+        if (mb_strlen($expected) === 1) {
+            return 'letter';
+        }
+
+        return str_contains($expected, ' ') ? 'sentence' : 'word';
     }
 }

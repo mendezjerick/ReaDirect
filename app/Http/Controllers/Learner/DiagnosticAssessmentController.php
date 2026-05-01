@@ -505,7 +505,8 @@ class DiagnosticAssessmentController extends Controller
                 ]);
             }
 
-            $isCorrect = $answerMatching->isAcceptedAnswer($answer, $acceptedAnswers);
+            $isCorrect = $answerMatching->isAcceptedAnswer($answer, $acceptedAnswers)
+                || $analysis->acceptedForShortPrompt($resolved['ai_response'] ?? null);
             $score += $isCorrect ? 1 : 0;
             $agentCommentary = $commentary->generateCommentary([
                 'mode' => 'assessment_neutral',
@@ -750,7 +751,17 @@ class DiagnosticAssessmentController extends Controller
             'expected_text' => $expectedAnswer,
             'accepted_answers' => $acceptedAnswers,
             'prompt_id' => $item->source_csv_id,
+            'assessment_type' => $item->assessmentAttempt?->attempt_type ?? 'diagnostic',
+            'item_id' => $item->id,
+            'learner_id' => $item->assessmentAttempt?->learner_id,
+            'attempt_id' => $item->assessment_attempt_id,
             'task_type' => $item->task_type,
+            'activity_type' => $item->task_type,
+            'current_scoring_context' => [
+                'accepted_answers' => $acceptedAnswers,
+                'source_csv_id' => $item->source_csv_id,
+                'prompt_snapshot' => $item->prompt_snapshot,
+            ],
             'content_metadata' => ['prompt_snapshot' => $item->prompt_snapshot],
             'debug' => (bool) config('readirect_ai.debug.show_admin_debug'),
         ];
@@ -776,22 +787,38 @@ class DiagnosticAssessmentController extends Controller
             'activity_type' => $item->task_type,
             'item_id' => $item->id,
             'expected_text' => $expectedAnswer,
+            'prompt_type' => $ai['prompt_type'] ?? null,
+            'asr_route' => $ai['asr_route'] ?? null,
+            'model_family' => $ai['model_family'] ?? null,
+            'model_used' => $ai['model_used'] ?? null,
             'raw_transcript' => $ai['raw_transcript'] ?? $audioFile?->transcript ?? $scoringTranscript,
+            'wav2vec2_transcript' => $ai['wav2vec2_transcript'] ?? null,
             'corrected_transcript' => $ai['corrected_transcript'] ?? $scoringTranscript,
             'displayed_transcript' => $ai['displayed_transcript'] ?? $displayedTranscript,
+            'raw_cer' => $ai['raw_cer'] ?? null,
+            'corrected_cer' => $ai['corrected_cer'] ?? null,
             'raw_wer' => $ai['raw_wer'] ?? null,
             'corrected_wer' => $ai['corrected_wer'] ?? null,
             'score_given' => is_numeric($scoreGiven) ? (float) $scoreGiven : $scoreGiven,
+            'accepted' => $ai['accepted'] ?? null,
+            'expected_phonemes' => $ai['expected_phonemes'] ?? null,
+            'observed_phonemes' => $ai['observed_phonemes'] ?? null,
             'phonetic_similarity_score' => $ai['phonetic_similarity_score'] ?? null,
+            'composite_score' => $ai['composite_score'] ?? null,
             'normalization_applied' => $ai['normalization_applied'] ?? false,
             'normalization_reason' => $ai['normalization_reason'] ?? null,
             'correction_strategy_used' => $ai['correction_strategy_used'] ?? null,
             'accepted_by_exact_match' => $ai['accepted_by_exact_match'] ?? false,
-            'accepted_by_letter_normalization' => $ai['accepted_by_letter_normalization'] ?? false,
+            'accepted_by_letter_alias' => $ai['accepted_by_letter_alias'] ?? $ai['accepted_by_letter_normalization'] ?? false,
             'accepted_by_letter_lattice' => $ai['accepted_by_letter_lattice'] ?? false,
+            'accepted_by_vowel_tail' => $ai['accepted_by_vowel_tail'] ?? false,
             'accepted_by_known_confusion' => $ai['accepted_by_known_confusion'] ?? false,
             'accepted_by_phonetic_threshold' => $ai['accepted_by_phonetic_threshold'] ?? false,
+            'accepted_by_phoneme_evidence' => $ai['accepted_by_phoneme_evidence'] ?? false,
+            'critical_phoneme' => $ai['critical_phoneme'] ?? null,
+            'critical_phoneme_detected' => $ai['critical_phoneme_detected'] ?? null,
             'threshold_used' => $ai['threshold_used'] ?? null,
+            'debug_metadata' => $ai['debug_metadata'] ?? null,
             'audio_file_path' => $audioFile?->file_path ?? $audioFile?->path,
             'asr_confidence' => $resolved['confidence'],
             'created_at' => now()->toDateTimeString(),

@@ -76,15 +76,32 @@ class ReadirectAIService
             'enabled' => true,
             'connected' => $connected,
             'status' => $connected ? 'connected' : 'unavailable',
-            'label' => $connected ? 'AI service connected and running' : 'AI service not connected',
+            'label' => $connected ? 'AI Service Connected' : 'AI Service Disconnected',
             'message' => $connected
-                ? 'FastAPI is reachable. Laravel will delegate AI/ASR analysis to ReaDirect-AI-ASR.'
-                : 'Laravel could not reach the ReaDirect-AI-ASR FastAPI service.',
+                ? 'FastAPI ASR service is online.'
+                : 'Laravel cannot reach the FastAPI Wav2Vec2 ASR service. Letter, word, and sentence ASR may be unavailable until the AI service is started.',
             'base_url' => $baseUrl,
             'service' => $health['service'] ?? $version['service'] ?? null,
             'version' => $health['version'] ?? $version['version'] ?? null,
-            'asr_provider' => $health['asr_provider'] ?? data_get($version, 'config.asr.provider'),
-            'model_size' => data_get($version, 'config.asr.model_size'),
+            'service_status' => $health['service_status'] ?? $health['status'] ?? null,
+            'asr_architecture' => $health['asr_architecture'] ?? data_get($version, 'config.asr.architecture') ?? 'wav2vec2_only',
+            'active_asr_model' => $health['active_asr_model'] ?? data_get($version, 'config.asr.active_model') ?? null,
+            'asr_provider' => $health['model_family'] ?? $health['asr_provider'] ?? data_get($version, 'config.asr.provider') ?? 'wav2vec2',
+            'model_size' => $health['wav2vec2_asr_model_name'] ?? $health['active_asr_model'] ?? data_get($version, 'config.asr.model_size'),
+            'model_family' => $health['model_family'] ?? 'wav2vec2',
+            'model_used' => $health['model_used'] ?? $health['wav2vec2_asr_model_name'] ?? null,
+            'wav2vec2_asr_available' => $health['wav2vec2_asr_available'] ?? null,
+            'wav2vec2_asr_model_name' => $health['wav2vec2_asr_model_name'] ?? null,
+            'wav2vec2_phoneme_available' => $health['wav2vec2_phoneme_available'] ?? null,
+            'wav2vec2_phoneme_model_name' => $health['wav2vec2_phoneme_model_name'] ?? null,
+            'whisper_available' => $health['whisper_available'] ?? false,
+            'whisper_removed' => $health['whisper_removed'] ?? true,
+            'supported_prompt_types' => $health['supported_prompt_types'] ?? null,
+            'correction_layer_enabled' => $health['correction_layer_enabled'] ?? null,
+            'expected_centric_scoring_enabled' => $health['expected_centric_scoring_enabled'] ?? null,
+            'phoneme_evidence_enabled' => $health['phoneme_evidence_enabled'] ?? null,
+            'thresholds' => $health['thresholds'] ?? null,
+            'local_model_paths_loaded' => $health['local_model_paths_loaded'] ?? null,
             'content_index_loaded' => $health['content_index_loaded'] ?? null,
             'cmudict_loaded' => $health['cmudict_loaded'] ?? null,
             'error' => $health['error'] ?? null,
@@ -159,9 +176,39 @@ class ReadirectAIService
 
         if (! $successful) {
             $data['error'] = $data['error'] ?? 'readirect_ai_http_error';
+            $detail = $this->formatErrorDetail($data['detail'] ?? null);
+            $data['warnings'] = array_values(array_filter([
+                ...($data['warnings'] ?? []),
+                $detail !== '' ? "ReaDirect AI returned HTTP {$status}: {$detail}" : "ReaDirect AI returned HTTP {$status}.",
+            ]));
         }
 
         return $data;
+    }
+
+    private function formatErrorDetail(mixed $detail): string
+    {
+        if (is_string($detail)) {
+            return $detail;
+        }
+
+        if (is_array($detail)) {
+            $messages = [];
+
+            foreach ($detail as $item) {
+                if (! is_array($item)) {
+                    continue;
+                }
+
+                $location = implode('.', array_map('strval', $item['loc'] ?? []));
+                $message = (string) ($item['msg'] ?? $item['type'] ?? '');
+                $messages[] = trim($location.' '.$message);
+            }
+
+            return implode('; ', array_filter($messages));
+        }
+
+        return '';
     }
 
     private function disabledResponse(): array
@@ -198,7 +245,7 @@ class ReadirectAIService
     {
         unset($payload['api_token'], $payload['token']);
 
-        foreach (['content_metadata', 'current_context'] as $key) {
+        foreach (['content_metadata', 'current_context', 'current_scoring_context'] as $key) {
             if (array_key_exists($key, $payload) && $payload[$key] === []) {
                 $payload[$key] = (object) [];
             }

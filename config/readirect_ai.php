@@ -2,9 +2,13 @@
 
 return [
     'enabled' => filter_var(env('READIRECT_AI_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
-    'base_url' => env('READIRECT_AI_BASE_URL', 'http://127.0.0.1:8001'),
+    'base_url' => env('AI_ASR_SERVICE_URL', env('READIRECT_AI_BASE_URL', 'http://127.0.0.1:8001')),
     'api_token' => env('READIRECT_AI_API_TOKEN'),
     'timeout_seconds' => (int) env('READIRECT_AI_TIMEOUT_SECONDS', 60),
+    'asr_architecture' => env('ASR_ARCHITECTURE', 'wav2vec2_only'),
+    'use_corrected_transcript_for_scoring' => filter_var(env('USE_CORRECTED_TRANSCRIPT_FOR_SCORING', true), FILTER_VALIDATE_BOOLEAN),
+    'use_displayed_transcript_for_learner_ui' => filter_var(env('USE_DISPLAYED_TRANSCRIPT_FOR_LEARNER_UI', true), FILTER_VALIDATE_BOOLEAN),
+    'enable_asr_debug_metadata' => filter_var(env('ENABLE_ASR_DEBUG_METADATA', true), FILTER_VALIDATE_BOOLEAN),
 
     'endpoints' => [
         'health' => env('READIRECT_AI_HEALTH_ENDPOINT', '/health'),

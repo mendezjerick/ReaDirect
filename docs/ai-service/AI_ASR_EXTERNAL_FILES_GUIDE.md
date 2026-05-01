@@ -1,37 +1,16 @@
-# AI/ASR External Files Guide
+# AI ASR External Files Guide
 
-The main ReaDirect Laravel repository does not contain the AI model, external speech datasets, or Whisper training files. Laravel calls the separate `ReaDirect-AI-ASR` FastAPI service over HTTP.
+The main ReaDirect Laravel repository does not contain ASR model files, speech datasets, or training artifacts. Laravel calls the separate `ReaDirect-AI-ASR` FastAPI service over HTTP.
 
-## Main Laravel Repository
+The AI ASR runtime is Wav2Vec2-only. Laravel should not store local Wav2Vec2 model paths except as display-only metadata returned by FastAPI.
 
-Do not download or copy these files into this repository:
+External artifacts that belong outside Laravel:
 
-- Speechocean762
-- external training datasets
-- Whisper training manifests or JSONL files
-- model checkpoints or model artifacts
-- raw learner audio outside normal application uploads
+| Artifact | Owner | Stored in Laravel | Notes |
+| --- | --- | --- | --- |
+| Fine-tuned Wav2Vec2 ASR model | AI runtime | No | Reported path is typically `models/wav2vec2-readirect-asr` |
+| Wav2Vec2 phoneme model | AI runtime | No | Reported path is typically `models/wav2vec2-phoneme` |
+| Speech datasets | AI training/evaluation | No | Used outside Laravel |
+| Training manifests/evaluation outputs | AI repo | No | Used outside Laravel |
 
-Only copy or import:
-
-1. AI integration documentation
-2. Laravel `.env` variables
-3. enriched content ZIP/CSVs if included
-4. API examples
-
-## ReaDirect-AI-ASR Repository
-
-Files that may need to be placed manually in the AI repository:
-
-| File/Folder | Needed By | GitHub? | Where to Place |
-|---|---|---|---|
-| Speechocean762 archive | AI training/evaluation only | No | `ReaDirect-AI-ASR/external_datasets/speechocean762/raw/` |
-| Fine-tuned Whisper model | AI runtime | No | `ReaDirect-AI-ASR/model_artifacts/readirect-whisper-base-en-v1-hf/` |
-| CMUdict | AI phoneme analysis | Maybe/Yes if allowed | `ReaDirect-AI-ASR/external_datasets/cmudict/` |
-| Enriched content ZIP | Laravel content import | Maybe/exported | `ReaDirect/content-bank/import/` |
-| AI integration ZIP | Laravel integration docs/import | Temporary | `ReaDirect/import/` |
-
-Speechocean762 is only needed for reproducing training/evaluation. The fine-tuned model is needed for runtime when the AI service uses `ASR_PROVIDER=hf_whisper_local`.
-
-Collaborators who only work on Laravel do not need Speechocean762 or the model. Collaborators who run the AI service need the model artifact. Collaborators who reproduce training need Speechocean762.
-
+Laravel stores per-attempt ASR response metadata in existing response/audio JSON and AI columns for QA review.

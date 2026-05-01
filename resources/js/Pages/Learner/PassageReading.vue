@@ -204,14 +204,14 @@ const uploadTranscript = async (file) => {
         }
 
         form.audio_file_id = result.audio_file_id ?? null;
-        transcript.value = String(result.transcript ?? '').trim();
+        transcript.value = String(result.displayed_transcript ?? result.corrected_transcript ?? result.transcript ?? result.raw_transcript ?? '').trim();
 
         if (transcript.value !== '') {
             form.incorrect_words = diff.value.incorrectCount;
             return;
         }
 
-        uploadError.value = 'No transcript was produced. You can still enter a fallback incorrect-word count manually.';
+        uploadError.value = result.transcription_message ?? result.message ?? 'No transcript was produced. You can still enter a fallback incorrect-word count manually.';
     } catch (error) {
         uploadError.value = error.message || 'Unable to transcribe the recording right now.';
     } finally {

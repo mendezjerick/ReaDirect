@@ -1,40 +1,10 @@
 # Model Artifact Sharing
 
-Collaborators do not need the full dataset and should not retrain by default.
+Model artifacts are not stored in the Laravel repository.
 
-One approved training run can produce a final model artifact. Share that artifact outside Git using one of:
+The ReaDirect-AI-ASR service owns Wav2Vec2 ASR and phoneme model files. Laravel may display reported model names or paths such as:
 
-- Google Drive
-- school OneDrive
-- private storage
-- private Hugging Face repository
-- private model registry
+- `models/wav2vec2-readirect-asr`
+- `models/wav2vec2-phoneme`
 
-Collaborators place downloaded models under:
-
-```text
-model_artifacts/
-```
-
-The main Laravel app does not need training files. Laravel calls the FastAPI AI service, and the AI service loads whichever ASR provider/model is configured.
-
-Do not commit:
-
-- checkpoints
-- model weights
-- optimizer states
-- CTranslate2 converted model folders
-- Hugging Face cache files
-- generated training logs
-
-For deployment, place the fine-tuned Hugging Face model folder at:
-
-```text
-ReaDirect-AI-ASR/model_artifacts/readirect-whisper-base-en-v1-hf/
-```
-
-If a CTranslate2/faster-whisper model is used, place it at:
-
-```text
-ReaDirect-AI-ASR/model_artifacts/readirect-whisper-base-en-v1-ct2/
-```
+Keep artifacts, training data, manifests, and evaluation outputs in the AI repository or external artifact storage.
