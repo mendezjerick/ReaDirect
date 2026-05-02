@@ -65,6 +65,66 @@ Laravel stores searchable advisory fields such as:
 
 Admin/debug views may show these details. Student-facing views should only show safe feedback such as `learner_safe_summary` or coach messages.
 
+## Sentence Accuracy And Fluency Metadata
+
+Sentence reading remains scored in Laravel from the transcript chosen by the existing resolver. Laravel does not force a sentence `displayed_transcript` to the `expected_text`; letter/word expected-centric correction is separate from sentence scoring.
+
+For sentence reading, Laravel normalizes the expected sentence and actual transcript into words, then runs word-level dynamic-programming alignment. The stored metadata includes the alignment path and operation counts:
+
+- `alignment`
+- `substitutions`
+- `deletions`
+- `insertions`
+- `correct_words`
+- `total_expected_words`
+- `wer`
+- `wer_accuracy_percentage`
+- `text_accuracy_percentage`
+
+WER is calculated from the explicit alignment counts:
+
+```text
+WER = (substitutions + deletions + insertions) / total_expected_words
+```
+
+Laravel also stores rate metrics when recording duration is available:
+
+```text
+WPM = actual transcript word count / duration in minutes
+WCPM = alignment match count / duration in minutes
+```
+
+If duration is missing or invalid, `wpm`, `wcpm`, and `words_per_second` are `null` and a warning is added. The existing rushed/slow logic is retained as a pacing heuristic only. It returns `words_per_second`, `pacing_label`, `rushed`, `slow`, and `pacing_warning`; it is not full prosody analysis.
+
+Fluency is additional metadata and does not replace the official sentence score. Default configurable weights are:
+
+- WCPM score: 35%
+- Accuracy score: 35%
+- Pacing score: 15%
+- Pause score: 10%
+- Completion score: 5%
+
+When the AI service returns `pause_metrics`, Laravel consumes:
+
+- `pause_count`
+- `long_pause_count`
+- `very_long_pause_count`
+- `longest_pause_seconds`
+- `pause_ratio`
+- `total_pause_seconds`
+
+These produce `pause_score`, `pause_metrics_available`, and `long_pause_warning`. If pause metrics are missing, Laravel uses a neutral pause score and sets `pause_metrics_available=false`.
+
+Laravel also preserves AI uncertainty fields in sentence metadata:
+
+- `retry_required`
+- `uncertain`
+- `uncertainty_reasons`
+- `audio_quality`
+- `learner_retry_message`
+
+If `retry_required=true`, the current flow preserves existing score behavior but stores retry metadata and exposes safe learner guidance. Laravel does not implement ASR inference locally and does not train any model.
+
 ## Enriched Content
 
 The enriched content ZIP from the AI repo is placed at:
@@ -84,4 +144,3 @@ The current seeders still read the original curated CSVs and supplement seeded r
 ## External Files
 
 See [AI_ASR_EXTERNAL_FILES_GUIDE.md](AI_ASR_EXTERNAL_FILES_GUIDE.md). Speechocean762 and model artifacts are not copied into the Laravel repo.
-

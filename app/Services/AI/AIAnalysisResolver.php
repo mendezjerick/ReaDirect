@@ -35,6 +35,17 @@ class AIAnalysisResolver
                     aiResponse: $aiResponse,
                 );
             }
+
+            if (($aiResponse['ok'] ?? false) && ($aiResponse['retry_required'] ?? false) === true) {
+                $this->storeAudioAiFields($audioFile, $aiResponse);
+
+                return $this->resolved(
+                    transcript: '',
+                    source: 'ai_asr',
+                    confidence: $aiResponse['confidence'] ?? null,
+                    aiResponse: $aiResponse,
+                );
+            }
         }
 
         if ($manual !== '' && (bool) config('readirect_ai.fallback.use_manual_transcript_if_available', true)) {

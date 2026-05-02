@@ -30,4 +30,30 @@ return [
         'show_student_debug' => false,
         'enable_developer_assessment_reset' => filter_var(env('ENABLE_DEVELOPER_ASSESSMENT_RESET', false), FILTER_VALIDATE_BOOLEAN),
     ],
+
+    'sentence_fluency' => [
+        'weights' => [
+            'wcpm' => (float) env('SENTENCE_FLUENCY_WEIGHT_WCPM', 0.35),
+            'accuracy' => (float) env('SENTENCE_FLUENCY_WEIGHT_ACCURACY', 0.35),
+            'pacing' => (float) env('SENTENCE_FLUENCY_WEIGHT_PACING', 0.15),
+            'pause' => (float) env('SENTENCE_FLUENCY_WEIGHT_PAUSE', 0.10),
+            'completion' => (float) env('SENTENCE_FLUENCY_WEIGHT_COMPLETION', 0.05),
+        ],
+        'target_wcpm' => (float) env('SENTENCE_FLUENCY_TARGET_WCPM', 20),
+        'pacing' => [
+            'too_fast_wps' => (float) env('SENTENCE_PACING_TOO_FAST_WPS', 3.5),
+            'too_slow_wps' => (float) env('SENTENCE_PACING_TOO_SLOW_WPS', 1.1),
+        ],
+        'pause' => [
+            'long_pause_scores' => [
+                0 => 100,
+                1 => 85,
+                2 => 70,
+                3 => 50,
+            ],
+            'very_long_pause_penalty' => (int) env('SENTENCE_VERY_LONG_PAUSE_PENALTY', 20),
+            'high_pause_ratio' => (float) env('SENTENCE_HIGH_PAUSE_RATIO', 0.35),
+            'high_pause_ratio_penalty' => (int) env('SENTENCE_HIGH_PAUSE_RATIO_PENALTY', 15),
+        ],
+    ],
 ];

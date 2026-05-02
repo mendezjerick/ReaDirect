@@ -103,6 +103,13 @@ class AudioUploadController extends Controller
             'critical_phoneme' => $resolved['ai_response']['critical_phoneme'] ?? null,
             'critical_phoneme_detected' => $resolved['ai_response']['critical_phoneme_detected'] ?? null,
             'threshold_used' => $resolved['ai_response']['threshold_used'] ?? null,
+            'audio_quality' => $resolved['ai_response']['audio_quality'] ?? null,
+            'pause_metrics' => $resolved['ai_response']['pause_metrics'] ?? null,
+            'retry_required' => (bool) ($resolved['ai_response']['retry_required'] ?? false),
+            'uncertain' => (bool) ($resolved['ai_response']['uncertain'] ?? false),
+            'uncertainty_reasons' => $resolved['ai_response']['uncertainty_reasons'] ?? [],
+            'quality_gate_failed' => (bool) ($resolved['ai_response']['quality_gate_failed'] ?? false),
+            'learner_retry_message' => $resolved['ai_response']['learner_retry_message'] ?? null,
             'stt_confidence' => $resolved['confidence'],
             'transcript_source' => $transcript !== '' ? $resolved['source'] : null,
             'stt_error' => $resolved['stt_result']?->error,
@@ -228,7 +235,12 @@ class AudioUploadController extends Controller
 
         $aiError = $resolved['ai_response']['error'] ?? null;
         $aiWarnings = $resolved['ai_response']['warnings'] ?? [];
+        $learnerRetryMessage = $resolved['ai_response']['learner_retry_message'] ?? null;
         $sttError = $resolved['stt_result']?->error ?? null;
+
+        if (($resolved['ai_response']['retry_required'] ?? false) === true && is_string($learnerRetryMessage) && $learnerRetryMessage !== '') {
+            return $learnerRetryMessage;
+        }
 
         if ($aiError === 'readirect_ai_unavailable') {
             return 'Audio was saved, but Laravel could not connect to the ReaDirect AI service. Start the FastAPI service on the configured URL and try again.';

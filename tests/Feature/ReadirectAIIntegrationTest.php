@@ -8,6 +8,7 @@ use App\Models\School;
 use App\Services\AI\AIAnalysisResolver;
 use App\Services\AI\ReadirectAIService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -216,6 +217,44 @@ class ReadirectAIIntegrationTest extends TestCase
         $this->assertSame('tree', $resolved['displayed_transcript']);
         $this->assertSame('three', $audioFile->ai_transcript);
         $this->assertSame('tree', $audioFile->ai_normalized_transcript);
+        $this->assertTrue(app(AIAnalysisResolver::class)->acceptedForShortPrompt($resolved['ai_response']));
+    }
+
+    public function test_laravel_preserves_reinforcement_correction_metadata(): void
+    {
+        Storage::fake('local');
+        config([
+            'readirect_ai.enabled' => true,
+            'readirect_ai.base_url' => 'http://ai.test',
+            'readirect_ai.endpoints.analyze_audio' => '/analyze-audio',
+        ]);
+        Http::fake([
+            'http://ai.test/analyze-audio' => Http::response([
+                'ok' => true,
+                'expected_text' => 'Z',
+                'raw_transcript' => 'They',
+                'corrected_transcript' => 'Z',
+                'displayed_transcript' => 'Z',
+                'accepted' => true,
+                'accepted_by_reinforcement_match' => true,
+                'prompt_type' => 'letter',
+                'model_family' => 'wav2vec2',
+            ]),
+        ]);
+
+        $audioFile = $this->audioFile();
+        $resolved = app(AIAnalysisResolver::class)->resolve(null, $audioFile, [
+            'expected_text' => 'Z',
+            'accepted_answers' => ['Z'],
+        ]);
+
+        $audioFile->refresh();
+
+        $this->assertSame('Z', $resolved['transcript']);
+        $this->assertSame('Z', $resolved['displayed_transcript']);
+        $this->assertSame('They', $audioFile->ai_transcript);
+        $this->assertSame('Z', $audioFile->ai_normalized_transcript);
+        $this->assertTrue($resolved['ai_response']['accepted_by_reinforcement_match']);
         $this->assertTrue(app(AIAnalysisResolver::class)->acceptedForShortPrompt($resolved['ai_response']));
     }
 
@@ -493,6 +532,93 @@ class ReadirectAIIntegrationTest extends TestCase
 
         $this->assertSame('I see a three', $resolved['displayed_transcript']);
         $this->assertFalse(app(AIAnalysisResolver::class)->acceptedForShortPrompt($resolved['ai_response']));
+    }
+
+    public function test_retry_required_blank_ai_response_is_preserved_without_fallback_scoring(): void
+    {
+        Storage::fake('local');
+        config([
+            'readirect_ai.enabled' => true,
+            'readirect_ai.base_url' => 'http://ai.test',
+            'readirect_ai.endpoints.analyze_audio' => '/analyze-audio',
+            'readirect_ai.fallback.use_existing_stt_if_ai_offline' => true,
+            'stt.mock.transcript' => 'tree',
+        ]);
+        Http::fake([
+            'http://ai.test/analyze-audio' => Http::response([
+                'ok' => true,
+                'expected_text' => 'tree',
+                'raw_transcript' => '',
+                'corrected_transcript' => '',
+                'displayed_transcript' => '',
+                'accepted' => false,
+                'retry_required' => true,
+                'uncertain' => true,
+                'uncertainty_reasons' => ['audio_too_short'],
+                'learner_retry_message' => 'Please record again.',
+                'audio_quality' => ['quality_flags' => ['too_short' => true]],
+            ]),
+        ]);
+
+        $audioFile = $this->audioFile();
+        $resolved = app(AIAnalysisResolver::class)->resolve(null, $audioFile, [
+            'expected_text' => 'tree',
+            'accepted_answers' => ['tree'],
+        ]);
+        $audioFile->refresh();
+
+        $this->assertSame('', $resolved['transcript']);
+        $this->assertSame('ai_asr', $resolved['source']);
+        $this->assertTrue($resolved['ai_response']['retry_required']);
+        $this->assertSame(['audio_too_short'], $resolved['ai_response']['uncertainty_reasons']);
+        $this->assertSame('', $audioFile->ai_transcript);
+        $this->assertSame('', $audioFile->ai_normalized_transcript);
+    }
+
+    public function test_audio_upload_surfaces_retry_required_guidance(): void
+    {
+        Storage::fake('local');
+        $learner = $this->learner();
+        config([
+            'readirect_ai.enabled' => true,
+            'readirect_ai.base_url' => 'http://ai.test',
+            'readirect_ai.endpoints.analyze_audio' => '/analyze-audio',
+        ]);
+        Http::fake([
+            'http://ai.test/analyze-audio' => Http::response([
+                'ok' => true,
+                'expected_text' => 'tree',
+                'raw_transcript' => '',
+                'corrected_transcript' => '',
+                'displayed_transcript' => '',
+                'accepted' => false,
+                'retry_required' => true,
+                'uncertain' => true,
+                'uncertainty_reasons' => ['audio_too_short'],
+                'learner_retry_message' => 'Please record again.',
+                'audio_quality' => ['quality_flags' => ['too_short' => true]],
+                'pause_metrics' => ['pause_count' => 0],
+            ]),
+        ]);
+
+        $response = $this
+            ->withSession(['learner_id' => $learner->id])
+            ->postJson('/learner/audio/upload', [
+                'audio' => UploadedFile::fake()->create('short.webm', 10, 'audio/webm'),
+                'context_type' => 'comprehension_optional',
+                'duration_seconds' => 1.0,
+            ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('transcription_status', 'failed')
+            ->assertJsonPath('retry_required', true)
+            ->assertJsonPath('uncertain', true)
+            ->assertJsonPath('uncertainty_reasons.0', 'audio_too_short')
+            ->assertJsonPath('learner_retry_message', 'Please record again.')
+            ->assertJsonPath('transcription_message', 'Please record again.')
+            ->assertJsonPath('audio_quality.quality_flags.too_short', true)
+            ->assertJsonPath('pause_metrics.pause_count', 0);
     }
 
     private function audioFile(): AudioFile

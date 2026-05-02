@@ -12,10 +12,125 @@ class SentenceReadingScoringService
     public const TRANSCRIPT_MATCHED = 'transcript matched';
     public const MIXED_RESULTS = 'mixed results';
 
-    public function evaluate(string $expectedSentence, string $actualTranscript, ?float $durationSeconds = null, ?array $aiSignals = null): array
+    public function align(string $expectedSentence, string $actualTranscript): array
     {
         $expectedWords = $this->normalizedWords($expectedSentence);
         $actualWords = $this->normalizedWords($actualTranscript);
+        $expectedCount = count($expectedWords);
+        $actualCount = count($actualWords);
+        $distances = [];
+
+        for ($i = 0; $i <= $expectedCount; $i++) {
+            $distances[$i] = array_fill(0, $actualCount + 1, 0);
+            $distances[$i][0] = $i;
+        }
+
+        for ($j = 0; $j <= $actualCount; $j++) {
+            $distances[0][$j] = $j;
+        }
+
+        for ($i = 1; $i <= $expectedCount; $i++) {
+            for ($j = 1; $j <= $actualCount; $j++) {
+                $cost = $expectedWords[$i - 1] === $actualWords[$j - 1] ? 0 : 1;
+                $distances[$i][$j] = min(
+                    $distances[$i - 1][$j] + 1,
+                    $distances[$i][$j - 1] + 1,
+                    $distances[$i - 1][$j - 1] + $cost,
+                );
+            }
+        }
+
+        $path = [];
+        $i = $expectedCount;
+        $j = $actualCount;
+        $substitutions = 0;
+        $deletions = 0;
+        $insertions = 0;
+        $correct = 0;
+
+        while ($i > 0 || $j > 0) {
+            if (
+                $i > 0
+                && $j > 0
+                && $expectedWords[$i - 1] === $actualWords[$j - 1]
+                && $distances[$i][$j] === $distances[$i - 1][$j - 1]
+            ) {
+                $path[] = [
+                    'operation' => 'match',
+                    'expected' => $expectedWords[$i - 1],
+                    'actual' => $actualWords[$j - 1],
+                ];
+                $correct++;
+                $i--;
+                $j--;
+
+                continue;
+            }
+
+            if (
+                $i > 0
+                && $j > 0
+                && $distances[$i][$j] === $distances[$i - 1][$j - 1] + 1
+            ) {
+                $path[] = [
+                    'operation' => 'substitution',
+                    'expected' => $expectedWords[$i - 1],
+                    'actual' => $actualWords[$j - 1],
+                ];
+                $substitutions++;
+                $i--;
+                $j--;
+
+                continue;
+            }
+
+            if ($i > 0 && $distances[$i][$j] === $distances[$i - 1][$j] + 1) {
+                $path[] = [
+                    'operation' => 'deletion',
+                    'expected' => $expectedWords[$i - 1],
+                    'actual' => null,
+                ];
+                $deletions++;
+                $i--;
+
+                continue;
+            }
+
+            $path[] = [
+                'operation' => 'insertion',
+                'expected' => null,
+                'actual' => $actualWords[$j - 1],
+            ];
+            $insertions++;
+            $j--;
+        }
+
+        $wer = $expectedCount > 0
+            ? round(($substitutions + $deletions + $insertions) / $expectedCount, 4)
+            : null;
+
+        return [
+            'expected_words' => $expectedWords,
+            'actual_words' => $actualWords,
+            'substitutions' => $substitutions,
+            'deletions' => $deletions,
+            'insertions' => $insertions,
+            'correct' => $correct,
+            'total_expected_words' => $expectedCount,
+            'wer' => $wer,
+            'accuracy_percentage' => $wer === null ? 0 : (int) round(max(0, 1 - $wer) * 100),
+            'alignment' => array_reverse($path),
+        ];
+    }
+
+    public function evaluate(string $expectedSentence, string $actualTranscript, ?float $durationSeconds = null, ?array $aiSignals = null): array
+    {
+        $aiSignals ??= [];
+        $alignment = $this->align($expectedSentence, $actualTranscript);
+        $expectedWords = $alignment['expected_words'];
+        $actualWords = $alignment['actual_words'];
+        $warnings = [];
+        $retry = $this->retryMetadata($aiSignals);
 
         if ($expectedWords === []) {
             return [
@@ -24,16 +139,41 @@ class SentenceReadingScoringService
                 'matched_words' => 0,
                 'total_words' => 0,
                 'missing_words' => 0,
+                'correct_words' => 0,
+                'total_expected_words' => 0,
+                'substitutions' => 0,
+                'deletions' => 0,
+                'insertions' => 0,
+                'wer' => null,
+                'wer_accuracy_percentage' => 0,
+                'alignment' => [],
+                'wpm' => null,
+                'wcpm' => null,
+                'words_per_second' => null,
+                'pacing_label' => 'unknown',
+                'pacing_warning' => 'Reading duration is missing, so pacing could not be calculated.',
                 'feedback_label' => self::RIGHT_WORDS_BUT_UNCLEAR,
                 'is_rushed' => false,
                 'is_slow' => false,
+                'rushed' => false,
+                'slow' => false,
+                'pause_metrics' => null,
+                'pause_metrics_available' => false,
+                'pause_score' => 100,
+                'long_pause_warning' => null,
+                'fluency_score' => 0,
+                'fluency_label' => $retry['retry_required'] ? 'retry_needed' : 'needs_practice',
+                'fluency_components' => $this->emptyFluencyComponents(),
+                'warnings' => ['Expected sentence has no words after normalization.'],
+                ...$retry,
             ];
         }
 
         $totalWords = count($expectedWords);
-        $distance = $this->wordLevenshteinDistance($expectedWords, $actualWords);
-        $matchedWords = max(0, $totalWords - min($distance, $totalWords));
-        $missingWords = max(0, $totalWords - count($actualWords));
+        $correctWords = $alignment['correct'];
+        $matchedWords = $correctWords;
+        $missingWords = $alignment['deletions'];
+        $wer = $alignment['wer'];
 
         $normalizedExpected = implode(' ', $expectedWords);
         $normalizedActual = implode(' ', $actualWords);
@@ -43,7 +183,7 @@ class SentenceReadingScoringService
         $exactSentenceMatch = $normalizedExpected !== '' && $normalizedExpected === $normalizedActual;
         $compactSentenceMatch = $compactExpected !== '' && $compactExpected === $compactActual;
 
-        $textAccuracy = (int) round(($matchedWords / $totalWords) * 100);
+        $textAccuracy = (int) round(max(0, 1 - (float) $wer) * 100);
 
         if ($exactSentenceMatch) {
             $textAccuracy = 100;
@@ -108,26 +248,22 @@ class SentenceReadingScoringService
             $accuracy = max(80, $accuracy);
         }
 
-        $wordsPerSecond = ($durationSeconds && $durationSeconds > 0)
-            ? $totalWords / $durationSeconds
-            : null;
+        $timing = $this->timingMetrics($actualWords, $correctWords, $durationSeconds);
+        $wordsPerSecond = $timing['words_per_second'];
+        $warnings = array_merge($warnings, $timing['warnings']);
+
+        $pacing = $this->pacingMetrics($wordsPerSecond, $textAccuracy, $compactSentenceMatch);
 
         $partialButPronouncedClearly = $matchedWords > 0
             && $matchedWords < $totalWords
             && $textAccuracy < 50
             && $strongPronunciationSignal >= 85;
 
-        $isRushed = ! $exactSentenceMatch
-            && (
-                $compactSentenceMatch
-                || ($wordsPerSecond !== null && $wordsPerSecond > 3.5 && $textAccuracy >= 80)
-                || $partialButPronouncedClearly
-            );
+        $isRushed = $pacing['rushed'] || $partialButPronouncedClearly;
 
         $isSlow = ! $exactSentenceMatch
             && ! $isRushed
-            && $wordsPerSecond !== null
-            && $wordsPerSecond < 1.1
+            && $pacing['slow']
             && $textAccuracy >= 60;
 
         if ($partialButPronouncedClearly) {
@@ -155,6 +291,18 @@ class SentenceReadingScoringService
             default => self::RIGHT_WORDS_BUT_UNCLEAR,
         };
 
+        $pause = $this->pauseMetrics($aiSignals['pause_metrics'] ?? null);
+        $fluency = $this->fluencyMetrics(
+            wcpm: $timing['wcpm'],
+            wpm: $timing['wpm'],
+            accuracyPercentage: $accuracy,
+            pauseScore: $pause['pause_score'],
+            pauseMetricsAvailable: $pause['pause_metrics_available'],
+            pacingLabel: $pacing['pacing_label'],
+            completionScore: $this->completionScore($totalWords, $alignment['deletions']),
+            retryRequired: $retry['retry_required'],
+        );
+
         return [
             'accuracy_percentage' => $accuracy,
             'score_ten' => round($accuracy / 10, 1),
@@ -162,9 +310,35 @@ class SentenceReadingScoringService
             'matched_words' => $matchedWords,
             'total_words' => $totalWords,
             'missing_words' => $missingWords,
+            'correct_words' => $correctWords,
+            'total_expected_words' => $totalWords,
+            'expected_words' => $expectedWords,
+            'actual_words' => $actualWords,
+            'substitutions' => $alignment['substitutions'],
+            'deletions' => $alignment['deletions'],
+            'insertions' => $alignment['insertions'],
+            'wer' => $wer,
+            'wer_accuracy_percentage' => $textAccuracy,
+            'alignment' => $alignment['alignment'],
+            'cer' => $aiSignals['corrected_cer'] ?? $aiSignals['raw_cer'] ?? null,
+            'wpm' => $timing['wpm'],
+            'wcpm' => $timing['wcpm'],
+            'words_per_second' => $wordsPerSecond,
+            'pacing_label' => $pacing['pacing_label'],
+            'pacing_warning' => $pacing['pacing_warning'],
             'feedback_label' => $feedbackLabel,
             'is_rushed' => $isRushed,
             'is_slow' => $isSlow,
+            'rushed' => $isRushed,
+            'slow' => $isSlow,
+            'pause_metrics' => $pause['pause_metrics'],
+            'pause_metrics_available' => $pause['pause_metrics_available'],
+            'pause_score' => $pause['pause_score'],
+            'long_pause_warning' => $pause['long_pause_warning'],
+            'fluency_score' => $fluency['fluency_score'],
+            'fluency_label' => $fluency['fluency_label'],
+            'fluency_components' => $fluency['fluency_components'],
+            'fluency_weights' => $fluency['fluency_weights'],
             'character_similarity_percentage' => $characterSimilarity,
             'phoneme_similarity_percentage' => $phonemeSimilarity,
             'target_word_character_similarity_percentage' => $targetWordCharacterSimilarity,
@@ -174,6 +348,8 @@ class SentenceReadingScoringService
             'target_word_error_type' => trim((string) ($aiSignals['target_word_error_type'] ?? '')) ?: null,
             'pronunciation_unclear' => $pronunciationUnclear,
             'pronunciation_verified' => $hasPronunciationSignals || $hasTargetWordSignals,
+            'warnings' => $warnings,
+            ...$retry,
         ];
     }
 
@@ -211,7 +387,7 @@ class SentenceReadingScoringService
         ];
     }
 
-    private function normalizedWords(string $text): array
+    public function normalizedWords(string $text): array
     {
         $normalized = preg_replace('/[^a-z0-9\\s]+/i', ' ', strtolower($text)) ?? '';
         $normalized = preg_replace('/\\s+/', ' ', trim($normalized)) ?? '';
@@ -226,33 +402,219 @@ class SentenceReadingScoringService
         return trim($normalized);
     }
 
-    private function wordLevenshteinDistance(array $expectedWords, array $actualWords): int
+    private function timingMetrics(array $actualWords, int $correctWords, ?float $durationSeconds): array
     {
-        $expectedCount = count($expectedWords);
-        $actualCount = count($actualWords);
-        $distances = [];
-
-        for ($i = 0; $i <= $expectedCount; $i++) {
-            $distances[$i] = array_fill(0, $actualCount + 1, 0);
-            $distances[$i][0] = $i;
+        if (! $durationSeconds || $durationSeconds <= 0) {
+            return [
+                'wpm' => null,
+                'wcpm' => null,
+                'words_per_second' => null,
+                'warnings' => ['Reading duration is missing or invalid, so WPM and WCPM were not calculated.'],
+            ];
         }
 
-        for ($j = 0; $j <= $actualCount; $j++) {
-            $distances[0][$j] = $j;
+        $minutes = $durationSeconds / 60;
+        $actualWordCount = count($actualWords);
+
+        return [
+            'wpm' => round($actualWordCount / $minutes, 2),
+            'wcpm' => round($correctWords / $minutes, 2),
+            'words_per_second' => round($actualWordCount / $durationSeconds, 2),
+            'warnings' => [],
+        ];
+    }
+
+    private function pacingMetrics(?float $wordsPerSecond, int $textAccuracy, bool $compactSentenceMatch): array
+    {
+        if ($wordsPerSecond === null) {
+            return [
+                'rushed' => false,
+                'slow' => false,
+                'pacing_label' => 'unknown',
+                'pacing_warning' => 'Reading duration is missing, so pacing could not be calculated.',
+            ];
         }
 
-        for ($i = 1; $i <= $expectedCount; $i++) {
-            for ($j = 1; $j <= $actualCount; $j++) {
-                $cost = $expectedWords[$i - 1] === $actualWords[$j - 1] ? 0 : 1;
-                $distances[$i][$j] = min(
-                    $distances[$i - 1][$j] + 1,
-                    $distances[$i][$j - 1] + 1,
-                    $distances[$i - 1][$j - 1] + $cost,
-                );
+        $fastThreshold = (float) $this->setting('readirect_ai.sentence_fluency.pacing.too_fast_wps', 3.5);
+        $slowThreshold = (float) $this->setting('readirect_ai.sentence_fluency.pacing.too_slow_wps', 1.1);
+        $rushed = ($wordsPerSecond > $fastThreshold && $textAccuracy >= 80) || $compactSentenceMatch;
+        $slow = $wordsPerSecond < $slowThreshold && $textAccuracy >= 60;
+
+        if ($rushed) {
+            return [
+                'rushed' => true,
+                'slow' => false,
+                'pacing_label' => 'too_fast',
+                'pacing_warning' => 'This pacing heuristic suggests the sentence may have been read too quickly.',
+            ];
+        }
+
+        if ($slow) {
+            return [
+                'rushed' => false,
+                'slow' => true,
+                'pacing_label' => 'too_slow',
+                'pacing_warning' => 'This pacing heuristic suggests the sentence may have been read too slowly.',
+            ];
+        }
+
+        return [
+            'rushed' => false,
+            'slow' => false,
+            'pacing_label' => 'appropriate',
+            'pacing_warning' => null,
+        ];
+    }
+
+    private function pauseMetrics(mixed $pauseMetrics): array
+    {
+        if (! is_array($pauseMetrics)) {
+            return [
+                'pause_metrics' => null,
+                'pause_metrics_available' => false,
+                'pause_score' => 100,
+                'long_pause_warning' => null,
+            ];
+        }
+
+        $longPauseCount = max(0, (int) ($pauseMetrics['long_pause_count'] ?? 0));
+        $veryLongPauseCount = max(0, (int) ($pauseMetrics['very_long_pause_count'] ?? 0));
+        $pauseRatio = is_numeric($pauseMetrics['pause_ratio'] ?? null) ? (float) $pauseMetrics['pause_ratio'] : 0.0;
+        $baseScores = $this->setting('readirect_ai.sentence_fluency.pause.long_pause_scores', [
+            0 => 100,
+            1 => 85,
+            2 => 70,
+            3 => 50,
+        ]);
+
+        $score = (int) ($baseScores[min($longPauseCount, 3)] ?? 50);
+        $score -= $veryLongPauseCount * (int) $this->setting('readirect_ai.sentence_fluency.pause.very_long_pause_penalty', 20);
+
+        if ($pauseRatio > (float) $this->setting('readirect_ai.sentence_fluency.pause.high_pause_ratio', 0.35)) {
+            $score -= (int) $this->setting('readirect_ai.sentence_fluency.pause.high_pause_ratio_penalty', 15);
+        }
+
+        $score = max(0, min(100, $score));
+        $warning = match (true) {
+            $veryLongPauseCount > 0 => 'There was a very long pause. Try reading the sentence more continuously.',
+            $longPauseCount > 1 => 'There were '.$longPauseCount.' long pauses. Try reading the sentence more continuously.',
+            $longPauseCount === 1 => 'There was 1 long pause. Try reading the sentence more continuously.',
+            default => null,
+        };
+
+        return [
+            'pause_metrics' => $pauseMetrics,
+            'pause_metrics_available' => true,
+            'pause_score' => $score,
+            'long_pause_warning' => $warning,
+        ];
+    }
+
+    private function fluencyMetrics(
+        ?float $wcpm,
+        ?float $wpm,
+        int $accuracyPercentage,
+        int $pauseScore,
+        bool $pauseMetricsAvailable,
+        string $pacingLabel,
+        int $completionScore,
+        bool $retryRequired
+    ): array {
+        $weights = $this->setting('readirect_ai.sentence_fluency.weights', [
+            'wcpm' => 0.35,
+            'accuracy' => 0.35,
+            'pacing' => 0.15,
+            'pause' => 0.10,
+            'completion' => 0.05,
+        ]);
+
+        $targetWcpm = (float) $this->setting('readirect_ai.sentence_fluency.target_wcpm', 20);
+        $wcpmScore = $wcpm === null ? 0 : (int) round(min(100, ($wcpm / max(1, $targetWcpm)) * 100));
+        $pacingScore = match ($pacingLabel) {
+            'appropriate' => 100,
+            'too_fast', 'too_slow' => 70,
+            default => 80,
+        };
+
+        $components = [
+            'wcpm_score' => $wcpmScore,
+            'accuracy_score' => max(0, min(100, $accuracyPercentage)),
+            'pacing_score' => $pacingScore,
+            'pause_score' => $pauseScore,
+            'completion_score' => $completionScore,
+        ];
+
+        $score = round(
+            ($components['wcpm_score'] * (float) ($weights['wcpm'] ?? 0.35))
+            + ($components['accuracy_score'] * (float) ($weights['accuracy'] ?? 0.35))
+            + ($components['pacing_score'] * (float) ($weights['pacing'] ?? 0.15))
+            + ($components['pause_score'] * (float) ($weights['pause'] ?? 0.10))
+            + ($components['completion_score'] * (float) ($weights['completion'] ?? 0.05)),
+            1
+        );
+
+        $label = match (true) {
+            $retryRequired => 'retry_needed',
+            $score >= 85 => 'fluent',
+            $score >= 70 => 'developing',
+            $score >= 50 => 'needs_practice',
+            default => 'retry_needed',
+        };
+
+        return [
+            'fluency_score' => $score,
+            'fluency_label' => $label,
+            'fluency_components' => $components,
+            'fluency_weights' => $weights,
+            'pause_metrics_available' => $pauseMetricsAvailable,
+            'wpm' => $wpm,
+        ];
+    }
+
+    private function completionScore(int $totalWords, int $deletions): int
+    {
+        if ($totalWords <= 0) {
+            return 0;
+        }
+
+        return (int) round(max(0, ($totalWords - $deletions) / $totalWords) * 100);
+    }
+
+    private function retryMetadata(array $aiSignals): array
+    {
+        return [
+            'retry_required' => (bool) ($aiSignals['retry_required'] ?? false),
+            'uncertain' => (bool) ($aiSignals['uncertain'] ?? false),
+            'uncertainty_reasons' => array_values((array) ($aiSignals['uncertainty_reasons'] ?? [])),
+            'audio_quality' => $aiSignals['audio_quality'] ?? null,
+            'learner_retry_message' => $aiSignals['learner_retry_message'] ?? null,
+        ];
+    }
+
+    private function emptyFluencyComponents(): array
+    {
+        return [
+            'wcpm_score' => 0,
+            'accuracy_score' => 0,
+            'pacing_score' => 80,
+            'pause_score' => 100,
+            'completion_score' => 0,
+        ];
+    }
+
+    private function setting(string $key, mixed $default): mixed
+    {
+        try {
+            if (function_exists('config')) {
+                $value = config($key);
+
+                return $value === null ? $default : $value;
             }
+        } catch (\Throwable) {
+            return $default;
         }
 
-        return $distances[$expectedCount][$actualCount];
+        return $default;
     }
 
     private function similarityPercentage(mixed $value): ?int

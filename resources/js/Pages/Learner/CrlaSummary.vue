@@ -58,8 +58,22 @@ const accuracyTone = (percentage) => {
                                 <p class="mt-1 text-base font-black text-text">{{ item.prompt }}</p>
                                 <p class="mt-2 text-sm font-black text-muted capitalize">{{ item.feedback_label }}</p>
                                 <p class="mt-1 text-xs font-bold text-muted">
-                                    {{ item.matched_words }}/{{ item.total_words }} words matched
-                                    <span v-if="item.missing_words > 0">, {{ item.missing_words }} missing</span>
+                                    {{ item.correct_words ?? item.matched_words }}/{{ item.total_words }} words correct
+                                    <span v-if="item.wer !== null">, WER {{ Math.round(item.wer * 100) }}%</span>
+                                </p>
+                                <p v-if="item.wcpm !== null || item.wpm !== null || item.fluency_label" class="mt-1 text-xs font-bold text-muted">
+                                    <span v-if="item.wcpm !== null">{{ item.wcpm }} WCPM</span>
+                                    <span v-if="item.wcpm !== null && item.wpm !== null">, </span>
+                                    <span v-if="item.wpm !== null">{{ item.wpm }} WPM</span>
+                                    <span v-if="item.fluency_label" class="capitalize">
+                                        <span v-if="item.wcpm !== null || item.wpm !== null">, </span>{{ item.fluency_label.replace('_', ' ') }}
+                                    </span>
+                                </p>
+                                <p v-if="item.long_pause_warning" class="mt-1 text-xs font-bold text-warning">
+                                    {{ item.long_pause_warning }}
+                                </p>
+                                <p v-if="item.retry_required && item.learner_retry_message" class="mt-1 text-xs font-bold text-warning">
+                                    {{ item.learner_retry_message }}
                                 </p>
                                 <p v-if="item.phoneme_similarity_percentage !== null" class="mt-1 text-xs font-bold text-muted">
                                     Pronunciation match {{ item.phoneme_similarity_percentage }}%
