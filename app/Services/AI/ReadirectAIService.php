@@ -3,6 +3,7 @@
 namespace App\Services\AI;
 
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Http;
@@ -102,6 +103,19 @@ class ReadirectAIService
             'phoneme_evidence_enabled' => $health['phoneme_evidence_enabled'] ?? null,
             'thresholds' => $health['thresholds'] ?? null,
             'local_model_paths_loaded' => $health['local_model_paths_loaded'] ?? null,
+            'reinforcement_corrections_enabled' => $health['reinforcement_corrections_enabled'] ?? null,
+            'reinforcement_corrections_dir' => $health['reinforcement_corrections_dir'] ?? null,
+            'reinforcement_files_loaded' => $health['reinforcement_files_loaded'] ?? [],
+            'reinforcement_letter_rules_count' => $health['reinforcement_letter_rules_count'] ?? 0,
+            'reinforcement_word_rules_count' => $health['reinforcement_word_rules_count'] ?? 0,
+            'reinforcement_load_warnings' => $health['reinforcement_load_warnings'] ?? [],
+            'laravel_response_contract' => [
+                'scoring_transcript' => 'corrected_transcript -> transcript -> raw_transcript',
+                'learner_display_transcript' => 'displayed_transcript -> corrected_transcript -> transcript -> raw_transcript',
+                'admin_debug_transcripts' => 'raw_transcript, corrected_transcript, displayed_transcript',
+                'accepted_behavior' => 'accepted letter and word corrections display the expected CSV answer',
+                'rejected_behavior' => 'rejected responses display the recognized transcript',
+            ],
             'content_index_loaded' => $health['content_index_loaded'] ?? null,
             'cmudict_loaded' => $health['cmudict_loaded'] ?? null,
             'error' => $health['error'] ?? null,
@@ -145,7 +159,7 @@ class ReadirectAIService
         }
     }
 
-    private function client(): \Illuminate\Http\Client\PendingRequest
+    private function client(): PendingRequest
     {
         $client = Http::timeout((int) config('readirect_ai.timeout_seconds', 60))
             ->acceptJson()

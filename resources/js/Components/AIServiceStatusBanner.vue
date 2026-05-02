@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue';
-import { Bot, CheckCircle2, AlertTriangle, ExternalLink } from 'lucide-vue-next';
+import { Bot, CheckCircle2, AlertTriangle, ExternalLink, ShieldCheck } from 'lucide-vue-next';
 
 const props = defineProps({
     status: {
@@ -70,6 +70,33 @@ const correctionRows = computed(() => [
     ['Loaded Model Paths', reported(props.status?.local_model_paths_loaded)],
     ['Whisper Runtime', props.status?.whisper_removed === false ? 'Reported available' : 'Removed from runtime'],
 ]);
+
+const reinforcementEnabled = computed(() => props.status?.reinforcement_corrections_enabled === true);
+const reinforcementLetters = computed(() => Number(props.status?.reinforcement_letter_rules_count ?? 0));
+const reinforcementWords = computed(() => Number(props.status?.reinforcement_word_rules_count ?? 0));
+const reinforcementWarnings = computed(() => props.status?.reinforcement_load_warnings ?? []);
+const reinforcementFiles = computed(() => props.status?.reinforcement_files_loaded ?? []);
+const reinforcementWorking = computed(() => (
+    reinforcementEnabled.value
+    && reinforcementLetters.value > 0
+    && reinforcementWarnings.value.length === 0
+));
+
+const reinforcementSummary = computed(() => {
+    if (!reinforcementEnabled.value) {
+        return 'Reinforcement correction memory is disabled.';
+    }
+
+    if (reinforcementWorking.value) {
+        return 'Reinforcement correction memory is working for letters. Word correction memory is prepared for future CSV rules.';
+    }
+
+    if (reinforcementWarnings.value.length > 0) {
+        return 'Reinforcement correction memory needs attention before it can be trusted.';
+    }
+
+    return 'Reinforcement correction memory is enabled, but no letter rules are loaded yet.';
+});
 </script>
 
 <template>
@@ -142,6 +169,29 @@ const correctionRows = computed(() => [
                         </div>
                     </dl>
                 </div>
+            </div>
+
+            <div class="mt-4 rounded-lg border border-emerald-200 bg-white/60 p-3">
+                <div class="flex items-center gap-2">
+                    <ShieldCheck :size="15" class="text-emerald-700" />
+                    <p class="font-extrabold">Reinforcement Correction Memory</p>
+                </div>
+                <div class="mt-2 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                    <p class="max-w-3xl font-semibold leading-relaxed">{{ reinforcementSummary }}</p>
+                    <span
+                        class="inline-flex w-fit items-center rounded-md px-2 py-1 text-[11px] font-extrabold"
+                        :class="reinforcementWorking ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'"
+                    >
+                        {{ reinforcementWorking ? 'Working' : 'Needs attention' }}
+                    </span>
+                </div>
+                <p class="mt-2 text-[11px] font-semibold opacity-80">
+                    Current coverage: letters {{ reinforcementLetters }} rules loaded, words {{ reinforcementWords }} rules loaded.
+                    <span v-if="reinforcementFiles.length"> Source: {{ reinforcementFiles.join(', ') }}.</span>
+                </p>
+                <p v-if="reinforcementWarnings.length" class="mt-2 text-[11px] font-bold text-amber-800">
+                    {{ reinforcementWarnings.join(' ') }}
+                </p>
             </div>
         </details>
     </section>
