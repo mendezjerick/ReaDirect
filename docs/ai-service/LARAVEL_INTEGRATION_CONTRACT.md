@@ -21,6 +21,7 @@ ASR requests should include audio plus available scoring context:
 
 Laravel consumes Wav2Vec2-only ASR responses with these fields when present:
 
+- `transcript`
 - `raw_transcript`
 - `wav2vec2_transcript`
 - `corrected_transcript`
@@ -30,10 +31,21 @@ Laravel consumes Wav2Vec2-only ASR responses with these fields when present:
 - `asr_route`
 - `model_family`
 - `model_used`
-- WER/CER fields
-- phoneme fields
-- acceptance flags
-- normalization/correction metadata
+- `accepted`
+- `raw_wer`
+- `corrected_wer`
+- `raw_cer`
+- `corrected_cer`
+- `phonetic_similarity_score`
+- `composite_score`
+- `threshold_used`
+- `normalization_reason`
+- `correction_strategy_used`
+- `audio_quality`
+- `pause_metrics`
+- `retry_required`
+- `uncertain`
+- `uncertainty_reasons`
 - `debug_metadata`
 
 Missing optional fields are safe.

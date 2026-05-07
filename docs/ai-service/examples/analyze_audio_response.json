@@ -5,7 +5,7 @@
   "prompt_type": "word",
   "asr_route": "wav2vec2_only",
   "model_family": "wav2vec2",
-  "model_used": "models/wav2vec2-readirect-asr",
+  "model_used": "models/wav2vec2-readirect-asr-letters-v2",
   "raw_transcript": "then",
   "wav2vec2_transcript": "then",
   "corrected_transcript": "ten",
@@ -25,5 +25,10 @@
   "normalization_applied": true,
   "normalization_reason": "Expected-centric acoustic-phonetic correction accepted the word.",
   "correction_strategy_used": "wav2vec2_expected_centric_acoustic_phonetic_scoring",
+  "audio_quality": {},
+  "pause_metrics": {},
+  "retry_required": false,
+  "uncertain": false,
+  "uncertainty_reasons": [],
   "debug_metadata": {}
 }

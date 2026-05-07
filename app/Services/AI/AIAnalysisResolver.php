@@ -3,6 +3,7 @@
 namespace App\Services\AI;
 
 use App\Models\AudioFile;
+use App\Services\DeveloperReinforcementModeService;
 use App\Services\STT\AudioTranscriptionService;
 use App\Services\STT\TranscriptSanitizer;
 use Illuminate\Support\Facades\Log;
@@ -13,7 +14,8 @@ class AIAnalysisResolver
     public function __construct(
         private readonly ReadirectAIService $ai,
         private readonly AudioTranscriptionService $transcription,
-        private readonly TranscriptSanitizer $sanitizer
+        private readonly TranscriptSanitizer $sanitizer,
+        private readonly DeveloperReinforcementModeService $developerReinforcementMode
     ) {
     }
 
@@ -164,6 +166,7 @@ class AIAnalysisResolver
             'candidate_items' => array_values($context['candidate_items'] ?? []),
             'content_metadata' => $context['content_metadata'] ?? [],
             'debug' => (bool) ($context['debug'] ?? false),
+            ...$this->developerReinforcementMode->payloadFor(auth()->user()),
         ];
     }
 

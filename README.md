@@ -172,7 +172,7 @@ OpenAI variables are server-side only. Keep `OPENAI_ENABLED=false` unless you ar
 
 STT variables control transcript generation. Use `STT_PROVIDER=mock` for normal setup. Use `whisper_cpp` only when the local binary and model path are configured.
 
-ReaDirect AI variables connect Laravel to the separate `ReaDirect-AI-ASR` FastAPI service. The fine-tuned Whisper model runs in that separate service; this Laravel repo only calls it over HTTP and stores advisory analysis signals. Start it from the AI repo with:
+ReaDirect AI variables connect Laravel to the separate `ReaDirect-AI-ASR` FastAPI service. The Wav2Vec2-only ASR runtime and fine-tuned Wav2Vec2 letters-v2 model run in that separate service; this Laravel repo only calls it over HTTP and stores advisory analysis signals. Start it from the AI repo with:
 
 ```powershell
 uvicorn api.main:app --reload --host 127.0.0.1 --port 8001
@@ -231,27 +231,76 @@ Demo learner code:
 RD-1001
 ```
 
-## Running the App Locally
+## Running the Full System Locally
 
-Use two terminals.
+For the normal local development system, run the AI service, Laravel app server, Vite dev server, and queue worker. Laravel is the URL you open in the browser; Vite only serves frontend assets.
 
-Terminal 1:
+From the folder that contains both repositories:
 
 ```powershell
+cd C:\path\to\holder-ReaDirect
+```
+
+Terminal 1 - ReaDirect AI/ASR service:
+
+```powershell
+cd ReaDirect-AI-ASR
+python scripts\validate_ai_service_startup.py
+powershell -ExecutionPolicy Bypass -File scripts/start_ai_service_dev.ps1
+```
+
+The AI service should be available at:
+
+```text
+http://127.0.0.1:8001/health
+```
+
+Terminal 2 - Laravel backend:
+
+```powershell
+cd ReaDirect
+php artisan migrate
 php artisan serve
 ```
 
-Terminal 2:
+Terminal 3 - Vite frontend assets:
 
 ```powershell
+cd ReaDirect
 npm run dev
 ```
 
-Open:
+Terminal 4 - queue worker:
+
+```powershell
+cd ReaDirect
+php artisan queue:listen --tries=1 --timeout=0
+```
+
+Open the app in the browser:
 
 ```text
 http://localhost:8000
 ```
+
+Vite runs on `http://127.0.0.1:5173` by default, but users should open the Laravel URL above.
+
+Quick health checks:
+
+```powershell
+Invoke-WebRequest http://127.0.0.1:8001/health -UseBasicParsing
+Invoke-WebRequest http://127.0.0.1:8000 -UseBasicParsing
+```
+
+Expected local ports:
+
+```text
+Laravel: http://127.0.0.1:8000
+AI ASR:  http://127.0.0.1:8001
+Vite:    http://127.0.0.1:5173
+```
+
+If you are not testing the AI service, set `READIRECT_AI_ENABLED=false` in `.env` and run only Laravel plus Vite.
 
 Build check:
 
@@ -259,7 +308,7 @@ Build check:
 npm run build
 ```
 
-Composer also includes a combined dev script:
+Composer also includes a combined Laravel/Vite/queue/logs script. Run the AI service separately first if `READIRECT_AI_ENABLED=true`:
 
 ```powershell
 composer run dev

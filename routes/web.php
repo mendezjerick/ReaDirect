@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\AdminSchoolController;
 use App\Http\Controllers\Admin\AdminSystemMonitoringController;
 use App\Http\Controllers\Admin\AdminTeacherController;
 use App\Http\Controllers\Admin\AdminTestingController;
+use App\Http\Controllers\Admin\DeveloperReinforcementModeController;
 use App\Http\Controllers\Learner\DiagnosticAssessmentController;
 use App\Http\Controllers\Learner\LearnerAccessController;
 use App\Http\Controllers\Learner\LearnerDashboardController;
@@ -117,6 +118,7 @@ Route::middleware('auth')->prefix('teacher')->name('teacher.')->group(function (
 
 Route::middleware('auth')->prefix('admin')->name('admin.')->group(function (): void {
     Route::get('/dashboard', AdminDashboardController::class)->name('dashboard');
+    Route::post('/developer-reinforcement-mode', [DeveloperReinforcementModeController::class, 'update'])->name('developer-reinforcement-mode.update');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit')->defaults('layout', 'admin');
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');

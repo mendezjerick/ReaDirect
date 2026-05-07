@@ -14,20 +14,36 @@ Students do not call the AI service directly. Laravel calls it server-to-server.
 
 ## Local Run
 
-Terminal 1:
+Run these from the folder that contains both `ReaDirect` and `ReaDirect-AI-ASR`.
+
+Terminal 1 - AI ASR service:
 
 ```powershell
-cd ..\ReaDirect-AI-ASR
+cd ReaDirect-AI-ASR
 python scripts\validate_ai_service_startup.py
-python -m uvicorn api.main:app --reload --host 127.0.0.1 --port 8001
+powershell -ExecutionPolicy Bypass -File scripts\start_ai_service_dev.ps1
 ```
 
-Terminal 2:
+Terminal 2 - Laravel backend:
 
 ```powershell
-cd ..\ReaDirect
+cd ReaDirect
+php artisan migrate
 php artisan serve
+```
+
+Terminal 3 - Vite frontend assets:
+
+```powershell
+cd ReaDirect
 npm run dev
+```
+
+Terminal 4 - queue worker when `QUEUE_CONNECTION=database`:
+
+```powershell
+cd ReaDirect
+php artisan queue:listen --tries=1 --timeout=0
 ```
 
 Laravel `.env`:
@@ -35,6 +51,15 @@ Laravel `.env`:
 ```env
 READIRECT_AI_ENABLED=true
 READIRECT_AI_BASE_URL=http://127.0.0.1:8001
+```
+
+Open Laravel at `http://localhost:8000`. Vite runs on `http://127.0.0.1:5173`, but users should not open the Vite URL directly.
+
+Health checks:
+
+```powershell
+Invoke-WebRequest http://127.0.0.1:8001/health -UseBasicParsing
+Invoke-WebRequest http://127.0.0.1:8000 -UseBasicParsing
 ```
 
 ## Fallback Behavior

@@ -46,19 +46,57 @@ const reported = (value) => {
     return text || 'Not reported';
 };
 
+const architectureLabel = computed(() => (
+    props.status?.asr_architecture === 'wav2vec2_only'
+        ? 'Wav2Vec2-only runtime'
+        : reported(props.status?.asr_architecture)
+));
+
+const modelPath = computed(() => (
+    props.status?.model_used
+    ?? props.status?.wav2vec2_asr_model_name
+    ?? props.status?.active_asr_model_path
+    ?? props.status?.model_size
+));
+
+const activeModelLabel = computed(() => {
+    const version = String(props.status?.model_version ?? '').trim();
+    const path = String(modelPath.value ?? '').trim();
+
+    if (version === 'letters-v2' || path.includes('wav2vec2-readirect-asr-letters-v2')) {
+        return 'Fine-tuned Wav2Vec2 letters-v2';
+    }
+
+    return reported(props.status?.active_asr_model ?? props.status?.wav2vec2_asr_model_name ?? path);
+});
+
+const phonemeSupportLabel = computed(() => {
+    if (props.status?.wav2vec2_phoneme_available === true) return 'Wav2Vec2 phoneme model';
+    if (props.status?.wav2vec2_phoneme_available === false) return 'Unavailable';
+    return 'Not reported';
+});
+
+const whisperRuntimeLabel = computed(() => {
+    if (props.status?.whisper_removed === true) return 'Removed from runtime';
+    if (props.status?.whisper_removed === false) return 'Reported available';
+    return 'Not reported';
+});
+
 const details = computed(() => [
     props.status?.base_url ? `URL: ${props.status.base_url}` : null,
-    `Architecture: ${reported(props.status?.asr_architecture ?? 'wav2vec2_only')}`,
-    `ASR Model: ${reported(props.status?.active_asr_model ?? props.status?.wav2vec2_asr_model_name ?? props.status?.model_used ?? props.status?.model_size)}`,
-    `Whisper removed: ${reported(props.status?.whisper_removed ?? true)}`,
+    `Architecture: ${architectureLabel.value}`,
+    `ASR Model: ${activeModelLabel.value}`,
+    `Whisper Runtime: ${whisperRuntimeLabel.value}`,
 ].filter(Boolean));
 
 const modelRows = computed(() => [
-    ['Active ASR Architecture', reported(props.status?.asr_architecture ?? 'wav2vec2_only')],
-    ['ASR Model', reported(props.status?.active_asr_model ?? props.status?.wav2vec2_asr_model_name ?? props.status?.model_used ?? props.status?.model_size ?? 'Fine-tuned Wav2Vec2 mixed model')],
-    ['Model Path', reported(props.status?.model_used ?? props.status?.wav2vec2_asr_model_name)],
-    ['Phoneme Support', reported(props.status?.wav2vec2_phoneme_available)],
+    ['Active ASR Architecture', architectureLabel.value],
+    ['Active ASR Model', activeModelLabel.value],
+    ['Model Path', reported(modelPath.value)],
+    ['Base Model', reported(props.status?.base_model)],
+    ['Phoneme Support', phonemeSupportLabel.value],
     ['Phoneme Model Path', reported(props.status?.wav2vec2_phoneme_model_name)],
+    ['Whisper Runtime', whisperRuntimeLabel.value],
     ['Supported Prompt Types', reported(props.status?.supported_prompt_types)],
 ]);
 
@@ -66,9 +104,13 @@ const correctionRows = computed(() => [
     ['Correction Layer', reported(props.status?.correction_layer_enabled)],
     ['Expected-centric Scoring', reported(props.status?.expected_centric_scoring_enabled)],
     ['Phoneme Evidence', reported(props.status?.phoneme_evidence_enabled)],
+    ['Reinforcement Correction Memory', reported(props.status?.reinforcement_corrections_enabled)],
+    ['Audio Quality Validation', reported(props.status?.audio_quality_validation_enabled)],
+    ['Pause Detection', reported(props.status?.pause_detection_enabled)],
+    ['Retry / Uncertainty Decision', reported(props.status?.uncertainty_decision_enabled)],
     ['Thresholds', reported(props.status?.thresholds)],
+    ['Audio Quality Thresholds', reported(props.status?.audio_quality_thresholds)],
     ['Loaded Model Paths', reported(props.status?.local_model_paths_loaded)],
-    ['Whisper Runtime', props.status?.whisper_removed === false ? 'Reported available' : 'Removed from runtime'],
 ]);
 
 const reinforcementEnabled = computed(() => props.status?.reinforcement_corrections_enabled === true);

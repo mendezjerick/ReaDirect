@@ -52,8 +52,11 @@ class AdminAreaTest extends TestCase
             'http://ai.test/health' => Http::response([
                 'ok' => true,
                 'asr_architecture' => 'wav2vec2_only',
+                'active_asr_model' => 'wav2vec2',
+                'model_version' => 'letters-v2',
+                'base_model' => 'models/wav2vec2-readirect-asr',
                 'whisper_removed' => true,
-                'wav2vec2_asr_model_name' => 'models/wav2vec2-readirect-asr',
+                'wav2vec2_asr_model_name' => 'models/wav2vec2-readirect-asr-letters-v2',
             ]),
             'http://ai.test/version' => Http::response(['ok' => true]),
         ]);
@@ -66,8 +69,44 @@ class AdminAreaTest extends TestCase
                 ->where('aiService.label', 'AI Service Connected')
                 ->where('aiService.asr_architecture', 'wav2vec2_only')
                 ->where('aiService.whisper_removed', true)
-                ->where('aiService.model_size', 'models/wav2vec2-readirect-asr')
+                ->where('aiService.model_size', 'models/wav2vec2-readirect-asr-letters-v2')
+                ->where('aiService.model_version', 'letters-v2')
+                ->where('aiService.base_model', 'models/wav2vec2-readirect-asr')
             );
+    }
+
+    public function test_admin_can_toggle_developer_reinforcement_mode(): void
+    {
+        $admin = $this->userWithRole('system_admin');
+
+        $this->actingAs($admin)
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('developerReinforcementMode.visible', true)
+                ->where('developerReinforcementMode.enabled', false)
+            );
+
+        $this->actingAs($admin)
+            ->post(route('admin.developer-reinforcement-mode.update'), ['enabled' => true])
+            ->assertRedirect();
+
+        $this->actingAs($admin)
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('developerReinforcementMode.visible', true)
+                ->where('developerReinforcementMode.enabled', true)
+            );
+    }
+
+    public function test_non_admin_cannot_toggle_developer_reinforcement_mode(): void
+    {
+        $teacher = $this->userWithRole('teacher');
+
+        $this->actingAs($teacher)
+            ->post(route('admin.developer-reinforcement-mode.update'), ['enabled' => true])
+            ->assertForbidden();
     }
 
     public function test_developer_reset_visibility_is_admin_only(): void

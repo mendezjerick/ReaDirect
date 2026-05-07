@@ -259,7 +259,7 @@ class AudioRecordingTest extends TestCase
                 'request_id' => 'letter-req-1',
                 'asr_route' => 'wav2vec2_only',
                 'model_family' => 'wav2vec2',
-                'model_used' => 'models/wav2vec2-readirect-asr',
+                'model_used' => 'models/wav2vec2-readirect-asr-letters-v2',
                 'transcript' => 'l',
                 'raw_transcript' => 'l',
                 'corrected_transcript' => 'L',
@@ -300,7 +300,7 @@ class AudioRecordingTest extends TestCase
         $this->assertSame('l', $audioFile->ai_transcript);
         $this->assertSame('L', $audioFile->ai_normalized_transcript);
         $this->assertSame('wav2vec2', $audioFile->ai_provider);
-        $this->assertSame('models/wav2vec2-readirect-asr', $audioFile->ai_model);
+        $this->assertSame('models/wav2vec2-readirect-asr-letters-v2', $audioFile->ai_model);
         $this->assertSame('letter-req-1', $audioFile->ai_request_id);
 
         Http::assertSent(function ($request) {

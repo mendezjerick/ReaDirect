@@ -5,12 +5,15 @@ namespace Tests\Feature;
 use App\Models\AudioFile;
 use App\Models\Learner;
 use App\Models\School;
+use App\Models\User;
 use App\Services\AI\AIAnalysisResolver;
 use App\Services\AI\ReadirectAIService;
+use App\Services\DeveloperReinforcementModeService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class ReadirectAIIntegrationTest extends TestCase
@@ -61,7 +64,7 @@ class ReadirectAIIntegrationTest extends TestCase
                 'request_id' => 'req-123',
                 'asr_route' => 'wav2vec2_only',
                 'model_family' => 'wav2vec2',
-                'model_used' => 'models/wav2vec2-readirect-asr',
+                'model_used' => 'models/wav2vec2-readirect-asr-letters-v2',
                 'transcript' => 'cap',
                 'raw_transcript' => 'cap',
                 'corrected_transcript' => 'cap',
@@ -86,7 +89,7 @@ class ReadirectAIIntegrationTest extends TestCase
         $this->assertSame('cap', $resolved['transcript']);
         $this->assertSame('ai_asr', $resolved['source']);
         $this->assertSame('wav2vec2', $audioFile->ai_provider);
-        $this->assertSame('models/wav2vec2-readirect-asr', $audioFile->ai_model);
+        $this->assertSame('models/wav2vec2-readirect-asr-letters-v2', $audioFile->ai_model);
         $this->assertSame('req-123', $audioFile->ai_request_id);
         $this->assertNotNull($audioFile->ai_completed_at);
 
@@ -113,7 +116,7 @@ class ReadirectAIIntegrationTest extends TestCase
                 'ok' => true,
                 'request_id' => 'req-456',
                 'model_family' => 'wav2vec2',
-                'model_used' => 'models/wav2vec2-readirect-asr',
+                'model_used' => 'models/wav2vec2-readirect-asr-letters-v2',
                 'transcript' => 'Read',
                 'normalized_transcript' => 'red',
                 'raw_transcript' => 'Read',
@@ -148,6 +151,74 @@ class ReadirectAIIntegrationTest extends TestCase
         $this->assertEquals(0.0, $resolved['ai_response']['corrected_wer']);
     }
 
+    public function test_developer_reinforcement_flags_are_sent_only_for_admin_when_enabled(): void
+    {
+        Storage::fake('local');
+        config([
+            'readirect_ai.enabled' => true,
+            'readirect_ai.base_url' => 'http://ai.test',
+            'readirect_ai.endpoints.analyze_audio' => '/analyze-audio',
+        ]);
+        app(DeveloperReinforcementModeService::class)->setEnabled(true);
+        $admin = $this->userWithRole('system_admin');
+        $audioFile = $this->audioFile();
+
+        Http::fake([
+            'http://ai.test/analyze-audio' => Http::response([
+                'ok' => true,
+                'transcript' => 'Layo',
+                'raw_transcript' => 'Layo',
+                'corrected_transcript' => 'Layo',
+                'displayed_transcript' => 'Layo',
+                'accepted' => false,
+                'warnings' => [],
+            ]),
+        ]);
+
+        $this->actingAs($admin);
+        app(AIAnalysisResolver::class)->resolve(null, $audioFile, [
+            'expected_text' => 'Leo',
+            'prompt_type' => 'word',
+        ]);
+
+        Http::assertSent(fn ($request) => $request['developer_reinforcement_enabled'] === true
+            && $request['developer_user_role'] === 'admin'
+            && $request['developer_user_id'] === $admin->email);
+    }
+
+    public function test_developer_reinforcement_flags_are_false_for_learner_requests(): void
+    {
+        Storage::fake('local');
+        config([
+            'readirect_ai.enabled' => true,
+            'readirect_ai.base_url' => 'http://ai.test',
+            'readirect_ai.endpoints.analyze_audio' => '/analyze-audio',
+        ]);
+        app(DeveloperReinforcementModeService::class)->setEnabled(true);
+        $audioFile = $this->audioFile();
+
+        Http::fake([
+            'http://ai.test/analyze-audio' => Http::response([
+                'ok' => true,
+                'transcript' => 'Layo',
+                'raw_transcript' => 'Layo',
+                'corrected_transcript' => 'Layo',
+                'displayed_transcript' => 'Layo',
+                'accepted' => false,
+                'warnings' => [],
+            ]),
+        ]);
+
+        app(AIAnalysisResolver::class)->resolve(null, $audioFile, [
+            'expected_text' => 'Leo',
+            'prompt_type' => 'word',
+        ]);
+
+        Http::assertSent(fn ($request) => $request['developer_reinforcement_enabled'] === false
+            && $request['developer_user_role'] === null
+            && $request['developer_user_id'] === null);
+    }
+
     public function test_laravel_uses_corrected_and_displayed_transcripts_for_letter_alias_response(): void
     {
         Storage::fake('local');
@@ -160,12 +231,14 @@ class ReadirectAIIntegrationTest extends TestCase
             'http://ai.test/analyze-audio' => Http::response([
                 'ok' => true,
                 'expected_text' => 'L',
+                'model_used' => 'models/wav2vec2-readirect-asr-letters-v2',
+                'model_family' => 'wav2vec2',
+                'asr_route' => 'wav2vec2_only',
                 'raw_transcript' => 'Elle',
                 'corrected_transcript' => 'L',
                 'displayed_transcript' => 'L',
                 'accepted' => true,
                 'prompt_type' => 'letter',
-                'model_family' => 'wav2vec2',
             ]),
         ]);
 
@@ -181,6 +254,7 @@ class ReadirectAIIntegrationTest extends TestCase
         $this->assertSame('L', $resolved['displayed_transcript']);
         $this->assertSame('Elle', $audioFile->ai_transcript);
         $this->assertSame('L', $audioFile->ai_normalized_transcript);
+        $this->assertSame('models/wav2vec2-readirect-asr-letters-v2', $audioFile->ai_model);
         $this->assertTrue(app(AIAnalysisResolver::class)->acceptedForShortPrompt($resolved['ai_response']));
     }
 
@@ -196,12 +270,14 @@ class ReadirectAIIntegrationTest extends TestCase
             'http://ai.test/analyze-audio' => Http::response([
                 'ok' => true,
                 'expected_text' => 'tree',
+                'model_used' => 'models/wav2vec2-readirect-asr-letters-v2',
+                'model_family' => 'wav2vec2',
+                'asr_route' => 'wav2vec2_only',
                 'raw_transcript' => 'three',
                 'corrected_transcript' => 'tree',
                 'displayed_transcript' => 'tree',
                 'accepted' => true,
                 'prompt_type' => 'word',
-                'model_family' => 'wav2vec2',
             ]),
         ]);
 
@@ -217,6 +293,7 @@ class ReadirectAIIntegrationTest extends TestCase
         $this->assertSame('tree', $resolved['displayed_transcript']);
         $this->assertSame('three', $audioFile->ai_transcript);
         $this->assertSame('tree', $audioFile->ai_normalized_transcript);
+        $this->assertSame('models/wav2vec2-readirect-asr-letters-v2', $audioFile->ai_model);
         $this->assertTrue(app(AIAnalysisResolver::class)->acceptedForShortPrompt($resolved['ai_response']));
     }
 
@@ -232,13 +309,15 @@ class ReadirectAIIntegrationTest extends TestCase
             'http://ai.test/analyze-audio' => Http::response([
                 'ok' => true,
                 'expected_text' => 'Z',
+                'model_used' => 'models/wav2vec2-readirect-asr-letters-v2',
+                'model_family' => 'wav2vec2',
+                'asr_route' => 'wav2vec2_only',
                 'raw_transcript' => 'They',
                 'corrected_transcript' => 'Z',
                 'displayed_transcript' => 'Z',
                 'accepted' => true,
                 'accepted_by_reinforcement_match' => true,
                 'prompt_type' => 'letter',
-                'model_family' => 'wav2vec2',
             ]),
         ]);
 
@@ -254,6 +333,7 @@ class ReadirectAIIntegrationTest extends TestCase
         $this->assertSame('Z', $resolved['displayed_transcript']);
         $this->assertSame('They', $audioFile->ai_transcript);
         $this->assertSame('Z', $audioFile->ai_normalized_transcript);
+        $this->assertSame('models/wav2vec2-readirect-asr-letters-v2', $audioFile->ai_model);
         $this->assertTrue($resolved['ai_response']['accepted_by_reinforcement_match']);
         $this->assertTrue(app(AIAnalysisResolver::class)->acceptedForShortPrompt($resolved['ai_response']));
     }
@@ -270,12 +350,14 @@ class ReadirectAIIntegrationTest extends TestCase
             'http://ai.test/analyze-audio' => Http::response([
                 'ok' => true,
                 'expected_text' => 'tree',
+                'model_used' => 'models/wav2vec2-readirect-asr-letters-v2',
+                'model_family' => 'wav2vec2',
+                'asr_route' => 'wav2vec2_only',
                 'raw_transcript' => 'banana',
                 'corrected_transcript' => 'banana',
                 'displayed_transcript' => 'banana',
                 'accepted' => false,
                 'prompt_type' => 'word',
-                'model_family' => 'wav2vec2',
             ]),
         ]);
 
@@ -291,6 +373,7 @@ class ReadirectAIIntegrationTest extends TestCase
         $this->assertSame('banana', $resolved['displayed_transcript']);
         $this->assertSame('banana', $audioFile->ai_transcript);
         $this->assertSame('banana', $audioFile->ai_normalized_transcript);
+        $this->assertSame('models/wav2vec2-readirect-asr-letters-v2', $audioFile->ai_model);
         $this->assertFalse(app(AIAnalysisResolver::class)->acceptedForShortPrompt($resolved['ai_response']));
     }
 
@@ -387,13 +470,23 @@ class ReadirectAIIntegrationTest extends TestCase
                 'service' => 'ReaDirect AI/ASR Service',
                 'version' => '0.1.0',
                 'asr_architecture' => 'wav2vec2_only',
-                'active_asr_model' => 'Fine-tuned Wav2Vec2 mixed model',
+                'active_asr_model' => 'wav2vec2',
+                'model_version' => 'letters-v2',
+                'base_model' => 'models/wav2vec2-readirect-asr',
+                'training_type' => 'continued_fine_tuning',
+                'training_mix' => '50% ReaDirect letters, 30% SpeechOcean, 20% LibriSpeech',
                 'wav2vec2_asr_available' => true,
-                'wav2vec2_asr_model_name' => 'models/wav2vec2-readirect-asr',
+                'wav2vec2_asr_model_name' => 'models/wav2vec2-readirect-asr-letters-v2',
                 'wav2vec2_phoneme_available' => true,
                 'wav2vec2_phoneme_model_name' => 'models/wav2vec2-phoneme',
                 'whisper_removed' => true,
                 'correction_layer_enabled' => true,
+                'expected_centric_scoring_enabled' => true,
+                'phoneme_evidence_enabled' => true,
+                'reinforcement_corrections_enabled' => true,
+                'audio_quality_validation_enabled' => true,
+                'pause_detection_enabled' => true,
+                'uncertainty_decision_enabled' => true,
                 'content_index_loaded' => true,
                 'cmudict_loaded' => true,
             ]),
@@ -411,7 +504,13 @@ class ReadirectAIIntegrationTest extends TestCase
         $this->assertSame('wav2vec2_only', $status['asr_architecture']);
         $this->assertSame('wav2vec2', $status['asr_provider']);
         $this->assertTrue($status['whisper_removed']);
-        $this->assertSame('models/wav2vec2-readirect-asr', $status['model_size']);
+        $this->assertSame('models/wav2vec2-readirect-asr-letters-v2', $status['model_size']);
+        $this->assertSame('letters-v2', $status['model_version']);
+        $this->assertSame('models/wav2vec2-readirect-asr', $status['base_model']);
+        $this->assertSame('continued_fine_tuning', $status['training_type']);
+        $this->assertTrue($status['audio_quality_validation_enabled']);
+        $this->assertTrue($status['pause_detection_enabled']);
+        $this->assertTrue($status['uncertainty_decision_enabled']);
         $this->assertSame(
             'corrected_transcript -> transcript -> raw_transcript',
             $status['laravel_response_contract']['scoring_transcript']
@@ -448,6 +547,49 @@ class ReadirectAIIntegrationTest extends TestCase
         $this->assertSame(0.8, $fields['ai_phoneme_similarity']);
         $this->assertSame('final_sound_error', $fields['ai_error_type']);
         $this->assertArrayHasKey('ai_analyzed_at', $fields);
+    }
+
+    public function test_response_fields_preserve_v2_debug_contract_metadata(): void
+    {
+        $aiResponse = [
+            'transcript' => 'L',
+            'expected_text' => 'L',
+            'prompt_type' => 'letter',
+            'asr_route' => 'wav2vec2_only',
+            'model_family' => 'wav2vec2',
+            'model_used' => 'models/wav2vec2-readirect-asr-letters-v2',
+            'raw_transcript' => 'Elle',
+            'wav2vec2_transcript' => 'Elle',
+            'corrected_transcript' => 'L',
+            'displayed_transcript' => 'L',
+            'accepted' => true,
+            'raw_wer' => 1.0,
+            'corrected_wer' => 0.0,
+            'raw_cer' => 3.0,
+            'corrected_cer' => 0.0,
+            'phonetic_similarity_score' => 0.96,
+            'composite_score' => 0.98,
+            'threshold_used' => 0.85,
+            'normalization_reason' => 'ASR transcript is a valid spoken form of the expected letter',
+            'correction_strategy_used' => 'wav2vec2_expected_centric_acoustic_phonetic_scoring',
+            'audio_quality' => ['quality_flags' => ['too_short' => false]],
+            'pause_metrics' => ['pause_count' => 0],
+            'retry_required' => false,
+            'uncertain' => false,
+            'uncertainty_reasons' => [],
+            'debug_metadata' => ['actual_device' => 'cpu'],
+        ];
+
+        $fields = app(AIAnalysisResolver::class)->responseFields($aiResponse);
+
+        $this->assertSame('Elle', $fields['ai_transcript']);
+        $this->assertSame('L', $fields['ai_normalized_transcript']);
+        $this->assertSame('models/wav2vec2-readirect-asr-letters-v2', $fields['ai_response']['model_used']);
+        $this->assertSame('Elle', $fields['ai_response']['raw_transcript']);
+        $this->assertSame('L', $fields['ai_response']['corrected_transcript']);
+        $this->assertSame('L', $fields['ai_response']['displayed_transcript']);
+        $this->assertSame(['actual_device' => 'cpu'], $fields['ai_response']['debug_metadata']);
+        $this->assertFalse($fields['ai_response']['retry_required']);
     }
 
     public function test_ai_analysis_resolver_uses_displayed_transcript_fallbacks(): void
@@ -651,5 +793,16 @@ class ReadirectAIIntegrationTest extends TestCase
             'first_name' => 'AI',
             'grade_level' => 'Grade 1',
         ]);
+    }
+
+    private function userWithRole(string $role): User
+    {
+        Role::findOrCreate($role);
+        $user = User::factory()->create([
+            'email' => uniqid($role, false).'@example.com',
+        ]);
+        $user->assignRole($role);
+
+        return $user;
     }
 }

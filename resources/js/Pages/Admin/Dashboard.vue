@@ -4,6 +4,7 @@ import AIServiceStatusBanner from '../../Components/AIServiceStatusBanner.vue';
 import DashboardCard from '../../Components/DashboardCard.vue';
 import ScoreCard from '../../Components/ScoreCard.vue';
 import StatusBadge from '../../Components/StatusBadge.vue';
+import { useForm } from '@inertiajs/vue3';
 import {
     School,
     Users,
@@ -16,9 +17,21 @@ import {
     AlertTriangle,
     Inbox,
     TrendingUp,
+    ShieldAlert,
 } from 'lucide-vue-next';
 
-defineProps({ dashboard: Object, aiService: Object });
+const props = defineProps({ dashboard: Object, aiService: Object, developerReinforcementMode: Object });
+
+const reinforcementForm = useForm({
+    enabled: !(props.developerReinforcementMode?.enabled ?? false),
+});
+
+const toggleReinforcementMode = () => {
+    reinforcementForm.enabled = !(props.developerReinforcementMode?.enabled ?? false);
+    reinforcementForm.post('/admin/developer-reinforcement-mode', {
+        preserveScroll: true,
+    });
+};
 
 const statusVariant = (status) => {
     if (!status) return 'primary';
@@ -46,6 +59,35 @@ const statusVariant = (status) => {
         />
 
         <!-- ── Stat cards ─────────────────────────────────── -->
+        <DashboardCard v-if="developerReinforcementMode?.visible" class="mb-6 border border-amber-200 bg-amber-50">
+            <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div class="min-w-0">
+                    <div class="flex items-center gap-2.5">
+                        <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+                            <ShieldAlert :size="15" />
+                        </div>
+                        <h2 class="text-sm font-bold text-amber-950">Developer Reinforcement Mode</h2>
+                        <StatusBadge
+                            :status="developerReinforcementMode.enabled ? 'ON' : 'OFF'"
+                            :variant="developerReinforcementMode.enabled ? 'warning' : 'primary'"
+                        />
+                    </div>
+                    <p class="mt-2 max-w-3xl text-xs font-semibold text-amber-800">
+                        {{ developerReinforcementMode.warning }}
+                    </p>
+                </div>
+                <button
+                    type="button"
+                    class="inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-bold text-white transition"
+                    :class="developerReinforcementMode.enabled ? 'bg-slate-700 hover:bg-slate-800' : 'bg-amber-600 hover:bg-amber-700'"
+                    :disabled="reinforcementForm.processing"
+                    @click="toggleReinforcementMode"
+                >
+                    {{ developerReinforcementMode.enabled ? 'Turn OFF' : 'Turn ON' }}
+                </button>
+            </div>
+        </DashboardCard>
+
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <ScoreCard label="Total Schools"     :value="dashboard.counts.schools"          :icon="School"        color="blue"   />
             <ScoreCard label="Total Teachers"    :value="dashboard.counts.teachers"         :icon="Users"         color="green"  />

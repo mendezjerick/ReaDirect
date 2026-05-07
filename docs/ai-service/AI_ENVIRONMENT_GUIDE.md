@@ -34,9 +34,13 @@ ASR_ARCHITECTURE=wav2vec2_only
 The admin dashboard should report:
 
 - Active ASR Architecture: Wav2Vec2-only ASR runtime
-- ASR Model: Fine-tuned Wav2Vec2 mixed model, or the model name reported by FastAPI
+- Active ASR Model: Fine-tuned Wav2Vec2 letters-v2 model
+- Model Path: `models/wav2vec2-readirect-asr-letters-v2`, when reported by FastAPI
+- Base Model: `models/wav2vec2-readirect-asr`, when reported by FastAPI
 - Phoneme Support: Wav2Vec2 phoneme model, if reported
-- Correction Layer: expected-centric acoustic-phonetic scoring
+- Correction Layer: expected-centric transcript correction
+- Phoneme Evidence: Wav2Vec2 phoneme evidence
+- Audio Quality Validation, Pause Detection, and Retry / Uncertainty Decision, if reported
 - Whisper Runtime: removed
 
 If FastAPI omits a metadata field, Laravel displays `Not reported` instead of failing.
