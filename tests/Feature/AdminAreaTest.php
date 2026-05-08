@@ -112,14 +112,17 @@ class AdminAreaTest extends TestCase
     public function test_developer_reset_visibility_is_admin_only(): void
     {
         config(['readirect_ai.debug.enable_developer_assessment_reset' => true]);
+        $learner = $this->learner();
 
-        $this->get(route('learner.diagnostic.start'))
+        $this->withSession(['learner_id' => $learner->id])
+            ->get(route('learner.diagnostic.start'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('developerRetest.enabled', false)
             );
 
         $this->actingAs($this->userWithRole('system_admin'))
+            ->withSession(['learner_id' => $learner->id])
             ->get(route('learner.diagnostic.start'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page

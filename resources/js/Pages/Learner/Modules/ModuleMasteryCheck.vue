@@ -23,6 +23,8 @@ const uploadErrors = reactive({});
 const uploading = reactive({});
 const canUseManualFallback = computed(() => props.assessmentMode?.canUseManualFallback === true);
 const isDeveloperQaMode = computed(() => props.assessmentMode?.isDeveloperQaMode === true);
+const autoTranscribeOnStop = computed(() => props.assessmentMode?.canAutoTranscribeOnStop === true);
+const requireReviewBeforeSubmit = computed(() => props.assessmentMode?.requireReviewBeforeSubmit !== false);
 const manualAnswerFor = (item, answer = null) => canUseManualFallback.value ? String(answer ?? step.answers[item?.id] ?? '').trim() : '';
 const answerFor = (item, answer = null) => manualAnswerFor(item, answer) || String(generatedTranscripts[item?.id] ?? '').trim();
 const sourceFor = (item, answer = null) => manualAnswerFor(item, answer)
@@ -179,8 +181,8 @@ const handlePrimary = () => {
                         :key="step.currentItem.value.id"
                         compact
                         :max-duration-seconds="45"
-                        :require-review-before-submit="!isDeveloperQaMode"
-                        :auto-transcribe-on-stop="isDeveloperQaMode"
+                        :require-review-before-submit="requireReviewBeforeSubmit"
+                        :auto-transcribe-on-stop="autoTranscribeOnStop"
                         :submitting="isCurrentUploading"
                         :submitted="Boolean(uploadedAudioIds[step.currentItem.value.id]) && !uploadErrors[step.currentItem.value.id]"
                         label="Check voice"

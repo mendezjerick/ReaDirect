@@ -7,12 +7,15 @@ use App\Models\AssessmentTaskResponse;
 use App\Models\Learner;
 use App\Models\LearningContent;
 use App\Models\School;
+use App\Models\User;
 use App\Services\AssessmentItemSelectionService;
 use App\Support\LearnerStage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class AssessmentModeUxTest extends TestCase
@@ -32,6 +35,70 @@ class AssessmentModeUxTest extends TestCase
                 ->where('assessmentMode.canUseManualFallback', false)
                 ->where('assessmentMode.canShowAssessmentDebug', false)
                 ->where('assessmentMode.canUseDeveloperJumpControls', false)
+                ->where('assessmentMode.canBypassLinearFlow', false)
+                ->where('assessmentMode.canAutoTranscribeOnStop', false)
+                ->where('assessmentMode.canForceLearnerStage', false)
+                ->where('assessmentMode.canResetLearnerFlow', false)
+                ->where('assessmentMode.canSeeRawAiPayload', false)
+                ->where('assessmentMode.requireReviewBeforeSubmit', true)
+            );
+    }
+
+    public function test_configured_admin_qa_mode_receives_only_enabled_permissions(): void
+    {
+        config([
+            'readirect.developer_qa.enabled' => true,
+            'readirect.developer_qa.manual_fallback' => true,
+            'readirect.developer_qa.jump_controls' => true,
+            'readirect.developer_qa.auto_transcribe_on_stop' => true,
+            'readirect.developer_qa.show_ai_debug' => true,
+            'readirect.developer_qa.flow_bypass' => false,
+        ]);
+
+        $admin = $this->userWithRole('system_admin');
+        $attempt = $this->diagnosticAttemptWithTaskItems(AssessmentItemSelectionService::TASK_1_LETTER);
+
+        $this->actingAs($admin)
+            ->withSession(['learner_id' => $attempt->learner_id, 'assessment_attempt_id' => $attempt->id])
+            ->get(route('learner.diagnostic.task-1'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Learner/Task1LetterPronunciation')
+                ->where('assessmentMode.isDeveloperQaMode', true)
+                ->where('assessmentMode.canUseManualFallback', true)
+                ->where('assessmentMode.canUseDeveloperJumpControls', true)
+                ->where('assessmentMode.canAutoTranscribeOnStop', true)
+                ->where('assessmentMode.canSeeRawAiPayload', true)
+                ->where('assessmentMode.canBypassLinearFlow', false)
+                ->where('assessmentMode.requireReviewBeforeSubmit', false)
+            );
+    }
+
+    public function test_production_safe_defaults_do_not_enable_qa_for_admin_or_query_string(): void
+    {
+        config([
+            'app.env' => 'production',
+            'readirect.developer_qa.enabled' => false,
+            'readirect.developer_qa.manual_fallback' => false,
+            'readirect.developer_qa.jump_controls' => false,
+            'readirect.developer_qa.auto_transcribe_on_stop' => false,
+            'readirect_ai.debug.enable_developer_assessment_reset' => false,
+        ]);
+
+        $admin = $this->userWithRole('system_admin');
+        $attempt = $this->diagnosticAttemptWithTaskItems(AssessmentItemSelectionService::TASK_1_LETTER);
+
+        $this->actingAs($admin)
+            ->withSession(['learner_id' => $attempt->learner_id, 'assessment_attempt_id' => $attempt->id])
+            ->get(route('learner.diagnostic.task-1', ['admin_testing' => 1, 'qa' => 1]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Learner/Task1LetterPronunciation')
+                ->where('assessmentMode.isDeveloperQaMode', false)
+                ->where('assessmentMode.canUseManualFallback', false)
+                ->where('assessmentMode.canUseDeveloperJumpControls', false)
+                ->where('assessmentMode.canAutoTranscribeOnStop', false)
+                ->where('assessmentMode.requireReviewBeforeSubmit', true)
             );
     }
 
@@ -51,6 +118,9 @@ class AssessmentModeUxTest extends TestCase
                 ->where('assessmentMode.isDeveloperQaMode', true)
                 ->where('assessmentMode.canUseManualFallback', true)
                 ->where('assessmentMode.canUseDeveloperJumpControls', true)
+                ->where('assessmentMode.canAutoTranscribeOnStop', true)
+                ->where('assessmentMode.canSeeRawAiPayload', true)
+                ->where('assessmentMode.requireReviewBeforeSubmit', false)
             );
     }
 
@@ -141,6 +211,26 @@ class AssessmentModeUxTest extends TestCase
         $this->assertArrayNotHasKey('ai_error', $payload);
     }
 
+    public function test_qa_audio_upload_returns_raw_debug_only_when_allowed(): void
+    {
+        Storage::fake('local');
+        config(['stt.mock.transcript' => 'A']);
+        $learner = $this->learner();
+
+        $response = $this->withSession(['learner_id' => $learner->id, 'admin_testing_mode' => true])
+            ->postJson(route('learner.audio.upload'), [
+                'audio' => UploadedFile::fake()->create('letter.webm', 100, 'audio/webm'),
+                'context_type' => 'assessment_task',
+                'duration_seconds' => 2,
+            ]);
+
+        $response->assertOk()
+            ->assertJsonPath('transcript', 'A');
+
+        $this->assertArrayHasKey('raw_transcript', $response->json());
+        $this->assertArrayHasKey('stt_confidence', $response->json());
+    }
+
     private function diagnosticAttemptWithTaskItems(string $taskType): AssessmentAttempt
     {
         $learner = $this->learner(['current_stage' => LearnerStage::DIAGNOSTIC_IN_PROGRESS]);
@@ -193,5 +283,19 @@ class AssessmentModeUxTest extends TestCase
             'first_name' => 'Mode',
             'grade_level' => 'Grade 1',
         ], $attributes));
+    }
+
+    private function userWithRole(string $role): User
+    {
+        Role::findOrCreate($role);
+
+        $user = User::create([
+            'name' => ucfirst($role).' User',
+            'email' => uniqid($role, false).'@example.com',
+            'password' => Hash::make('password'),
+        ]);
+        $user->assignRole($role);
+
+        return $user;
     }
 }

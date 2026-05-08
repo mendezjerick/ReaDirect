@@ -27,6 +27,8 @@ const uploading = reactive({});
 const canUseManualFallback = computed(() => props.assessmentMode?.canUseManualFallback === true);
 const canUseDeveloperJumpControls = computed(() => props.assessmentMode?.canUseDeveloperJumpControls === true);
 const isDeveloperQaMode = computed(() => props.assessmentMode?.isDeveloperQaMode === true);
+const autoTranscribeOnStop = computed(() => props.assessmentMode?.canAutoTranscribeOnStop === true);
+const requireReviewBeforeSubmit = computed(() => props.assessmentMode?.requireReviewBeforeSubmit !== false);
 const manualAnswerFor = (item) => canUseManualFallback.value ? String(step.answers[item?.id] ?? '').trim() : '';
 const answerFor = (item) => manualAnswerFor(item) || String(generatedTranscripts[item?.id] ?? '').trim();
 const sourceFor = (item) => manualAnswerFor(item)
@@ -215,8 +217,8 @@ const handlePrimary = () => {
                         :key="step.currentItem.value.id"
                         compact
                         :max-duration-seconds="30"
-                        :require-review-before-submit="!isDeveloperQaMode"
-                        :auto-transcribe-on-stop="isDeveloperQaMode"
+                        :require-review-before-submit="requireReviewBeforeSubmit"
+                        :auto-transcribe-on-stop="autoTranscribeOnStop"
                         :submitting="isCurrentUploading"
                         :submitted="Boolean(uploadedAudioIds[step.currentItem.value.id]) && !uploadErrors[step.currentItem.value.id]"
                         label="Sentence voice"
@@ -254,7 +256,7 @@ const handlePrimary = () => {
 
         <BottomActionBar>
             <div class="flex w-full items-center justify-between gap-3">
-                <SecondaryButton v-if="canUseDeveloperJumpControls && !step.isFirst.value" @click="step.goBack">Back</SecondaryButton>
+                <SecondaryButton v-if="canUseDeveloperJumpControls && !step.isFirst.value" @click="step.goBack">Developer QA: Back</SecondaryButton>
                 <span v-else />
                 <PrimaryButton :disabled="form.processing || isCurrentUploading" :class="{ 'opacity-70': !step.isCurrentAnswered.value || isCurrentUploading }" @click="handlePrimary">
                     {{ step.isLast.value ? 'Check sentence' : 'Next' }}

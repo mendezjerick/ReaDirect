@@ -57,14 +57,14 @@ class AudioUploadController extends Controller
                 'activity_type' => $validated['activity_type'] ?? null,
             ]
         );
-        $canShowDebug = $mode->canShowAssessmentDebug($request, $assessmentAttempt, $learner);
-        $context = $this->analysisContext($assessmentAttempt, $moduleAttempt, $validated, $canShowDebug);
+        $canSeeRawAiPayload = $mode->canSeeRawAiPayload($request, $assessmentAttempt ?? $moduleAttempt, $learner);
+        $context = $this->analysisContext($assessmentAttempt, $moduleAttempt, $validated, $canSeeRawAiPayload);
         $sttOptions = $this->sttOptions($assessmentAttempt, $validated);
         $resolved = $this->shouldUseFastLetterPath($validated)
             ? $this->fastLetterResolution($audioFile, $transcription, $sttOptions)
             : $analysis->resolve(null, $audioFile, $context, $sttOptions);
         $transcript = trim((string) ($resolved['transcript'] ?? ''));
-        $transcriptionMessage = $this->transcriptionMessage($resolved, $canShowDebug);
+        $transcriptionMessage = $this->transcriptionMessage($resolved, $canSeeRawAiPayload);
 
         $payload = [
             'audio_file_id' => $audioFile->id,
@@ -81,7 +81,7 @@ class AudioUploadController extends Controller
             'transcript_source' => $transcript !== '' ? $resolved['source'] : null,
         ];
 
-        if (! $canShowDebug) {
+        if (! $canSeeRawAiPayload) {
             return response()->json($payload);
         }
 

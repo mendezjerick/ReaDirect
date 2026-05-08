@@ -21,6 +21,8 @@ const uploadError = ref('');
 const uploading = ref(false);
 const canUseManualFallback = computed(() => props.assessmentMode?.canUseManualFallback === true);
 const isDeveloperQaMode = computed(() => props.assessmentMode?.isDeveloperQaMode === true);
+const autoTranscribeOnStop = computed(() => props.assessmentMode?.canAutoTranscribeOnStop === true);
+const requireReviewBeforeSubmit = computed(() => props.assessmentMode?.requireReviewBeforeSubmit !== false);
 const hasIncorrectWords = () => form.incorrect_words !== '' && form.incorrect_words !== null && Number(form.incorrect_words) >= 0;
 const canSubmit = computed(() => {
     if (canUseManualFallback.value) {
@@ -105,8 +107,8 @@ const submit = () => form.post('/final-assessment/passage/submit', { forceFormDa
                 <AudioRecorder
                     compact
                     :max-duration-seconds="60"
-                    :require-review-before-submit="!isDeveloperQaMode"
-                    :auto-transcribe-on-stop="isDeveloperQaMode"
+                    :require-review-before-submit="requireReviewBeforeSubmit"
+                    :auto-transcribe-on-stop="autoTranscribeOnStop"
                     :submitting="uploading"
                     :submitted="Boolean(form.audio_file_id) && !uploadError"
                     label="Passage voice"

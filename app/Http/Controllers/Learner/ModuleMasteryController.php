@@ -53,7 +53,7 @@ class ModuleMasteryController extends Controller
             'module' => $module->only('key', 'title', 'description'),
             'moduleAttemptId' => $attempt->id,
             'items' => $this->itemsForForm($items),
-            'assessmentMode' => $mode->props($request, null, $learner),
+            'assessmentMode' => $mode->props($request, $attempt, $learner),
         ]);
     }
 
@@ -114,7 +114,7 @@ class ModuleMasteryController extends Controller
             $expectedAnswer = $this->expectedAnswer($item);
             $acceptedAnswers = $item->prompt_snapshot['accepted_answers'] ?? [];
             $resolved = $analysis->resolve(
-                $mode->canShowManualFallback($request, null, $learner) ? ($submitted['answer'] ?? null) : null,
+                $mode->canShowManualFallback($request, $attempt, $learner) ? ($submitted['answer'] ?? null) : null,
                 $audioFile,
                 $this->analysisContext($item, $module, $expectedAnswer, $acceptedAnswers)
             );

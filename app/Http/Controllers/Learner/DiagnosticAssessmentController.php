@@ -548,14 +548,7 @@ class DiagnosticAssessmentController extends Controller
 
     private function canUseDeveloperRetest(Request $request): bool
     {
-        if (! $request->user()?->hasRole('system_admin')) {
-            return false;
-        }
-
-        return (bool) (
-            $request->session()->get('admin_testing_mode')
-            || config('readirect_ai.debug.enable_developer_assessment_reset')
-        );
+        return app(AssessmentModeService::class)->canResetLearnerFlow($request);
     }
 
     private function attempt(Request $request): AssessmentAttempt

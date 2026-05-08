@@ -68,7 +68,7 @@ class ModuleActivityController extends Controller
             'activityLabel' => $this->activityLabel($activityType),
             'items' => $this->itemsForForm($items),
             'nextActivityType' => $nextActivityType,
-            'assessmentMode' => $mode->props($request, null, $learner),
+            'assessmentMode' => $mode->props($request, $attempt, $learner),
         ]);
     }
 
@@ -102,7 +102,7 @@ class ModuleActivityController extends Controller
         $validated = $request->validate($this->responseRules($items->count()), $this->friendlyValidationMessages());
         $this->validateSubmittedItemSet($items, $validated['responses']);
 
-        $this->persistResponses($attempt, $items, $validated['responses'], $scoring, $feedback, $audioStorage, $analysis, $commentary, $module, $activityType, false, $mode->canShowManualFallback($request, null, $learner));
+        $this->persistResponses($attempt, $items, $validated['responses'], $scoring, $feedback, $audioStorage, $analysis, $commentary, $module, $activityType, false, $mode->canShowManualFallback($request, $attempt, $learner));
 
         $activityTypes = $selection->practiceActivityTypes($module);
         $nextActivityType = $this->nextActivityType($activityTypes, $activityType);

@@ -21,6 +21,8 @@ const uploadError = ref('');
 const uploading = ref(false);
 const canUseManualFallback = computed(() => props.assessmentMode?.canUseManualFallback === true);
 const isDeveloperQaMode = computed(() => props.assessmentMode?.isDeveloperQaMode === true);
+const autoTranscribeOnStop = computed(() => props.assessmentMode?.canAutoTranscribeOnStop === true);
+const requireReviewBeforeSubmit = computed(() => props.assessmentMode?.requireReviewBeforeSubmit !== false);
 
 const canonicalGroups = [
     ['small', 'little'],
@@ -278,8 +280,8 @@ const submit = () => form.post('/learner/diagnostic/passage', { forceFormData: t
                 <AudioRecorder
                     compact
                     :max-duration-seconds="60"
-                    :require-review-before-submit="!isDeveloperQaMode"
-                    :auto-transcribe-on-stop="isDeveloperQaMode"
+                    :require-review-before-submit="requireReviewBeforeSubmit"
+                    :auto-transcribe-on-stop="autoTranscribeOnStop"
                     :submitting="uploading"
                     :submitted="Boolean(form.audio_file_id) && !uploadError"
                     label="Passage voice"
