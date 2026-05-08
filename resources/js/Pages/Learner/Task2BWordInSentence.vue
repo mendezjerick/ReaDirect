@@ -229,7 +229,7 @@ const handlePrimary = () => {
                             You said
                             <textarea
                                 :value="generatedTranscripts[step.currentItem.value.id] ?? ''"
-                                class="min-h-24 resize-none rounded-2xl border-2 border-border bg-background px-4 py-3 text-lg font-black text-text focus:border-primary focus:outline-none"
+                                class="learner-transcript-box resize-none rounded-2xl border-2 border-border bg-background font-black text-text focus:border-primary focus:outline-none"
                                 readonly
                                 :placeholder="isCurrentUploading ? 'Checking your recording...' : 'Your words will appear here'"
                             />

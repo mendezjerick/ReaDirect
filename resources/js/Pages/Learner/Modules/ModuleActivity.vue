@@ -272,7 +272,7 @@ const handlePrimary = () => {
                     <div class="grid gap-3">
                         <label class="grid gap-2 text-lg font-black text-text">
                             You said
-                            <textarea :value="generatedTranscripts[step.currentItem.value.id] ?? ''" class="min-h-20 resize-none rounded-2xl border-2 border-border bg-background px-4 py-3 text-lg font-black text-text focus:border-primary focus:outline-none" readonly :placeholder="isCurrentUploading ? 'Checking your recording...' : 'Your words will appear here'" />
+                            <textarea :value="generatedTranscripts[step.currentItem.value.id] ?? ''" class="learner-transcript-box resize-none rounded-2xl border-2 border-border bg-background font-black text-text focus:border-primary focus:outline-none" readonly :placeholder="isCurrentUploading ? 'Checking your recording...' : 'Your words will appear here'" />
                         </label>
                         <label v-if="canUseManualFallback" class="grid gap-2 text-sm font-black text-muted">
                             Developer QA: Manual Transcript Override

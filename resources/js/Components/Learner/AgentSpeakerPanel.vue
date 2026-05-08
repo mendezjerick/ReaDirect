@@ -149,7 +149,7 @@ const handleTtsError = (message) => {
 </script>
 
 <template>
-    <section class="agent-speaker-panel grid gap-3 rounded-[24px] border border-border bg-surface shadow-xl shadow-primary/10 transition md:items-center" :class="[compact ? 'p-2.5 md:grid-cols-[86px_1fr] lg:grid-cols-1' : 'p-3 md:grid-cols-[132px_1fr] lg:grid-cols-1', isSpeaking ? 'ring-2 ring-primary/25' : '']">
+    <section class="agent-speaker-panel grid gap-3 rounded-[24px] border border-border bg-surface shadow-xl shadow-primary/10 transition md:items-center" :class="[compact ? 'p-2.5 md:grid-cols-[86px_1fr] lg:grid-cols-1 lg:p-[clamp(0.8rem,1vw,1.25rem)]' : 'p-3 md:grid-cols-[132px_1fr] lg:grid-cols-1 lg:p-[clamp(0.9rem,1.1vw,1.4rem)]', isSpeaking ? 'ring-2 ring-primary/25' : '']">
         <AgentSpeakerTTS
             v-if="ttsEnabled"
             :key="ttsKey"
@@ -164,7 +164,7 @@ const handleTtsError = (message) => {
             @error="handleTtsError"
         />
         <div class="grid justify-items-center">
-            <div class="grid place-items-end overflow-hidden rounded-[20px] bg-white transition" :class="[compact ? 'h-24 w-20 md:h-24 md:w-20 lg:h-36 lg:w-32' : 'h-36 w-32 md:h-40 md:w-36 lg:h-52 lg:w-44', isSpeaking ? 'shadow-lg shadow-primary/25' : '']">
+            <div class="grid place-items-end overflow-hidden rounded-[20px] bg-white transition" :class="[compact ? 'h-24 w-20 md:h-24 md:w-20 lg:h-[clamp(11rem,22vh,18rem)] lg:w-[clamp(9.5rem,15vw,15rem)]' : 'h-36 w-32 md:h-40 md:w-36 lg:h-[clamp(13rem,26vh,22rem)] lg:w-[clamp(11rem,18vw,18rem)]', isSpeaking ? 'shadow-lg shadow-primary/25' : '']">
                 <video
                     v-if="isVideoAsset"
                     :key="imageSrc"

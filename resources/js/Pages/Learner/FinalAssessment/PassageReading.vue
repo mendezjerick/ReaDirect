@@ -117,7 +117,7 @@ const submit = () => form.post('/final-assessment/passage/submit', { forceFormDa
                 <div class="grid gap-3">
                     <label class="grid gap-2 text-lg font-black text-text">
                         You said
-                        <div class="min-h-16 rounded-2xl border-2 border-border px-4 py-3 text-base font-black text-text">
+                        <div class="learner-transcript-box rounded-2xl border-2 border-border font-black text-text">
                             <span v-if="transcript">{{ transcript }}</span>
                             <span v-else class="text-muted">{{ uploading ? 'Checking your recording...' : 'Your words will appear here' }}</span>
                         </div>

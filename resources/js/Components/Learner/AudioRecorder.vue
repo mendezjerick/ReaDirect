@@ -405,10 +405,7 @@ onBeforeUnmount(() => {
         >
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <p class="text-lg font-black text-text">{{ submitted ? 'Answer submitted' : 'Listen to your answer' }}</p>
-                    <p class="text-sm font-bold text-muted">
-                        {{ submitted ? 'You can continue when the page is ready.' : 'If you are happy with your answer, click Submit.' }}
-                    </p>
+                    <p class="text-lg font-black text-text">{{ submitted ? 'Answer submitted' : 'Your audio' }}</p>
                 </div>
                 <CheckCircle2 v-if="submitted" class="size-8 text-success" />
             </div>

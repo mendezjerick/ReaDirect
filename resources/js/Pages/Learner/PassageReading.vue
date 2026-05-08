@@ -290,7 +290,7 @@ const submit = () => form.post('/learner/diagnostic/passage', { forceFormData: t
                 <div class="grid gap-3">
                     <label class="grid gap-2 text-lg font-black text-text">
                         You said
-                        <div class="min-h-16 rounded-2xl border-2 border-border px-4 py-3 text-base font-black text-text">
+                        <div class="learner-transcript-box rounded-2xl border-2 border-border font-black text-text">
                             <span v-if="transcript">
                                 <template v-for="(word, index) in diff.actualWords" :key="`${word.index}-${index}`">
                                     <span
