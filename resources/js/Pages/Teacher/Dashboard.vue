@@ -133,6 +133,7 @@ defineProps({ dashboard: Object });
                     <h2 class="text-sm font-bold text-text">Recent Activity</h2>
                 </div>
                 <div class="flex gap-2">
+                    <Link href="/teacher/learners/create" class="rounded-xl bg-orange-500 px-4 py-2 text-[13px] font-bold text-white transition-colors hover:bg-orange-600">Create Learner</Link>
                     <Link href="/teacher/learners" class="rounded-xl bg-orange-500 px-4 py-2 text-[13px] font-bold text-white transition-colors hover:bg-orange-600">Learner List</Link>
                     <Link href="/teacher/reports" class="rounded-xl bg-background px-4 py-2 text-[13px] font-bold text-text border border-border/60 transition-colors hover:bg-slate-100">Reports</Link>
                 </div>

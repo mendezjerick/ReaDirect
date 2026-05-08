@@ -27,17 +27,20 @@ class DiagnosticContentSeeder extends Seeder
     private function seedTaskOneLetters(): void
     {
         foreach ($this->csv('task1_letter_pronunciation.csv') as $row) {
-            $enrichment = $this->enrichmentFor($row['id']);
-            LearningContent::updateOrCreate(
-                ['content_type' => 'letter', 'title' => 'Letter '.$row['prompt_text']],
+            $metadata = $this->metadata($row);
+            $enrichment = $this->enrichmentFor($this->rowId($row));
+            $this->updateLearningContent(
+                'letter',
+                $this->rowId($row),
                 [
-                    'prompt' => $row['prompt_text'],
+                    'title' => 'Letter '.$this->promptText($row, $metadata),
+                    'prompt' => $this->promptText($row, $metadata),
                     'payload' => [
-                        'source_csv_id' => $row['id'],
-                        'sequence' => (int) $row['sequence'],
-                        'expected_answer' => $row['expected_answer'],
-                        'expected_phoneme' => $row['expected_phoneme'],
-                        'points' => (int) $row['points'],
+                        'source_csv_id' => $this->rowId($row),
+                        'sequence' => $this->sequence($row, $metadata),
+                        'expected_answer' => $this->expectedAnswer($row, $metadata),
+                        'expected_phoneme' => $metadata['expected_phoneme'] ?? $row['expected_phoneme'] ?? $row['expected_phonemes'] ?? null,
+                        'points' => $this->points($row, $metadata),
                         'enrichment' => $enrichment,
                     ],
                     'accepted_answers' => $this->pipeList($row['accepted_answers']),
@@ -52,18 +55,21 @@ class DiagnosticContentSeeder extends Seeder
     private function seedTaskTwoARhymes(): void
     {
         foreach ($this->csv('task2a_rhyming_words.csv') as $row) {
-            $enrichment = $this->enrichmentFor($row['id']);
-            LearningContent::updateOrCreate(
-                ['content_type' => 'rhyme_prompt', 'title' => 'Rhyme '.$row['prompt_text']],
+            $metadata = $this->metadata($row);
+            $enrichment = $this->enrichmentFor($this->rowId($row));
+            $this->updateLearningContent(
+                'rhyme_prompt',
+                $this->rowId($row),
                 [
-                    'prompt' => $row['prompt_text'],
+                    'title' => 'Rhyme '.$this->promptText($row, $metadata),
+                    'prompt' => $this->promptText($row, $metadata),
                     'payload' => [
-                        'source_csv_id' => $row['id'],
-                        'sequence' => (int) $row['sequence'],
+                        'source_csv_id' => $this->rowId($row),
+                        'sequence' => $this->sequence($row, $metadata),
                         'target_word' => $this->taskTwoATargetWord($row),
                         'expected_answer' => $this->taskTwoATargetWord($row),
-                        'expected_rhyme_family' => $row['expected_rhyme_family'],
-                        'points' => (int) $row['points'],
+                        'expected_rhyme_family' => $metadata['expected_rhyme_family'] ?? $row['expected_rhyme_family'] ?? $row['expected_text'] ?? null,
+                        'points' => $this->points($row, $metadata),
                         'enrichment' => $enrichment,
                     ],
                     'accepted_answers' => [$this->taskTwoATargetWord($row)],
@@ -78,17 +84,20 @@ class DiagnosticContentSeeder extends Seeder
     private function seedTaskTwoBWords(): void
     {
         foreach ($this->csv('task2b_word_in_sentence.csv') as $row) {
-            $enrichment = $this->enrichmentFor($row['id']);
-            LearningContent::updateOrCreate(
-                ['content_type' => 'word_sentence', 'title' => 'Word sentence '.$row['id']],
+            $metadata = $this->metadata($row);
+            $enrichment = $this->enrichmentFor($this->rowId($row));
+            $this->updateLearningContent(
+                'word_sentence',
+                $this->rowId($row),
                 [
-                    'prompt' => $row['sentence_text'],
+                    'title' => 'Word sentence '.$this->rowId($row),
+                    'prompt' => $row['sentence_text'] ?? $this->promptText($row, $metadata),
                     'payload' => [
-                        'source_csv_id' => $row['id'],
-                        'sequence' => (int) $row['sequence'],
-                        'target_word' => $row['target_word'],
-                        'expected_answer' => $row['expected_answer'],
-                        'points' => (int) $row['points'],
+                        'source_csv_id' => $this->rowId($row),
+                        'sequence' => $this->sequence($row, $metadata),
+                        'target_word' => $row['target_word'] ?? $metadata['target_word'] ?? $this->expectedAnswer($row, $metadata),
+                        'expected_answer' => $this->expectedAnswer($row, $metadata),
+                        'points' => $this->points($row, $metadata),
                         'enrichment' => $enrichment,
                     ],
                     'accepted_answers' => $this->pipeList($row['accepted_answers']),
@@ -103,16 +112,19 @@ class DiagnosticContentSeeder extends Seeder
     private function seedReadingPassages(): void
     {
         foreach ($this->csv('reading_passages.csv') as $row) {
-            $enrichment = $this->enrichmentFor($row['id']);
-            LearningContent::updateOrCreate(
-                ['content_type' => 'reading_passage', 'title' => $row['title']],
+            $metadata = $this->metadata($row);
+            $enrichment = $this->enrichmentFor($this->rowId($row));
+            $this->updateLearningContent(
+                'reading_passage',
+                $this->rowId($row),
                 [
-                    'prompt' => $row['passage_text'],
+                    'title' => $row['title'] ?? $metadata['title'] ?? $this->rowId($row),
+                    'prompt' => $row['passage_text'] ?? $this->promptText($row, $metadata),
                     'payload' => [
-                        'source_csv_id' => $row['id'],
-                        'word_count' => (int) $row['word_count'],
-                        'expected_reading_time_seconds' => (int) $row['expected_reading_time_seconds'],
-                        'max_time_seconds' => (int) $row['max_time_seconds'],
+                        'source_csv_id' => $this->rowId($row),
+                        'word_count' => (int) ($row['word_count'] ?? $metadata['word_count'] ?? 0),
+                        'expected_reading_time_seconds' => (int) ($row['expected_reading_time_seconds'] ?? $metadata['expected_reading_time_seconds'] ?? 0),
+                        'max_time_seconds' => (int) ($row['max_time_seconds'] ?? $metadata['max_time_seconds'] ?? 0),
                         'enrichment' => $enrichment,
                     ],
                     'accepted_answers' => null,
@@ -127,24 +139,27 @@ class DiagnosticContentSeeder extends Seeder
     private function seedComprehensionQuestions(): void
     {
         foreach ($this->csv('comprehension_questions.csv') as $row) {
-            $enrichment = $this->enrichmentFor($row['id']);
-            LearningContent::updateOrCreate(
-                ['content_type' => 'comprehension_question', 'title' => $row['id']],
+            $metadata = $this->metadata($row);
+            $enrichment = $this->enrichmentFor($this->rowId($row));
+            $this->updateLearningContent(
+                'comprehension_question',
+                $this->rowId($row),
                 [
-                    'prompt' => $row['question_text'],
+                    'title' => $this->rowId($row),
+                    'prompt' => $row['question_text'] ?? $this->promptText($row, $metadata),
                     'payload' => [
-                        'source_csv_id' => $row['id'],
-                        'passage_id' => $row['passage_id'],
-                        'sequence' => (int) $row['sequence'],
-                        'question_type' => $row['question_type'],
-                        'correct_answer' => $row['correct_answer'],
+                        'source_csv_id' => $this->rowId($row),
+                        'passage_id' => $row['passage_id'] ?? $metadata['passage_id'] ?? null,
+                        'sequence' => $this->sequence($row, $metadata),
+                        'question_type' => $row['question_type'] ?? $metadata['question_type'] ?? 'multiple_choice',
+                        'correct_answer' => $row['correct_answer'] ?? $metadata['correct_answer'] ?? $this->expectedAnswer($row, $metadata),
                         'choices' => [
-                            'A' => $row['choice_a'],
-                            'B' => $row['choice_b'],
-                            'C' => $row['choice_c'],
-                            'D' => $row['choice_d'],
+                            'A' => $row['choice_a'] ?? $metadata['choice_a'] ?? null,
+                            'B' => $row['choice_b'] ?? $metadata['choice_b'] ?? null,
+                            'C' => $row['choice_c'] ?? $metadata['choice_c'] ?? null,
+                            'D' => $row['choice_d'] ?? $metadata['choice_d'] ?? null,
                         ],
-                        'points' => (int) $row['points'],
+                        'points' => $this->points($row, $metadata),
                         'enrichment' => $enrichment,
                     ],
                     'accepted_answers' => $this->pipeList($row['accepted_answers']),
@@ -179,12 +194,74 @@ class DiagnosticContentSeeder extends Seeder
 
     private function taskTwoATargetWord(array $row): string
     {
-        return trim((string) ($row['target_word'] ?? $row['expected_answer'] ?? $this->pipeList($row['accepted_answers'] ?? '')[0] ?? ''));
+        $metadata = $this->metadata($row);
+
+        return trim((string) ($row['target_word'] ?? $metadata['target_word'] ?? $row['expected_answer'] ?? $this->pipeList($row['accepted_answers'] ?? '')[0] ?? ''));
     }
 
-    private function active(string|int|null $value): bool
+    private function active(string|int|bool|null $value): bool
     {
-        return (int) $value === 1;
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        return in_array(strtolower(trim((string) $value)), ['1', 'true', 'yes'], true);
+    }
+
+    private function metadata(array $row): array
+    {
+        $metadata = json_decode((string) ($row['metadata'] ?? ''), true);
+
+        return is_array($metadata) ? $metadata : [];
+    }
+
+    private function rowId(array $row): string
+    {
+        return (string) ($row['id'] ?? $row['prompt_id']);
+    }
+
+    private function promptText(array $row, array $metadata): string
+    {
+        return (string) ($row['prompt_text'] ?? $metadata['prompt_text'] ?? $row['expected_text'] ?? '');
+    }
+
+    private function expectedAnswer(array $row, array $metadata): ?string
+    {
+        return $row['expected_answer'] ?? $metadata['expected_answer'] ?? $row['expected_text'] ?? null;
+    }
+
+    private function sequence(array $row, array $metadata): int
+    {
+        return (int) ($row['sequence'] ?? $metadata['sequence'] ?? 0);
+    }
+
+    private function points(array $row, array $metadata): int
+    {
+        return (int) round((float) ($row['points'] ?? $metadata['points'] ?? 1));
+    }
+
+    private function updateLearningContent(string $contentType, string $sourceCsvId, array $attributes): LearningContent
+    {
+        $content = LearningContent::query()
+            ->where('content_type', $contentType)
+            ->where('payload->source_csv_id', $sourceCsvId)
+            ->first();
+
+        if (! $content) {
+            $content = LearningContent::query()
+                ->where('content_type', $contentType)
+                ->where('title', $attributes['title'])
+                ->first();
+        }
+
+        if ($content) {
+            $content->fill($attributes);
+            $content->save();
+
+            return $content;
+        }
+
+        return LearningContent::create(['content_type' => $contentType] + $attributes);
     }
 
     private function enrichmentFor(string $promptId): array

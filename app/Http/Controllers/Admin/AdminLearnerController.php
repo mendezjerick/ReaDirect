@@ -11,6 +11,7 @@ use App\Services\Admin\AdminAccessService;
 use App\Services\Admin\AdminAuditService;
 use App\Services\Admin\AdminFilterOptionsService;
 use App\Services\LearnerProgressService;
+use App\Support\LearnerStage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -94,8 +95,9 @@ class AdminLearnerController extends Controller
     {
         $access->ensureAdmin($request->user());
         $validated = $this->validateLearner($request);
+        $validated['learner_code'] = $validated['learner_code'] ?: 'LRN-'.Str::upper(Str::random(8));
+        $validated['current_stage'] = $validated['current_stage'] ?: LearnerStage::NEW;
         $learner = Learner::create($validated + [
-            'learner_code' => $validated['learner_code'] ?: 'LRN-'.Str::upper(Str::random(8)),
             'is_active' => true,
         ]);
         $audit->log($request, 'admin.learner.created', $learner, [], $learner->only(['learner_code', 'school_id', 'class_id']));

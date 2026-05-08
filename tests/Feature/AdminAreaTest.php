@@ -2,20 +2,20 @@
 
 namespace Tests\Feature;
 
-use App\Models\AssessmentAttempt;
-use App\Models\AssessmentAttemptItem;
 use App\Models\AgentProfile;
+use App\Models\AssessmentAttempt;
 use App\Models\AuditLog;
-use App\Models\LearningContent;
 use App\Models\Learner;
+use App\Models\LearningContent;
 use App\Models\LlmPromptTemplate;
+use App\Models\MasteryThreshold;
 use App\Models\Module;
 use App\Models\ModuleActivity;
 use App\Models\ModuleAttempt;
-use App\Models\MasteryThreshold;
 use App\Models\School;
 use App\Models\SchoolClass;
 use App\Models\User;
+use App\Support\LearnerStage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
@@ -376,6 +376,33 @@ class AdminAreaTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.learners.index', ['school_id' => $schoolA->id, 'current_module' => 'module_1']))
             ->assertInertia(fn (Assert $page) => $page->has('learners.data', 1)->where('learners.data.0.learner_code', 'N-1'));
+    }
+
+    public function test_admin_can_create_learner_from_form_payload(): void
+    {
+        $admin = $this->userWithRole('system_admin');
+        $school = School::create(['name' => 'Create Learner School']);
+        $class = SchoolClass::create(['school_id' => $school->id, 'name' => 'Grade 1 Create', 'grade_level' => 'Grade 1']);
+
+        $this->actingAs($admin)
+            ->post(route('admin.learners.store'), [
+                'school_id' => $school->id,
+                'class_id' => $class->id,
+                'current_module_id' => '',
+                'learner_code' => '',
+                'first_name' => 'Created',
+                'last_name' => 'Learner',
+                'grade_level' => 'Grade 1',
+                'current_stage' => '',
+            ])
+            ->assertRedirect();
+
+        $learner = Learner::where('first_name', 'Created')->firstOrFail();
+
+        $this->assertSame($school->id, $learner->school_id);
+        $this->assertSame($class->id, $learner->class_id);
+        $this->assertSame(LearnerStage::NEW, $learner->current_stage);
+        $this->assertStringStartsWith('LRN-', $learner->learner_code);
     }
 
     public function test_admin_agent_prompt_audit_and_testing_filters_are_applied(): void

@@ -1,8 +1,5 @@
 <?php
 
-use App\Http\Controllers\AuthController;
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\FinalAssessmentController;
 use App\Http\Controllers\Admin\AdminAgentController;
 use App\Http\Controllers\Admin\AdminAIEnvironmentGuideController;
 use App\Http\Controllers\Admin\AdminAssessmentContentController;
@@ -17,16 +14,19 @@ use App\Http\Controllers\Admin\AdminSystemMonitoringController;
 use App\Http\Controllers\Admin\AdminTeacherController;
 use App\Http\Controllers\Admin\AdminTestingController;
 use App\Http\Controllers\Admin\DeveloperReinforcementModeController;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\FinalAssessmentController;
+use App\Http\Controllers\Learner\AudioUploadController;
 use App\Http\Controllers\Learner\DiagnosticAssessmentController;
 use App\Http\Controllers\Learner\LearnerAccessController;
 use App\Http\Controllers\Learner\LearnerDashboardController;
-use App\Http\Controllers\Learner\AudioUploadController;
 use App\Http\Controllers\Learner\ModuleActivityController;
 use App\Http\Controllers\Learner\ModuleController;
 use App\Http\Controllers\Learner\ModuleMasteryController;
-use App\Http\Controllers\Teacher\TeacherAnalyticsController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Teacher\AudioPlaybackController;
 use App\Http\Controllers\Teacher\AudioTranscriptController;
+use App\Http\Controllers\Teacher\TeacherAnalyticsController;
 use App\Http\Controllers\Teacher\TeacherAssessmentReviewController;
 use App\Http\Controllers\Teacher\TeacherDashboardController;
 use App\Http\Controllers\Teacher\TeacherLearnerController;
@@ -98,6 +98,8 @@ Route::prefix('final-assessment')->name('final-assessment.')->group(function ():
 Route::middleware('auth')->prefix('teacher')->name('teacher.')->group(function (): void {
     Route::get('/dashboard', TeacherDashboardController::class)->name('dashboard');
     Route::get('/learners', [TeacherLearnerController::class, 'index'])->name('learners.index');
+    Route::get('/learners/create', [TeacherLearnerController::class, 'create'])->name('learners.create');
+    Route::post('/learners', [TeacherLearnerController::class, 'store'])->name('learners.store');
     Route::get('/learners/{learner}', [TeacherLearnerController::class, 'show'])->name('learners.show');
     Route::get('/learners/{learner}/assessments/{assessmentAttempt}', [TeacherAssessmentReviewController::class, 'show'])->name('learners.assessments.show');
     Route::get('/learners/{learner}/modules', [TeacherModuleProgressController::class, 'index'])->name('learners.modules.index');

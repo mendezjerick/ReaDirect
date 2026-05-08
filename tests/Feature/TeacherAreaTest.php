@@ -6,13 +6,14 @@ use App\Models\AssessmentAttempt;
 use App\Models\AssessmentTaskResponse;
 use App\Models\Learner;
 use App\Models\Module;
-use App\Models\ModuleAttempt;
 use App\Models\ModuleActivity;
 use App\Models\ModuleActivityResponse;
+use App\Models\ModuleAttempt;
 use App\Models\ModuleAttemptItem;
 use App\Models\School;
 use App\Models\SchoolClass;
 use App\Models\User;
+use App\Support\LearnerStage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -70,6 +71,47 @@ class TeacherAreaTest extends TestCase
             ->get(route('teacher.learners.index', ['search' => $outside->learner_code]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page->has('learners', 0));
+    }
+
+    public function test_teacher_can_create_learner_for_assigned_class_only(): void
+    {
+        [$teacher, $existingLearner] = $this->teacherWithLearner();
+        $outside = $this->outsideLearner();
+
+        $this->actingAs($teacher)
+            ->get(route('teacher.learners.create'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Teacher/LearnerForm')
+                ->has('classes', 1)
+                ->where('classes.0.id', $existingLearner->class_id)
+            );
+
+        $this->actingAs($teacher)
+            ->post(route('teacher.learners.store'), [
+                'class_id' => $outside->class_id,
+                'learner_code' => 'BLOCKED-1',
+                'first_name' => 'Blocked',
+                'last_name' => 'Learner',
+                'grade_level' => 'Grade 1',
+            ])
+            ->assertSessionHasErrors('class_id');
+
+        $this->actingAs($teacher)
+            ->post(route('teacher.learners.store'), [
+                'class_id' => $existingLearner->class_id,
+                'learner_code' => 'NEW-1',
+                'first_name' => 'New',
+                'last_name' => 'Learner',
+                'grade_level' => 'Grade 1',
+            ])
+            ->assertRedirect();
+
+        $learner = Learner::where('learner_code', 'NEW-1')->firstOrFail();
+
+        $this->assertSame($existingLearner->school_id, $learner->school_id);
+        $this->assertSame($existingLearner->class_id, $learner->class_id);
+        $this->assertSame(LearnerStage::NEW, $learner->current_stage);
     }
 
     public function test_teacher_can_view_assigned_learner_and_cannot_view_outside_learner(): void

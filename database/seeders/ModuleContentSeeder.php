@@ -28,23 +28,26 @@ class ModuleContentSeeder extends Seeder
     private function seedModuleActivities(string $file): void
     {
         foreach ($this->csv($file) as $row) {
+            $metadata = $this->metadata($row);
             $module = Module::where('key', $row['module_key'])->firstOrFail();
             $payload = [
-                'source_csv_id' => $row['id'],
+                'source_csv_id' => $this->rowId($row),
                 'module_key' => $row['module_key'],
                 'activity_type' => $row['activity_type'],
-                'sequence' => (int) $row['sequence'],
-                'expected_answer' => $row['expected_answer'],
-                'target_word' => $row['target_word'] ?? null,
+                'sequence' => $this->sequence($row, $metadata),
+                'expected_answer' => $this->expectedAnswer($row, $metadata),
+                'target_word' => $row['target_word'] ?? $metadata['target_word'] ?? $this->expectedAnswer($row, $metadata),
                 'word_family' => $row['word_family'] ?? null,
-                'points' => (int) $row['points'],
+                'points' => $this->points($row, $metadata),
                 'is_mastery_item' => $this->active($row['is_mastery_item']),
             ];
-            $enrichment = $this->enrichmentFor($row['id']);
+            $enrichment = $this->enrichmentFor($this->rowId($row));
 
-            $content = LearningContent::updateOrCreate(
-                ['content_type' => 'module_activity', 'title' => $row['id']],
+            $content = $this->updateLearningContent(
+                'module_activity',
+                $this->rowId($row),
                 [
+                    'title' => $this->rowId($row),
                     'prompt' => $row['prompt_text'],
                     'payload' => array_merge($payload, ['enrichment' => $enrichment]),
                     'accepted_answers' => $this->pipeList($row['accepted_answers']),
@@ -57,7 +60,7 @@ class ModuleContentSeeder extends Seeder
             $module->activities()->updateOrCreate(
                 ['learning_content_id' => $content->id],
                 [
-                    'sequence' => (int) $row['sequence'],
+                    'sequence' => $payload['sequence'],
                     'activity_type' => $row['activity_type'],
                     'title' => $row['prompt_text'],
                     'configuration' => array_merge($payload, ['enrichment' => $enrichment]),
@@ -93,16 +96,19 @@ class ModuleContentSeeder extends Seeder
     private function seedSelectionRules(): void
     {
         foreach ($this->csv('module_activity_selection_rules.csv') as $row) {
-            LearningContent::updateOrCreate(
-                ['content_type' => 'module_activity_selection_rule', 'title' => $row['id']],
+            $metadata = $this->metadata($row);
+            $this->updateLearningContent(
+                'module_activity_selection_rule',
+                $this->rowId($row),
                 [
+                    'title' => $this->rowId($row),
                     'prompt' => $row['activity_type'],
                     'payload' => [
-                        'source_csv_id' => $row['id'],
+                        'source_csv_id' => $this->rowId($row),
                         'module_key' => $row['module_key'],
                         'activity_type' => $row['activity_type'],
-                        'practice_item_count' => (int) $row['practice_item_count'],
-                        'mastery_item_count' => (int) $row['mastery_item_count'],
+                        'practice_item_count' => (int) ($row['practice_item_count'] ?? $metadata['practice_item_count'] ?? 0),
+                        'mastery_item_count' => (int) ($row['mastery_item_count'] ?? $metadata['mastery_item_count'] ?? 0),
                     ],
                     'accepted_answers' => null,
                     'difficulty' => 'grade_1',
@@ -133,9 +139,64 @@ class ModuleContentSeeder extends Seeder
         return array_values(array_filter(array_map('trim', explode('|', (string) $value))));
     }
 
-    private function active(string|int|null $value): bool
+    private function active(string|int|bool|null $value): bool
     {
-        return (int) $value === 1;
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        return in_array(strtolower(trim((string) $value)), ['1', 'true', 'yes'], true);
+    }
+
+    private function metadata(array $row): array
+    {
+        $metadata = json_decode((string) ($row['metadata'] ?? ''), true);
+
+        return is_array($metadata) ? $metadata : [];
+    }
+
+    private function rowId(array $row): string
+    {
+        return (string) ($row['id'] ?? $row['prompt_id']);
+    }
+
+    private function expectedAnswer(array $row, array $metadata): ?string
+    {
+        return $row['expected_answer'] ?? $metadata['expected_answer'] ?? $row['expected_text'] ?? null;
+    }
+
+    private function sequence(array $row, array $metadata): int
+    {
+        return (int) ($row['sequence'] ?? $metadata['sequence'] ?? 0);
+    }
+
+    private function points(array $row, array $metadata): int
+    {
+        return (int) round((float) ($row['points'] ?? $metadata['points'] ?? 1));
+    }
+
+    private function updateLearningContent(string $contentType, string $sourceCsvId, array $attributes): LearningContent
+    {
+        $content = LearningContent::query()
+            ->where('content_type', $contentType)
+            ->where('payload->source_csv_id', $sourceCsvId)
+            ->first();
+
+        if (! $content) {
+            $content = LearningContent::query()
+                ->where('content_type', $contentType)
+                ->where('title', $attributes['title'])
+                ->first();
+        }
+
+        if ($content) {
+            $content->fill($attributes);
+            $content->save();
+
+            return $content;
+        }
+
+        return LearningContent::create(['content_type' => $contentType] + $attributes);
     }
 
     private function enrichmentFor(string $promptId): array

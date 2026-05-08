@@ -16,7 +16,10 @@ const submitFilters = (event) => {
 
 <template>
     <TeacherLayout>
-        <PageHeader title="Learners" subtitle="Assigned class roster" />
+        <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <PageHeader title="Learners" subtitle="Assigned class roster" />
+            <Link href="/teacher/learners/create" class="rounded-xl bg-orange-500 px-4 py-2 text-[13px] font-bold text-white transition-colors hover:bg-orange-600">Create Learner</Link>
+        </div>
 
         <!-- Filters -->
         <DashboardCard>

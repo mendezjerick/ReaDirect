@@ -5,9 +5,15 @@ namespace App\Http\Controllers\Teacher;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Learner;
+use App\Models\SchoolClass;
+use App\Models\User;
 use App\Services\LearnerProgressService;
 use App\Services\TeacherAccessService;
+use App\Support\LearnerStage;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -48,6 +54,47 @@ class TeacherLearnerController extends Controller
         ]);
     }
 
+    public function create(Request $request, TeacherAccessService $access): Response
+    {
+        $teacher = $request->user();
+        $access->ensureTeacherArea($teacher);
+
+        return Inertia::render('Teacher/LearnerForm', [
+            'classes' => $this->classOptions($teacher),
+        ]);
+    }
+
+    public function store(Request $request, TeacherAccessService $access): RedirectResponse
+    {
+        $teacher = $request->user();
+        $access->ensureTeacherArea($teacher);
+        $classIds = $this->allowedClassIds($teacher);
+
+        $validated = $request->validate([
+            'class_id' => ['required', 'integer', Rule::in($classIds)],
+            'learner_code' => ['nullable', 'string', 'max:255', 'unique:learners,learner_code'],
+            'first_name' => ['required', 'string', 'max:255'],
+            'last_name' => ['nullable', 'string', 'max:255'],
+            'grade_level' => ['required', 'string', 'max:50'],
+        ]);
+
+        $class = SchoolClass::query()->whereKey($validated['class_id'])->firstOrFail();
+        $learner = Learner::create([
+            'school_id' => $class->school_id,
+            'class_id' => $class->id,
+            'learner_code' => $validated['learner_code'] ?: 'LRN-'.Str::upper(Str::random(8)),
+            'first_name' => $validated['first_name'],
+            'last_name' => $validated['last_name'] ?? null,
+            'grade_level' => $validated['grade_level'],
+            'current_stage' => LearnerStage::NEW,
+            'is_active' => true,
+        ]);
+
+        $this->audit($request, 'teacher.learner.created', $learner);
+
+        return redirect()->route('teacher.learners.show', $learner)->with('success', 'Learner created.');
+    }
+
     public function show(Request $request, Learner $learner, TeacherAccessService $access, LearnerProgressService $progress): Response
     {
         $access->authorizeLearner($request->user(), $learner);
@@ -71,6 +118,36 @@ class TeacherLearnerController extends Controller
     private function latestDate($first, $second): ?string
     {
         return collect([$first, $second])->filter()->sortDesc()->first()?->toDateTimeString();
+    }
+
+    private function classOptions(User $teacher)
+    {
+        $query = $teacher->hasRole('system_admin')
+            ? SchoolClass::query()
+            : $teacher->teachingClasses();
+
+        return $query->with('school')
+            ->orderBy('name')
+            ->get()
+            ->map(fn (SchoolClass $class) => [
+                'id' => $class->id,
+                'name' => $class->name,
+                'grade_level' => $class->grade_level,
+                'school' => [
+                    'id' => $class->school?->id,
+                    'name' => $class->school?->name,
+                ],
+            ])
+            ->values();
+    }
+
+    private function allowedClassIds(User $teacher): array
+    {
+        $query = $teacher->hasRole('system_admin')
+            ? SchoolClass::query()
+            : $teacher->teachingClasses();
+
+        return $query->pluck('classes.id')->map(fn ($id) => (int) $id)->all();
     }
 
     private function audit(Request $request, string $action, Learner $learner): void
