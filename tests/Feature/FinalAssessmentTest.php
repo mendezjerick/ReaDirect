@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\AssessmentAttempt;
 use App\Models\AssessmentTaskResponse;
 use App\Models\Learner;
-use App\Models\LearningContent;
 use App\Models\Module;
 use App\Models\School;
 use App\Services\Assessment\FinalAssessmentComparisonService;
@@ -51,7 +50,7 @@ class FinalAssessmentTest extends TestCase
             ])
             ->all();
 
-        $this->withSession(['learner_id' => $learner->id, 'final_assessment_attempt_id' => $final->id])
+        $this->withSession(['learner_id' => $learner->id, 'final_assessment_attempt_id' => $final->id, 'admin_testing_mode' => true])
             ->post(route('final-assessment.task.submit', 'task-1'), ['responses' => $responses])
             ->assertRedirect(route('final-assessment.task', 'task-2b'));
 
@@ -99,7 +98,7 @@ class FinalAssessmentTest extends TestCase
             ])
             ->all();
 
-        $this->withSession(['learner_id' => $learner->id, 'final_assessment_attempt_id' => $final->id])
+        $this->withSession(['learner_id' => $learner->id, 'final_assessment_attempt_id' => $final->id, 'admin_testing_mode' => true])
             ->post(route('final-assessment.task.submit', 'task-2b'), ['responses' => $responses])
             ->assertRedirect(route('final-assessment.task', 'passage'));
 

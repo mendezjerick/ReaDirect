@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, ref } from 'vue';
+import { computed, reactive, ref } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import LearnerLayout from '../../../Layouts/LearnerLayout.vue';
 import PromptCard from '../../../Components/PromptCard.vue';
@@ -12,11 +12,17 @@ import StatusBadge from '../../../Components/StatusBadge.vue';
 import ModuleProgressBar from '../../../Components/ModuleProgressBar.vue';
 import { useStepAssessment } from '../../../Composables/useStepAssessment';
 
-const props = defineProps({ items: Array });
+const props = defineProps({
+    items: Array,
+    assessmentAttemptId: Number,
+    assessmentMode: Object,
+});
 const form = useForm({ responses: [] });
 const audioFiles = reactive({});
 const audioDurations = reactive({});
-const hasAnswerOrAudio = (item, answer) => String(answer ?? '').trim().length > 0 || Boolean(audioFiles[item?.id]);
+const canUseManualFallback = computed(() => props.assessmentMode?.canUseManualFallback === true);
+const canUseDeveloperJumpControls = computed(() => props.assessmentMode?.canUseDeveloperJumpControls === true);
+const hasAnswerOrAudio = (item, answer) => (canUseManualFallback.value && String(answer ?? '').trim().length > 0) || Boolean(audioFiles[item?.id]);
 const step = useStepAssessment(props.items, { emptyMessage: 'Try this one before moving on.', isAnswered: hasAnswerOrAudio });
 const agentMessage = ref('Say this letter clearly for your final check.');
 const agentState = ref('listening');
@@ -36,8 +42,8 @@ const submit = () => {
 
     form.responses = step.payload((item, answer) => ({
         assessment_attempt_item_id: item.id,
-        answer,
-        transcript_source: String(answer ?? '').trim() ? 'manual' : 'stt_auto',
+        answer: canUseManualFallback.value ? answer : '',
+        transcript_source: canUseManualFallback.value && String(answer ?? '').trim() ? 'manual' : 'stt_auto',
         audio: audioFiles[item.id] ?? null,
         duration_seconds: audioDurations[item.id] ?? null,
     }));
@@ -79,10 +85,13 @@ const handlePrimary = () => {
             <div class="rounded-[24px] border border-border bg-surface p-4 shadow-lg shadow-primary/10">
                 <div class="grid gap-3 md:grid-cols-[220px_1fr] md:items-center">
                     <AudioRecorder :key="step.currentItem.value.id" compact :max-duration-seconds="30" label="Letter voice" @recorded="(file) => rememberAudio(step.currentItem.value, file)" @cleared="() => clearAudio(step.currentItem.value)" />
-                    <label class="grid gap-2 text-lg font-black text-text">
-                        What did the learner say?
-                        <input v-model="step.answers[step.currentItem.value.id]" class="rounded-2xl border-2 border-border px-4 py-3 text-lg font-black focus:border-primary focus:outline-none" placeholder="Type answer or record voice">
+                    <label v-if="canUseManualFallback" class="grid gap-2 text-lg font-black text-text">
+                        Developer QA: Manual Transcript Override
+                        <input v-model="step.answers[step.currentItem.value.id]" class="rounded-2xl border-2 border-border px-4 py-3 text-lg font-black focus:border-primary focus:outline-none" placeholder="Optional QA fallback text">
                     </label>
+                    <div v-else class="rounded-2xl border-2 border-border bg-background px-4 py-5 text-lg font-black text-muted">
+                        Record your voice to answer.
+                    </div>
                 </div>
                 <p v-if="step.feedback.value" class="mt-4 rounded-2xl bg-accent px-4 py-3 text-lg font-black text-text">{{ step.feedback.value }}</p>
             </div>
@@ -90,7 +99,7 @@ const handlePrimary = () => {
 
         <BottomActionBar>
             <div class="flex w-full items-center justify-between gap-3">
-                <SecondaryButton v-if="!step.isFirst.value" @click="step.goBack">Back</SecondaryButton>
+                <SecondaryButton v-if="canUseDeveloperJumpControls && !step.isFirst.value" @click="step.goBack">Back</SecondaryButton>
                 <span v-else />
                 <PrimaryButton :disabled="form.processing" :class="{ 'opacity-70': !step.isCurrentAnswered.value }" @click="handlePrimary">
                     {{ step.isLast.value ? 'Check letters' : 'Next' }}

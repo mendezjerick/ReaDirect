@@ -12,15 +12,18 @@ use App\Models\Learner;
 use App\Models\LearningContent;
 use App\Models\Module;
 use App\Models\Recommendation;
-use App\Services\AnswerMatchingService;
-use App\Services\AI\AIAnalysisResolver;
 use App\Services\Agents\AgentCommentaryService;
+use App\Services\AI\AIAnalysisResolver;
+use App\Services\AnswerMatchingService;
 use App\Services\AssessmentItemSelectionService;
+use App\Services\AssessmentModeService;
 use App\Services\AudioStorageService;
 use App\Services\CrlaScoringService;
+use App\Services\LearnerFlowService;
 use App\Services\ModulePlacementService;
 use App\Services\ReadingComprehensionScoringService;
 use App\Services\SentenceReadingScoringService;
+use App\Support\LearnerStage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -30,8 +33,23 @@ use Inertia\Response;
 
 class DiagnosticAssessmentController extends Controller
 {
-    public function start(): Response
+    public function start(Request $request, LearnerFlowService $flow): Response|RedirectResponse
     {
+        $learner = $this->learner($request);
+        $activeAttempt = $flow->resolveDiagnosticAttempt($request);
+        $latestAttempt = $flow->latestDiagnosticAttempt($learner);
+
+        if ($activeAttempt) {
+            $learner->update(['current_stage' => LearnerStage::DIAGNOSTIC_IN_PROGRESS]);
+
+            return redirect($flow->diagnosticResumeRoute($activeAttempt));
+        }
+
+        if ($flow->isDiagnosticComplete($latestAttempt) && ! $this->canUseDeveloperRetest($request)) {
+            return redirect()->route('learner.dashboard')
+                ->with('info', 'Your diagnostic is already complete. Continue from your dashboard.');
+        }
+
         return Inertia::render('Learner/DiagnosticStart', [
             'developerRetest' => [
                 'enabled' => $this->canUseDeveloperRetest(request()),
@@ -39,9 +57,22 @@ class DiagnosticAssessmentController extends Controller
         ]);
     }
 
-    public function storeStart(Request $request, AssessmentItemSelectionService $itemSelection): RedirectResponse
+    public function storeStart(Request $request, AssessmentItemSelectionService $itemSelection, LearnerFlowService $flow): RedirectResponse
     {
         $learner = $this->learner($request);
+        $activeAttempt = $flow->resolveDiagnosticAttempt($request);
+
+        if ($activeAttempt) {
+            $learner->update(['current_stage' => LearnerStage::DIAGNOSTIC_IN_PROGRESS]);
+
+            return redirect($flow->diagnosticResumeRoute($activeAttempt));
+        }
+
+        if ($flow->isDiagnosticComplete($flow->latestDiagnosticAttempt($learner)) && ! $this->canUseDeveloperRetest($request)) {
+            return redirect()->route('learner.dashboard')
+                ->with('info', 'Your diagnostic is already complete. Continue from your dashboard.');
+        }
+
         $agent = AgentProfile::where('key', AgentProfile::ASSESSMENT)->first();
 
         $attempt = $this->createDiagnosticAttempt($learner, (bool) $request->session()->get('admin_testing_mode'), $agent?->id);
@@ -51,6 +82,7 @@ class DiagnosticAssessmentController extends Controller
         if ($attempt->is_sandbox) {
             $request->session()->put('admin_testing_assessment_attempt_id', $attempt->id);
         }
+        $learner->update(['current_stage' => LearnerStage::DIAGNOSTIC_IN_PROGRESS]);
 
         return redirect()->route('learner.diagnostic.task-1');
     }
@@ -72,14 +104,19 @@ class DiagnosticAssessmentController extends Controller
             ->with('success', 'Developer test attempt created. Previous attempts were preserved for QA review.');
     }
 
-    public function taskOne(Request $request, AssessmentItemSelectionService $itemSelection): Response
+    public function taskOne(Request $request, AssessmentItemSelectionService $itemSelection, LearnerFlowService $flow, AssessmentModeService $mode): Response|RedirectResponse
     {
-        $attempt = $this->attempt($request);
+        $attempt = $this->attemptForStep($request, $flow, 'task-1');
+        if ($attempt instanceof RedirectResponse) {
+            return $attempt;
+        }
+
         $items = $itemSelection->selectTask1LettersForAttempt($attempt);
 
         return Inertia::render('Learner/Task1LetterPronunciation', [
             'items' => $this->itemsForForm($items),
             'assessmentAttemptId' => $attempt->id,
+            'assessmentMode' => $mode->props($request, $attempt, $attempt->learner),
         ]);
     }
 
@@ -90,13 +127,18 @@ class DiagnosticAssessmentController extends Controller
         AudioStorageService $audioStorage,
         AIAnalysisResolver $analysis,
         AgentCommentaryService $commentary,
-        CrlaScoringService $crla
+        CrlaScoringService $crla,
+        AssessmentModeService $mode
     ): RedirectResponse {
-        $validated = $request->validate($this->textResponseRules(10), $this->friendlyValidationMessages());
+        $attempt = $this->attemptForStep($request, app(LearnerFlowService::class), 'task-1');
+        if ($attempt instanceof RedirectResponse) {
+            return $attempt;
+        }
 
-        $attempt = $this->attempt($request);
+        $validated = $request->validate($this->textResponseRules(10), $this->friendlyValidationMessages());
         $items = $itemSelection->getLockedItemsForAttempt($attempt, AssessmentItemSelectionService::TASK_1_LETTER);
-        $score = $this->scoreTextResponses($attempt, $items, $validated['responses'], $answerMatching, $audioStorage, $analysis, $commentary, 'CRLA_TASK_1_SCORING_V1');
+        $this->validateSubmittedAssessmentItemSet($items, $validated['responses']);
+        $score = $this->scoreTextResponses($attempt, $items, $validated['responses'], $answerMatching, $audioStorage, $analysis, $commentary, 'CRLA_TASK_1_SCORING_V1', $mode->canShowManualFallback($request, $attempt, $attempt->learner));
         $route = $crla->routeTaskOne($score);
 
         $attempt->update([
@@ -114,9 +156,13 @@ class DiagnosticAssessmentController extends Controller
         return redirect()->route('learner.diagnostic.task-routing');
     }
 
-    public function taskRouting(Request $request): Response
+    public function taskRouting(Request $request, LearnerFlowService $flow): Response|RedirectResponse
     {
-        $attempt = $this->attempt($request);
+        $attempt = $this->attemptForStep($request, $flow, 'task-routing');
+        if ($attempt instanceof RedirectResponse) {
+            return $attempt;
+        }
+
         $storedRoute = $request->session()->get('task_one_route', []);
         $requiresTask2A = (int) $attempt->task_1_score <= 6;
         $route = [
@@ -132,9 +178,12 @@ class DiagnosticAssessmentController extends Controller
         ]);
     }
 
-    public function taskTwoA(Request $request, AssessmentItemSelectionService $itemSelection, CrlaScoringService $crla): Response|RedirectResponse
+    public function taskTwoA(Request $request, AssessmentItemSelectionService $itemSelection, CrlaScoringService $crla, AssessmentModeService $mode): Response|RedirectResponse
     {
-        $attempt = $this->attempt($request);
+        $attempt = $this->attemptForStep($request, app(LearnerFlowService::class), 'task-2a');
+        if ($attempt instanceof RedirectResponse) {
+            return $attempt;
+        }
 
         if (! $crla->shouldRequireTask2A((int) $attempt->task_1_score)) {
             return redirect()->route('learner.diagnostic.task-2b');
@@ -145,6 +194,7 @@ class DiagnosticAssessmentController extends Controller
         return Inertia::render('Learner/Task2ARhymingWords', [
             'items' => $this->itemsForForm($items),
             'assessmentAttemptId' => $attempt->id,
+            'assessmentMode' => $mode->props($request, $attempt, $attempt->learner),
         ]);
     }
 
@@ -154,27 +204,37 @@ class DiagnosticAssessmentController extends Controller
         AnswerMatchingService $answerMatching,
         AudioStorageService $audioStorage,
         AIAnalysisResolver $analysis,
-        AgentCommentaryService $commentary
+        AgentCommentaryService $commentary,
+        AssessmentModeService $mode
     ): RedirectResponse {
-        $validated = $request->validate($this->textResponseRules(10), $this->friendlyValidationMessages());
+        $attempt = $this->attemptForStep($request, app(LearnerFlowService::class), 'task-2a');
+        if ($attempt instanceof RedirectResponse) {
+            return $attempt;
+        }
 
-        $attempt = $this->attempt($request);
+        $validated = $request->validate($this->textResponseRules(10), $this->friendlyValidationMessages());
         $items = $itemSelection->getLockedItemsForAttempt($attempt, AssessmentItemSelectionService::TASK_2A_RHYME);
-        $score = $this->scoreTextResponses($attempt, $items, $validated['responses'], $answerMatching, $audioStorage, $analysis, $commentary, 'CRLA_TASK_2A_SCORING_V1');
+        $this->validateSubmittedAssessmentItemSet($items, $validated['responses']);
+        $score = $this->scoreTextResponses($attempt, $items, $validated['responses'], $answerMatching, $audioStorage, $analysis, $commentary, 'CRLA_TASK_2A_SCORING_V1', $mode->canShowManualFallback($request, $attempt, $attempt->learner));
 
         $attempt->update(['task_2a_score' => $score, 'status' => 'task_2a_completed']);
 
         return redirect()->route('learner.diagnostic.task-2b');
     }
 
-    public function taskTwoB(Request $request, AssessmentItemSelectionService $itemSelection): Response
+    public function taskTwoB(Request $request, AssessmentItemSelectionService $itemSelection, LearnerFlowService $flow, AssessmentModeService $mode): Response|RedirectResponse
     {
-        $attempt = $this->attempt($request);
+        $attempt = $this->attemptForStep($request, $flow, 'task-2b');
+        if ($attempt instanceof RedirectResponse) {
+            return $attempt;
+        }
+
         $items = $itemSelection->selectTask2BWordSentenceItemsForAttempt($attempt);
 
         return Inertia::render('Learner/Task2BWordInSentence', [
             'items' => $this->itemsForForm($items),
             'assessmentAttemptId' => $attempt->id,
+            'assessmentMode' => $mode->props($request, $attempt, $attempt->learner),
         ]);
     }
 
@@ -186,13 +246,18 @@ class DiagnosticAssessmentController extends Controller
         AIAnalysisResolver $analysis,
         AgentCommentaryService $commentary,
         CrlaScoringService $crla,
-        SentenceReadingScoringService $sentenceScoring
+        SentenceReadingScoringService $sentenceScoring,
+        AssessmentModeService $mode
     ): RedirectResponse {
-        $validated = $request->validate($this->textResponseRules(10), $this->friendlyValidationMessages());
+        $attempt = $this->attemptForStep($request, app(LearnerFlowService::class), 'task-2b');
+        if ($attempt instanceof RedirectResponse) {
+            return $attempt;
+        }
 
-        $attempt = $this->attempt($request);
+        $validated = $request->validate($this->textResponseRules(10), $this->friendlyValidationMessages());
         $items = $itemSelection->getLockedItemsForAttempt($attempt, AssessmentItemSelectionService::TASK_2B_WORD_SENTENCE);
-        $taskTwoBReview = $this->scoreSentenceResponses($attempt, $items, $validated['responses'], $audioStorage, $analysis, $commentary, $sentenceScoring, 'CRLA_TASK_2B_SCORING_V2');
+        $this->validateSubmittedAssessmentItemSet($items, $validated['responses']);
+        $taskTwoBReview = $this->scoreSentenceResponses($attempt, $items, $validated['responses'], $audioStorage, $analysis, $commentary, $sentenceScoring, 'CRLA_TASK_2B_SCORING_V2', $mode->canShowManualFallback($request, $attempt, $attempt->learner));
         $taskTwoBScore = $taskTwoBReview['task_score'];
         $taskTwoAScore = (int) $attempt->task_2a_score;
         $totalScore = $crla->calculateTotalScore((int) $attempt->task_1_score, $taskTwoAScore, $taskTwoBScore);
@@ -208,9 +273,12 @@ class DiagnosticAssessmentController extends Controller
         return redirect()->route('learner.diagnostic.crla-summary');
     }
 
-    public function crlaSummary(Request $request): Response
+    public function crlaSummary(Request $request, LearnerFlowService $flow): Response|RedirectResponse
     {
-        $attempt = $this->attempt($request);
+        $attempt = $this->attemptForStep($request, $flow, 'crla-summary');
+        if ($attempt instanceof RedirectResponse) {
+            return $attempt;
+        }
 
         return Inertia::render('Learner/CrlaSummary', [
             'attempt' => $attempt->only('task_1_score', 'task_2a_score', 'task_2b_score', 'crla_total_score', 'crla_classification'),
@@ -218,34 +286,49 @@ class DiagnosticAssessmentController extends Controller
         ]);
     }
 
-    public function readingIntro(): Response
+    public function readingIntro(Request $request, LearnerFlowService $flow): Response|RedirectResponse
     {
+        $attempt = $this->attemptForStep($request, $flow, 'reading-intro');
+        if ($attempt instanceof RedirectResponse) {
+            return $attempt;
+        }
+
         return Inertia::render('Learner/ReadingIntro');
     }
 
-    public function passage(Request $request, AssessmentItemSelectionService $itemSelection): Response
+    public function passage(Request $request, AssessmentItemSelectionService $itemSelection, LearnerFlowService $flow, AssessmentModeService $mode): Response|RedirectResponse
     {
-        $attempt = $this->attempt($request);
+        $attempt = $this->attemptForStep($request, $flow, 'passage');
+        if ($attempt instanceof RedirectResponse) {
+            return $attempt;
+        }
+
         $passage = $itemSelection->selectReadingPassageForAttempt($attempt);
 
         return Inertia::render('Learner/PassageReading', [
             'passage' => $this->itemForForm($passage),
             'assessmentAttemptId' => $attempt->id,
+            'assessmentMode' => $mode->props($request, $attempt, $attempt->learner),
         ]);
     }
 
-    public function storePassage(Request $request, ReadingComprehensionScoringService $reading, AudioStorageService $audioStorage, AIAnalysisResolver $analysis): RedirectResponse
+    public function storePassage(Request $request, ReadingComprehensionScoringService $reading, AudioStorageService $audioStorage, AIAnalysisResolver $analysis, AssessmentModeService $mode): RedirectResponse
     {
+        $attempt = $this->attemptForStep($request, app(LearnerFlowService::class), 'passage');
+        if ($attempt instanceof RedirectResponse) {
+            return $attempt;
+        }
+        $allowManualFallback = $mode->canShowManualFallback($request, $attempt, $attempt->learner);
+
         $validated = $request->validate([
-            'incorrect_words' => ['required', 'integer', 'min:0', 'max:50'],
+            'incorrect_words' => [$allowManualFallback ? 'required' : 'nullable', 'integer', 'min:0', 'max:50'],
             'audio' => AudioStorageService::validationRules(),
             'audio_file_id' => ['nullable', 'integer', 'exists:audio_files,id'],
             'duration_seconds' => AudioStorageService::durationValidationRules(),
         ], $this->friendlyValidationMessages());
 
-        $attempt = $this->attempt($request);
         $passage = app(AssessmentItemSelectionService::class)->selectReadingPassageForAttempt($attempt);
-        $incorrectWords = (int) $validated['incorrect_words'];
+        $incorrectWords = (int) ($validated['incorrect_words'] ?? 0);
         $audioFile = isset($validated['audio_file_id']) && $validated['audio_file_id']
             ? AudioFile::query()
                 ->where('learner_id', $attempt->learner_id)
@@ -262,6 +345,8 @@ class DiagnosticAssessmentController extends Controller
                 durationSeconds: isset($validated['duration_seconds']) ? (float) $validated['duration_seconds'] : null
             );
         }
+
+        $transcriptText = '';
 
         if ($audioFile) {
             $transcriptText = trim((string) $audioFile->transcript);
@@ -284,6 +369,13 @@ class DiagnosticAssessmentController extends Controller
                 );
             }
         }
+
+        if (! $allowManualFallback && (! $audioFile || $transcriptText === '')) {
+            throw ValidationException::withMessages([
+                'audio' => 'Please record your reading clearly before continuing.',
+            ]);
+        }
+
         $accuracy = $reading->calculateAccuracyPercentage($incorrectWords);
 
         $attempt->update([
@@ -295,13 +387,18 @@ class DiagnosticAssessmentController extends Controller
         return redirect()->route('learner.diagnostic.comprehension');
     }
 
-    public function comprehension(Request $request, AssessmentItemSelectionService $itemSelection): Response
+    public function comprehension(Request $request, AssessmentItemSelectionService $itemSelection, LearnerFlowService $flow, AssessmentModeService $mode): Response|RedirectResponse
     {
-        $attempt = $this->attempt($request);
+        $attempt = $this->attemptForStep($request, $flow, 'comprehension');
+        if ($attempt instanceof RedirectResponse) {
+            return $attempt;
+        }
+
         $passage = $itemSelection->selectReadingPassageForAttempt($attempt);
 
         return Inertia::render('Learner/ComprehensionQuestions', [
             'questions' => $this->questionsForPassage($passage),
+            'assessmentMode' => $mode->props($request, $attempt, $attempt->learner),
         ]);
     }
 
@@ -311,13 +408,17 @@ class DiagnosticAssessmentController extends Controller
         AnswerMatchingService $answerMatching,
         ReadingComprehensionScoringService $reading
     ): RedirectResponse {
+        $attempt = $this->attemptForStep($request, app(LearnerFlowService::class), 'comprehension');
+        if ($attempt instanceof RedirectResponse) {
+            return $attempt;
+        }
+
         $validated = $request->validate([
             'responses' => ['required', 'array', 'size:5'],
             'responses.*.question_id' => ['required', 'string'],
             'responses.*.answer' => ['required', 'string', 'max:255', 'regex:/\S/'],
         ], $this->friendlyValidationMessages());
 
-        $attempt = $this->attempt($request);
         $passage = $itemSelection->selectReadingPassageForAttempt($attempt);
         $questions = $this->questionsForPassage($passage);
         $correct = 0;
@@ -362,9 +463,12 @@ class DiagnosticAssessmentController extends Controller
         return redirect()->route('learner.diagnostic.reading-summary');
     }
 
-    public function readingSummary(Request $request): Response
+    public function readingSummary(Request $request, LearnerFlowService $flow): Response|RedirectResponse
     {
-        $attempt = $this->attempt($request);
+        $attempt = $this->attemptForStep($request, $flow, 'reading-summary', true);
+        if ($attempt instanceof RedirectResponse) {
+            return $attempt;
+        }
 
         return Inertia::render('Learner/ReadingSummary', [
             'attempt' => $attempt->only(
@@ -378,9 +482,12 @@ class DiagnosticAssessmentController extends Controller
         ]);
     }
 
-    public function modulePlacement(Request $request, ModulePlacementService $placementService): Response
+    public function modulePlacement(Request $request, ModulePlacementService $placementService, LearnerFlowService $flow): Response|RedirectResponse
     {
-        $attempt = $this->attempt($request);
+        $attempt = $this->attemptForStep($request, $flow, 'module-placement');
+        if ($attempt instanceof RedirectResponse) {
+            return $attempt;
+        }
         $decision = $placementService->place($attempt->crla_classification, $attempt->reading_classification);
         $module = $decision['module_key'] ? Module::where('key', $decision['module_key'])->first() : null;
 
@@ -413,7 +520,7 @@ class DiagnosticAssessmentController extends Controller
 
         $attempt->learner->update([
             'current_module_id' => $module?->id,
-            'current_stage' => $module ? 'module_assigned' : 'grade_ready',
+            'current_stage' => $module ? LearnerStage::MODULE_ASSIGNED : LearnerStage::GRADE_READY,
         ]);
 
         return Inertia::render('Learner/ModulePlacementResult', [
@@ -456,6 +563,36 @@ class DiagnosticAssessmentController extends Controller
         return AssessmentAttempt::with('selectedItems')->findOrFail($request->session()->get('assessment_attempt_id'));
     }
 
+    private function attemptForStep(Request $request, LearnerFlowService $flow, string $step, bool $allowCompleted = false): AssessmentAttempt|RedirectResponse
+    {
+        $attempt = $flow->resolveDiagnosticAttempt($request, $allowCompleted);
+
+        if (! $attempt && $allowCompleted) {
+            $attempt = $flow->latestDiagnosticAttempt($flow->learner($request));
+        }
+
+        if (! $attempt) {
+            return redirect()->route('learner.dashboard')
+                ->with('info', 'Continue your reading path from the dashboard.');
+        }
+
+        if ($flow->isDiagnosticComplete($attempt)) {
+            return $step === 'reading-summary'
+                ? $attempt
+                : redirect()->route('learner.dashboard')
+                    ->with('info', 'Your diagnostic is complete. Continue from your dashboard.');
+        }
+
+        $flow->learner($request)->update(['current_stage' => LearnerStage::DIAGNOSTIC_IN_PROGRESS]);
+
+        if (! $flow->diagnosticStepAllowed($attempt, $step)) {
+            return redirect($flow->diagnosticResumeRoute($attempt))
+                ->with('info', 'We brought you back to the next step.');
+        }
+
+        return $attempt;
+    }
+
     private function scoreTextResponses(
         AssessmentAttempt $attempt,
         Collection $items,
@@ -464,7 +601,8 @@ class DiagnosticAssessmentController extends Controller
         AudioStorageService $audioStorage,
         AIAnalysisResolver $analysis,
         AgentCommentaryService $commentary,
-        string $rule
+        string $rule,
+        bool $allowManualFallback = true
     ): int {
         $score = 0;
 
@@ -490,7 +628,7 @@ class DiagnosticAssessmentController extends Controller
             $expectedAnswer = $this->expectedAnswer($item);
             $acceptedAnswers = $this->acceptedAnswersForItem($item, $expectedAnswer);
             $resolved = $analysis->resolve(
-                $submitted['answer'] ?? null,
+                $allowManualFallback ? ($submitted['answer'] ?? null) : null,
                 $audioFile,
                 $this->analysisContext($item, $expectedAnswer, $acceptedAnswers),
                 $this->sttOptionsForAssessmentItem($item)
@@ -573,7 +711,8 @@ class DiagnosticAssessmentController extends Controller
         AIAnalysisResolver $analysis,
         AgentCommentaryService $commentary,
         SentenceReadingScoringService $sentenceScoring,
-        string $rule
+        string $rule,
+        bool $allowManualFallback = true
     ): array {
         $evaluations = [];
 
@@ -600,7 +739,7 @@ class DiagnosticAssessmentController extends Controller
             $expectedAnswer = $this->expectedAnswer($item);
             $acceptedAnswers = $this->acceptedAnswersForItem($item, $expectedAnswer);
             $resolved = $analysis->resolve(
-                $submitted['answer'] ?? null,
+                $allowManualFallback ? ($submitted['answer'] ?? null) : null,
                 $audioFile,
                 $this->analysisContext($item, $expectedAnswer, $acceptedAnswers),
                 $this->sttOptionsForAssessmentItem($item)
@@ -955,6 +1094,18 @@ class DiagnosticAssessmentController extends Controller
             'responses.*.audio' => AudioStorageService::validationRules(),
             'responses.*.duration_seconds' => AudioStorageService::durationValidationRules(),
         ];
+    }
+
+    private function validateSubmittedAssessmentItemSet(Collection $items, array $responses): void
+    {
+        $expected = $items->pluck('id')->sort()->values()->all();
+        $submitted = collect($responses)->pluck('assessment_attempt_item_id')->sort()->values()->all();
+
+        if ($expected !== $submitted) {
+            throw ValidationException::withMessages([
+                'responses' => 'Almost there! Continue from the current step.',
+            ]);
+        }
     }
 
     private function friendlyValidationMessages(): array

@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import LearnerLayout from '../../../Layouts/LearnerLayout.vue';
 import AudioRecorder from '../../../Components/Learner/AudioRecorder.vue';
@@ -8,11 +8,17 @@ import PrimaryButton from '../../../Components/PrimaryButton.vue';
 import BottomActionBar from '../../../Components/BottomActionBar.vue';
 import StatusBadge from '../../../Components/StatusBadge.vue';
 
-defineProps({ passage: Object });
+const props = defineProps({
+    passage: Object,
+    assessmentAttemptId: Number,
+    assessmentMode: Object,
+});
 
 const form = useForm({ incorrect_words: 0, audio: null, duration_seconds: null });
 const audioFile = ref(null);
+const canUseManualFallback = computed(() => props.assessmentMode?.canUseManualFallback === true);
 const hasIncorrectWords = () => form.incorrect_words !== '' && form.incorrect_words !== null && Number(form.incorrect_words) >= 0;
+const canSubmit = computed(() => Boolean(form.audio) && (canUseManualFallback.value ? hasIncorrectWords() : true));
 const rememberAudio = (file) => {
     audioFile.value = file;
     form.audio = file;
@@ -29,7 +35,7 @@ const submit = () => form.post('/final-assessment/passage/submit', { forceFormDa
 <template>
     <LearnerLayout :progress="72">
         <template #agent>
-            <AgentSpeakerPanel agent-type="assessment" state="listening" message="Read the passage aloud for your final reading check. I will estimate incorrect words from your recording, and the number field is a fallback if transcription fails." />
+            <AgentSpeakerPanel agent-type="assessment" state="listening" message="This is your final reading check. Read the passage aloud and try your best." />
         </template>
         <div class="mx-auto grid max-w-2xl gap-3">
             <div class="flex items-center justify-between">
@@ -41,14 +47,17 @@ const submit = () => form.post('/final-assessment/passage/submit', { forceFormDa
             </section>
             <div class="grid gap-3 rounded-[24px] border border-border bg-surface p-4 shadow-lg shadow-primary/10 md:grid-cols-[220px_1fr]">
                 <AudioRecorder compact :max-duration-seconds="60" label="Passage voice" @recorded="rememberAudio" @cleared="clearAudio" />
-                <label class="grid content-center gap-2 text-lg font-black text-text">
-                    Incorrect words fallback if auto-check fails
+                <label v-if="canUseManualFallback" class="grid content-center gap-2 text-lg font-black text-text">
+                    Developer QA: Incorrect Words Override
                     <input v-model="form.incorrect_words" type="number" min="0" max="50" class="rounded-2xl border-2 border-border px-4 py-3 text-lg font-black focus:border-primary focus:outline-none">
                 </label>
+                <div v-else class="grid content-center rounded-2xl border-2 border-border bg-background px-4 py-5 text-lg font-black text-muted">
+                    Record your reading to continue.
+                </div>
             </div>
         </div>
         <BottomActionBar>
-            <PrimaryButton :disabled="form.processing || !hasIncorrectWords()" @click="submit">Continue</PrimaryButton>
+            <PrimaryButton :disabled="form.processing || !canSubmit" @click="submit">Continue</PrimaryButton>
         </BottomActionBar>
     </LearnerLayout>
 </template>

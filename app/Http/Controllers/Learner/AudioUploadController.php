@@ -9,6 +9,7 @@ use App\Models\Learner;
 use App\Models\ModuleAttempt;
 use App\Models\ModuleAttemptItem;
 use App\Services\AI\AIAnalysisResolver;
+use App\Services\AssessmentModeService;
 use App\Services\AudioStorageService;
 use App\Services\STT\AudioTranscriptionService;
 use Illuminate\Http\JsonResponse;
@@ -21,9 +22,9 @@ class AudioUploadController extends Controller
         Request $request,
         AudioStorageService $audioStorage,
         AIAnalysisResolver $analysis,
-        AudioTranscriptionService $transcription
-    ): JsonResponse
-    {
+        AudioTranscriptionService $transcription,
+        AssessmentModeService $mode
+    ): JsonResponse {
         $validated = $request->validate([
             'audio' => AudioStorageService::validationRules(true),
             'context_type' => ['required', 'string', Rule::in(['assessment_task', 'module_activity', 'passage_reading', 'comprehension_optional'])],
@@ -56,25 +57,36 @@ class AudioUploadController extends Controller
                 'activity_type' => $validated['activity_type'] ?? null,
             ]
         );
-        $context = $this->analysisContext($assessmentAttempt, $moduleAttempt, $validated);
+        $canShowDebug = $mode->canShowAssessmentDebug($request, $assessmentAttempt, $learner);
+        $context = $this->analysisContext($assessmentAttempt, $moduleAttempt, $validated, $canShowDebug);
         $sttOptions = $this->sttOptions($assessmentAttempt, $validated);
         $resolved = $this->shouldUseFastLetterPath($validated)
             ? $this->fastLetterResolution($audioFile, $transcription, $sttOptions)
             : $analysis->resolve(null, $audioFile, $context, $sttOptions);
         $transcript = trim((string) ($resolved['transcript'] ?? ''));
-        $transcriptionMessage = $this->transcriptionMessage($resolved);
+        $transcriptionMessage = $this->transcriptionMessage($resolved, $canShowDebug);
 
-        return response()->json([
+        $payload = [
             'audio_file_id' => $audioFile->id,
             'audio_file_public_id' => $audioFile->public_id,
             'mime_type' => $audioFile->mime_type,
-            'file_size' => $audioFile->file_size,
             'duration_seconds' => $audioFile->duration_seconds,
             'transcription_status' => $transcript !== '' ? 'transcribed' : 'failed',
             'transcription_message' => $transcriptionMessage,
             'message' => $transcriptionMessage,
             'transcript' => $resolved['transcript'],
             'displayed_transcript' => $resolved['displayed_transcript'] ?? $resolved['transcript'],
+            'retry_required' => (bool) ($resolved['ai_response']['retry_required'] ?? false),
+            'learner_retry_message' => $resolved['ai_response']['learner_retry_message'] ?? null,
+            'transcript_source' => $transcript !== '' ? $resolved['source'] : null,
+        ];
+
+        if (! $canShowDebug) {
+            return response()->json($payload);
+        }
+
+        return response()->json(array_merge($payload, [
+            'file_size' => $audioFile->file_size,
             'raw_transcript' => $resolved['ai_response']['raw_transcript'] ?? $resolved['transcript'],
             'wav2vec2_transcript' => $resolved['ai_response']['wav2vec2_transcript'] ?? null,
             'corrected_transcript' => $resolved['ai_response']['corrected_transcript'] ?? $resolved['transcript'],
@@ -109,13 +121,11 @@ class AudioUploadController extends Controller
             'uncertain' => (bool) ($resolved['ai_response']['uncertain'] ?? false),
             'uncertainty_reasons' => $resolved['ai_response']['uncertainty_reasons'] ?? [],
             'quality_gate_failed' => (bool) ($resolved['ai_response']['quality_gate_failed'] ?? false),
-            'learner_retry_message' => $resolved['ai_response']['learner_retry_message'] ?? null,
             'stt_confidence' => $resolved['confidence'],
-            'transcript_source' => $transcript !== '' ? $resolved['source'] : null,
             'stt_error' => $resolved['stt_result']?->error,
             'ai_error' => $resolved['ai_response']['error'] ?? null,
             'ai_warnings' => $resolved['ai_response']['warnings'] ?? [],
-        ]);
+        ]));
     }
 
     private function sttOptions(?AssessmentAttempt $assessmentAttempt, array $validated): array
@@ -148,7 +158,7 @@ class AudioUploadController extends Controller
         };
     }
 
-    private function analysisContext(?AssessmentAttempt $assessmentAttempt, ?ModuleAttempt $moduleAttempt, array $validated): array
+    private function analysisContext(?AssessmentAttempt $assessmentAttempt, ?ModuleAttempt $moduleAttempt, array $validated, bool $canShowDebug = false): array
     {
         $item = $this->assessmentItem($assessmentAttempt, $validated) ?? $this->moduleItem($moduleAttempt, $validated);
         $snapshot = $item?->prompt_snapshot ?? [];
@@ -177,7 +187,7 @@ class AudioUploadController extends Controller
                 'prompt_snapshot' => $snapshot,
             ],
             'content_metadata' => ['prompt_snapshot' => $snapshot],
-            'debug' => (bool) config('readirect_ai.debug.show_admin_debug'),
+            'debug' => $canShowDebug,
         ];
     }
 
@@ -227,7 +237,7 @@ class AudioUploadController extends Controller
         ];
     }
 
-    private function transcriptionMessage(array $resolved): ?string
+    private function transcriptionMessage(array $resolved, bool $canShowDebug = false): ?string
     {
         if (trim((string) ($resolved['transcript'] ?? '')) !== '') {
             return null;
@@ -240,6 +250,14 @@ class AudioUploadController extends Controller
 
         if (($resolved['ai_response']['retry_required'] ?? false) === true && is_string($learnerRetryMessage) && $learnerRetryMessage !== '') {
             return $learnerRetryMessage;
+        }
+
+        if (! $canShowDebug) {
+            if ($aiError === 'unsupported_audio_type') {
+                return 'That recording could not be used. Please try again.';
+            }
+
+            return 'We could not hear your answer clearly. Please try recording again.';
         }
 
         if ($aiError === 'readirect_ai_unavailable') {

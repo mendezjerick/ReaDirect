@@ -14,6 +14,7 @@ import { useStepAssessment } from '../../../Composables/useStepAssessment';
 const props = defineProps({
     items: Array,
     assessmentAttemptId: Number,
+    assessmentMode: Object,
 });
 const form = useForm({ responses: [] });
 const audioFiles = reactive({});
@@ -23,11 +24,13 @@ const transcriptSources = reactive({});
 const generatedTranscripts = reactive({});
 const uploadErrors = reactive({});
 const uploading = reactive({});
-const manualAnswerFor = (item) => String(step.answers[item?.id] ?? '').trim();
+const canUseManualFallback = computed(() => props.assessmentMode?.canUseManualFallback === true);
+const canUseDeveloperJumpControls = computed(() => props.assessmentMode?.canUseDeveloperJumpControls === true);
+const manualAnswerFor = (item) => canUseManualFallback.value ? String(step.answers[item?.id] ?? '').trim() : '';
 const answerFor = (item) => manualAnswerFor(item) || String(generatedTranscripts[item?.id] ?? '').trim();
 const sourceFor = (item) => manualAnswerFor(item)
     ? 'manual'
-    : (transcriptSources[item?.id] ?? (generatedTranscripts[item?.id] ? 'stt_auto' : 'manual'));
+    : (transcriptSources[item?.id] ?? (generatedTranscripts[item?.id] ? 'stt_auto' : 'stt_auto'));
 const hasUsableTranscript = (item, answer) => {
     const expectedPrompt = String(item?.payload?.target_word ?? item?.payload?.expected_answer ?? item?.prompt ?? '').trim();
     const manualAnswer = String(answer ?? '').trim();
@@ -41,7 +44,7 @@ const hasUsableTranscript = (item, answer) => {
 };
 const hasAnswerOrAudio = (item, answer) => Boolean(uploadedAudioIds[item?.id]) && hasUsableTranscript(item, answer);
 const step = useStepAssessment(props.items, { emptyMessage: 'Almost there! Finish this item to continue.', isAnswered: hasAnswerOrAudio });
-const agentMessage = ref('Read the highlighted word in the sentence.');
+const agentMessage = ref('Read the word in the sentence. Speak clearly when you record.');
 const agentState = ref('listening');
 const isCurrentUploading = computed(() => Boolean(uploading[step.currentItem.value?.id]));
 const currentHasUploadedAudio = computed(() => Boolean(uploadedAudioIds[step.currentItem.value?.id]));
@@ -66,7 +69,7 @@ const setAnswer = (item, value) => {
 };
 const uploadAudio = async (item, file) => {
     uploading[item.id] = true;
-    agentMessage.value = 'Uploading voice and generating transcript.';
+    agentMessage.value = 'Checking your recording.';
     agentState.value = 'speaking';
 
     try {
@@ -101,18 +104,16 @@ const uploadAudio = async (item, file) => {
             generatedTranscripts[item.id] = transcript;
             transcriptSources[item.id] = result.transcript_source ?? 'stt_auto';
             step.feedback.value = '';
-            agentMessage.value = `Transcript ready: ${transcript}`;
+            agentMessage.value = `You said: ${transcript}`;
             agentState.value = 'speaking';
             return;
         }
 
-        transcriptSources[item.id] = 'manual';
-        uploadErrors[item.id] = result.transcription_message ?? result.message ?? 'No transcript was produced. Enter the transcript manually.';
+        uploadErrors[item.id] = result.transcription_message ?? result.message ?? 'We could not hear your answer clearly. Please try recording again.';
         agentMessage.value = uploadErrors[item.id];
         agentState.value = 'speaking';
     } catch (error) {
-        transcriptSources[item.id] = 'manual';
-        uploadErrors[item.id] = error.message || 'Unable to transcribe the recording right now.';
+        uploadErrors[item.id] = error.message || 'We had trouble checking your answer. Please try again.';
         agentMessage.value = uploadErrors[item.id];
         agentState.value = 'speaking';
     } finally {
@@ -145,9 +146,13 @@ const handlePrimary = () => {
     }
 
     if (!hasUsableTranscript(step.currentItem.value, answerFor(step.currentItem.value))) {
-        agentMessage.value = 'Please wait for the transcript, or correct it so it matches what you said.';
+        agentMessage.value = canUseManualFallback.value
+            ? 'Please wait for the transcript, or correct it so it matches what you said.'
+            : 'Please wait for the voice check, or try recording again.';
         agentState.value = 'speaking';
-        step.feedback.value = 'We need a usable transcript for this word before continuing.';
+        step.feedback.value = canUseManualFallback.value
+            ? 'We need a usable transcript for this word before continuing.'
+            : 'We need to hear the word clearly before continuing.';
         return;
     }
 
@@ -172,7 +177,7 @@ const handlePrimary = () => {
         <section class="mx-auto grid max-w-xl gap-3">
             <div class="flex items-center justify-between">
                 <StatusBadge :status="`Word ${step.currentIndex.value + 1} of ${items.length}`" />
-                <StatusBadge :status="isCurrentUploading ? 'Transcribing' : 'Voice transcript'" variant="primary" />
+                <StatusBadge :status="isCurrentUploading ? 'Checking' : 'Voice check'" variant="primary" />
             </div>
             <ModuleProgressBar :value="step.progressPercent.value" />
             <div class="rounded-[28px] border border-border bg-surface p-5 text-center shadow-xl shadow-primary/10">
@@ -189,12 +194,12 @@ const handlePrimary = () => {
                     <AudioRecorder :key="step.currentItem.value.id" compact :max-duration-seconds="30" label="Word voice" @recorded="(file) => rememberAudio(step.currentItem.value, file)" @cleared="() => clearAudio(step.currentItem.value)" />
                     <div class="grid gap-3">
                         <label class="grid gap-2 text-lg font-black text-text">
-                            AI transcription
-                            <textarea :value="generatedTranscripts[step.currentItem.value.id] ?? ''" class="min-h-20 resize-none rounded-2xl border-2 border-border bg-background px-4 py-3 text-lg font-black text-text focus:border-primary focus:outline-none" readonly :placeholder="isCurrentUploading ? 'Generating transcription...' : 'The AI transcription appears here'" />
+                            You said
+                            <textarea :value="generatedTranscripts[step.currentItem.value.id] ?? ''" class="min-h-20 resize-none rounded-2xl border-2 border-border bg-background px-4 py-3 text-lg font-black text-text focus:border-primary focus:outline-none" readonly :placeholder="isCurrentUploading ? 'Checking your recording...' : 'Your words will appear here'" />
                         </label>
-                        <label class="grid gap-2 text-sm font-black text-muted">
-                            Developer override
-                            <input :value="step.answers[step.currentItem.value.id]" class="w-full rounded-2xl border-2 border-border px-4 py-3 text-base font-black text-text focus:border-primary focus:outline-none" placeholder="Optional fallback text" @input="setAnswer(step.currentItem.value, $event.target.value)">
+                        <label v-if="canUseManualFallback" class="grid gap-2 text-sm font-black text-muted">
+                            Developer QA: Manual Transcript Override
+                            <input :value="step.answers[step.currentItem.value.id]" class="w-full rounded-2xl border-2 border-border px-4 py-3 text-base font-black text-text focus:border-primary focus:outline-none" placeholder="Optional QA fallback text" @input="setAnswer(step.currentItem.value, $event.target.value)">
                         </label>
                     </div>
                 </div>
@@ -204,7 +209,7 @@ const handlePrimary = () => {
         </section>
         <BottomActionBar>
             <div class="flex w-full items-center justify-between gap-3">
-                <SecondaryButton v-if="!step.isFirst.value" @click="step.goBack">Back</SecondaryButton>
+                <SecondaryButton v-if="canUseDeveloperJumpControls && !step.isFirst.value" @click="step.goBack">Back</SecondaryButton>
                 <span v-else />
                 <PrimaryButton :disabled="form.processing || isCurrentUploading" :class="{ 'opacity-70': !step.isCurrentAnswered.value || isCurrentUploading }" @click="handlePrimary">
                     {{ step.isLast.value ? 'Check words' : 'Next' }}

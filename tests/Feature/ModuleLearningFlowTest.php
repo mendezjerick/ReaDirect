@@ -83,7 +83,7 @@ class ModuleLearningFlowTest extends TestCase
     public function test_module_activity_submission_with_missing_answer_is_rejected(): void
     {
         [$learner, $module] = $this->moduleContext();
-        $learner->update(['current_module_id' => $module->id, 'current_stage' => 'module_practice']);
+        $learner->update(['current_module_id' => $module->id, 'current_stage' => 'module_practice_in_progress']);
         $this->seedModuleActivities($module, 'read_word', 5, false);
         $service = app(ModuleActivitySelectionService::class);
         $attempt = $service->startOrResumeModuleAttempt($learner, $module);
@@ -101,7 +101,7 @@ class ModuleLearningFlowTest extends TestCase
     public function test_module_activity_submission_with_stale_item_ids_is_rejected(): void
     {
         [$learner, $module] = $this->moduleContext();
-        $learner->update(['current_module_id' => $module->id, 'current_stage' => 'module_practice']);
+        $learner->update(['current_module_id' => $module->id, 'current_stage' => 'module_practice_in_progress']);
         $this->seedModuleActivities($module, 'read_word', 5, false);
         $this->seedModuleActivities($module, 'word_family_drill', 5, false);
         $service = app(ModuleActivitySelectionService::class);
@@ -120,7 +120,7 @@ class ModuleLearningFlowTest extends TestCase
     public function test_module_mastery_submission_with_missing_answer_is_rejected(): void
     {
         [$learner, $module] = $this->moduleContext();
-        $learner->update(['current_module_id' => $module->id, 'current_stage' => 'module_practice']);
+        $learner->update(['current_module_id' => $module->id, 'current_stage' => 'module_practice_in_progress']);
         $this->seedModuleActivities($module, 'mastery_check', 10, true);
         $service = app(ModuleActivitySelectionService::class);
         $attempt = $service->startOrResumeModuleAttempt($learner, $module);
@@ -195,7 +195,7 @@ class ModuleLearningFlowTest extends TestCase
 
         $this->withSession(['learner_id' => $learner->id])
             ->get(route('learner.modules.start', $moduleTwo))
-            ->assertForbidden();
+            ->assertRedirect(route('learner.dashboard'));
     }
 
     private function moduleContext(string $moduleKey = 'module_2'): array

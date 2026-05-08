@@ -1,4 +1,5 @@
 <script setup>
+import { computed } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import LearnerLayout from '../../../Layouts/LearnerLayout.vue';
 import AgentSpeakerPanel from '../../../Components/Learner/AgentSpeakerPanel.vue';
@@ -9,7 +10,11 @@ import StatusBadge from '../../../Components/StatusBadge.vue';
 import ModuleProgressBar from '../../../Components/ModuleProgressBar.vue';
 import { useStepAssessment } from '../../../Composables/useStepAssessment';
 
-const props = defineProps({ questions: Array });
+const props = defineProps({
+    questions: Array,
+    assessmentMode: Object,
+});
+const canUseDeveloperJumpControls = computed(() => props.assessmentMode?.canUseDeveloperJumpControls === true);
 const step = useStepAssessment(props.questions, { emptyMessage: 'Choose one answer before moving on.' });
 const form = useForm({ responses: [] });
 
@@ -31,7 +36,7 @@ const handlePrimary = () => {
 <template>
     <LearnerLayout :progress="86">
         <template #agent>
-            <AgentSpeakerPanel compact agent-type="assessment" state="speaking" message="Choose the best answer for this final question." />
+            <AgentSpeakerPanel compact agent-type="assessment" state="speaking" message="Choose the best answer based on the story you read." />
         </template>
         <section class="mx-auto grid max-w-xl gap-3">
             <StatusBadge :status="`Question ${step.currentIndex.value + 1} of ${questions.length}`" />
@@ -48,7 +53,7 @@ const handlePrimary = () => {
         </section>
         <BottomActionBar>
             <div class="flex w-full items-center justify-between gap-3">
-                <SecondaryButton v-if="!step.isFirst.value" @click="step.goBack">Back</SecondaryButton>
+                <SecondaryButton v-if="canUseDeveloperJumpControls && !step.isFirst.value" @click="step.goBack">Back</SecondaryButton>
                 <span v-else />
                 <PrimaryButton :disabled="form.processing" :class="{ 'opacity-70': !step.isCurrentAnswered.value }" @click="handlePrimary">
                     {{ step.isLast.value ? 'Finish final check' : 'Next' }}

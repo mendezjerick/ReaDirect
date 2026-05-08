@@ -11,6 +11,7 @@ import StatusBadge from '../../Components/StatusBadge.vue';
 const props = defineProps({
     passage: Object,
     assessmentAttemptId: Number,
+    assessmentMode: Object,
 });
 
 const form = useForm({ incorrect_words: 0, audio: null, audio_file_id: null, duration_seconds: null });
@@ -18,6 +19,7 @@ const audioFile = ref(null);
 const transcript = ref('');
 const uploadError = ref('');
 const uploading = ref(false);
+const canUseManualFallback = computed(() => props.assessmentMode?.canUseManualFallback === true);
 
 const canonicalGroups = [
     ['small', 'little'],
@@ -171,8 +173,13 @@ const highlightedPassageTokens = computed(() => {
 
 const canSubmit = computed(() => {
     const hasIncorrectWords = form.incorrect_words !== '' && form.incorrect_words !== null && Number(form.incorrect_words) >= 0;
+    const hasRecording = Boolean(form.audio_file_id) || Boolean(form.audio);
 
-    return !uploading.value && hasIncorrectWords && (Boolean(form.audio_file_id) || Boolean(form.audio));
+    if (canUseManualFallback.value) {
+        return !uploading.value && hasIncorrectWords && hasRecording;
+    }
+
+    return !uploading.value && hasRecording && transcript.value.trim() !== '';
 });
 
 const uploadTranscript = async (file) => {
@@ -211,9 +218,9 @@ const uploadTranscript = async (file) => {
             return;
         }
 
-        uploadError.value = result.transcription_message ?? result.message ?? 'No transcript was produced. You can still enter a fallback incorrect-word count manually.';
+        uploadError.value = result.transcription_message ?? result.message ?? 'We could not hear your reading clearly. Please try recording again.';
     } catch (error) {
-        uploadError.value = error.message || 'Unable to transcribe the recording right now.';
+        uploadError.value = error.message || 'We had trouble checking your reading. Please try again.';
     } finally {
         uploading.value = false;
     }
@@ -246,13 +253,13 @@ const submit = () => form.post('/learner/diagnostic/passage', { forceFormData: t
             <AgentSpeakerPanel
                 agent-type="assessment"
                 :state="uploading ? 'speaking' : 'listening'"
-                :message="uploading ? 'Transcribing your reading and checking it against the passage.' : 'Read the passage aloud. I will transcribe what you actually said, mark true mismatches in red, and show meaning-preserving swaps in orange.'"
+                :message="uploading ? 'Checking your reading.' : 'Read the passage aloud. Try your best and speak clearly.'"
             />
         </template>
         <div class="mx-auto grid max-w-2xl gap-3">
             <div class="flex items-center justify-between">
                 <StatusBadge status="50 words" />
-                <StatusBadge :status="uploading ? 'Transcribing' : 'Max 60 seconds'" :variant="uploading ? 'primary' : 'warning'" />
+                <StatusBadge :status="uploading ? 'Checking' : 'Max 60 seconds'" :variant="uploading ? 'primary' : 'warning'" />
             </div>
             <section class="max-h-[34vh] overflow-y-auto rounded-[28px] border border-border bg-surface p-5 shadow-xl shadow-primary/10 lg:max-h-[42vh]">
                 <p class="text-2xl font-black leading-relaxed text-text md:text-[28px]">
@@ -276,7 +283,7 @@ const submit = () => form.post('/learner/diagnostic/passage', { forceFormData: t
                 />
                 <div class="grid gap-3">
                     <label class="grid gap-2 text-lg font-black text-text">
-                        Transcript
+                        You said
                         <div class="min-h-16 rounded-2xl border-2 border-border px-4 py-3 text-base font-black text-text">
                             <span v-if="transcript">
                                 <template v-for="(word, index) in diff.actualWords" :key="`${word.index}-${index}`">
@@ -290,12 +297,12 @@ const submit = () => form.post('/learner/diagnostic/passage', { forceFormData: t
                                 </template>
                             </span>
                             <span v-else class="text-muted">
-                                {{ uploading ? 'Generating transcript...' : 'Transcript appears here after recording' }}
+                                {{ uploading ? 'Checking your recording...' : 'Your words will appear here' }}
                             </span>
                         </div>
                     </label>
-                    <label class="grid content-center gap-2 text-lg font-black text-text">
-                        Incorrect words
+                    <label v-if="canUseManualFallback" class="grid content-center gap-2 text-lg font-black text-text">
+                        Developer QA: Incorrect Words Override
                         <input v-model="form.incorrect_words" type="number" min="0" max="50" class="rounded-2xl border-2 border-border px-4 py-3 text-lg font-black focus:border-primary focus:outline-none">
                     </label>
                     <p v-if="diff.semanticCount > 0" class="rounded-2xl bg-warning/15 px-4 py-3 text-sm font-black text-warning">

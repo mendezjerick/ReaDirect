@@ -744,7 +744,7 @@ class ReadirectAIIntegrationTest extends TestCase
         ]);
 
         $response = $this
-            ->withSession(['learner_id' => $learner->id])
+            ->withSession(['learner_id' => $learner->id, 'admin_testing_mode' => true])
             ->postJson('/learner/audio/upload', [
                 'audio' => UploadedFile::fake()->create('short.webm', 10, 'audio/webm'),
                 'context_type' => 'comprehension_optional',

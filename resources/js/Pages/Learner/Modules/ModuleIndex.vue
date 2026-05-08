@@ -7,7 +7,7 @@ import PrimaryButton from '../../../Components/PrimaryButton.vue';
 import BottomActionBar from '../../../Components/BottomActionBar.vue';
 import ProgressPath from '../../../Components/ProgressPath.vue';
 
-defineProps({ module: Object, learnerStage: String });
+defineProps({ module: Object, learnerStage: String, flowState: Object });
 </script>
 
 <template>
@@ -26,7 +26,7 @@ defineProps({ module: Object, learnerStage: String });
             />
             <div v-else class="rounded-[28px] border border-border bg-surface p-8 shadow-lg shadow-primary/10">
                 <p class="text-2xl font-black text-text">No module is needed right now.</p>
-                <p class="mt-2 text-lg font-bold text-muted">Your diagnostic result shows grade-level readiness.</p>
+                <p class="mt-2 text-lg font-bold text-muted">{{ flowState?.message ?? 'Your diagnostic result shows grade-level readiness.' }}</p>
             </div>
             <ProgressPath v-if="module">
                 <div class="grid grid-cols-4 gap-3">
@@ -42,8 +42,8 @@ defineProps({ module: Object, learnerStage: String });
             <Link v-if="module" :href="`/learner/modules/${module.key}/start`">
                 <PrimaryButton>Continue</PrimaryButton>
             </Link>
-            <Link v-else href="/learner/dashboard">
-                <PrimaryButton>Back home</PrimaryButton>
+            <Link v-else :href="flowState?.primary_action_route ?? '/learner/dashboard'">
+                <PrimaryButton>{{ flowState?.primary_action_label ?? 'Back home' }}</PrimaryButton>
             </Link>
         </BottomActionBar>
     </LearnerLayout>

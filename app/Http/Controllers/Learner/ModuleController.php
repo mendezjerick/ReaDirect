@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\AssessmentAttempt;
 use App\Models\Learner;
 use App\Models\Module;
+use App\Services\LearnerFlowService;
 use App\Services\ModuleActivitySelectionService;
+use App\Support\LearnerStage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -14,38 +16,46 @@ use Inertia\Response;
 
 class ModuleController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(Request $request, LearnerFlowService $flow): Response
     {
         $learner = $this->learner($request);
         $module = $this->currentOrPlacedModule($learner);
+        $flowState = $flow->state($learner);
 
         return Inertia::render('Learner/Modules/ModuleIndex', [
             'module' => $module?->only('key', 'title', 'description'),
             'learnerStage' => $learner->current_stage,
+            'flowState' => $flowState,
         ]);
     }
 
-    public function start(Request $request, Module $module, ModuleActivitySelectionService $selection): RedirectResponse
+    public function start(Request $request, Module $module, ModuleActivitySelectionService $selection, LearnerFlowService $flow): RedirectResponse
     {
         $learner = $this->learner($request);
-        $this->authorizeModule($learner, $module);
-        $attempt = $selection->startOrResumeModuleAttempt($learner, $module);
+        if ($redirect = $this->guardModuleAccess($learner, $module, $flow)) {
+            return $redirect;
+        }
+
+        $attempt = $flow->resolveModuleAttempt($request, $learner, $module) ?? $selection->startOrResumeModuleAttempt($learner, $module);
 
         $request->session()->put('module_attempt_id', $attempt->id);
 
         $learner->update([
             'current_module_id' => $module->id,
-            'current_stage' => 'module_practice',
+            'current_stage' => LearnerStage::MODULE_PRACTICE_IN_PROGRESS,
         ]);
 
         return redirect()->route('learner.modules.overview', $module);
     }
 
-    public function overview(Request $request, Module $module, ModuleActivitySelectionService $selection): Response
+    public function overview(Request $request, Module $module, ModuleActivitySelectionService $selection, LearnerFlowService $flow): Response|RedirectResponse
     {
         $learner = $this->learner($request);
-        $this->authorizeModule($learner, $module);
-        $attempt = $selection->startOrResumeModuleAttempt($learner, $module);
+        if ($redirect = $this->guardModuleAccess($learner, $module, $flow)) {
+            return $redirect;
+        }
+
+        $attempt = $flow->resolveModuleAttempt($request, $learner, $module) ?? $selection->startOrResumeModuleAttempt($learner, $module);
         $request->session()->put('module_attempt_id', $attempt->id);
         $activityTypes = $selection->practiceActivityTypes($module);
 
@@ -56,10 +66,17 @@ class ModuleController extends Controller
         ]);
     }
 
-    public function extraDrills(Request $request, Module $module): Response
+    public function extraDrills(Request $request, Module $module, LearnerFlowService $flow): Response|RedirectResponse
     {
         $learner = $this->learner($request);
-        $this->authorizeModule($learner, $module);
+        if ($redirect = $this->guardModuleAccess($learner, $module, $flow)) {
+            return $redirect;
+        }
+
+        if (LearnerStage::normalize($learner->current_stage) !== LearnerStage::EXTRA_PHONEME_DRILLS) {
+            return redirect($flow->moduleResumeRoute($learner, $module))
+                ->with('info', 'Continue from your current module step.');
+        }
 
         return Inertia::render('Learner/Modules/ExtraDrills', [
             'module' => $module->only('key', 'title', 'description'),
@@ -85,7 +102,7 @@ class ModuleController extends Controller
         if ($placedAttempt?->assigned_module_id) {
             $learner->update([
                 'current_module_id' => $placedAttempt->assigned_module_id,
-                'current_stage' => 'module_assigned',
+                'current_stage' => LearnerStage::MODULE_ASSIGNED,
             ]);
 
             return Module::find($placedAttempt->assigned_module_id);
@@ -94,10 +111,13 @@ class ModuleController extends Controller
         return null;
     }
 
-    private function authorizeModule(Learner $learner, Module $module): void
+    private function guardModuleAccess(Learner $learner, Module $module, LearnerFlowService $flow): ?RedirectResponse
     {
-        if ($learner->current_module_id && (int) $learner->current_module_id !== (int) $module->id) {
-            abort(403);
+        if (! $flow->moduleAccessible($learner, $module)) {
+            return redirect()->route('learner.dashboard')
+                ->with('info', 'That module is locked right now. Continue from your dashboard.');
         }
+
+        return null;
     }
 }

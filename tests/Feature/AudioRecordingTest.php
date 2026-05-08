@@ -136,7 +136,7 @@ class AudioRecordingTest extends TestCase
             ])
             ->all();
 
-        $this->withSession(['learner_id' => $attempt->learner_id, 'assessment_attempt_id' => $attempt->id])
+        $this->withSession(['learner_id' => $attempt->learner_id, 'assessment_attempt_id' => $attempt->id, 'admin_testing_mode' => true])
             ->post(route('learner.diagnostic.task-1.store'), ['responses' => $responses])
             ->assertRedirect(route('learner.diagnostic.task-routing'));
 
@@ -192,7 +192,7 @@ class AudioRecordingTest extends TestCase
         $responses[0]['answer'] = '';
         $responses[0]['audio'] = UploadedFile::fake()->create('blank.webm', 100, 'audio/webm');
 
-        $this->withSession(['learner_id' => $attempt->learner_id, 'assessment_attempt_id' => $attempt->id])
+        $this->withSession(['learner_id' => $attempt->learner_id, 'assessment_attempt_id' => $attempt->id, 'admin_testing_mode' => true])
             ->post(route('learner.diagnostic.task-1.store'), ['responses' => $responses])
             ->assertSessionHasErrors('responses.0.answer');
 
@@ -277,7 +277,7 @@ class AudioRecordingTest extends TestCase
             ->where('task_type', AssessmentItemSelectionService::TASK_1_LETTER)
             ->firstOrFail();
 
-        $response = $this->withSession(['learner_id' => $attempt->learner_id])
+        $response = $this->withSession(['learner_id' => $attempt->learner_id, 'admin_testing_mode' => true])
             ->postJson(route('learner.audio.upload'), [
                 'audio' => UploadedFile::fake()->create('letter.wav', 100, 'audio/wav'),
                 'context_type' => 'assessment_task',
@@ -334,7 +334,7 @@ class AudioRecordingTest extends TestCase
             ])
             ->all();
 
-        $this->withSession(['learner_id' => $attempt->learner_id, 'assessment_attempt_id' => $attempt->id])
+        $this->withSession(['learner_id' => $attempt->learner_id, 'assessment_attempt_id' => $attempt->id, 'admin_testing_mode' => true])
             ->post(route('learner.diagnostic.task-1.store'), ['responses' => $responses])
             ->assertRedirect(route('learner.diagnostic.task-routing'));
 

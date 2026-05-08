@@ -8,12 +8,14 @@ use App\Models\Module;
 use App\Models\ModuleActivityResponse;
 use App\Models\ModuleAttempt;
 use App\Models\ModuleAttemptItem;
+use App\Services\Agents\AgentCommentaryService;
 use App\Services\AI\AIAnalysisResolver;
 use App\Services\AudioStorageService;
-use App\Services\Agents\AgentCommentaryService;
+use App\Services\LearnerFlowService;
 use App\Services\ModuleActivitySelectionService;
 use App\Services\ModuleFeedbackService;
 use App\Services\ModuleScoringService;
+use App\Support\LearnerStage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -23,12 +25,26 @@ use Inertia\Response;
 
 class ModuleActivityController extends Controller
 {
-    public function show(Request $request, Module $module, string $activityType, ModuleActivitySelectionService $selection): Response|RedirectResponse
+    public function show(Request $request, Module $module, string $activityType, ModuleActivitySelectionService $selection, LearnerFlowService $flow): Response|RedirectResponse
     {
         $learner = $this->learner($request);
-        $this->authorizeModule($learner, $module);
-        $attempt = $selection->startOrResumeModuleAttempt($learner, $module);
+        if ($redirect = $this->guardModuleAccess($learner, $module, $flow)) {
+            return $redirect;
+        }
+
+        $attempt = $flow->resolveModuleAttempt($request, $learner, $module) ?? $selection->startOrResumeModuleAttempt($learner, $module);
         $request->session()->put('module_attempt_id', $attempt->id);
+        $configuredActivityTypes = $selection->practiceActivityTypes($module);
+        $nextAllowedActivity = $flow->nextPracticeActivity($attempt, $module);
+
+        if ($configuredActivityTypes !== [] && ($attempt->status === 'mastery_started' || $nextAllowedActivity === null)) {
+            return redirect()->route('learner.modules.mastery-check', $module);
+        }
+
+        if ($configuredActivityTypes !== [] && $activityType !== $nextAllowedActivity) {
+            return redirect()->route('learner.modules.activity', [$module, $nextAllowedActivity])
+                ->with('info', 'We brought you back to the next module activity.');
+        }
 
         $count = $selection->practiceCountFor($module, $activityType);
         $items = $selection->selectPracticeItemsForAttempt($attempt, $activityType, $count);
@@ -41,6 +57,7 @@ class ModuleActivityController extends Controller
         $nextActivityType = $this->nextActivityType($activityTypes, $activityType);
 
         $attempt->update(['status' => 'practice_started']);
+        $learner->update(['current_stage' => LearnerStage::MODULE_PRACTICE_IN_PROGRESS]);
 
         return Inertia::render('Learner/Modules/ModuleActivity', [
             'module' => $module->only('key', 'title', 'description'),
@@ -60,11 +77,21 @@ class ModuleActivityController extends Controller
         ModuleFeedbackService $feedback,
         AudioStorageService $audioStorage,
         AIAnalysisResolver $analysis,
-        AgentCommentaryService $commentary
+        AgentCommentaryService $commentary,
+        LearnerFlowService $flow
     ): RedirectResponse {
         $learner = $this->learner($request);
-        $this->authorizeModule($learner, $module);
-        $attempt = $this->attempt($request, $learner, $module, $selection);
+        if ($redirect = $this->guardModuleAccess($learner, $module, $flow)) {
+            return $redirect;
+        }
+
+        $attempt = $this->attempt($request, $learner, $module, $selection, $flow);
+
+        if ($selection->practiceActivityTypes($module) !== [] && $activityType !== $flow->nextPracticeActivity($attempt, $module)) {
+            return redirect($flow->moduleResumeRoute($learner, $module))
+                ->with('info', 'Continue from your current module activity.');
+        }
+
         $items = $selection->getLockedItemsForAttempt($attempt, $activityType)->where('is_mastery_item', false)->values();
 
         $validated = $request->validate($this->responseRules($items->count()), $this->friendlyValidationMessages());
@@ -207,21 +234,20 @@ class ModuleActivityController extends Controller
         return Learner::find($request->session()->get('learner_id')) ?? Learner::firstOrFail();
     }
 
-    private function attempt(Request $request, Learner $learner, Module $module, ModuleActivitySelectionService $selection): ModuleAttempt
+    private function attempt(Request $request, Learner $learner, Module $module, ModuleActivitySelectionService $selection, LearnerFlowService $flow): ModuleAttempt
     {
-        $attempt = ModuleAttempt::where('id', $request->session()->get('module_attempt_id'))
-            ->where('learner_id', $learner->id)
-            ->where('module_id', $module->id)
-            ->first();
-
-        return $attempt ?? $selection->startOrResumeModuleAttempt($learner, $module);
+        return $flow->resolveModuleAttempt($request, $learner, $module)
+            ?? $selection->startOrResumeModuleAttempt($learner, $module);
     }
 
-    private function authorizeModule(Learner $learner, Module $module): void
+    private function guardModuleAccess(Learner $learner, Module $module, LearnerFlowService $flow): ?RedirectResponse
     {
-        if ($learner->current_module_id && (int) $learner->current_module_id !== (int) $module->id) {
-            abort(403);
+        if (! $flow->moduleAccessible($learner, $module)) {
+            return redirect()->route('learner.dashboard')
+                ->with('info', 'That module is locked right now. Continue from your dashboard.');
         }
+
+        return null;
     }
 
     private function itemsForForm(Collection $items): array
