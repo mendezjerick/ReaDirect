@@ -20,6 +20,7 @@ const transcript = ref('');
 const uploadError = ref('');
 const uploading = ref(false);
 const canUseManualFallback = computed(() => props.assessmentMode?.canUseManualFallback === true);
+const isDeveloperQaMode = computed(() => props.assessmentMode?.isDeveloperQaMode === true);
 
 const canonicalGroups = [
     ['small', 'little'],
@@ -207,7 +208,7 @@ const uploadTranscript = async (file) => {
         const result = await response.json();
 
         if (!response.ok) {
-            throw new Error(result.message ?? 'Unable to transcribe the recording right now.');
+            throw new Error(result.message ?? 'We had trouble checking your answer. Please try again.');
         }
 
         form.audio_file_id = result.audio_file_id ?? null;
@@ -232,7 +233,7 @@ const rememberAudio = (file) => {
     form.audio_file_id = null;
     form.duration_seconds = file.durationSeconds ?? null;
     transcript.value = '';
-    uploadTranscript(file);
+    uploadError.value = '';
 };
 
 const clearAudio = () => {
@@ -277,8 +278,13 @@ const submit = () => form.post('/learner/diagnostic/passage', { forceFormData: t
                 <AudioRecorder
                     compact
                     :max-duration-seconds="60"
+                    :require-review-before-submit="!isDeveloperQaMode"
+                    :auto-transcribe-on-stop="isDeveloperQaMode"
+                    :submitting="uploading"
+                    :submitted="Boolean(form.audio_file_id) && !uploadError"
                     label="Passage voice"
                     @recorded="rememberAudio"
+                    @submit="uploadTranscript"
                     @cleared="clearAudio"
                 />
                 <div class="grid gap-3">

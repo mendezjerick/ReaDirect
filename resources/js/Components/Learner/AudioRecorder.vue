@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { Mic, RotateCcw, Square } from 'lucide-vue-next';
+import { CheckCircle2, Mic, RotateCcw, Send, Square } from 'lucide-vue-next';
+import { stopAllAgentAudioBeforeRecording } from '../../utils/stopAgentAudio';
 
 const props = defineProps({
     disabled: { type: Boolean, default: false },
@@ -11,9 +12,15 @@ const props = defineProps({
     compact: { type: Boolean, default: false },
     spacebarEnabled: { type: Boolean, default: true },
     cueDelayMs: { type: Number, default: 1400 },
+    requireReviewBeforeSubmit: { type: Boolean, default: true },
+    autoTranscribeOnStop: { type: Boolean, default: false },
+    submitting: { type: Boolean, default: false },
+    submitted: { type: Boolean, default: false },
+    submitLabel: { type: String, default: 'Submit My Answer' },
+    externalError: { type: String, default: '' },
 });
 
-const emit = defineEmits(['recorded', 'cleared', 'error', 'stateChanged']);
+const emit = defineEmits(['recorded', 'submit', 'cleared', 'error', 'stateChanged']);
 
 const status = ref('ready');
 const duration = ref(0);
@@ -22,6 +29,7 @@ const audioUrl = ref('');
 const mediaRecorder = ref(null);
 const stream = ref(null);
 const chunks = ref([]);
+const currentFile = ref(null);
 const timer = ref(null);
 const cueTimer = ref(null);
 const recordingStartedAt = ref(null);
@@ -32,7 +40,7 @@ const statusLabel = computed(() => {
         ready: 'Ready',
         recording: "I'm listening",
         processing: 'Processing',
-        saved: 'Saved',
+        saved: props.submitted ? 'Submitted' : 'Listen',
         retry: 'Retry',
         error: 'Needs permission',
     };
@@ -47,9 +55,9 @@ const helperText = computed(() => {
         ready: props.spacebarEnabled ? `Tap Start Recording or press Space. Record at least ${minDurationLabel.value}.` : `Tap Start Recording. Record at least ${minDurationLabel.value}.`,
         recording: canSpeak.value ? (props.spacebarEnabled ? 'Speak now. Press Space when finished.' : 'Speak now.') : 'Get ready. Speak when the cue changes.',
         processing: 'Saving your voice.',
-        saved: 'Great, your voice was saved.',
+        saved: props.submitted ? 'Your answer was submitted.' : 'Listen to your answer. If you are happy with it, click Submit.',
         retry: "Let's try recording again.",
-        error: errorMessage.value || 'The microphone needs permission.',
+        error: props.externalError || errorMessage.value || 'The microphone needs permission.',
     };
 
     return messages[status.value] ?? 'Tap to record.';
@@ -105,6 +113,7 @@ const clearRecording = () => {
     }
     audioUrl.value = '';
     chunks.value = [];
+    currentFile.value = null;
     duration.value = 0;
     recordingStartedAt.value = null;
     canSpeak.value = false;
@@ -185,10 +194,11 @@ const convertRecordingToWav = async (blob) => {
 };
 
 const startRecording = async () => {
-    if (props.disabled || status.value === 'recording') return;
+    if (props.disabled || props.submitting || props.submitted || status.value === 'recording') return;
 
     try {
         clearRecording();
+        await stopAllAgentAudioBeforeRecording();
         stream.value = await navigator.mediaDevices.getUserMedia({ audio: true });
         const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : '';
         mediaRecorder.value = new MediaRecorder(stream.value, mimeType ? { mimeType } : undefined);
@@ -210,10 +220,15 @@ const startRecording = async () => {
                 const converted = await convertRecordingToWav(blob);
                 const file = new File([converted.blob], `readirect-recording-${Date.now()}.${converted.extension}`, { type: converted.blob.type });
                 file.durationSeconds = converted.durationSeconds || durationSeconds;
+                currentFile.value = file;
                 audioUrl.value = URL.createObjectURL(converted.blob);
                 stopTracks();
                 setStatus('saved');
                 emit('recorded', file);
+
+                if (props.autoTranscribeOnStop) {
+                    emit('submit', file);
+                }
             } catch (error) {
                 stopTracks();
                 errorMessage.value = 'Could not prepare the recording for transcription. Please record again.';
@@ -241,7 +256,9 @@ const startRecording = async () => {
             }
         }, 100);
     } catch (error) {
-        errorMessage.value = 'The microphone needs permission.';
+        errorMessage.value = error?.name === 'NotAllowedError'
+            ? 'Please allow the microphone so you can record your answer.'
+            : 'This browser cannot record audio. Please use a supported browser.';
         setStatus('error');
         emit('error', errorMessage.value);
     }
@@ -261,8 +278,16 @@ const stopRecording = () => {
     }
 };
 
+const submitRecording = () => {
+    if (!currentFile.value || props.submitting || props.submitted) {
+        return;
+    }
+
+    emit('submit', currentFile.value);
+};
+
 const handleSpacebar = (event) => {
-    if (!props.spacebarEnabled || props.disabled || event.code !== 'Space' || event.repeat || isEditableTarget(event.target)) {
+    if (!props.spacebarEnabled || props.disabled || props.submitting || props.submitted || event.code !== 'Space' || event.repeat || isEditableTarget(event.target)) {
         return;
     }
 
@@ -296,7 +321,7 @@ onBeforeUnmount(() => {
 
 <template>
     <div
-        class="rounded-3xl border border-primary/15 bg-primaryLight/50 shadow-sm shadow-primary/10"
+        class="learner-audio-recorder rounded-3xl border border-primary/15 bg-primaryLight/50 shadow-sm shadow-primary/10"
         :class="compact ? 'p-3' : 'p-4'"
     >
         <div class="flex items-center justify-between gap-3">
@@ -320,7 +345,7 @@ onBeforeUnmount(() => {
                 v-if="status !== 'recording'"
                 type="button"
                 class="inline-flex items-center gap-2 rounded-2xl bg-primary px-4 py-3 text-sm font-black text-white shadow-md shadow-primary/20 transition active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
-                :disabled="disabled"
+                :disabled="disabled || submitting || submitted"
                 @click="startRecording"
             >
                 <Mic class="size-4" />
@@ -338,13 +363,14 @@ onBeforeUnmount(() => {
             </button>
 
             <button
-                v-if="audioUrl"
+                v-if="audioUrl && !submitted"
                 type="button"
                 class="inline-flex items-center gap-2 rounded-2xl border-2 border-border bg-surface px-4 py-3 text-sm font-black text-primaryDark transition hover:border-primary"
+                :disabled="submitting"
                 @click="clearRecording"
             >
                 <RotateCcw class="size-4" />
-                Retry
+                Try Again
             </button>
 
             <div class="flex h-8 min-w-32 flex-1 items-end gap-1 rounded-2xl bg-surface px-3 py-2">
@@ -360,8 +386,8 @@ onBeforeUnmount(() => {
             <span class="w-14 text-right text-sm font-black text-muted">{{ formattedDuration }}s</span>
         </div>
 
-        <p v-if="errorMessage && status === 'recording'" class="mt-2 text-xs font-black text-warning">
-            {{ errorMessage }}
+        <p v-if="(errorMessage || externalError) && (status === 'recording' || status === 'error')" class="mt-2 text-xs font-black text-warning">
+            {{ externalError || errorMessage }}
         </p>
 
         <p
@@ -369,10 +395,36 @@ onBeforeUnmount(() => {
             class="mt-3 rounded-2xl bg-surface px-3 py-2 text-xs font-black text-primaryDark"
         >
             Press <span class="rounded-lg border border-border bg-white px-2 py-1 text-[11px] font-black text-primary">Space</span>
-            to {{ status === 'recording' ? 'stop after the 1s minimum' : 'record' }}.
+            to {{ status === 'recording' ? `stop after the ${minDurationLabel} minimum` : 'record' }}.
         </p>
 
-        <audio v-if="audioUrl" class="mt-3 w-full" controls :src="audioUrl" />
-        <p v-if="required && !audioUrl" class="mt-2 text-xs font-bold text-muted">Recording is optional when a typed transcript is provided.</p>
+        <div
+            v-if="audioUrl && requireReviewBeforeSubmit"
+            class="learner-audio-review-card mt-3 rounded-[24px] border-2 border-primary/25 bg-white p-4 shadow-md shadow-primary/10"
+            aria-live="polite"
+        >
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <p class="text-lg font-black text-text">{{ submitted ? 'Answer submitted' : 'Listen to your answer' }}</p>
+                    <p class="text-sm font-bold text-muted">
+                        {{ submitted ? 'You can continue when the page is ready.' : 'If you are happy with your answer, click Submit.' }}
+                    </p>
+                </div>
+                <CheckCircle2 v-if="submitted" class="size-8 text-success" />
+            </div>
+            <audio class="mt-3 w-full" controls :src="audioUrl" :disabled="submitting" />
+            <button
+                v-if="!submitted"
+                type="button"
+                class="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-success px-5 py-3 text-base font-black text-white shadow-md shadow-success/20 transition active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                :disabled="submitting || !currentFile"
+                @click="submitRecording"
+            >
+                <Send class="size-5" />
+                {{ submitting ? 'Checking your answer...' : submitLabel }}
+            </button>
+        </div>
+        <audio v-else-if="audioUrl" class="mt-3 w-full" controls :src="audioUrl" />
+        <p v-if="required && !audioUrl" class="mt-2 text-xs font-bold text-muted">Please record your answer before continuing.</p>
     </div>
 </template>

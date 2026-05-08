@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Storage;
 
 class AudioStorageService
 {
-    public const MIN_TRANSCRIBABLE_SECONDS = 1;
+    public const MIN_TRANSCRIBABLE_SECONDS = 0.5;
 
     public const ALLOWED_MIME_TYPES = [
         'audio/webm',
@@ -69,7 +69,7 @@ class AudioStorageService
     public static function durationValidationMessages(string $attribute = 'duration_seconds'): array
     {
         return [
-            $attribute.'.min' => 'Record at least '.self::MIN_TRANSCRIBABLE_SECONDS.' second so the transcript can be generated.',
+            $attribute.'.min' => 'That recording was too short. Please try again and speak clearly.',
         ];
     }
 

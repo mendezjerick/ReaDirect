@@ -27,6 +27,7 @@ const uploadErrors = reactive({});
 const uploading = reactive({});
 const canUseManualFallback = computed(() => props.assessmentMode?.canUseManualFallback === true);
 const canUseDeveloperJumpControls = computed(() => props.assessmentMode?.canUseDeveloperJumpControls === true);
+const isDeveloperQaMode = computed(() => props.assessmentMode?.isDeveloperQaMode === true);
 const manualAnswerFor = (item) => canUseManualFallback.value ? String(step.answers[item?.id] ?? '').trim() : '';
 const answerFor = (item) => manualAnswerFor(item) || String(generatedTranscripts[item?.id] ?? '').trim();
 const sourceFor = (item) => manualAnswerFor(item)
@@ -43,7 +44,11 @@ const rememberAudio = (item, file) => {
     audioFiles[item.id] = file;
     audioDurations[item.id] = file.durationSeconds ?? null;
     uploadErrors[item.id] = '';
-    uploadAudio(item, file);
+    delete uploadedAudioIds[item.id];
+    delete transcriptSources[item.id];
+    delete generatedTranscripts[item.id];
+    agentMessage.value = 'Listen to your answer. If you are happy with your answer, click Submit.';
+    agentState.value = 'speaking';
 };
 
 const clearAudio = (item) => {
@@ -88,7 +93,7 @@ const uploadAudio = async (item, file) => {
         const result = await response.json();
 
         if (!response.ok) {
-            throw new Error(result.message ?? 'Unable to transcribe the recording right now.');
+            throw new Error(result.message ?? 'We had trouble checking your answer. Please try again.');
         }
 
         const transcript = String(result.displayed_transcript ?? result.corrected_transcript ?? result.transcript ?? result.raw_transcript ?? '').trim();
@@ -171,8 +176,13 @@ const handlePrimary = () => {
                         :key="step.currentItem.value.id"
                         compact
                         :max-duration-seconds="30"
+                        :require-review-before-submit="!isDeveloperQaMode"
+                        :auto-transcribe-on-stop="isDeveloperQaMode"
+                        :submitting="isCurrentUploading"
+                        :submitted="Boolean(uploadedAudioIds[step.currentItem.value.id]) && !uploadErrors[step.currentItem.value.id]"
                         label="Letter voice"
                         @recorded="(file) => rememberAudio(step.currentItem.value, file)"
+                        @submit="(file) => uploadAudio(step.currentItem.value, file)"
                         @cleared="() => clearAudio(step.currentItem.value)"
                     />
                     <div class="grid gap-3">

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Learner;
 
 use App\Http\Controllers\Controller;
+use App\Models\AudioFile;
 use App\Models\Learner;
 use App\Models\Module;
 use App\Models\ModuleActivityResponse;
@@ -10,6 +11,7 @@ use App\Models\ModuleAttempt;
 use App\Models\ModuleAttemptItem;
 use App\Services\Agents\AgentCommentaryService;
 use App\Services\AI\AIAnalysisResolver;
+use App\Services\AssessmentModeService;
 use App\Services\AudioStorageService;
 use App\Services\LearnerFlowService;
 use App\Services\ModuleActivitySelectionService;
@@ -26,7 +28,7 @@ use Inertia\Response;
 
 class ModuleMasteryController extends Controller
 {
-    public function show(Request $request, Module $module, ModuleActivitySelectionService $selection, LearnerFlowService $flow): Response|RedirectResponse
+    public function show(Request $request, Module $module, ModuleActivitySelectionService $selection, LearnerFlowService $flow, AssessmentModeService $mode): Response|RedirectResponse
     {
         $learner = $this->learner($request);
         if ($redirect = $this->guardModuleAccess($learner, $module, $flow)) {
@@ -49,7 +51,9 @@ class ModuleMasteryController extends Controller
 
         return Inertia::render('Learner/Modules/ModuleMasteryCheck', [
             'module' => $module->only('key', 'title', 'description'),
+            'moduleAttemptId' => $attempt->id,
             'items' => $this->itemsForForm($items),
+            'assessmentMode' => $mode->props($request, null, $learner),
         ]);
     }
 
@@ -63,6 +67,7 @@ class ModuleMasteryController extends Controller
         AudioStorageService $audioStorage,
         AIAnalysisResolver $analysis,
         AgentCommentaryService $commentary,
+        AssessmentModeService $mode,
         LearnerFlowService $flow
     ): RedirectResponse {
         $learner = $this->learner($request);
@@ -86,9 +91,13 @@ class ModuleMasteryController extends Controller
         foreach ($items as $item) {
             $submittedIndex = collect($validated['responses'])->search(fn ($response) => (int) ($response['module_attempt_item_id'] ?? 0) === (int) $item->id);
             $submitted = $submittedIndex === false ? [] : $validated['responses'][$submittedIndex];
-            $audioFile = null;
+            $audioFile = isset($submitted['audio_file_id']) && $submitted['audio_file_id']
+                ? AudioFile::where('learner_id', $attempt->learner_id)
+                    ->where('module_attempt_id', $attempt->id)
+                    ->find($submitted['audio_file_id'])
+                : null;
 
-            if (isset($submitted['audio'])) {
+            if (! $audioFile && isset($submitted['audio'])) {
                 $audioFile = $audioStorage->store(
                     $submitted['audio'],
                     $attempt->learner,
@@ -105,7 +114,7 @@ class ModuleMasteryController extends Controller
             $expectedAnswer = $this->expectedAnswer($item);
             $acceptedAnswers = $item->prompt_snapshot['accepted_answers'] ?? [];
             $resolved = $analysis->resolve(
-                $submitted['answer'] ?? null,
+                $mode->canShowManualFallback($request, null, $learner) ? ($submitted['answer'] ?? null) : null,
                 $audioFile,
                 $this->analysisContext($item, $module, $expectedAnswer, $acceptedAnswers)
             );
@@ -381,6 +390,7 @@ class ModuleMasteryController extends Controller
             'responses.*.module_attempt_item_id' => ['required', 'integer', 'exists:module_attempt_items,id'],
             'responses.*.answer' => ['nullable', 'string', 'max:255'],
             'responses.*.transcript_source' => ['nullable', 'string', 'in:manual,ai_asr,stt_auto,stt_placeholder,teacher_review,future_asr'],
+            'responses.*.audio_file_id' => ['nullable', 'integer', 'exists:audio_files,id'],
             'responses.*.audio' => AudioStorageService::validationRules(),
             'responses.*.duration_seconds' => AudioStorageService::durationValidationRules(),
         ];
@@ -405,7 +415,7 @@ class ModuleMasteryController extends Controller
             'responses.size' => 'Almost there! Finish all items to continue.',
             'responses.*.answer.required' => 'Let us answer this first.',
             'responses.*.answer.regex' => 'Try this item before moving on.',
-            'responses.*.duration_seconds.min' => 'Record at least 1 second so the transcript can be generated.',
+            'responses.*.duration_seconds.min' => 'That recording was too short. Please try again and speak clearly.',
         ];
     }
 }

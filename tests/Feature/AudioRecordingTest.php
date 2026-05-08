@@ -80,7 +80,7 @@ class AudioRecordingTest extends TestCase
             ->assertJsonValidationErrors('audio');
     }
 
-    public function test_audio_upload_rejects_recordings_shorter_than_one_second(): void
+    public function test_audio_upload_rejects_accidental_taps_shorter_than_half_second(): void
     {
         $learner = $this->learner();
 
@@ -88,7 +88,7 @@ class AudioRecordingTest extends TestCase
             ->postJson(route('learner.audio.upload'), [
                 'audio' => UploadedFile::fake()->create('short.webm', 10, 'audio/webm'),
                 'context_type' => 'assessment_task',
-                'duration_seconds' => 0.6,
+                'duration_seconds' => 0.4,
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('duration_seconds');
@@ -164,7 +164,7 @@ class AudioRecordingTest extends TestCase
             'duration_seconds' => $index === 0 ? 2 : null,
         ])->all();
 
-        $this->withSession(['learner_id' => $learner->id, 'module_attempt_id' => $attempt->id])
+        $this->withSession(['learner_id' => $learner->id, 'module_attempt_id' => $attempt->id, 'admin_testing_mode' => true])
             ->post(route('learner.modules.activity.store', [$module, 'read_word']), ['responses' => $responses])
             ->assertRedirect();
 
@@ -364,7 +364,7 @@ class AudioRecordingTest extends TestCase
             'duration_seconds' => $index === 0 ? 2 : null,
         ])->all();
 
-        $this->withSession(['learner_id' => $learner->id, 'module_attempt_id' => $attempt->id])
+        $this->withSession(['learner_id' => $learner->id, 'module_attempt_id' => $attempt->id, 'admin_testing_mode' => true])
             ->post(route('learner.modules.activity.store', [$module, 'read_word']), ['responses' => $responses])
             ->assertRedirect();
 
@@ -374,6 +374,35 @@ class AudioRecordingTest extends TestCase
         $this->assertSame('manual', $response->transcript_source);
         $this->assertNull($response->stt_confidence);
         $this->assertTrue($response->is_correct);
+    }
+
+    public function test_normal_module_audio_submission_ignores_client_manual_transcript(): void
+    {
+        Storage::fake('local');
+        config(['stt.mock.transcript' => 'dog']);
+        [$learner, $module] = $this->moduleContext();
+        $learner->update(['current_module_id' => $module->id, 'current_stage' => 'module_practice']);
+        $this->seedModuleActivities($module, 'read_word', 5);
+        $selection = app(ModuleActivitySelectionService::class);
+        $attempt = $selection->startOrResumeModuleAttempt($learner, $module);
+        $items = $selection->selectPracticeItemsForAttempt($attempt, 'read_word', 5);
+        $responses = $items->map(fn ($item, $index) => [
+            'module_attempt_item_id' => $item->id,
+            'answer' => 'cat',
+            'transcript_source' => 'manual',
+            'audio' => UploadedFile::fake()->create('word-'.$index.'.webm', 100, 'audio/webm'),
+            'duration_seconds' => 2,
+        ])->all();
+
+        $this->withSession(['learner_id' => $learner->id, 'module_attempt_id' => $attempt->id])
+            ->post(route('learner.modules.activity.store', [$module, 'read_word']), ['responses' => $responses])
+            ->assertRedirect();
+
+        $response = ModuleActivityResponse::whereNotNull('audio_file_id')->firstOrFail();
+
+        $this->assertSame('dog', $response->learner_transcript);
+        $this->assertSame('stt_auto', $response->transcript_source);
+        $this->assertFalse($response->is_correct);
     }
 
     public function test_teacher_can_save_reviewed_transcript_without_rescoring(): void

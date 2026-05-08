@@ -1,5 +1,5 @@
 <script setup>
-import { nextTick, onBeforeUnmount, ref, watch } from 'vue';
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 const props = defineProps({
     agentType: { type: String, required: true },
@@ -160,7 +160,12 @@ watch(
     { immediate: true },
 );
 
+onMounted(() => {
+    window.addEventListener('readirect:stop-agent-audio', stopSpeaking);
+});
+
 onBeforeUnmount(() => {
+    window.removeEventListener('readirect:stop-agent-audio', stopSpeaking);
     stopSpeaking();
 });
 </script>

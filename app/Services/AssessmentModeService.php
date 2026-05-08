@@ -50,6 +50,8 @@ class AssessmentModeService
             'canShowAssessmentDebug' => $this->canShowAssessmentDebug($request, $attempt, $learner),
             'canUseDeveloperJumpControls' => $this->canShowJumpControls($request, $attempt, $learner),
             'assessmentMode' => $isDeveloperQaMode ? 'developer_qa' : 'learner',
+            'requireReviewBeforeSubmit' => ! $isDeveloperQaMode,
+            'autoTranscribeOnStop' => $isDeveloperQaMode,
         ];
     }
 }

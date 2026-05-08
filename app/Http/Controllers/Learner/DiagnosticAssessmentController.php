@@ -1117,8 +1117,8 @@ class DiagnosticAssessmentController extends Controller
             'responses.*.answer.regex' => 'Try this item before moving on.',
             'incorrect_words.required' => 'Add the number of words to review before moving on.',
             'incorrect_words.integer' => 'Use a whole number for words to review.',
-            'duration_seconds.min' => 'Record at least 1 second so the transcript can be generated.',
-            'responses.*.duration_seconds.min' => 'Record at least 1 second so the transcript can be generated.',
+            'duration_seconds.min' => 'That recording was too short. Please try again and speak clearly.',
+            'responses.*.duration_seconds.min' => 'That recording was too short. Please try again and speak clearly.',
         ];
     }
 }

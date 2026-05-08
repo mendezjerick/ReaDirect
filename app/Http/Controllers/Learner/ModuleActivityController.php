@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Learner;
 
 use App\Http\Controllers\Controller;
+use App\Models\AudioFile;
 use App\Models\Learner;
 use App\Models\Module;
 use App\Models\ModuleActivityResponse;
@@ -10,6 +11,7 @@ use App\Models\ModuleAttempt;
 use App\Models\ModuleAttemptItem;
 use App\Services\Agents\AgentCommentaryService;
 use App\Services\AI\AIAnalysisResolver;
+use App\Services\AssessmentModeService;
 use App\Services\AudioStorageService;
 use App\Services\LearnerFlowService;
 use App\Services\ModuleActivitySelectionService;
@@ -25,7 +27,7 @@ use Inertia\Response;
 
 class ModuleActivityController extends Controller
 {
-    public function show(Request $request, Module $module, string $activityType, ModuleActivitySelectionService $selection, LearnerFlowService $flow): Response|RedirectResponse
+    public function show(Request $request, Module $module, string $activityType, ModuleActivitySelectionService $selection, LearnerFlowService $flow, AssessmentModeService $mode): Response|RedirectResponse
     {
         $learner = $this->learner($request);
         if ($redirect = $this->guardModuleAccess($learner, $module, $flow)) {
@@ -61,10 +63,12 @@ class ModuleActivityController extends Controller
 
         return Inertia::render('Learner/Modules/ModuleActivity', [
             'module' => $module->only('key', 'title', 'description'),
+            'moduleAttemptId' => $attempt->id,
             'activityType' => $activityType,
             'activityLabel' => $this->activityLabel($activityType),
             'items' => $this->itemsForForm($items),
             'nextActivityType' => $nextActivityType,
+            'assessmentMode' => $mode->props($request, null, $learner),
         ]);
     }
 
@@ -78,6 +82,7 @@ class ModuleActivityController extends Controller
         AudioStorageService $audioStorage,
         AIAnalysisResolver $analysis,
         AgentCommentaryService $commentary,
+        AssessmentModeService $mode,
         LearnerFlowService $flow
     ): RedirectResponse {
         $learner = $this->learner($request);
@@ -97,7 +102,7 @@ class ModuleActivityController extends Controller
         $validated = $request->validate($this->responseRules($items->count()), $this->friendlyValidationMessages());
         $this->validateSubmittedItemSet($items, $validated['responses']);
 
-        $this->persistResponses($attempt, $items, $validated['responses'], $scoring, $feedback, $audioStorage, $analysis, $commentary, $module, $activityType, false);
+        $this->persistResponses($attempt, $items, $validated['responses'], $scoring, $feedback, $audioStorage, $analysis, $commentary, $module, $activityType, false, $mode->canShowManualFallback($request, null, $learner));
 
         $activityTypes = $selection->practiceActivityTypes($module);
         $nextActivityType = $this->nextActivityType($activityTypes, $activityType);
@@ -120,14 +125,19 @@ class ModuleActivityController extends Controller
         AgentCommentaryService $commentary,
         Module $module,
         string $activityType,
-        bool $isMastery
+        bool $isMastery,
+        bool $allowManualFallback
     ): void {
         foreach ($items as $item) {
             $submittedIndex = collect($responses)->search(fn ($response) => (int) ($response['module_attempt_item_id'] ?? 0) === (int) $item->id);
             $submitted = $submittedIndex === false ? [] : $responses[$submittedIndex];
-            $audioFile = null;
+            $audioFile = isset($submitted['audio_file_id']) && $submitted['audio_file_id']
+                ? AudioFile::where('learner_id', $attempt->learner_id)
+                    ->where('module_attempt_id', $attempt->id)
+                    ->find($submitted['audio_file_id'])
+                : null;
 
-            if (isset($submitted['audio'])) {
+            if (! $audioFile && isset($submitted['audio'])) {
                 $audioFile = $audioStorage->store(
                     $submitted['audio'],
                     $attempt->learner,
@@ -144,7 +154,7 @@ class ModuleActivityController extends Controller
             $expectedAnswer = $this->expectedAnswer($item);
             $acceptedAnswers = $item->prompt_snapshot['accepted_answers'] ?? [];
             $resolved = $analysis->resolve(
-                $submitted['answer'] ?? null,
+                $allowManualFallback ? ($submitted['answer'] ?? null) : null,
                 $audioFile,
                 $this->analysisContext($item, $module, $activityType, $expectedAnswer, $acceptedAnswers)
             );
@@ -385,6 +395,7 @@ class ModuleActivityController extends Controller
             'responses.*.answer' => ['nullable', 'string', 'max:255'],
             'responses.*.retry_count' => ['nullable', 'integer', 'min:0'],
             'responses.*.transcript_source' => ['nullable', 'string', 'in:manual,ai_asr,stt_auto,stt_placeholder,teacher_review,future_asr'],
+            'responses.*.audio_file_id' => ['nullable', 'integer', 'exists:audio_files,id'],
             'responses.*.audio' => AudioStorageService::validationRules(),
             'responses.*.duration_seconds' => AudioStorageService::durationValidationRules(),
         ];
@@ -409,7 +420,7 @@ class ModuleActivityController extends Controller
             'responses.size' => 'Almost there! Finish all items to continue.',
             'responses.*.answer.required' => 'Let us answer this first.',
             'responses.*.answer.regex' => 'Try this item before moving on.',
-            'responses.*.duration_seconds.min' => 'Record at least 1 second so the transcript can be generated.',
+            'responses.*.duration_seconds.min' => 'That recording was too short. Please try again and speak clearly.',
         ];
     }
 }
