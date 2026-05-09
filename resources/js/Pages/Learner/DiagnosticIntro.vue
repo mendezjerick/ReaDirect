@@ -11,7 +11,7 @@ import BottomActionBar from '../../Components/BottomActionBar.vue';
     <LearnerLayout :progress="30">
         <div class="mx-auto grid max-w-2xl gap-6">
             <PromptCard label="Reading check" prompt="Say each letter clearly." size="sentence" />
-            <AgentPanel title="Assessment Agent">I will show one letter at a time.</AgentPanel>
+            <AgentPanel title="Miss Vivian">I will show one letter at a time.</AgentPanel>
         </div>
         <BottomActionBar>
             <Link href="/learner/diagnostic/task-1"><PrimaryButton>Start</PrimaryButton></Link>

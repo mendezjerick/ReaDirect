@@ -462,6 +462,10 @@ class ReadirectAIIntegrationTest extends TestCase
             'readirect_ai.base_url' => 'http://ai.test',
             'readirect_ai.endpoints.health' => '/health',
             'readirect_ai.endpoints.version' => '/version',
+            'readirect.ollama.enabled' => true,
+            'readirect.agent_feedback.miss_ciel_ollama_enabled' => true,
+            'readirect.ollama.base_url' => 'http://ollama.test',
+            'readirect.ollama.model' => 'qwen3:4b',
         ]);
 
         Http::fake([
@@ -495,6 +499,9 @@ class ReadirectAIIntegrationTest extends TestCase
                 'version' => '0.1.0',
                 'config' => ['asr' => ['architecture' => 'wav2vec2_only', 'provider' => 'wav2vec2']],
             ]),
+            'http://ollama.test/api/tags' => Http::response([
+                'models' => [['name' => 'qwen3:4b']],
+            ]),
         ]);
 
         $status = app(ReadirectAIService::class)->dashboardStatus();
@@ -511,6 +518,9 @@ class ReadirectAIIntegrationTest extends TestCase
         $this->assertTrue($status['audio_quality_validation_enabled']);
         $this->assertTrue($status['pause_detection_enabled']);
         $this->assertTrue($status['uncertainty_decision_enabled']);
+        $this->assertTrue($status['llm']['connected']);
+        $this->assertSame('LLM Connected', $status['llm']['label']);
+        $this->assertSame('qwen3:4b', $status['llm']['model']);
         $this->assertSame(
             'corrected_transcript -> transcript -> raw_transcript',
             $status['laravel_response_contract']['scoring_transcript']

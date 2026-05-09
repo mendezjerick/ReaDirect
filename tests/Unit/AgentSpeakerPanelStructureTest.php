@@ -20,9 +20,9 @@ class AgentSpeakerPanelStructureTest extends TestCase
     {
         $component = file_get_contents(dirname(__DIR__, 2).'/resources/js/Components/Learner/AgentSpeakerPanel.vue');
 
-        $this->assertStringContainsString('Assessment Agent', $component);
-        $this->assertStringContainsString('Coach + Feedback Agent', $component);
-        $this->assertStringContainsString('Evaluator / Recommendation Agent', $component);
+        $this->assertStringContainsString('Miss Vivian', $component);
+        $this->assertStringContainsString('Miss Ciel', $component);
+        $this->assertStringContainsString('Miss Estelle', $component);
         $this->assertStringContainsString('handleImageError', $component);
         $this->assertStringContainsString('idle.webm', $component);
         $this->assertStringContainsString('type="video/webm"', $component);

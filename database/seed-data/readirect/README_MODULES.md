@@ -7,7 +7,7 @@ These CSV files are development item banks for the Phase 3 learning module flow.
 - `module1_letter_sound_activities.csv` contains Module 1 letter and sound practice plus mastery-check items.
 - `module2_word_reading_activities.csv` contains Module 2 word reading practice plus mastery-check items.
 - `module3_sentence_fluency_activities.csv` contains Module 3 sentence reading and fluency practice plus mastery-check items.
-- `module_feedback_templates.csv` contains reusable, child-friendly Coach + Feedback Agent templates. These are template-based only and do not call an LLM.
+- `module_feedback_templates.csv` contains reusable, child-friendly Miss Ciel feedback templates.
 - `module_activity_selection_rules.csv` defines how many active items to lock per activity type and how many mastery-check items to lock.
 
 ## Selection Rules
@@ -18,7 +18,7 @@ Practice activities may select a small set of active items for the requested act
 
 ## Feedback and Decisions
 
-Coach feedback is template-based for Phase 3. Official mastery decisions must use `ModuleMasteryService` only:
+Miss Ciel feedback is coaching text only. Official mastery decisions must use `ModuleMasteryService` only:
 
 - Module 1: `>= 90` move to Module 2, `60-89` repeat Module 1, `< 60` extra phoneme drills.
 - Module 2: `>= 90` move to Module 3, `60-89` repeat Module 2, `< 60` return to Module 1.

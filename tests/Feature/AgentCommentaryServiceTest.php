@@ -11,7 +11,6 @@ use App\Models\ModuleActivity;
 use App\Models\ModuleActivityResponse;
 use App\Models\School;
 use App\Services\Agents\AgentCommentaryService;
-use App\Services\AssessmentItemSelectionService;
 use App\Services\ModuleActivitySelectionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -24,7 +23,8 @@ class AgentCommentaryServiceTest extends TestCase
     public function test_assessment_neutral_does_not_reveal_answer_or_hint(): void
     {
         $this->seedAgentsAndTemplate();
-        config()->set('readirect.openai.enabled', true);
+        config()->set('readirect.ollama.enabled', true);
+        config()->set('readirect.agent_feedback.miss_ciel_ollama_enabled', true);
         Http::fake();
 
         $commentary = app(AgentCommentaryService::class)->generateCommentary([
@@ -46,7 +46,7 @@ class AgentCommentaryServiceTest extends TestCase
     public function test_module_coaching_uses_similarity_label_with_fallback_when_disabled(): void
     {
         $this->seedAgentsAndTemplate();
-        config()->set('readirect.openai.enabled', false);
+        config()->set('readirect.ollama.enabled', false);
 
         $commentary = app(AgentCommentaryService::class)->generateCommentary([
             'mode' => 'module_coaching',
@@ -65,10 +65,10 @@ class AgentCommentaryServiceTest extends TestCase
     public function test_module_coaching_uses_safe_llm_output(): void
     {
         $this->seedAgentsAndTemplate();
-        config()->set('readirect.openai.enabled', true);
-        config()->set('readirect.openai.api_key', 'sk-test-secret');
+        config()->set('readirect.ollama.enabled', true);
+        config()->set('readirect.agent_feedback.miss_ciel_ollama_enabled', true);
 
-        Http::fake(['api.openai.com/v1/responses' => Http::response(['output_text' => 'Good try! That was close.'])]);
+        Http::fake(['127.0.0.1:11434/api/generate' => Http::response(['response' => 'Good try! That was close.'])]);
 
         $safe = app(AgentCommentaryService::class)->generateCommentary($this->moduleContext());
 
@@ -79,20 +79,20 @@ class AgentCommentaryServiceTest extends TestCase
     public function test_module_coaching_rejects_unsafe_output(): void
     {
         $this->seedAgentsAndTemplate();
-        config()->set('readirect.openai.enabled', true);
-        config()->set('readirect.openai.api_key', 'sk-test-secret');
-        Http::fake(['*' => Http::response(['output_text' => 'That was wrong and bad.'])]);
+        config()->set('readirect.ollama.enabled', true);
+        config()->set('readirect.agent_feedback.miss_ciel_ollama_enabled', true);
+        Http::fake(['*' => Http::response(['response' => 'That was wrong and bad.'])]);
 
         $unsafe = app(AgentCommentaryService::class)->generateCommentary($this->moduleContext());
 
         $this->assertTrue($unsafe['fallback_used']);
-        $this->assertSame('unsafe_language', $unsafe['safety_status']);
+        $this->assertSame('blocked_term', $unsafe['safety_status']);
     }
 
     public function test_evaluator_summary_explains_next_step_without_changing_decision(): void
     {
         $this->seedAgentsAndTemplate();
-        config()->set('readirect.openai.enabled', false);
+        config()->set('readirect.ollama.enabled', false);
 
         $commentary = app(AgentCommentaryService::class)->generateCommentary([
             'mode' => 'evaluator_summary',
@@ -108,7 +108,7 @@ class AgentCommentaryServiceTest extends TestCase
     public function test_module_activity_response_stores_agent_commentary_without_changing_score(): void
     {
         $this->seedAgentsAndTemplate();
-        config()->set('readirect.openai.enabled', false);
+        config()->set('readirect.ollama.enabled', false);
         [$learner, $module] = $this->moduleSetup();
         $learner->update(['current_module_id' => $module->id]);
         $this->seedModuleActivities($module);
@@ -116,7 +116,11 @@ class AgentCommentaryServiceTest extends TestCase
         $attempt = $selection->startOrResumeModuleAttempt($learner, $module);
         $items = $selection->selectPracticeItemsForAttempt($attempt, 'read_word', 5);
 
-        $this->withSession(['learner_id' => $learner->id, 'module_attempt_id' => $attempt->id])
+        $this->withSession([
+            'learner_id' => $learner->id,
+            'module_attempt_id' => $attempt->id,
+            'admin_testing_mode' => true,
+        ])
             ->post(route('learner.modules.activity.store', [$module, 'read_word']), [
                 'responses' => $items->map(fn ($item) => ['module_attempt_item_id' => $item->id, 'answer' => 'cap'])->all(),
             ])
@@ -133,9 +137,9 @@ class AgentCommentaryServiceTest extends TestCase
     private function seedAgentsAndTemplate(): void
     {
         foreach ([
-            AgentProfile::ASSESSMENT => 'Assessment Agent',
-            AgentProfile::COACH_FEEDBACK => 'Coach + Feedback Agent',
-            AgentProfile::EVALUATOR_RECOMMENDATION => 'Evaluator / Recommendation Agent',
+            AgentProfile::ASSESSMENT => 'Miss Vivian',
+            AgentProfile::COACH_FEEDBACK => 'Miss Ciel',
+            AgentProfile::EVALUATOR_RECOMMENDATION => 'Miss Estelle',
         ] as $key => $name) {
             AgentProfile::create([
                 'key' => $key,

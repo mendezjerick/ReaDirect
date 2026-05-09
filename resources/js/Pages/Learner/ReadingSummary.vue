@@ -24,7 +24,7 @@ defineProps({ attempt: Object });
                 <ScoreCard label="Final reading score" :value="attempt.final_reading_score" />
                 <ScoreCard label="Reading level" :value="attempt.reading_classification" />
             </div>
-            <AgentPanel title="Evaluator / Recommendation Agent">Accuracy comes from the passage word-error count. Reading level is based on the final reading score.</AgentPanel>
+            <AgentPanel title="Miss Estelle">Accuracy comes from the passage word-error count. Reading level is based on the final reading score.</AgentPanel>
         </div>
         <BottomActionBar>
             <Link href="/learner/diagnostic/module-placement"><PrimaryButton>See my path</PrimaryButton></Link>

@@ -89,6 +89,32 @@ const details = computed(() => [
     `Whisper Runtime: ${whisperRuntimeLabel.value}`,
 ].filter(Boolean));
 
+const llmStatus = computed(() => props.status?.llm ?? {});
+const llmTone = computed(() => {
+    if (llmStatus.value?.connected === true) return 'connected';
+    if (llmStatus.value?.status === 'disabled') return 'disabled';
+    return 'unavailable';
+});
+
+const llmStyles = computed(() => ({
+    connected: 'border-emerald-200 bg-white/65 text-emerald-900',
+    disabled: 'border-amber-200 bg-white/65 text-amber-900',
+    unavailable: 'border-red-200 bg-white/65 text-red-900',
+}[llmTone.value]));
+
+const llmBadgeStyles = computed(() => ({
+    connected: 'bg-emerald-100 text-emerald-800',
+    disabled: 'bg-amber-100 text-amber-800',
+    unavailable: 'bg-red-100 text-red-800',
+}[llmTone.value]));
+
+const llmRows = computed(() => [
+    ['Provider', reported(llmStatus.value?.provider)],
+    ['Base URL', reported(llmStatus.value?.base_url)],
+    ['Configured Model', reported(llmStatus.value?.model)],
+    ['Installed Models', reported(llmStatus.value?.installed_models)],
+]);
+
 const modelRows = computed(() => [
     ['Active ASR Architecture', architectureLabel.value],
     ['Active ASR Model', activeModelLabel.value],
@@ -168,7 +194,7 @@ const reinforcementSummary = computed(() => {
                         <span
                             v-for="detail in details"
                             :key="detail"
-                            class="rounded-md bg-white/60 px-2 py-1 text-[11px] font-bold"
+                            class="max-w-full break-words rounded-md bg-white/60 px-2 py-1 text-[11px] font-bold"
                         >
                             {{ detail }}
                         </span>
@@ -186,6 +212,29 @@ const reinforcementSummary = computed(() => {
             </a>
         </div>
 
+        <div class="mt-3 rounded-lg border p-3 text-xs" :class="llmStyles">
+            <div class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                <div class="flex min-w-0 gap-2">
+                    <Bot :size="16" class="mt-0.5 shrink-0" />
+                    <div class="min-w-0">
+                        <p class="font-extrabold">{{ llmStatus?.label ?? 'LLM status unavailable' }}</p>
+                        <p class="mt-1 break-words font-semibold leading-relaxed opacity-90">
+                            {{ llmStatus?.message ?? 'Miss Ciel local coaching status could not be checked.' }}
+                        </p>
+                    </div>
+                </div>
+                <span class="inline-flex w-fit shrink-0 items-center rounded-md px-2 py-1 text-[11px] font-extrabold" :class="llmBadgeStyles">
+                    {{ llmStatus?.connected ? 'Connected' : (llmStatus?.status === 'disabled' ? 'Disabled' : 'Needs attention') }}
+                </span>
+            </div>
+            <dl class="mt-3 grid gap-2 md:grid-cols-2">
+                <div v-for="[label, value] in llmRows" :key="label" class="grid min-w-0 gap-1 rounded-md bg-white/45 px-2 py-1.5">
+                    <dt class="font-bold opacity-80">{{ label }}</dt>
+                    <dd class="min-w-0 break-words font-semibold">{{ value }}</dd>
+                </div>
+            </dl>
+        </div>
+
         <ol v-if="!isConnected && status?.troubleshooting_steps?.length" class="mt-3 list-decimal space-y-1 pl-12 text-xs font-semibold leading-relaxed">
             <li v-for="step in status.troubleshooting_steps" :key="step">{{ step }}</li>
         </ol>
@@ -196,18 +245,18 @@ const reinforcementSummary = computed(() => {
                 <div>
                     <p class="font-extrabold">Active Models</p>
                     <dl class="mt-2 space-y-1">
-                        <div v-for="[label, value] in modelRows" :key="label" class="flex justify-between gap-3">
+                        <div v-for="[label, value] in modelRows" :key="label" class="grid min-w-0 gap-1 sm:grid-cols-[minmax(8rem,0.8fr)_minmax(0,1.2fr)]">
                             <dt class="font-bold opacity-80">{{ label }}</dt>
-                            <dd class="text-right font-semibold">{{ value }}</dd>
+                            <dd class="min-w-0 break-words font-semibold sm:text-right">{{ value }}</dd>
                         </div>
                     </dl>
                 </div>
                 <div>
                     <p class="font-extrabold">Correction Layer</p>
                     <dl class="mt-2 space-y-1">
-                        <div v-for="[label, value] in correctionRows" :key="label" class="flex justify-between gap-3">
+                        <div v-for="[label, value] in correctionRows" :key="label" class="grid min-w-0 gap-1 sm:grid-cols-[minmax(8rem,0.75fr)_minmax(0,1.25fr)]">
                             <dt class="font-bold opacity-80">{{ label }}</dt>
-                            <dd class="text-right font-semibold">{{ value }}</dd>
+                            <dd class="min-w-0 break-words font-semibold sm:text-right">{{ value }}</dd>
                         </div>
                     </dl>
                 </div>

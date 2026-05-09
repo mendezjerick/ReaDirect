@@ -1,6 +1,6 @@
 <script setup>
 defineProps({
-    title: { type: String, default: 'Assessment Agent' },
+    title: { type: String, default: 'Miss Vivian' },
     tone: { type: String, default: 'calm' },
 });
 </script>

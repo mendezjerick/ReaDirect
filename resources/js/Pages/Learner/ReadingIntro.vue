@@ -15,7 +15,7 @@ import BottomActionBar from '../../Components/BottomActionBar.vue';
         </template>
         <div class="mx-auto grid max-w-2xl gap-6">
             <PromptCard label="Reading passage" prompt="Read aloud." size="sentence" />
-            <AgentPanel title="Assessment Agent">Read the passage clearly. Then answer five short questions.</AgentPanel>
+            <AgentPanel title="Miss Vivian">Read the passage clearly. Then answer five short questions.</AgentPanel>
         </div>
         <BottomActionBar>
             <Link href="/learner/diagnostic/passage"><PrimaryButton>Start passage</PrimaryButton></Link>

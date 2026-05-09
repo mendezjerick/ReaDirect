@@ -24,7 +24,7 @@ const startDeveloperRetest = () => retestForm.post('/learner/diagnostic/develope
         </template>
         <div class="mx-auto grid max-w-2xl gap-6">
             <PromptCard label="Diagnostic reading check" prompt="Ready to read?" size="word" />
-            <AgentPanel title="Assessment Agent">We will do short reading tasks. Take your time and try your best.</AgentPanel>
+            <AgentPanel title="Miss Vivian">We will do short reading tasks. Take your time and try your best.</AgentPanel>
             <div v-if="props.developerRetest?.enabled" class="rounded-lg border border-warning/40 bg-warning/10 p-4 text-left">
                 <p class="text-sm font-black text-warning">Developer testing only. This starts a new sandbox diagnostic attempt for QA testing and preserves previous attempts.</p>
                 <SecondaryButton class="mt-3" :disabled="retestForm.processing" @click="startDeveloperRetest">Start New Developer Test Attempt</SecondaryButton>

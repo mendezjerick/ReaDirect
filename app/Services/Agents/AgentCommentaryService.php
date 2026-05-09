@@ -3,20 +3,15 @@
 namespace App\Services\Agents;
 
 use App\Models\AgentProfile;
-use App\Models\LlmInteraction;
-use App\Models\LlmPromptTemplate;
-use App\Services\LLM\LLMOutputSafetyService;
-use App\Services\LLM\OpenAIClientService;
 use App\Services\Scoring\AnswerSimilarityService;
+use App\Support\AgentIdentity;
 
 class AgentCommentaryService
 {
     public function __construct(
-        private readonly OpenAIClientService $openAI,
-        private readonly LLMOutputSafetyService $safety,
+        private readonly MissCielFeedbackService $missCiel,
         private readonly AnswerSimilarityService $similarity,
-    ) {
-    }
+    ) {}
 
     public function generateCommentary(array $context): array
     {
@@ -28,67 +23,43 @@ class AgentCommentaryService
         $similarityLabel = $context['similarity_label'] ?? $this->similarity->classifySimilarity($expected, $answer);
         $errorType = $context['error_type'] ?? $this->similarity->detectErrorType($expected, $answer, $isCorrect);
         $fallback = $this->fallbackMessage($mode, $agentType, $isCorrect, $errorType, $similarityLabel, $context);
-        $promptTemplate = $this->promptTemplate();
-        $rawOutput = null;
 
-        if ($this->llmAllowed($mode)) {
-            $rawOutput = $this->openAI->generateText(
-                $promptTemplate?->template ?: $this->systemPrompt(),
-                $this->userPrompt($context + [
-                    'mode' => $mode,
-                    'agent_type' => $agentType,
-                    'similarity_label' => $similarityLabel,
-                    'error_type' => $errorType,
-                ])
-            );
-        }
+        if ($mode === 'module_coaching') {
+            $feedback = $this->missCiel->feedback($context + [
+                'agent_type' => AgentIdentity::MISS_CIEL,
+                'similarity_label' => $similarityLabel,
+                'error_type' => $errorType,
+                'template_feedback' => $fallback,
+            ]);
 
-        $result = $this->sanitizeForMode($mode, $rawOutput, $fallback, $expected);
-        if ($this->llmAllowed($mode)) {
-            $this->logInteraction($context, $promptTemplate, $agentType, $mode, $result, $similarityLabel, $errorType);
+            return [
+                'agent_type' => AgentProfile::COACH_FEEDBACK,
+                'display_name' => $feedback['display_name'],
+                'state' => $this->stateFor($mode, $isCorrect, $similarityLabel),
+                'message' => $feedback['message'],
+                'fallback_used' => $feedback['fallback_used'],
+                'commentary_mode' => $mode,
+                'safety_status' => $feedback['fallback_used'] ? ($feedback['fallback_reason'] ?? 'scripted') : 'safe',
+                'source' => $feedback['source'],
+                'similarity_label' => $similarityLabel,
+                'error_type' => $errorType,
+            ];
         }
 
         return [
             'agent_type' => $agentType,
+            'display_name' => $agentType === AgentProfile::ASSESSMENT
+                ? AgentIdentity::displayName(AgentIdentity::MISS_VIVIAN)
+                : AgentIdentity::displayName(AgentIdentity::MISS_ESTELLE),
             'state' => $this->stateFor($mode, $isCorrect, $similarityLabel),
-            'message' => $result['text'],
-            'fallback_used' => $result['fallback_used'],
+            'message' => $fallback,
+            'fallback_used' => true,
             'commentary_mode' => $mode,
-            'safety_status' => $result['safety_status'],
-            'source' => $result['fallback_used'] ? ($mode === 'assessment_neutral' ? 'local_neutral' : 'template') : 'llm',
+            'safety_status' => 'fixed_script',
+            'source' => $mode === 'assessment_neutral' ? 'miss_vivian_script' : 'miss_estelle_script',
             'similarity_label' => $similarityLabel,
             'error_type' => $errorType,
         ];
-    }
-
-    private function llmAllowed(string $mode): bool
-    {
-        return in_array($mode, ['module_coaching', 'evaluator_summary'], true);
-    }
-
-    private function sanitizeForMode(string $mode, ?string $output, string $fallback, string $expected): array
-    {
-        $result = $this->safety->sanitize($output, $fallback);
-
-        if ($mode !== 'assessment_neutral' || $result['fallback_used']) {
-            return $result;
-        }
-
-        $lower = mb_strtolower($result['text']);
-        $expected = $this->similarity->normalize($expected);
-        $blocked = ['close', 'hint', 'correct', 'wrong', 'try saying', 'sound'];
-
-        foreach ($blocked as $phrase) {
-            if (str_contains($lower, $phrase)) {
-                return ['text' => $fallback, 'fallback_used' => true, 'safety_status' => 'assessment_hint_blocked'];
-            }
-        }
-
-        if ($expected !== '' && str_contains($this->similarity->normalize($result['text']), $expected)) {
-            return ['text' => $fallback, 'fallback_used' => true, 'safety_status' => 'assessment_answer_blocked'];
-        }
-
-        return $result;
     }
 
     private function fallbackMessage(string $mode, string $agentType, bool $isCorrect, string $errorType, string $similarityLabel, array $context): string
@@ -159,76 +130,5 @@ class AgentCommentaryService
             'evaluator_summary' => 'evaluator',
             default => AgentProfile::COACH_FEEDBACK,
         };
-    }
-
-    private function promptTemplate(): ?LlmPromptTemplate
-    {
-        return LlmPromptTemplate::where('key', 'agent_answer_commentary')
-            ->where('status', 'active')
-            ->latest('version')
-            ->first();
-    }
-
-    private function systemPrompt(): string
-    {
-        return 'You are a ReaDirect agent speaking to a Grade 1 learner. Your job is to respond kindly after the learner gives an answer. You must use only the provided result context. You do not decide scores or correctness. You do not change the system decision. If the mode is assessment_neutral, do not give hints, corrections, closeness, or correct answers. If the mode is module_coaching, you may explain what was close, what to try next, and encourage retry. Keep the message short, friendly, and appropriate for a young learner. Do not shame the learner. Do not diagnose conditions. Do not mention internal scoring rules.';
-    }
-
-    private function userPrompt(array $context): string
-    {
-        return implode("\n", [
-            'Mode: '.($context['mode'] ?? 'module_coaching'),
-            'Agent: '.($context['agent_type'] ?? AgentProfile::COACH_FEEDBACK),
-            'Task or activity: '.($context['activity_type'] ?? $context['task_type'] ?? 'unknown'),
-            'Expected answer: '.($context['expected_answer'] ?? ''),
-            'Learner answer: '.($context['learner_answer'] ?? $context['learner_transcript'] ?? ''),
-            'System correctness: '.(($context['is_correct'] ?? false) ? 'correct' : 'not correct'),
-            'System score: '.($context['score'] ?? '0'),
-            'Error type: '.($context['error_type'] ?? 'none'),
-            'Similarity label: '.($context['similarity_label'] ?? 'unknown'),
-            'Recommended action: '.($context['recommended_action'] ?? 'continue'),
-            'Template feedback: '.($context['template_feedback'] ?? ''),
-            'Write one short message for the learner. Maximum 2 sentences.',
-        ]);
-    }
-
-    private function logInteraction(array $context, ?LlmPromptTemplate $template, string $agentType, string $mode, array $result, string $similarityLabel, string $errorType): void
-    {
-        $agent = AgentProfile::where('key', $agentType === 'evaluator' ? AgentProfile::EVALUATOR_RECOMMENDATION : $agentType)->first();
-
-        if (! $agent) {
-            return;
-        }
-
-        LlmInteraction::create([
-            'learner_id' => $context['learner_id'] ?? null,
-            'agent_profile_id' => $agent->id,
-            'source_type' => $context['source_type'] ?? null,
-            'source_id' => $context['source_id'] ?? null,
-            'llm_prompt_template_id' => $template?->id,
-            'provider' => 'openai',
-            'model' => config('readirect.openai.model', 'gpt-4.1-mini'),
-            'sanitized_context' => [
-                'mode' => $mode,
-                'agent_type' => $agentType,
-                'activity_type' => $context['activity_type'] ?? $context['task_type'] ?? null,
-                'is_correct' => (bool) ($context['is_correct'] ?? false),
-                'similarity_label' => $similarityLabel,
-                'error_type' => $errorType,
-            ],
-            'input_summary' => [
-                'mode' => $mode,
-                'recommended_action' => $context['recommended_action'] ?? null,
-            ],
-            'response_summary' => str($result['text'])->limit(300)->toString(),
-            'output_text' => $result['text'],
-            'fallback_used' => $result['fallback_used'],
-            'safety_status' => $result['safety_status'],
-            'error_message' => $result['fallback_used'] ? $result['safety_status'] : null,
-            'metadata' => [
-                'commentary_mode' => $mode,
-                'official_scoring_changed' => false,
-            ],
-        ]);
     }
 }

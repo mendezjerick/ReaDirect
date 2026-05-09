@@ -121,17 +121,17 @@ class LLMFeedbackTest extends TestCase
     public function test_module_activity_submission_stays_rule_based_while_feedback_is_generated(): void
     {
         $this->seedPromptTemplate();
-        config()->set('readirect.openai.enabled', true);
-        config()->set('readirect.openai.api_key', 'sk-test-secret');
+        config()->set('readirect.ollama.enabled', true);
+        config()->set('readirect.agent_feedback.miss_ciel_ollama_enabled', true);
 
         Http::fake([
-            'api.openai.com/v1/responses' => Http::response([
-                'output_text' => 'Nice reading! Keep going.',
+            '127.0.0.1:11434/api/generate' => Http::response([
+                'response' => 'Nice reading! Keep going.',
             ]),
         ]);
 
         [$learner, $module] = $this->moduleContext();
-        $learner->update(['current_module_id' => $module->id, 'current_stage' => 'module_practice']);
+        $learner->update(['current_module_id' => $module->id, 'current_stage' => 'module_practice_in_progress']);
         $this->seedModuleActivities($module, 'read_word', 5);
         $selection = app(ModuleActivitySelectionService::class);
         $attempt = $selection->startOrResumeModuleAttempt($learner, $module);
@@ -141,7 +141,11 @@ class LLMFeedbackTest extends TestCase
             'answer' => 'cat',
         ])->all();
 
-        $this->withSession(['learner_id' => $learner->id, 'module_attempt_id' => $attempt->id])
+        $this->withSession([
+            'learner_id' => $learner->id,
+            'module_attempt_id' => $attempt->id,
+            'admin_testing_mode' => true,
+        ])
             ->post(route('learner.modules.activity.store', [$module, 'read_word']), ['responses' => $responses])
             ->assertRedirect();
 
@@ -157,7 +161,7 @@ class LLMFeedbackTest extends TestCase
     {
         $agent = AgentProfile::create([
             'key' => AgentProfile::COACH_FEEDBACK,
-            'name' => 'Coach + Feedback Agent',
+            'name' => 'Miss Ciel',
             'agent_type' => 'coach_feedback',
             'purpose' => 'Learning feedback',
             'uses_llm' => true,
@@ -170,7 +174,7 @@ class LLMFeedbackTest extends TestCase
                 'key' => $key,
                 'version' => 1,
                 'status' => 'active',
-                'template' => 'You are the Coach + Feedback Agent. Use short, kind Grade 1 feedback only. Do not score.',
+                'template' => 'You are the Miss Ciel. Use short, kind Grade 1 feedback only. Do not score.',
                 'variables' => ['module_key', 'activity_type'],
             ]);
         }

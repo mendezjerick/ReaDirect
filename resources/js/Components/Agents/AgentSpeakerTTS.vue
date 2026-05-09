@@ -31,6 +31,11 @@ const agentVoiceConfig = {
         rate: 1.05,
         pitch: 1.1,
     },
+    evaluator_recommendation: {
+        preferredNames: ['Jenny', 'Kendra', 'Aria', 'Samantha'],
+        rate: 1.05,
+        pitch: 1.1,
+    },
 };
 
 const hasSpeechSupport = () => (

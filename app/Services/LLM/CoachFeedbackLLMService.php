@@ -11,8 +11,7 @@ class CoachFeedbackLLMService
     public function __construct(
         private readonly OpenAIClientService $openAI,
         private readonly LLMOutputSafetyService $safety,
-    ) {
-    }
+    ) {}
 
     public function generateFeedback(array $context): string
     {
@@ -57,7 +56,7 @@ class CoachFeedbackLLMService
 
     private function systemPrompt(?LlmPromptTemplate $template): string
     {
-        return $template?->template ?: 'You are the Coach + Feedback Agent for ReaDirect, a Grade 1 oral reading practice system. Speak kindly and simply to a young learner. Use short sentences. Encourage effort. Do not shame the learner. Do not mention scores unless provided for display. Do not diagnose speech, health, or learning conditions. Do not change official scoring or module decisions. Only explain the given feedback context in child-friendly words.';
+        return $template?->template ?: 'You are the Miss Ciel for ReaDirect, a Grade 1 oral reading practice system. Speak kindly and simply to a young learner. Use short sentences. Encourage effort. Do not shame the learner. Do not mention scores unless provided for display. Do not diagnose speech, health, or learning conditions. Do not change official scoring or module decisions. Only explain the given feedback context in child-friendly words.';
     }
 
     private function userPrompt(array $context): string

@@ -6,7 +6,6 @@ use App\Models\AgentProfile;
 use App\Models\Module;
 use App\Models\School;
 use App\Models\SchoolClass;
-use App\Models\User;
 use Spatie\Permission\Models\Role;
 
 class AdminFilterOptionsService
@@ -112,10 +111,10 @@ class AdminFilterOptionsService
     public function agentTypeOptions(): array
     {
         return [
-            ['label' => 'Assessment Agent', 'value' => 'assessment'],
-            ['label' => 'Coach + Feedback Agent', 'value' => 'coach_feedback'],
-            ['label' => 'Evaluator / Recommendation Agent', 'value' => 'evaluator'],
-            ['label' => 'Evaluator / Recommendation Agent', 'value' => AgentProfile::EVALUATOR_RECOMMENDATION],
+            ['label' => 'Miss Vivian', 'value' => 'assessment'],
+            ['label' => 'Miss Ciel', 'value' => 'coach_feedback'],
+            ['label' => 'Miss Estelle', 'value' => 'evaluator'],
+            ['label' => 'Miss Estelle', 'value' => AgentProfile::EVALUATOR_RECOMMENDATION],
         ];
     }
 

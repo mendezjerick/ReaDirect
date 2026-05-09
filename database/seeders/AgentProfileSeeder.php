@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\AgentProfile;
+use App\Support\AgentIdentity;
 use Illuminate\Database\Seeder;
 
 class AgentProfileSeeder extends Seeder
@@ -12,27 +13,27 @@ class AgentProfileSeeder extends Seeder
         $agents = [
             [
                 'key' => AgentProfile::ASSESSMENT,
-                'name' => 'Assessment Agent',
+                'name' => AgentIdentity::displayName(AgentIdentity::MISS_VIVIAN),
                 'agent_type' => 'assessment',
-                'purpose' => 'Runs diagnostic and final reassessment using fixed scripts and standardized assessment behavior.',
+                'purpose' => 'Miss Vivian guides diagnostic and final reassessment using fixed scripts only.',
                 'uses_llm' => false,
                 'guardrails' => ['fixed_scripts_only', 'no_official_scoring_generation'],
             ],
             [
                 'key' => AgentProfile::COACH_FEEDBACK,
-                'name' => 'Coach + Feedback Agent',
+                'name' => AgentIdentity::displayName(AgentIdentity::MISS_CIEL),
                 'agent_type' => 'coach_feedback',
-                'purpose' => 'Guides module practice, encouragement, hints, and feedback through sanitized prompt templates.',
+                'purpose' => 'Miss Ciel coaches module practice with scripted fallback and optional local Ollama feedback.',
                 'uses_llm' => true,
-                'guardrails' => ['no_official_scoring', 'sanitized_context_only', 'child_safe_feedback'],
+                'guardrails' => ['no_official_scoring', 'no_progression_control', 'sanitized_context_only', 'child_safe_feedback'],
             ],
             [
                 'key' => AgentProfile::EVALUATOR_RECOMMENDATION,
-                'name' => 'Evaluator / Recommendation Agent',
+                'name' => AgentIdentity::displayName(AgentIdentity::MISS_ESTELLE),
                 'agent_type' => 'evaluator_recommendation',
-                'purpose' => 'Applies deterministic scoring, module placement, and mastery decision rules for auditability.',
+                'purpose' => 'Miss Estelle explains already-computed results using fixed scripts only.',
                 'uses_llm' => false,
-                'guardrails' => ['rule_based_only', 'store_rule_applied', 'store_input_scores'],
+                'guardrails' => ['fixed_scripts_only', 'explain_computed_results_only', 'no_official_scoring_generation'],
             ],
         ];
 

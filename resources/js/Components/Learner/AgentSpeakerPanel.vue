@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { RotateCcw, Volume2, VolumeX } from 'lucide-vue-next';
 import AgentSpeakerTTS from '../Agents/AgentSpeakerTTS.vue';
 
@@ -19,15 +19,41 @@ const props = defineProps({
 });
 
 const agents = {
-    assessment: { label: 'Assessment Agent', initials: 'AA', base: '/assets/agents/assessment' },
-    coach_feedback: { label: 'Coach + Feedback Agent', initials: 'CF', base: '/assets/agents/coach_feedback' },
-    evaluator: { label: 'Evaluator / Recommendation Agent', initials: 'ER', base: '/assets/agents/evaluator' },
+    assessment: {
+        label: 'Miss Vivian',
+        role: 'Assessment Guide',
+        initials: 'MV',
+        base: '/assets/agents/assessment',
+        intro: 'Hello! I am Miss Vivian. I will guide you through your reading assessment. Try your best and answer one step at a time.',
+    },
+    coach_feedback: {
+        label: 'Miss Ciel',
+        role: 'Reading Coach',
+        initials: 'MC',
+        base: '/assets/agents/coach_feedback',
+        intro: 'Hi! I am Miss Ciel. I will help you practice reading. Mistakes are okay. I am here to guide you.',
+    },
+    evaluator: {
+        label: 'Miss Estelle',
+        role: 'Results Guide',
+        initials: 'ME',
+        base: '/assets/agents/evaluator',
+        intro: 'Hello! I am Miss Estelle. I will help explain your results so you know what to do next.',
+    },
+    evaluator_recommendation: {
+        label: 'Miss Estelle',
+        role: 'Results Guide',
+        initials: 'ME',
+        base: '/assets/agents/evaluator',
+        intro: 'Hello! I am Miss Estelle. I will help explain your results so you know what to do next.',
+    },
 };
 
 const displayMode = ref('requested');
 const isSpeaking = ref(false);
 const ttsError = ref('');
 const ttsKey = ref(0);
+const showIntro = ref(false);
 
 const storedMutedPreference = () => {
     if (typeof window === 'undefined') {
@@ -46,6 +72,8 @@ const storedMutedPreference = () => {
 const isMuted = ref(storedMutedPreference());
 
 const agent = computed(() => agents[props.agentType] ?? agents.assessment);
+const introStorageKey = computed(() => `readirect-agent-intro-seen-${props.agentType}`);
+const displayMessage = computed(() => showIntro.value ? agent.value.intro : props.message);
 const effectiveState = computed(() => (isSpeaking.value ? 'speaking' : (props.state || 'idle')));
 const prefersAssessmentWebmIdle = computed(() => props.agentType === 'assessment');
 const requestedSrc = computed(() => {
@@ -71,6 +99,7 @@ const imageSrc = computed(() => {
 const showPlaceholder = computed(() => displayMode.value === 'placeholder');
 const isVideoAsset = computed(() => !showPlaceholder.value && imageSrc.value.endsWith('.webm'));
 const displayTitle = computed(() => props.title || agent.value.label);
+const displaySubtitle = computed(() => props.subtitle || agent.value.role);
 const stateLabel = computed(() => {
     const labels = {
         idle: 'Ready',
@@ -89,6 +118,15 @@ const stateLabel = computed(() => {
 });
 watch(() => [props.agentType, effectiveState.value], () => {
     displayMode.value = 'requested';
+});
+
+watch(() => props.agentType, () => {
+    showIntro.value = false;
+    loadIntroState();
+});
+
+watch(() => props.message, () => {
+    showIntro.value = false;
 });
 
 watch(isMuted, (value) => {
@@ -146,6 +184,21 @@ const handleTtsError = (message) => {
     ttsError.value = message ? 'Voice is unavailable, but you can read the message here.' : '';
     isSpeaking.value = false;
 };
+
+const loadIntroState = () => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    if (window.localStorage.getItem(introStorageKey.value) === 'true') {
+        return;
+    }
+
+    showIntro.value = true;
+    window.localStorage.setItem(introStorageKey.value, 'true');
+};
+
+onMounted(loadIntroState);
 </script>
 
 <template>
@@ -154,7 +207,7 @@ const handleTtsError = (message) => {
             v-if="ttsEnabled"
             :key="ttsKey"
             :agent-type="agentType"
-            :message="message"
+            :message="displayMessage"
             :mute="isMuted"
             :volume="volume"
             :rate="rate"
@@ -195,7 +248,7 @@ const handleTtsError = (message) => {
             <div class="flex flex-wrap items-start justify-between gap-3">
                 <div>
                     <p class="font-black uppercase text-primary" :class="compact ? 'text-xs' : 'text-sm'">{{ displayTitle }}</p>
-                    <p v-if="subtitle" class="mt-1 text-sm font-bold text-muted">{{ subtitle }}</p>
+                    <p v-if="displaySubtitle" class="mt-1 text-sm font-bold text-muted">{{ displaySubtitle }}</p>
                 </div>
                 <div class="flex items-center gap-2">
                     <span class="rounded-full bg-primary-light px-2 py-0.5 text-[10px] font-black text-primary">{{ stateLabel }}</span>
@@ -222,7 +275,7 @@ const handleTtsError = (message) => {
                 </div>
             </div>
             <p class="font-black leading-snug text-text" :class="compact ? 'mt-2 text-sm md:text-base lg:text-[17px]' : 'mt-3 text-lg'">
-                {{ message }}
+                {{ displayMessage }}
             </p>
             <p v-if="ttsError" class="mt-2 text-xs font-bold text-muted">
                 {{ ttsError }}

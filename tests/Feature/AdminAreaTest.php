@@ -47,6 +47,10 @@ class AdminAreaTest extends TestCase
             'readirect_ai.base_url' => 'http://ai.test',
             'readirect_ai.endpoints.health' => '/health',
             'readirect_ai.endpoints.version' => '/version',
+            'readirect.ollama.enabled' => true,
+            'readirect.agent_feedback.miss_ciel_ollama_enabled' => true,
+            'readirect.ollama.base_url' => 'http://ollama.test',
+            'readirect.ollama.model' => 'qwen3:4b',
         ]);
         Http::fake([
             'http://ai.test/health' => Http::response([
@@ -59,6 +63,9 @@ class AdminAreaTest extends TestCase
                 'wav2vec2_asr_model_name' => 'models/wav2vec2-readirect-asr-letters-v2',
             ]),
             'http://ai.test/version' => Http::response(['ok' => true]),
+            'http://ollama.test/api/tags' => Http::response([
+                'models' => [['name' => 'qwen3:4b']],
+            ]),
         ]);
 
         $this->actingAs($this->userWithRole('system_admin'))
@@ -72,6 +79,9 @@ class AdminAreaTest extends TestCase
                 ->where('aiService.model_size', 'models/wav2vec2-readirect-asr-letters-v2')
                 ->where('aiService.model_version', 'letters-v2')
                 ->where('aiService.base_model', 'models/wav2vec2-readirect-asr')
+                ->where('aiService.llm.connected', true)
+                ->where('aiService.llm.label', 'LLM Connected')
+                ->where('aiService.llm.model', 'qwen3:4b')
             );
     }
 
@@ -411,7 +421,7 @@ class AdminAreaTest extends TestCase
     public function test_admin_agent_prompt_audit_and_testing_filters_are_applied(): void
     {
         $admin = $this->userWithRole('system_admin');
-        $assessmentAgent = AgentProfile::create(['key' => 'assessment', 'name' => 'Assessment Agent', 'agent_type' => 'assessment', 'purpose' => 'Assess', 'is_active' => true]);
+        $assessmentAgent = AgentProfile::create(['key' => 'assessment', 'name' => 'Miss Vivian', 'agent_type' => 'assessment', 'purpose' => 'Assess', 'is_active' => true]);
         $coachAgent = AgentProfile::create(['key' => 'coach', 'name' => 'Coach Agent', 'agent_type' => 'coach_feedback', 'purpose' => 'Coach', 'is_active' => false]);
         LlmPromptTemplate::create(['agent_profile_id' => $assessmentAgent->id, 'key' => 'assessment_prompt', 'version' => 1, 'status' => 'active', 'template' => 'Assess']);
         LlmPromptTemplate::create(['agent_profile_id' => $coachAgent->id, 'key' => 'coach_feedback', 'version' => 1, 'status' => 'draft', 'template' => 'Coach']);

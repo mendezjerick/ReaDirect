@@ -17,7 +17,7 @@ Do not reshuffle items during the same assessment attempt. The UI should read fr
 - `task2b_word_in_sentence.csv`: Word-in-sentence item bank. Task 2B selects exactly 10 active sentence items for all learners.
 - `reading_passages.csv`: Reading passage bank. Reading comprehension selects exactly 1 active 50-word passage.
 - `comprehension_questions.csv`: Five multiple-choice questions linked to each passage. The selected passage determines which five questions are used.
-- `agent_scripts.csv`: Fixed scripts for the Assessment Agent and Evaluator / Recommendation Agent, plus reusable Coach + Feedback Agent scripts.
+- `agent_scripts.csv`: Fixed scripts for Miss Vivian and Miss Estelle, plus reusable Miss Ciel coaching scripts.
 - `feedback_templates.csv`: Reusable feedback template bank selected by module, error type, and severity.
 - `reading_classification_rules.csv`: Deterministic final reading score bands. Reading classification must use `final_reading_score` only.
 - `module_placement_rules.csv`: Deterministic module placement rules using CRLA level plus reading classification.

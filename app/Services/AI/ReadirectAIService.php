@@ -12,6 +12,8 @@ use Throwable;
 
 class ReadirectAIService
 {
+    public function __construct(private readonly OllamaClient $ollama) {}
+
     public function health(): array
     {
         return $this->get('health');
@@ -66,6 +68,7 @@ class ReadirectAIService
                     'Start the FastAPI service from ReaDirect-AI-ASR.',
                     'Confirm READIRECT_AI_BASE_URL points to the FastAPI host and port.',
                 ],
+                'llm' => $this->ollama->dashboardStatus(),
             ];
         }
 
@@ -135,6 +138,7 @@ class ReadirectAIService
                 'If token auth is enabled, match READIRECT_AI_API_TOKEN in both repositories.',
                 'Verify the AI repo model path and ASR provider settings before production use.',
             ],
+            'llm' => $this->ollama->dashboardStatus(),
         ];
     }
 
