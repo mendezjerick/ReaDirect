@@ -20,6 +20,7 @@ use App\Http\Controllers\FinalAssessmentController;
 use App\Http\Controllers\Learner\AudioUploadController;
 use App\Http\Controllers\Learner\DiagnosticAssessmentController;
 use App\Http\Controllers\Learner\LearnerAccessController;
+use App\Http\Controllers\Learner\LearnerCompletionController;
 use App\Http\Controllers\Learner\LearnerDashboardController;
 use App\Http\Controllers\Learner\ModuleActivityController;
 use App\Http\Controllers\Learner\ModuleController;
@@ -55,6 +56,8 @@ Route::post('/agent-voice/synthesize', [AgentVoiceController::class, 'synthesize
 Route::get('/learner/access', [LearnerAccessController::class, 'create'])->name('learner.access');
 Route::post('/learner/access', [LearnerAccessController::class, 'store'])->middleware('throttle:learner-access')->name('learner.access.store');
 Route::get('/learner/dashboard', LearnerDashboardController::class)->name('learner.dashboard');
+Route::get('/learner/completion', [LearnerCompletionController::class, 'show'])->name('learner.completion');
+Route::post('/learner/completion/thank-you', [LearnerCompletionController::class, 'thankYou'])->middleware('throttle:assessment-submit')->name('learner.completion.thank-you');
 Route::post('/learner/audio/upload', [AudioUploadController::class, 'store'])->middleware('throttle:assessment-submit')->name('learner.audio.upload');
 
 Route::prefix('learner/diagnostic')->name('learner.diagnostic.')->group(function (): void {

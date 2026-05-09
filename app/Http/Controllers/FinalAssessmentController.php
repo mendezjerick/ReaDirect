@@ -35,14 +35,18 @@ class FinalAssessmentController extends Controller
         $stage = LearnerStage::normalize($learner->current_stage);
         $activeAttempt = $flow->resolveFinalAttempt($request);
 
+        if (in_array($stage, [LearnerStage::FINAL_REASSESSMENT_COMPLETED, LearnerStage::COMPLETED], true)) {
+            return redirect()->route('learner.completion');
+        }
+
+        if ($this->completedFinalAttempt($learner)) {
+            return redirect()->route('learner.completion');
+        }
+
         if ($activeAttempt) {
             $learner->update(['current_stage' => LearnerStage::FINAL_REASSESSMENT_IN_PROGRESS]);
 
             return redirect($flow->finalResumeRoute($activeAttempt));
-        }
-
-        if ($stage === LearnerStage::FINAL_REASSESSMENT_COMPLETED) {
-            return redirect()->route('final-assessment.summary');
         }
 
         if ($stage !== LearnerStage::FINAL_REASSESSMENT_PENDING) {
@@ -58,6 +62,14 @@ class FinalAssessmentController extends Controller
         $learner = $this->learner($request);
         $stage = LearnerStage::normalize($learner->current_stage);
         $activeAttempt = $flow->resolveFinalAttempt($request);
+
+        if (in_array($stage, [LearnerStage::FINAL_REASSESSMENT_COMPLETED, LearnerStage::COMPLETED], true)) {
+            return redirect()->route('learner.completion');
+        }
+
+        if ($this->completedFinalAttempt($learner)) {
+            return redirect()->route('learner.completion');
+        }
 
         if ($activeAttempt) {
             $learner->update(['current_stage' => LearnerStage::FINAL_REASSESSMENT_IN_PROGRESS]);
@@ -163,24 +175,8 @@ class FinalAssessmentController extends Controller
         if ($attempt instanceof RedirectResponse) {
             return $attempt;
         }
-        $attempt->load('baselineAssessment');
-        $comparisonSummary = $attempt->comparison_summary ?: $comparison->compareAttempts($attempt->baselineAssessment, $attempt);
 
-        return Inertia::render('Learner/FinalAssessment/Summary', [
-            'attempt' => $attempt->only([
-                'task_1_score',
-                'task_2a_score',
-                'task_2b_score',
-                'crla_total_score',
-                'crla_classification',
-                'reading_accuracy',
-                'comprehension_percentage',
-                'final_reading_score',
-                'reading_classification',
-                'completed_at',
-            ]),
-            'comparison' => $comparisonSummary,
-        ]);
+        return redirect()->route('learner.completion');
     }
 
     private function submitTaskOne(
@@ -393,9 +389,9 @@ class FinalAssessmentController extends Controller
         $attempt->refresh();
         $comparisonSummary = $comparison->compareAttempts($attempt->baselineAssessment, $attempt);
         $attempt->update(['comparison_summary' => $comparisonSummary]);
-        $attempt->learner->update(['current_stage' => 'final_reassessment_completed']);
+        $attempt->learner->update(['current_stage' => LearnerStage::FINAL_REASSESSMENT_COMPLETED]);
 
-        return redirect()->route('final-assessment.summary');
+        return redirect()->route('learner.completion');
     }
 
     private function scoreTextResponses(
@@ -651,6 +647,7 @@ class FinalAssessmentController extends Controller
             LearnerStage::FINAL_REASSESSMENT_PENDING,
             LearnerStage::FINAL_REASSESSMENT_IN_PROGRESS,
             LearnerStage::FINAL_REASSESSMENT_COMPLETED,
+            LearnerStage::COMPLETED,
         ], true)) {
             return redirect()->route('learner.dashboard')
                 ->with('info', 'The final reassessment is not available yet.');
@@ -671,7 +668,7 @@ class FinalAssessmentController extends Controller
         if ($flow->isFinalComplete($attempt)) {
             return $taskKey === 'summary'
                 ? $attempt
-                : redirect()->route('final-assessment.summary')
+                : redirect()->route('learner.completion')
                     ->with('info', 'Your final reassessment is complete.');
         }
 
@@ -695,6 +692,18 @@ class FinalAssessmentController extends Controller
             ->where('attempt_type', 'diagnostic')
             ->where('status', 'module_placement_completed')
             ->latest()
+            ->first();
+    }
+
+    private function completedFinalAttempt(Learner $learner): ?AssessmentAttempt
+    {
+        return AssessmentAttempt::query()
+            ->where('learner_id', $learner->id)
+            ->where('attempt_type', 'final_reassessment')
+            ->where('status', LearnerFlowService::FINAL_COMPLETE)
+            ->whereNotNull('completed_at')
+            ->latest('completed_at')
+            ->latest('id')
             ->first();
     }
 

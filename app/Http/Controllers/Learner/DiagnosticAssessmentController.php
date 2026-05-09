@@ -39,6 +39,14 @@ class DiagnosticAssessmentController extends Controller
         $activeAttempt = $flow->resolveDiagnosticAttempt($request);
         $latestAttempt = $flow->latestDiagnosticAttempt($learner);
 
+        if (
+            in_array(LearnerStage::normalize($learner->current_stage), [LearnerStage::FINAL_REASSESSMENT_COMPLETED, LearnerStage::COMPLETED], true)
+            || $this->hasCompletedFinalAttempt($learner)
+        ) {
+            return redirect()->route('learner.completion')
+                ->with('info', 'You already completed your reading journey.');
+        }
+
         if ($activeAttempt) {
             $learner->update(['current_stage' => LearnerStage::DIAGNOSTIC_IN_PROGRESS]);
 
@@ -61,6 +69,14 @@ class DiagnosticAssessmentController extends Controller
     {
         $learner = $this->learner($request);
         $activeAttempt = $flow->resolveDiagnosticAttempt($request);
+
+        if (
+            in_array(LearnerStage::normalize($learner->current_stage), [LearnerStage::FINAL_REASSESSMENT_COMPLETED, LearnerStage::COMPLETED], true)
+            || $this->hasCompletedFinalAttempt($learner)
+        ) {
+            return redirect()->route('learner.completion')
+                ->with('info', 'You already completed your reading journey.');
+        }
 
         if ($activeAttempt) {
             $learner->update(['current_stage' => LearnerStage::DIAGNOSTIC_IN_PROGRESS]);
@@ -558,10 +574,20 @@ class DiagnosticAssessmentController extends Controller
 
     private function attemptForStep(Request $request, LearnerFlowService $flow, string $step, bool $allowCompleted = false): AssessmentAttempt|RedirectResponse
     {
+        $learner = $flow->learner($request);
+
+        if (
+            in_array(LearnerStage::normalize($learner->current_stage), [LearnerStage::FINAL_REASSESSMENT_COMPLETED, LearnerStage::COMPLETED], true)
+            || $this->hasCompletedFinalAttempt($learner)
+        ) {
+            return redirect()->route('learner.completion')
+                ->with('info', 'You already completed your reading journey.');
+        }
+
         $attempt = $flow->resolveDiagnosticAttempt($request, $allowCompleted);
 
         if (! $attempt && $allowCompleted) {
-            $attempt = $flow->latestDiagnosticAttempt($flow->learner($request));
+            $attempt = $flow->latestDiagnosticAttempt($learner);
         }
 
         if (! $attempt) {
@@ -576,7 +602,7 @@ class DiagnosticAssessmentController extends Controller
                     ->with('info', 'Your diagnostic is complete. Continue from your dashboard.');
         }
 
-        $flow->learner($request)->update(['current_stage' => LearnerStage::DIAGNOSTIC_IN_PROGRESS]);
+        $learner->update(['current_stage' => LearnerStage::DIAGNOSTIC_IN_PROGRESS]);
 
         if (! $flow->diagnosticStepAllowed($attempt, $step)) {
             return redirect($flow->diagnosticResumeRoute($attempt))
@@ -584,6 +610,16 @@ class DiagnosticAssessmentController extends Controller
         }
 
         return $attempt;
+    }
+
+    private function hasCompletedFinalAttempt(Learner $learner): bool
+    {
+        return AssessmentAttempt::query()
+            ->where('learner_id', $learner->id)
+            ->where('attempt_type', 'final_reassessment')
+            ->where('status', LearnerFlowService::FINAL_COMPLETE)
+            ->whereNotNull('completed_at')
+            ->exists();
     }
 
     private function scoreTextResponses(

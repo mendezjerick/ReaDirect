@@ -275,6 +275,14 @@ class ModuleMasteryController extends Controller
 
     private function guardModuleAccess(Learner $learner, Module $module, LearnerFlowService $flow): ?RedirectResponse
     {
+        if (
+            in_array(LearnerStage::normalize($learner->current_stage), [LearnerStage::FINAL_REASSESSMENT_COMPLETED, LearnerStage::COMPLETED], true)
+            || $flow->isFinalComplete($flow->latestFinalAttempt($learner))
+        ) {
+            return redirect()->route('learner.completion')
+                ->with('info', 'You already completed your reading journey.');
+        }
+
         if (! $flow->moduleAccessible($learner, $module)) {
             return redirect()->route('learner.dashboard')
                 ->with('info', 'That module is locked right now. Continue from your dashboard.');

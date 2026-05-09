@@ -80,19 +80,23 @@ class LearnerFlowService
         $activeFinal ??= $this->activeFinalAttempt($learner);
         $moduleAttempt ??= $learner->current_module_id ? $this->activeModuleAttempt($learner, $learner->currentModule) : null;
 
-        if ($activeFinal) {
-            return LearnerStage::FINAL_REASSESSMENT_IN_PROGRESS;
+        $stage = LearnerStage::normalize($learner->current_stage);
+
+        if ($stage === LearnerStage::COMPLETED) {
+            return LearnerStage::COMPLETED;
         }
 
-        if ($this->isFinalComplete($final)) {
+        if ($stage === LearnerStage::FINAL_REASSESSMENT_COMPLETED || $this->isFinalComplete($final)) {
             return LearnerStage::FINAL_REASSESSMENT_COMPLETED;
+        }
+
+        if ($activeFinal) {
+            return LearnerStage::FINAL_REASSESSMENT_IN_PROGRESS;
         }
 
         if ($activeDiagnostic) {
             return LearnerStage::DIAGNOSTIC_IN_PROGRESS;
         }
-
-        $stage = LearnerStage::normalize($learner->current_stage);
 
         if (in_array($stage, [
             LearnerStage::MODULE_ASSIGNED,
@@ -462,9 +466,9 @@ class LearnerFlowService
             LearnerStage::EXTRA_PHONEME_DRILLS => $this->action('Continue Extra Drills', $learner->currentModule ? route('learner.modules.extra-drills', $learner->currentModule) : route('learner.dashboard'), 'Extra sound practice is ready before trying the module again.'),
             LearnerStage::FINAL_REASSESSMENT_PENDING => $this->action('Start Final Reassessment', route('final-assessment.start'), 'You are ready for the final reassessment.'),
             LearnerStage::FINAL_REASSESSMENT_IN_PROGRESS => $this->action('Continue Final Reassessment', $activeFinal ? $this->finalResumeRoute($activeFinal) : route('final-assessment.start'), 'Continue the final reassessment from your saved step.'),
-            LearnerStage::FINAL_REASSESSMENT_COMPLETED => $this->action('View Final Results', route('final-assessment.summary'), 'Your final reassessment is complete.'),
+            LearnerStage::FINAL_REASSESSMENT_COMPLETED => $this->action('View Completion', route('learner.completion'), 'You completed your reading journey.'),
             LearnerStage::GRADE_READY => $this->action('View Diagnostic Result', route('learner.diagnostic.reading-summary'), 'Your diagnostic result shows no module is needed right now.'),
-            LearnerStage::COMPLETED => $this->action('Return Home', route('learner.dashboard'), 'Your learner journey is complete.'),
+            LearnerStage::COMPLETED => $this->action('View Completion', route('learner.completion'), 'Your learner journey is complete.'),
             default => $this->action('Continue', route('learner.dashboard'), 'Continue your reading journey.'),
         };
     }

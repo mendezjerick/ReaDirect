@@ -9,7 +9,9 @@ use App\Models\Module;
 use App\Models\School;
 use App\Services\Assessment\FinalAssessmentComparisonService;
 use App\Services\AssessmentItemSelectionService;
+use App\Support\LearnerStage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class FinalAssessmentTest extends TestCase
@@ -118,6 +120,83 @@ class FinalAssessmentTest extends TestCase
         $this->assertSame('The learner improved in one or more final reassessment areas.', $comparison['summary']);
     }
 
+    public function test_completion_screen_recovers_completed_final_attempt_without_session_and_shows_safe_summary(): void
+    {
+        [$learner] = $this->learnerWithCompletedFinal();
+
+        $this->withSession(['learner_id' => $learner->id])
+            ->get(route('learner.completion'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Learner/Completion')
+                ->where('resultSummary.cards.0.title', 'Initial Reading Check')
+                ->where('resultSummary.cards.1.title', 'Final Reading Check')
+                ->where('resultSummary.cards.2.title', 'Progress')
+                ->where('agentMessages.0.name', 'Miss Vivian')
+                ->where('agentMessages.0.message', 'You did a wonderful job completing your reading assessments. Thank you for trying your best.')
+                ->where('agentMessages.1.name', 'Miss Ciel')
+                ->where('agentMessages.1.message', 'I am proud of your practice. You worked hard and kept going. Great job!')
+                ->where('agentMessages.2.name', 'Miss Estelle')
+                ->where('agentMessages.2.message', 'Great job finishing your final reading check. You completed your reading journey.')
+                ->missing('comparison_summary')
+                ->missing('attempt_id')
+            );
+    }
+
+    public function test_thank_you_marks_final_reassessment_completed_learner_completed_and_redirects_home(): void
+    {
+        [$learner] = $this->learnerWithCompletedFinal();
+
+        $this->withSession(['learner_id' => $learner->id])
+            ->post(route('learner.completion.thank-you'))
+            ->assertRedirect(route('welcome'));
+
+        $this->assertSame(LearnerStage::COMPLETED, $learner->refresh()->current_stage);
+    }
+
+    public function test_thank_you_cannot_mark_completion_before_final_reassessment_completion(): void
+    {
+        [$learner] = $this->learnerWithBaselineDiagnostic();
+
+        $this->withSession(['learner_id' => $learner->id])
+            ->post(route('learner.completion.thank-you'))
+            ->assertRedirect(route('learner.dashboard'));
+
+        $this->assertSame(LearnerStage::FINAL_REASSESSMENT_PENDING, $learner->refresh()->current_stage);
+    }
+
+    public function test_completed_learner_dashboard_points_to_completion_not_restart_actions(): void
+    {
+        [$learner] = $this->learnerWithCompletedFinal(['current_stage' => LearnerStage::COMPLETED]);
+
+        $this->withSession(['learner_id' => $learner->id])
+            ->get(route('learner.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Learner/Dashboard')
+                ->where('flowState.stage', LearnerStage::COMPLETED)
+                ->where('flowState.primary_action_label', 'View Completion')
+                ->where('flowState.primary_action_route', route('learner.completion'))
+            );
+    }
+
+    public function test_completed_learner_cannot_restart_diagnostic_final_or_module_by_url(): void
+    {
+        [$learner, $module] = $this->learnerWithCompletedFinal(['current_stage' => LearnerStage::COMPLETED]);
+
+        $this->withSession(['learner_id' => $learner->id])
+            ->get(route('learner.diagnostic.start'))
+            ->assertRedirect(route('learner.completion'));
+
+        $this->withSession(['learner_id' => $learner->id])
+            ->get(route('final-assessment.start'))
+            ->assertRedirect(route('learner.completion'));
+
+        $this->withSession(['learner_id' => $learner->id])
+            ->get(route('learner.modules.activity', [$module, 'hear_and_repeat']))
+            ->assertRedirect(route('learner.completion'));
+    }
+
     private function learnerWithBaselineDiagnostic(): array
     {
         $school = School::create(['name' => 'Final Test School']);
@@ -168,5 +247,39 @@ class FinalAssessmentTest extends TestCase
         }
 
         return [$learner, $baseline];
+    }
+
+    private function learnerWithCompletedFinal(array $learnerOverrides = []): array
+    {
+        [$learner, $baseline] = $this->learnerWithBaselineDiagnostic();
+        $module = Module::firstOrFail();
+        $learner->update(array_merge([
+            'current_stage' => LearnerStage::FINAL_REASSESSMENT_COMPLETED,
+            'current_module_id' => null,
+        ], $learnerOverrides));
+
+        $final = AssessmentAttempt::create([
+            'learner_id' => $learner->id,
+            'baseline_assessment_attempt_id' => $baseline->id,
+            'attempt_type' => 'final_reassessment',
+            'status' => 'final_reassessment_completed',
+            'task_1_score' => 8,
+            'task_2a_score' => 8,
+            'task_2b_score' => 8,
+            'crla_total_score' => 24,
+            'crla_classification' => 'Light Refresher',
+            'reading_accuracy' => 82,
+            'comprehension_percentage' => 80,
+            'final_reading_score' => 81,
+            'reading_classification' => 'Independent Reader',
+            'started_at' => now()->subHour(),
+            'completed_at' => now(),
+        ]);
+
+        $final->update([
+            'comparison_summary' => app(FinalAssessmentComparisonService::class)->compareAttempts($baseline, $final),
+        ]);
+
+        return [$learner->refresh(), $module, $final];
     }
 }

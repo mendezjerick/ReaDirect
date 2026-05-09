@@ -99,6 +99,16 @@ class ModuleController extends Controller
 
     private function currentOrPlacedModule(Learner $learner): ?Module
     {
+        if (in_array(LearnerStage::normalize($learner->current_stage), [
+            LearnerStage::FINAL_REASSESSMENT_PENDING,
+            LearnerStage::FINAL_REASSESSMENT_IN_PROGRESS,
+            LearnerStage::FINAL_REASSESSMENT_COMPLETED,
+            LearnerStage::COMPLETED,
+            LearnerStage::GRADE_READY,
+        ], true)) {
+            return $learner->currentModule;
+        }
+
         if ($learner->current_module_id) {
             return $learner->currentModule;
         }
@@ -122,6 +132,14 @@ class ModuleController extends Controller
 
     private function guardModuleAccess(Learner $learner, Module $module, LearnerFlowService $flow): ?RedirectResponse
     {
+        if (
+            in_array(LearnerStage::normalize($learner->current_stage), [LearnerStage::FINAL_REASSESSMENT_COMPLETED, LearnerStage::COMPLETED], true)
+            || $flow->isFinalComplete($flow->latestFinalAttempt($learner))
+        ) {
+            return redirect()->route('learner.completion')
+                ->with('info', 'You already completed your reading journey.');
+        }
+
         if (! $flow->moduleAccessible($learner, $module)) {
             return redirect()->route('learner.dashboard')
                 ->with('info', 'That module is locked right now. Continue from your dashboard.');
