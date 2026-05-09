@@ -165,6 +165,22 @@ class FinalAssessmentTest extends TestCase
         $this->assertSame(LearnerStage::FINAL_REASSESSMENT_PENDING, $learner->refresh()->current_stage);
     }
 
+    public function test_completion_routes_require_current_learner_session_and_do_not_fall_back_to_first_learner(): void
+    {
+        [$firstLearner] = $this->learnerWithCompletedFinal(['current_stage' => LearnerStage::FINAL_REASSESSMENT_COMPLETED]);
+
+        $this->get(route('learner.dashboard'))
+            ->assertRedirect(route('learner.access'));
+
+        $this->get(route('learner.completion'))
+            ->assertRedirect(route('learner.access'));
+
+        $this->post(route('learner.completion.thank-you'))
+            ->assertRedirect(route('learner.access'));
+
+        $this->assertSame(LearnerStage::FINAL_REASSESSMENT_COMPLETED, $firstLearner->refresh()->current_stage);
+    }
+
     public function test_completed_learner_dashboard_points_to_completion_not_restart_actions(): void
     {
         [$learner] = $this->learnerWithCompletedFinal(['current_stage' => LearnerStage::COMPLETED]);
@@ -177,6 +193,10 @@ class FinalAssessmentTest extends TestCase
                 ->where('flowState.stage', LearnerStage::COMPLETED)
                 ->where('flowState.primary_action_label', 'View Completion')
                 ->where('flowState.primary_action_route', route('learner.completion'))
+                ->missing('learner.id')
+                ->missing('learner.current_module_id')
+                ->missing('flowState.diagnostic.attempt_id')
+                ->missing('flowState.final_reassessment.attempt_id')
             );
     }
 

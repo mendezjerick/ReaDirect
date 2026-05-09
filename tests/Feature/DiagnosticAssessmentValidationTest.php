@@ -24,7 +24,7 @@ class DiagnosticAssessmentValidationTest extends TestCase
         $responses = $this->responsesFor($attempt, AssessmentItemSelectionService::TASK_1_LETTER, 'A');
         $responses[0]['answer'] = '';
 
-        $this->withSession(['assessment_attempt_id' => $attempt->id, 'admin_testing_mode' => true])
+        $this->withSession($this->learnerSession($attempt, ['admin_testing_mode' => true]))
             ->post(route('learner.diagnostic.task-1.store'), ['responses' => $responses])
             ->assertSessionHasErrors('responses.0.answer');
 
@@ -35,7 +35,7 @@ class DiagnosticAssessmentValidationTest extends TestCase
     {
         $attempt = $this->attemptWithLockedItems(AssessmentItemSelectionService::TASK_1_LETTER, 'letter');
 
-        $this->withSession(['assessment_attempt_id' => $attempt->id, 'admin_testing_mode' => true])
+        $this->withSession($this->learnerSession($attempt, ['admin_testing_mode' => true]))
             ->post(route('learner.diagnostic.task-1.store'), [
                 'responses' => $this->responsesFor($attempt, AssessmentItemSelectionService::TASK_1_LETTER, 'A'),
             ])
@@ -48,7 +48,7 @@ class DiagnosticAssessmentValidationTest extends TestCase
     {
         $attempt = $this->attemptWithLockedItems(AssessmentItemSelectionService::TASK_1_LETTER, 'letter');
 
-        $this->withSession(['assessment_attempt_id' => $attempt->id, 'admin_testing_mode' => true])
+        $this->withSession($this->learnerSession($attempt, ['admin_testing_mode' => true]))
             ->post(route('learner.diagnostic.task-1.store'), [
                 'responses' => $this->responsesFor($attempt, AssessmentItemSelectionService::TASK_1_LETTER, 'zzz'),
             ])
@@ -64,7 +64,7 @@ class DiagnosticAssessmentValidationTest extends TestCase
         $responses = $this->responsesFor($attempt, AssessmentItemSelectionService::TASK_2A_RHYME, 'bat');
         $responses[0]['answer'] = ' ';
 
-        $this->withSession(['assessment_attempt_id' => $attempt->id, 'admin_testing_mode' => true])
+        $this->withSession($this->learnerSession($attempt, ['admin_testing_mode' => true]))
             ->post(route('learner.diagnostic.task-2a.store'), ['responses' => $responses])
             ->assertSessionHasErrors('responses.0.answer');
     }
@@ -87,7 +87,7 @@ class DiagnosticAssessmentValidationTest extends TestCase
                 $item->update(['prompt_snapshot' => $snapshot]);
             });
 
-        $this->withSession(['assessment_attempt_id' => $attempt->id, 'admin_testing_mode' => true])
+        $this->withSession($this->learnerSession($attempt, ['admin_testing_mode' => true]))
             ->post(route('learner.diagnostic.task-2a.store'), [
                 'responses' => $this->responsesFor($attempt, AssessmentItemSelectionService::TASK_2A_RHYME, 'hat'),
             ])
@@ -102,7 +102,7 @@ class DiagnosticAssessmentValidationTest extends TestCase
         $responses = $this->responsesFor($attempt, AssessmentItemSelectionService::TASK_2B_WORD_SENTENCE, 'cat');
         $responses[0]['answer'] = '';
 
-        $this->withSession(['assessment_attempt_id' => $attempt->id, 'admin_testing_mode' => true])
+        $this->withSession($this->learnerSession($attempt, ['admin_testing_mode' => true]))
             ->post(route('learner.diagnostic.task-2b.store'), ['responses' => $responses])
             ->assertSessionHasErrors('responses.0.answer');
     }
@@ -112,7 +112,7 @@ class DiagnosticAssessmentValidationTest extends TestCase
         $attempt = $this->attemptWithLockedItems(AssessmentItemSelectionService::TASK_2B_WORD_SENTENCE, 'word_sentence');
         $attempt->update(['task_1_score' => 10, 'task_2a_score' => 10]);
 
-        $this->withSession(['assessment_attempt_id' => $attempt->id, 'admin_testing_mode' => true])
+        $this->withSession($this->learnerSession($attempt, ['admin_testing_mode' => true]))
             ->post(route('learner.diagnostic.task-2b.store'), [
                 'responses' => $this->responsesFor($attempt, AssessmentItemSelectionService::TASK_2B_WORD_SENTENCE, 'cat'),
             ])
@@ -132,7 +132,7 @@ class DiagnosticAssessmentValidationTest extends TestCase
             'status' => 'crla_completed',
         ]);
 
-        $this->withSession(['assessment_attempt_id' => $attempt->id, 'admin_testing_mode' => true])
+        $this->withSession($this->learnerSession($attempt, ['admin_testing_mode' => true]))
             ->post(route('learner.diagnostic.passage.store'), [])
             ->assertSessionHasErrors('incorrect_words');
     }
@@ -149,7 +149,7 @@ class DiagnosticAssessmentValidationTest extends TestCase
             'status' => 'passage_completed',
         ]);
 
-        $this->withSession(['assessment_attempt_id' => $attempt->id])
+        $this->withSession($this->learnerSession($attempt))
             ->post(route('learner.diagnostic.comprehension.store'), [
                 'responses' => [
                     ['question_id' => 'CQ-001', 'answer' => 'park'],
@@ -260,6 +260,14 @@ class DiagnosticAssessmentValidationTest extends TestCase
             ->get()
             ->map(fn ($item) => ['assessment_attempt_item_id' => $item->id, 'answer' => $answer])
             ->all();
+    }
+
+    private function learnerSession(AssessmentAttempt $attempt, array $extra = []): array
+    {
+        return array_merge([
+            'learner_id' => $attempt->learner_id,
+            'assessment_attempt_id' => $attempt->id,
+        ], $extra);
     }
 
     private function assessmentAttempt(): AssessmentAttempt

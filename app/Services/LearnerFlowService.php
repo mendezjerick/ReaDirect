@@ -6,6 +6,7 @@ use App\Models\AssessmentAttempt;
 use App\Models\Learner;
 use App\Models\Module;
 use App\Models\ModuleAttempt;
+use App\Support\CurrentLearner;
 use App\Support\LearnerStage;
 use Illuminate\Http\Request;
 
@@ -17,8 +18,7 @@ class LearnerFlowService
 
     public function learner(Request $request): Learner
     {
-        return Learner::with('currentModule')->find($request->session()->get('learner_id'))
-            ?? Learner::with('currentModule')->firstOrFail();
+        return CurrentLearner::require($request, true);
     }
 
     public function state(Learner $learner): array

@@ -19,6 +19,7 @@ use App\Services\CrlaScoringService;
 use App\Services\LearnerFlowService;
 use App\Services\ReadingComprehensionScoringService;
 use App\Services\SentenceReadingScoringService;
+use App\Support\CurrentLearner;
 use App\Support\LearnerStage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -630,7 +631,7 @@ class FinalAssessmentController extends Controller
 
     private function learner(Request $request): Learner
     {
-        return Learner::find($request->session()->get('learner_id')) ?? Learner::firstOrFail();
+        return CurrentLearner::require($request);
     }
 
     private function attempt(Request $request): AssessmentAttempt

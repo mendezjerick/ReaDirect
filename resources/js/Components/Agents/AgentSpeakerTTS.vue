@@ -14,6 +14,7 @@ const props = defineProps({
 const emit = defineEmits(['speakingStart', 'speakingEnd', 'error']);
 
 const activeAudio = ref(null);
+const activeUtterance = ref(null);
 
 const cleanMessage = () => (props.message || '').replace(/\s+/g, ' ').trim();
 
@@ -34,7 +35,42 @@ const stopSpeaking = () => {
         window.speechSynthesis.cancel();
     }
 
+    activeUtterance.value = null;
+
     emit('speakingEnd');
+};
+
+const speakWithBrowser = async (text) => {
+    if (
+        typeof window === 'undefined'
+        || !('speechSynthesis' in window)
+        || typeof window.SpeechSynthesisUtterance === 'undefined'
+    ) {
+        emit('error', 'Browser voice is unavailable right now.');
+        emit('speakingEnd');
+        return;
+    }
+
+    window.speechSynthesis.cancel();
+
+    const utterance = new window.SpeechSynthesisUtterance(text);
+    utterance.volume = clamp(props.volume, 0, 1);
+    utterance.rate = clamp(props.rate, 0.5, 1.4);
+    utterance.pitch = clamp(props.pitch, 0.5, 1.5);
+    activeUtterance.value = utterance;
+
+    utterance.onstart = () => emit('speakingStart');
+    utterance.onend = () => {
+        activeUtterance.value = null;
+        emit('speakingEnd');
+    };
+    utterance.onerror = () => {
+        activeUtterance.value = null;
+        emit('error', 'Browser voice is unavailable right now.');
+        emit('speakingEnd');
+    };
+
+    window.speechSynthesis.speak(utterance);
 };
 
 const speakWithAudio = async () => {
@@ -50,16 +86,14 @@ const speakWithAudio = async () => {
     };
     audio.onerror = () => {
         activeAudio.value = null;
-        emit('error', 'Kokoro voice is unavailable right now.');
-        emit('speakingEnd');
+        speakWithBrowser(cleanMessage());
     };
 
     try {
         await audio.play();
     } catch {
         activeAudio.value = null;
-        emit('error', 'Kokoro voice could not autoplay.');
-        emit('speakingEnd');
+        await speakWithBrowser(cleanMessage());
     }
 };
 
@@ -76,7 +110,7 @@ const speak = async () => {
         return;
     }
 
-    emit('error', 'Kokoro voice is unavailable right now.');
+    await speakWithBrowser(text);
 };
 
 watch(

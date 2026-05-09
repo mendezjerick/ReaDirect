@@ -12,6 +12,7 @@ use App\Services\AI\AIAnalysisResolver;
 use App\Services\AssessmentModeService;
 use App\Services\AudioStorageService;
 use App\Services\STT\AudioTranscriptionService;
+use App\Support\CurrentLearner;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -36,7 +37,7 @@ class AudioUploadController extends Controller
             'duration_seconds' => AudioStorageService::durationValidationRules(),
         ], AudioStorageService::durationValidationMessages());
 
-        $learner = Learner::find($request->session()->get('learner_id')) ?? Learner::firstOrFail();
+        $learner = CurrentLearner::require($request);
         $assessmentAttempt = isset($validated['assessment_attempt_id'])
             ? AssessmentAttempt::where('learner_id', $learner->id)->findOrFail($validated['assessment_attempt_id'])
             : null;

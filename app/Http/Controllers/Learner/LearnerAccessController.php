@@ -23,6 +23,8 @@ class LearnerAccessController extends Controller
         $request->session()->put('learner_id', $learner->id);
         $request->session()->forget([
             'assessment_attempt_id',
+            'final_assessment_attempt_id',
+            'module_attempt_id',
             'task_one_route',
         ]);
 

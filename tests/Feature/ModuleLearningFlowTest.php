@@ -270,7 +270,8 @@ class ModuleLearningFlowTest extends TestCase
             ->get(route('learner.dashboard'))
             ->assertInertia(fn (Assert $page) => $page
                 ->where('flowState.primary_action_label', 'Start Final Reassessment')
-                ->where('flowState.current_module_id', null)
+                ->where('flowState.module.current_module_key', null)
+                ->missing('flowState.current_module_id')
             );
     }
 

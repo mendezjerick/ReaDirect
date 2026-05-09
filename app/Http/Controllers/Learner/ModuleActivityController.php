@@ -17,6 +17,7 @@ use App\Services\LearnerFlowService;
 use App\Services\ModuleActivitySelectionService;
 use App\Services\ModuleFeedbackService;
 use App\Services\ModuleScoringService;
+use App\Support\CurrentLearner;
 use App\Support\LearnerStage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -250,7 +251,7 @@ class ModuleActivityController extends Controller
 
     private function learner(Request $request): Learner
     {
-        return Learner::find($request->session()->get('learner_id')) ?? Learner::firstOrFail();
+        return CurrentLearner::require($request);
     }
 
     private function attemptForSubmission(Request $request, Learner $learner, Module $module, LearnerFlowService $flow): ?ModuleAttempt

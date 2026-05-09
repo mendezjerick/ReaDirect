@@ -19,6 +19,7 @@ use App\Services\ModuleExperienceService;
 use App\Services\ModuleFeedbackService;
 use App\Services\ModuleMasteryService;
 use App\Services\ModuleScoringService;
+use App\Support\CurrentLearner;
 use App\Support\LearnerStage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -265,7 +266,7 @@ class ModuleMasteryController extends Controller
 
     private function learner(Request $request): Learner
     {
-        return Learner::find($request->session()->get('learner_id')) ?? Learner::firstOrFail();
+        return CurrentLearner::require($request);
     }
 
     private function attemptForSubmission(Request $request, Learner $learner, Module $module, LearnerFlowService $flow): ?ModuleAttempt

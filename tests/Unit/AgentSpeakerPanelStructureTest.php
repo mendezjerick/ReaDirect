@@ -44,7 +44,7 @@ class AgentSpeakerPanelStructureTest extends TestCase
         $this->assertStringContainsString('Replay agent message', $component);
     }
 
-    public function test_agent_speaker_tts_component_uses_kokoro_audio_only(): void
+    public function test_agent_speaker_tts_component_uses_kokoro_audio_then_browser_fallback(): void
     {
         $root = dirname(__DIR__, 2);
         $componentPath = $root.'/resources/js/Components/Agents/AgentSpeakerTTS.vue';
@@ -55,12 +55,12 @@ class AgentSpeakerPanelStructureTest extends TestCase
 
         $this->assertStringContainsString('new Audio', $component);
         $this->assertStringContainsString('audioUrl', $component);
-        $this->assertStringContainsString('Kokoro voice is unavailable right now.', $component);
+        $this->assertStringContainsString('SpeechSynthesisUtterance', $component);
+        $this->assertStringContainsString('speechSynthesis.speak', $component);
+        $this->assertStringContainsString('Browser voice is unavailable right now.', $component);
         $this->assertStringContainsString('speakingStart', $component);
         $this->assertStringContainsString('speakingEnd', $component);
-        $this->assertStringNotContainsString('SpeechSynthesisUtterance', $component);
         $this->assertStringNotContainsString('voiceschanged', $component);
-        $this->assertStringNotContainsString('synth.speak', $component);
         $this->assertStringNotContainsString('Web Speech API not supported.', $component);
     }
 

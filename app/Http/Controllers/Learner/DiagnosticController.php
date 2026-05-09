@@ -11,6 +11,7 @@ use App\Models\Learner;
 use App\Models\LearningContent;
 use App\Services\CrlaScoringService;
 use App\Services\ModulePlacementService;
+use App\Support\CurrentLearner;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -34,7 +35,7 @@ class DiagnosticController extends Controller
 
     public function submitTaskOne(SubmitTaskOneRequest $request, CrlaScoringService $scoring): RedirectResponse
     {
-        $learner = Learner::find($request->integer('learner_id')) ?? Learner::find(session('learner_id')) ?? Learner::firstOrFail();
+        $learner = CurrentLearner::require($request);
         $route = $scoring->routeTaskOne($request->integer('score'));
         $agent = AgentProfile::where('key', AgentProfile::ASSESSMENT)->first();
 

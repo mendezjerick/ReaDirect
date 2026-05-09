@@ -7,6 +7,7 @@ use App\Models\AssessmentAttempt;
 use App\Models\Learner;
 use App\Services\Assessment\FinalAssessmentComparisonService;
 use App\Services\LearnerFlowService;
+use App\Support\CurrentLearner;
 use App\Support\LearnerStage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -66,7 +67,7 @@ class LearnerCompletionController extends Controller
 
     private function learner(Request $request): Learner
     {
-        return Learner::find($request->session()->get('learner_id')) ?? Learner::firstOrFail();
+        return CurrentLearner::require($request);
     }
 
     private function completedFinalAttempt(Request $request, LearnerFlowService $flow, Learner $learner): ?AssessmentAttempt

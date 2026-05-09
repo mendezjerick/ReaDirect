@@ -9,6 +9,7 @@ use App\Models\Module;
 use App\Services\LearnerFlowService;
 use App\Services\ModuleActivitySelectionService;
 use App\Services\ModuleExperienceService;
+use App\Support\CurrentLearner;
 use App\Support\LearnerStage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -94,7 +95,7 @@ class ModuleController extends Controller
 
     private function learner(Request $request): Learner
     {
-        return Learner::find($request->session()->get('learner_id')) ?? Learner::firstOrFail();
+        return CurrentLearner::require($request);
     }
 
     private function currentOrPlacedModule(Learner $learner): ?Module

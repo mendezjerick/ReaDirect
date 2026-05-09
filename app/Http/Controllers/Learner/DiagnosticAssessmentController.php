@@ -23,6 +23,7 @@ use App\Services\LearnerFlowService;
 use App\Services\ModulePlacementService;
 use App\Services\ReadingComprehensionScoringService;
 use App\Services\SentenceReadingScoringService;
+use App\Support\CurrentLearner;
 use App\Support\LearnerStage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -547,7 +548,7 @@ class DiagnosticAssessmentController extends Controller
 
     private function learner(Request $request): Learner
     {
-        return Learner::find($request->session()->get('learner_id')) ?? Learner::firstOrFail();
+        return CurrentLearner::require($request);
     }
 
     private function createDiagnosticAttempt(Learner $learner, bool $sandbox = false, ?int $agentProfileId = null): AssessmentAttempt
