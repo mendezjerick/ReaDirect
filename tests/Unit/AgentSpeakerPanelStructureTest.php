@@ -38,6 +38,8 @@ class AgentSpeakerPanelStructureTest extends TestCase
         $this->assertStringContainsString('AgentSpeakerTTS', $component);
         $this->assertStringContainsString('isSpeaking', $component);
         $this->assertStringContainsString('readirect-agent-tts-muted', $component);
+        $this->assertStringContainsString('/agent-voice/synthesize', $component);
+        $this->assertStringContainsString('naturalAudioUrl', $component);
         $this->assertStringContainsString('Unmute agent voice', $component);
         $this->assertStringContainsString('Replay agent message', $component);
     }
@@ -52,6 +54,8 @@ class AgentSpeakerPanelStructureTest extends TestCase
         $component = file_get_contents($componentPath);
 
         $this->assertStringContainsString('speechSynthesis', $component);
+        $this->assertStringContainsString('new Audio', $component);
+        $this->assertStringContainsString('audioUrl', $component);
         $this->assertStringContainsString('SpeechSynthesisUtterance', $component);
         $this->assertStringContainsString('voiceschanged', $component);
         $this->assertStringContainsString('assessment', $component);
@@ -60,5 +64,14 @@ class AgentSpeakerPanelStructureTest extends TestCase
         $this->assertStringContainsString('speakingStart', $component);
         $this->assertStringContainsString('speakingEnd', $component);
         $this->assertStringContainsString('Web Speech API not supported.', $component);
+    }
+
+    public function test_stop_agent_audio_utility_stops_browser_and_natural_audio(): void
+    {
+        $utility = file_get_contents(dirname(__DIR__, 2).'/resources/js/utils/stopAgentAudio.js');
+
+        $this->assertStringContainsString('speechSynthesis.cancel', $utility);
+        $this->assertStringContainsString('readirect:stop-agent-audio', $utility);
+        $this->assertStringContainsString('readirect:stop-agent-speech', $utility);
     }
 }

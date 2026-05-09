@@ -55,7 +55,7 @@ class SystemMonitoringService
                 'git_commit' => trim((string) @shell_exec('git rev-parse --short HEAD')) ?: 'unavailable',
             ],
             'notes' => [
-                'tts' => 'Browser Web Speech API; server cannot verify client voices.',
+                'tts' => 'Local Kokoro TTS when enabled; browser SpeechSynthesis and text remain fallbacks.',
                 'backup' => 'Backup automation placeholder; use pg_dump and private storage backup policy.',
             ],
         ];

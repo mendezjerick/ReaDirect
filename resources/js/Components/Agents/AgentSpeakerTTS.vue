@@ -8,12 +8,15 @@ const props = defineProps({
     volume: { type: Number, default: 1 },
     rate: { type: Number, default: 1 },
     pitch: { type: Number, default: 1 },
+    audioUrl: { type: String, default: null },
+    browserSpeechAllowed: { type: Boolean, default: true },
 });
 
 const emit = defineEmits(['speakingStart', 'speakingEnd', 'error']);
 
 const unsupportedLogged = ref(false);
 const activeUtterance = ref(null);
+const activeAudio = ref(null);
 
 const agentVoiceConfig = {
     assessment: {
@@ -92,20 +95,27 @@ const pickVoice = (voices) => {
 };
 
 const stopSpeaking = () => {
-    if (!hasSpeechSupport()) {
+    if (typeof window === 'undefined') {
         return;
     }
 
-    window.speechSynthesis.cancel();
+    if (activeAudio.value) {
+        activeAudio.value.pause();
+        activeAudio.value.currentTime = 0;
+        activeAudio.value = null;
+    }
+
+    if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+    }
+
     activeUtterance.value = null;
     emit('speakingEnd');
 };
 
-const speak = async () => {
-    const text = cleanMessage();
-
-    if (!text || props.mute) {
-        stopSpeaking();
+const speakWithBrowser = async (text) => {
+    if (!props.browserSpeechAllowed) {
+        emit('error', 'Browser speech fallback is disabled.');
         return;
     }
 
@@ -153,8 +163,48 @@ const speak = async () => {
     synth.speak(utterance);
 };
 
+const speakWithAudio = async (text) => {
+    const audio = new Audio(props.audioUrl);
+    audio.dataset.readirectAgentAudio = 'true';
+    audio.volume = clamp(props.volume, 0, 1);
+    activeAudio.value = audio;
+
+    audio.onplay = () => emit('speakingStart');
+    audio.onended = () => {
+        activeAudio.value = null;
+        emit('speakingEnd');
+    };
+    audio.onerror = () => {
+        activeAudio.value = null;
+        speakWithBrowser(text);
+    };
+
+    try {
+        await audio.play();
+    } catch {
+        activeAudio.value = null;
+        await speakWithBrowser(text);
+    }
+};
+
+const speak = async () => {
+    const text = cleanMessage();
+
+    if (!text || props.mute) {
+        stopSpeaking();
+        return;
+    }
+
+    if (props.audioUrl) {
+        await speakWithAudio(text);
+        return;
+    }
+
+    await speakWithBrowser(text);
+};
+
 watch(
-    () => [props.message, props.agentType, props.mute, props.volume, props.rate, props.pitch],
+    () => [props.message, props.agentType, props.mute, props.volume, props.rate, props.pitch, props.audioUrl, props.browserSpeechAllowed],
     () => {
         stopSpeaking();
 
@@ -167,10 +217,12 @@ watch(
 
 onMounted(() => {
     window.addEventListener('readirect:stop-agent-audio', stopSpeaking);
+    window.addEventListener('readirect:stop-agent-speech', stopSpeaking);
 });
 
 onBeforeUnmount(() => {
     window.removeEventListener('readirect:stop-agent-audio', stopSpeaking);
+    window.removeEventListener('readirect:stop-agent-speech', stopSpeaking);
     stopSpeaking();
 });
 </script>

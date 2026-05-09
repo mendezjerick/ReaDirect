@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue';
-import { Bot, CheckCircle2, AlertTriangle, ExternalLink, ShieldCheck } from 'lucide-vue-next';
+import { Bot, CheckCircle2, AlertTriangle, ExternalLink, ShieldCheck, Volume2 } from 'lucide-vue-next';
 
 const props = defineProps({
     status: {
@@ -115,6 +115,33 @@ const llmRows = computed(() => [
     ['Installed Models', reported(llmStatus.value?.installed_models)],
 ]);
 
+const ttsStatus = computed(() => props.status?.tts ?? {});
+const ttsTone = computed(() => {
+    if (ttsStatus.value?.connected === true) return 'connected';
+    if (ttsStatus.value?.status === 'disabled') return 'disabled';
+    return 'unavailable';
+});
+
+const ttsStyles = computed(() => ({
+    connected: 'border-emerald-200 bg-white/65 text-emerald-900',
+    disabled: 'border-amber-200 bg-white/65 text-amber-900',
+    unavailable: 'border-red-200 bg-white/65 text-red-900',
+}[ttsTone.value]));
+
+const ttsBadgeStyles = computed(() => ({
+    connected: 'bg-emerald-100 text-emerald-800',
+    disabled: 'bg-amber-100 text-amber-800',
+    unavailable: 'bg-red-100 text-red-800',
+}[ttsTone.value]));
+
+const ttsRows = computed(() => [
+    ['Provider', reported(ttsStatus.value?.provider)],
+    ['Base URL', reported(ttsStatus.value?.base_url)],
+    ['Miss Vivian', reported(ttsStatus.value?.voices?.miss_vivian)],
+    ['Miss Ciel', reported(ttsStatus.value?.voices?.miss_ciel)],
+    ['Miss Estelle', reported(ttsStatus.value?.voices?.miss_estelle)],
+]);
+
 const modelRows = computed(() => [
     ['Active ASR Architecture', architectureLabel.value],
     ['Active ASR Model', activeModelLabel.value],
@@ -212,7 +239,8 @@ const reinforcementSummary = computed(() => {
             </a>
         </div>
 
-        <div class="mt-3 rounded-lg border p-3 text-xs" :class="llmStyles">
+        <div class="mt-3 grid gap-3 xl:grid-cols-2">
+        <div class="rounded-lg border p-3 text-xs" :class="llmStyles">
             <div class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                 <div class="flex min-w-0 gap-2">
                     <Bot :size="16" class="mt-0.5 shrink-0" />
@@ -230,9 +258,33 @@ const reinforcementSummary = computed(() => {
             <dl class="mt-3 grid gap-2 md:grid-cols-2">
                 <div v-for="[label, value] in llmRows" :key="label" class="grid min-w-0 gap-1 rounded-md bg-white/45 px-2 py-1.5">
                     <dt class="font-bold opacity-80">{{ label }}</dt>
-                    <dd class="min-w-0 break-words font-semibold">{{ value }}</dd>
+                    <dd class="min-w-0 break-all font-semibold">{{ value }}</dd>
                 </div>
             </dl>
+        </div>
+
+        <div class="rounded-lg border p-3 text-xs" :class="ttsStyles">
+            <div class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                <div class="flex min-w-0 gap-2">
+                    <Volume2 :size="16" class="mt-0.5 shrink-0" />
+                    <div class="min-w-0">
+                        <p class="font-extrabold">{{ ttsStatus?.label ?? 'Kokoro voice status unavailable' }}</p>
+                        <p class="mt-1 break-words font-semibold leading-relaxed opacity-90">
+                            {{ ttsStatus?.message ?? 'Natural agent voice status could not be checked.' }}
+                        </p>
+                    </div>
+                </div>
+                <span class="inline-flex w-fit shrink-0 items-center rounded-md px-2 py-1 text-[11px] font-extrabold" :class="ttsBadgeStyles">
+                    {{ ttsStatus?.connected ? 'Connected' : (ttsStatus?.status === 'disabled' ? 'Disabled' : 'Needs attention') }}
+                </span>
+            </div>
+            <dl class="mt-3 grid gap-2 md:grid-cols-2">
+                <div v-for="[label, value] in ttsRows" :key="label" class="grid min-w-0 gap-1 rounded-md bg-white/45 px-2 py-1.5">
+                    <dt class="font-bold opacity-80">{{ label }}</dt>
+                    <dd class="min-w-0 break-all font-semibold">{{ value }}</dd>
+                </div>
+            </dl>
+        </div>
         </div>
 
         <ol v-if="!isConnected && status?.troubleshooting_steps?.length" class="mt-3 list-decimal space-y-1 pl-12 text-xs font-semibold leading-relaxed">
@@ -247,7 +299,7 @@ const reinforcementSummary = computed(() => {
                     <dl class="mt-2 space-y-1">
                         <div v-for="[label, value] in modelRows" :key="label" class="grid min-w-0 gap-1 sm:grid-cols-[minmax(8rem,0.8fr)_minmax(0,1.2fr)]">
                             <dt class="font-bold opacity-80">{{ label }}</dt>
-                            <dd class="min-w-0 break-words font-semibold sm:text-right">{{ value }}</dd>
+                            <dd class="min-w-0 break-all font-semibold sm:text-right">{{ value }}</dd>
                         </div>
                     </dl>
                 </div>
@@ -256,7 +308,7 @@ const reinforcementSummary = computed(() => {
                     <dl class="mt-2 space-y-1">
                         <div v-for="[label, value] in correctionRows" :key="label" class="grid min-w-0 gap-1 sm:grid-cols-[minmax(8rem,0.75fr)_minmax(0,1.25fr)]">
                             <dt class="font-bold opacity-80">{{ label }}</dt>
-                            <dd class="min-w-0 break-words font-semibold sm:text-right">{{ value }}</dd>
+                            <dd class="min-w-0 break-all font-semibold sm:text-right">{{ value }}</dd>
                         </div>
                     </dl>
                 </div>

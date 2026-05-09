@@ -1,0 +1,127 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Learner;
+use App\Models\Module;
+use App\Models\School;
+use App\Services\TTS\AgentTtsService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
+use Tests\TestCase;
+
+class AgentTtsServiceTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_agent_tts_service_maps_selected_kokoro_voices(): void
+    {
+        $service = app(AgentTtsService::class);
+
+        $this->assertSame('af_bella', $service->voiceProfile('assessment')['voice']);
+        $this->assertSame('af_heart', $service->voiceProfile('coach_feedback')['voice']);
+        $this->assertSame('bf_isabella', $service->voiceProfile('evaluator')['voice']);
+        $this->assertSame(0.95, $service->voiceProfile('assessment')['speed']);
+        $this->assertSame(1.0, $service->voiceProfile('coach_feedback')['speed']);
+    }
+
+    public function test_tts_disabled_returns_browser_and_text_fallback_without_local_paths(): void
+    {
+        config()->set('readirect.tts.enabled', false);
+
+        $payload = app(AgentTtsService::class)->speechPayload('coach_feedback', 'Good try!');
+
+        $this->assertFalse($payload['voice_enabled']);
+        $this->assertNull($payload['audio_url']);
+        $this->assertTrue($payload['browser_speech_allowed']);
+        $this->assertArrayNotHasKey('debug', $payload);
+        $this->assertStringNotContainsString('storage', json_encode($payload));
+    }
+
+    public function test_tts_service_unavailable_returns_safe_fallback(): void
+    {
+        config()->set('readirect.tts.enabled', true);
+        config()->set('readirect.tts.base_url', 'http://tts.test');
+        Http::fake(['http://tts.test/synthesize' => Http::response(['detail' => 'down'], 500)]);
+
+        $payload = app(AgentTtsService::class)->speechPayload('miss_ciel', 'Keep going!');
+
+        $this->assertFalse($payload['voice_enabled']);
+        $this->assertNull($payload['audio_url']);
+        $this->assertTrue($payload['fallback']);
+        $this->assertArrayNotHasKey('debug', $payload);
+    }
+
+    public function test_successful_tts_response_is_cached_and_served_through_laravel_route(): void
+    {
+        Storage::fake('local');
+        config()->set('readirect.tts.enabled', true);
+        config()->set('readirect.tts.base_url', 'http://tts.test');
+        Http::fake(['http://tts.test/synthesize' => Http::response('RIFF-fake-wave', 200, ['Content-Type' => 'audio/wav'])]);
+
+        $payload = app(AgentTtsService::class)->speechPayload('miss_vivian', 'Say the letter out loud.');
+
+        $this->assertTrue($payload['voice_enabled']);
+        $this->assertSame('kokoro', $payload['tts_provider']);
+        $this->assertMatchesRegularExpression('#^/agent-voice/[a-f0-9]{64}$#', $payload['audio_url']);
+        $cacheKey = basename($payload['audio_url']);
+        Storage::disk('local')->assertExists('tts_cache/'.$cacheKey.'.wav');
+
+        $this->get($payload['audio_url'])
+            ->assertOk()
+            ->assertHeader('content-type', 'audio/wav');
+    }
+
+    public function test_audio_cache_route_rejects_invalid_or_missing_cache_keys(): void
+    {
+        $this->get('/agent-voice/not-a-key')->assertNotFound();
+        $this->get('/agent-voice/'.str_repeat('a', 64))->assertNotFound();
+        $this->get('/agent-voice/../.env')->assertNotFound();
+    }
+
+    public function test_tts_failure_does_not_change_official_learner_state(): void
+    {
+        config()->set('readirect.tts.enabled', true);
+        config()->set('readirect.tts.base_url', 'http://tts.test');
+        Http::fake(['http://tts.test/synthesize' => Http::response(['detail' => 'down'], 500)]);
+
+        $school = School::create(['name' => 'TTS Safety School']);
+        $module = Module::create([
+            'sequence' => 1,
+            'key' => 'module_1',
+            'title' => 'Letter Sounds',
+            'description' => 'Practice letter sounds.',
+            'is_active' => true,
+        ]);
+        $learner = Learner::create([
+            'school_id' => $school->id,
+            'learner_code' => uniqid('TTS-', false),
+            'first_name' => 'Safe',
+            'grade_level' => 'Grade 1',
+            'current_stage' => 'module_practice_in_progress',
+            'current_module_id' => $module->id,
+        ]);
+
+        app(AgentTtsService::class)->speechPayload('coach_feedback', 'Good try!');
+
+        $learner->refresh();
+        $this->assertSame('module_practice_in_progress', $learner->current_stage);
+        $this->assertSame($module->id, $learner->current_module_id);
+    }
+
+    public function test_developer_debug_metadata_is_only_returned_when_requested(): void
+    {
+        Storage::fake('local');
+        config()->set('readirect.tts.enabled', true);
+        config()->set('readirect.tts.base_url', 'http://tts.test');
+        Http::fake(['http://tts.test/synthesize' => Http::response('RIFF-fake-wave', 200)]);
+
+        $normal = app(AgentTtsService::class)->speechPayload('coach_feedback', 'Good try!', false);
+        $debug = app(AgentTtsService::class)->speechPayload('coach_feedback', 'Good try!', true);
+
+        $this->assertArrayNotHasKey('debug', $normal);
+        $this->assertArrayHasKey('debug', $debug);
+        $this->assertSame('af_heart', $debug['debug']['voice']);
+    }
+}

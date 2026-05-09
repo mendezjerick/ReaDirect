@@ -8,6 +8,7 @@ export async function stopAllAgentAudioBeforeRecording() {
     }
 
     window.dispatchEvent(new CustomEvent('readirect:stop-agent-audio'));
+    window.dispatchEvent(new CustomEvent('readirect:stop-agent-speech'));
 
     await new Promise((resolve) => window.setTimeout(resolve, 80));
 }

@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\AdminSystemMonitoringController;
 use App\Http\Controllers\Admin\AdminTeacherController;
 use App\Http\Controllers\Admin\AdminTestingController;
 use App\Http\Controllers\Admin\DeveloperReinforcementModeController;
+use App\Http\Controllers\AgentVoiceController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\FinalAssessmentController;
 use App\Http\Controllers\Learner\AudioUploadController;
@@ -43,6 +44,13 @@ Route::middleware('guest')->group(function (): void {
 });
 
 Route::post('/logout', [AuthController::class, 'destroy'])->middleware('auth')->name('logout');
+
+Route::get('/agent-voice/{cacheKey}', [AgentVoiceController::class, 'show'])
+    ->where('cacheKey', '[a-f0-9]{64}')
+    ->name('agent-voice.show');
+Route::post('/agent-voice/synthesize', [AgentVoiceController::class, 'synthesize'])
+    ->middleware('throttle:assessment-submit')
+    ->name('agent-voice.synthesize');
 
 Route::get('/learner/access', [LearnerAccessController::class, 'create'])->name('learner.access');
 Route::post('/learner/access', [LearnerAccessController::class, 'store'])->middleware('throttle:learner-access')->name('learner.access.store');

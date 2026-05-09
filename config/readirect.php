@@ -41,4 +41,25 @@ return [
     'agent_feedback' => [
         'miss_ciel_ollama_enabled' => filter_var(env('MISS_CIEL_OLLAMA_ENABLED', env('OLLAMA_ENABLED', false)), FILTER_VALIDATE_BOOLEAN),
     ],
+
+    'tts' => [
+        'enabled' => filter_var(env('TTS_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
+        'provider' => env('TTS_PROVIDER', 'kokoro'),
+        'base_url' => env('TTS_BASE_URL', 'http://127.0.0.1:8002'),
+        'timeout_seconds' => (int) env('TTS_TIMEOUT_SECONDS', 10),
+        'fallback_to_browser' => filter_var(env('TTS_FALLBACK_TO_BROWSER', true), FILTER_VALIDATE_BOOLEAN),
+        'fallback_to_text' => filter_var(env('TTS_FALLBACK_TO_TEXT', true), FILTER_VALIDATE_BOOLEAN),
+        'cache_enabled' => filter_var(env('TTS_CACHE_ENABLED', true), FILTER_VALIDATE_BOOLEAN),
+        'debug' => filter_var(env('TTS_DEBUG', false), FILTER_VALIDATE_BOOLEAN),
+        'voices' => [
+            'miss_vivian' => env('TTS_VOICE_VIVIAN', 'af_bella'),
+            'miss_ciel' => env('TTS_VOICE_CIEL', 'af_heart'),
+            'miss_estelle' => env('TTS_VOICE_ESTELLE', 'bf_isabella'),
+        ],
+        'speeds' => [
+            'miss_vivian' => (float) env('TTS_SPEED_VIVIAN', 0.95),
+            'miss_ciel' => (float) env('TTS_SPEED_CIEL', 1.00),
+            'miss_estelle' => (float) env('TTS_SPEED_ESTELLE', 0.95),
+        ],
+    ],
 ];

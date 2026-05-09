@@ -2,6 +2,7 @@
 
 namespace App\Services\AI;
 
+use App\Services\TTS\AgentTtsService;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
@@ -12,7 +13,10 @@ use Throwable;
 
 class ReadirectAIService
 {
-    public function __construct(private readonly OllamaClient $ollama) {}
+    public function __construct(
+        private readonly OllamaClient $ollama,
+        private readonly AgentTtsService $tts,
+    ) {}
 
     public function health(): array
     {
@@ -69,6 +73,7 @@ class ReadirectAIService
                     'Confirm READIRECT_AI_BASE_URL points to the FastAPI host and port.',
                 ],
                 'llm' => $this->ollama->dashboardStatus(),
+                'tts' => $this->tts->dashboardStatus(),
             ];
         }
 
@@ -139,6 +144,7 @@ class ReadirectAIService
                 'Verify the AI repo model path and ASR provider settings before production use.',
             ],
             'llm' => $this->ollama->dashboardStatus(),
+            'tts' => $this->tts->dashboardStatus(),
         ];
     }
 

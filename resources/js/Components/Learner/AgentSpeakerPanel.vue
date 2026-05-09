@@ -54,6 +54,9 @@ const isSpeaking = ref(false);
 const ttsError = ref('');
 const ttsKey = ref(0);
 const showIntro = ref(false);
+const voicePayload = ref(null);
+const voiceLoading = ref(false);
+const voiceRequestId = ref(0);
 
 const storedMutedPreference = () => {
     if (typeof window === 'undefined') {
@@ -100,6 +103,8 @@ const showPlaceholder = computed(() => displayMode.value === 'placeholder');
 const isVideoAsset = computed(() => !showPlaceholder.value && imageSrc.value.endsWith('.webm'));
 const displayTitle = computed(() => props.title || agent.value.label);
 const displaySubtitle = computed(() => props.subtitle || agent.value.role);
+const naturalAudioUrl = computed(() => voicePayload.value?.audio_url ?? null);
+const browserSpeechAllowed = computed(() => voicePayload.value?.browser_speech_allowed ?? true);
 const stateLabel = computed(() => {
     const labels = {
         idle: 'Ready',
@@ -171,6 +176,53 @@ const replayMessage = () => {
     ttsKey.value += 1;
 };
 
+const csrfToken = () => document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
+
+const loadNaturalVoice = async () => {
+    const text = displayMessage.value?.trim();
+    const requestId = voiceRequestId.value + 1;
+    voiceRequestId.value = requestId;
+    voicePayload.value = null;
+
+    if (!props.ttsEnabled || !text || typeof window === 'undefined') {
+        return;
+    }
+
+    voiceLoading.value = true;
+
+    try {
+        const response = await fetch('/agent-voice/synthesize', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken(),
+            },
+            body: JSON.stringify({
+                agent: props.agentType,
+                text,
+            }),
+        });
+
+        if (requestId !== voiceRequestId.value) {
+            return;
+        }
+
+        voicePayload.value = response.ok
+            ? await response.json()
+            : { audio_url: null, browser_speech_allowed: true };
+    } catch {
+        if (requestId === voiceRequestId.value) {
+            voicePayload.value = { audio_url: null, browser_speech_allowed: true };
+        }
+    } finally {
+        if (requestId === voiceRequestId.value) {
+            voiceLoading.value = false;
+        }
+    }
+};
+
 const handleSpeakingStart = () => {
     ttsError.value = '';
     isSpeaking.value = true;
@@ -199,12 +251,18 @@ const loadIntroState = () => {
 };
 
 onMounted(loadIntroState);
+
+watch(
+    () => [props.agentType, displayMessage.value, props.ttsEnabled],
+    () => loadNaturalVoice(),
+    { immediate: true },
+);
 </script>
 
 <template>
     <section class="agent-speaker-panel grid gap-3 rounded-[24px] border border-border bg-surface shadow-xl shadow-primary/10 transition md:items-center" :class="[compact ? 'p-2.5 md:grid-cols-[86px_1fr] lg:grid-cols-1 lg:p-[clamp(0.8rem,1vw,1.25rem)]' : 'p-3 md:grid-cols-[132px_1fr] lg:grid-cols-1 lg:p-[clamp(0.9rem,1.1vw,1.4rem)]', isSpeaking ? 'ring-2 ring-primary/25' : '']">
         <AgentSpeakerTTS
-            v-if="ttsEnabled"
+            v-if="ttsEnabled && !voiceLoading"
             :key="ttsKey"
             :agent-type="agentType"
             :message="displayMessage"
@@ -212,6 +270,8 @@ onMounted(loadIntroState);
             :volume="volume"
             :rate="rate"
             :pitch="pitch"
+            :audio-url="naturalAudioUrl"
+            :browser-speech-allowed="browserSpeechAllowed"
             @speaking-start="handleSpeakingStart"
             @speaking-end="handleSpeakingEnd"
             @error="handleTtsError"
