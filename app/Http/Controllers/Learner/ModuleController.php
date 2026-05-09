@@ -8,6 +8,7 @@ use App\Models\Learner;
 use App\Models\Module;
 use App\Services\LearnerFlowService;
 use App\Services\ModuleActivitySelectionService;
+use App\Services\ModuleExperienceService;
 use App\Support\LearnerStage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -48,7 +49,7 @@ class ModuleController extends Controller
         return redirect()->route('learner.modules.overview', $module);
     }
 
-    public function overview(Request $request, Module $module, ModuleActivitySelectionService $selection, LearnerFlowService $flow): Response|RedirectResponse
+    public function overview(Request $request, Module $module, ModuleActivitySelectionService $selection, LearnerFlowService $flow, ModuleExperienceService $experience): Response|RedirectResponse
     {
         $learner = $this->learner($request);
         if ($redirect = $this->guardModuleAccess($learner, $module, $flow)) {
@@ -58,11 +59,19 @@ class ModuleController extends Controller
         $attempt = $flow->resolveModuleAttempt($request, $learner, $module) ?? $selection->startOrResumeModuleAttempt($learner, $module);
         $request->session()->put('module_attempt_id', $attempt->id);
         $activityTypes = $selection->practiceActivityTypes($module);
+        $resumeRoute = $flow->moduleResumeRoute($learner, $module);
+        $overview = $experience->overview($module, $activityTypes);
 
         return Inertia::render('Learner/Modules/ModuleOverview', [
             'module' => $module->only('key', 'title', 'description'),
             'activityTypes' => $activityTypes,
             'firstActivityType' => $activityTypes[0] ?? null,
+            'lessonBoxes' => $overview['lesson_boxes'],
+            'purpose' => $overview['purpose'],
+            'guideMessage' => $overview['guide_message'],
+            'goodbyeMessage' => $overview['goodbye_message'],
+            'resumeRoute' => $resumeRoute,
+            'actionLabel' => $attempt->items()->exists() ? 'Continue Module' : 'Start Module',
         ]);
     }
 

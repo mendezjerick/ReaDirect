@@ -44,6 +44,7 @@ const hasAnswerOrAudio = (item, answer) => answerFor(item, answer).length > 0;
 const step = useStepAssessment(props.items, { emptyMessage: 'Try this one before moving on.', isAnswered: hasAnswerOrAudio });
 const coachMessage = ref('Read the prompt, then record your voice. I will help you practice.');
 const coachState = ref('speaking');
+const returningToDashboard = ref(false);
 const isCurrentUploading = computed(() => Boolean(uploading[step.currentItem.value?.id]));
 
 const normalize = (value) => String(value ?? '').toLowerCase().trim().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ');
@@ -241,6 +242,19 @@ const handlePrimary = () => {
 
     step.goNext();
 };
+
+const returnToDashboard = () => {
+    if (returningToDashboard.value) return;
+    returningToDashboard.value = true;
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('readirect:stop-agent-speech'));
+    }
+    coachMessage.value = 'See you next time!';
+    coachState.value = 'happy';
+    window.setTimeout(() => {
+        window.location.href = '/learner/dashboard';
+    }, 1200);
+};
 </script>
 
 <template>
@@ -289,8 +303,7 @@ const handlePrimary = () => {
 
         <BottomActionBar>
             <div class="flex w-full items-center justify-between gap-3">
-                <SecondaryButton v-if="!step.isFirst.value" @click="step.goBack">Back</SecondaryButton>
-                <span v-else />
+                <SecondaryButton :disabled="returningToDashboard || form.processing || isCurrentUploading" @click="returnToDashboard">Back to Learner Dashboard</SecondaryButton>
                 <PrimaryButton :disabled="form.processing || isCurrentUploading" :class="{ 'opacity-70': !step.isCurrentAnswered.value || isCurrentUploading }" @click="handlePrimary">
                     {{ step.isLast.value ? (nextActivityType ? 'Finish activity' : 'Start mastery check') : 'Next' }}
                 </PrimaryButton>

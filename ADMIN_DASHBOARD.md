@@ -22,7 +22,7 @@ The admin area is protected server-side. Frontend navigation is not used as an a
 - Assessment Content: manage diagnostic item-bank records. Used content is deactivated, not deleted.
 - Module Content: manage module activity banks and mastery content.
 - Rules & Thresholds: view classification rules and edit module mastery thresholds with audit logs.
-- Agents: manage fixed agent display details, sprite paths, and Web Speech API voice settings.
+- Agents: manage fixed agent display details, sprite paths, and Kokoro voice settings.
 - Prompt Templates: view/create/edit prompt templates and prompt history.
 - Audit Logs: inspect admin, testing, content, rule, and debug actions.
 - System Monitoring: inspect database, queue, storage, STT, LLM, runtime, and deployment notes.

@@ -96,7 +96,7 @@ class AgentTtsService
                 'connected' => false,
                 'status' => 'disabled',
                 'label' => 'Kokoro Voice Disabled',
-                'message' => 'Natural agent voice is disabled. Learner pages will use browser speech or text fallback.',
+                'message' => 'Natural agent voice is disabled. Learner pages will use text-only fallback.',
                 'base_url' => $baseUrl,
                 'provider' => $provider,
                 'voices' => $configuredVoices,
@@ -196,7 +196,6 @@ class AgentTtsService
             'tts_provider' => null,
             'audio_url' => null,
             'fallback' => true,
-            'browser_speech_allowed' => (bool) config('readirect.tts.fallback_to_browser', true),
             'text_fallback_allowed' => (bool) config('readirect.tts.fallback_to_text', true),
         ];
     }
@@ -211,7 +210,6 @@ class AgentTtsService
             'tts_provider' => config('readirect.tts.provider', 'kokoro'),
             'audio_url' => route('agent-voice.show', ['cacheKey' => $cacheKey], false),
             'fallback' => false,
-            'browser_speech_allowed' => (bool) config('readirect.tts.fallback_to_browser', true),
             'text_fallback_allowed' => true,
         ];
 
@@ -248,7 +246,7 @@ class AgentTtsService
             $context['detail'] = Str::limit($detail, 500);
         }
 
-        Log::warning('Agent TTS fell back to browser speech or text.', $context);
+        Log::warning('Agent TTS fell back to text-only message.', $context);
     }
 
     private function dashboardFailure(string $status, string $message, string $baseUrl, string $provider, array $configuredVoices): array

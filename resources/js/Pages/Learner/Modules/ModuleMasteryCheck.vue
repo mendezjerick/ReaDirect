@@ -34,6 +34,7 @@ const hasAnswerOrAudio = (item, answer) => answerFor(item, answer).length > 0;
 const step = useStepAssessment(props.items, { emptyMessage: 'Try this one before moving on.', isAnswered: hasAnswerOrAudio });
 const agentMessage = ref('This is your mini mastery check. Do your best one item at a time.');
 const agentState = ref('encouraging');
+const returningToDashboard = ref(false);
 const progressLabel = computed(() => `Mastery ${step.currentIndex.value + 1} of ${props.items.length}`);
 const isCurrentUploading = computed(() => Boolean(uploading[step.currentItem.value?.id]));
 
@@ -160,6 +161,19 @@ const handlePrimary = () => {
 
     step.goNext();
 };
+
+const returnToDashboard = () => {
+    if (returningToDashboard.value) return;
+    returningToDashboard.value = true;
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('readirect:stop-agent-speech'));
+    }
+    agentMessage.value = 'See you next time!';
+    agentState.value = 'happy';
+    window.setTimeout(() => {
+        window.location.href = '/learner/dashboard';
+    }, 1200);
+};
 </script>
 
 <template>
@@ -208,8 +222,7 @@ const handlePrimary = () => {
 
         <BottomActionBar>
             <div class="flex w-full items-center justify-between gap-3">
-                <SecondaryButton v-if="!step.isFirst.value" @click="step.goBack">Back</SecondaryButton>
-                <span v-else />
+                <SecondaryButton :disabled="returningToDashboard || form.processing || isCurrentUploading" @click="returnToDashboard">Back to Learner Dashboard</SecondaryButton>
                 <PrimaryButton :disabled="form.processing || isCurrentUploading" :class="{ 'opacity-70': !step.isCurrentAnswered.value || isCurrentUploading }" @click="handlePrimary">
                     {{ step.isLast.value ? 'Finish check' : 'Next' }}
                 </PrimaryButton>

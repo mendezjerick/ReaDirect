@@ -1,6 +1,6 @@
 # ReaDirect Local TTS Setup
 
-ReaDirect uses a sibling local FastAPI service named `ReaDirect-TTS` for natural agent voices. Voice is optional support only. If Kokoro or the TTS service is unavailable, learner pages fall back to browser SpeechSynthesis and then text-only messages.
+ReaDirect uses a sibling local FastAPI service named `ReaDirect-TTS` for natural agent voices. Kokoro is the only spoken TTS provider. If Kokoro or the TTS service is unavailable, learner pages show the text-only agent message.
 
 Expected local structure:
 
@@ -54,7 +54,6 @@ TTS_ENABLED=true
 TTS_PROVIDER=kokoro
 TTS_BASE_URL=http://127.0.0.1:8002
 TTS_TIMEOUT_SECONDS=10
-TTS_FALLBACK_TO_BROWSER=true
 TTS_FALLBACK_TO_TEXT=true
 TTS_CACHE_ENABLED=true
 TTS_DEBUG=false

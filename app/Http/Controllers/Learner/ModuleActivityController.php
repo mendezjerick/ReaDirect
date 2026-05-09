@@ -90,7 +90,11 @@ class ModuleActivityController extends Controller
             return $redirect;
         }
 
-        $attempt = $this->attempt($request, $learner, $module, $selection, $flow);
+        $attempt = $this->attemptForSubmission($request, $learner, $module, $flow);
+        if (! $attempt) {
+            return redirect($flow->moduleResumeRoute($learner, $module))
+                ->with('info', 'Continue from your current module activity.');
+        }
 
         if ($selection->practiceActivityTypes($module) !== [] && $activityType !== $flow->nextPracticeActivity($attempt, $module)) {
             return redirect($flow->moduleResumeRoute($learner, $module))
@@ -98,6 +102,11 @@ class ModuleActivityController extends Controller
         }
 
         $items = $selection->getLockedItemsForAttempt($attempt, $activityType)->where('is_mastery_item', false)->values();
+
+        if ($items->isEmpty()) {
+            return redirect()->route('learner.modules.activity', [$module, $activityType])
+                ->with('info', 'Start this activity before moving on.');
+        }
 
         $validated = $request->validate($this->responseRules($items->count()), $this->friendlyValidationMessages());
         $this->validateSubmittedItemSet($items, $validated['responses']);
@@ -244,10 +253,9 @@ class ModuleActivityController extends Controller
         return Learner::find($request->session()->get('learner_id')) ?? Learner::firstOrFail();
     }
 
-    private function attempt(Request $request, Learner $learner, Module $module, ModuleActivitySelectionService $selection, LearnerFlowService $flow): ModuleAttempt
+    private function attemptForSubmission(Request $request, Learner $learner, Module $module, LearnerFlowService $flow): ?ModuleAttempt
     {
-        return $flow->resolveModuleAttempt($request, $learner, $module)
-            ?? $selection->startOrResumeModuleAttempt($learner, $module);
+        return $flow->resolveModuleAttempt($request, $learner, $module);
     }
 
     private function guardModuleAccess(Learner $learner, Module $module, LearnerFlowService $flow): ?RedirectResponse

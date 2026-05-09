@@ -7,7 +7,7 @@ import BottomActionBar from '../../../Components/BottomActionBar.vue';
 import ScoreCard from '../../../Components/ScoreCard.vue';
 import RewardBadge from '../../../Components/RewardBadge.vue';
 
-defineProps({ module: Object, score: Number, decision: Object, nextModule: Object });
+defineProps({ module: Object, score: Number, decision: Object, resultMessage: String, nextModule: Object });
 
 const actionLabel = (decisionKey) => ({
     move_to_module_2: 'Continue to Module 2',
@@ -18,7 +18,7 @@ const actionLabel = (decisionKey) => ({
     extra_phoneme_drills: 'Start extra drills',
     return_to_module_1: 'Return to Module 1',
     return_to_module_2: 'Return to Module 2',
-    proceed_to_reassessment: 'Reassessment placeholder',
+    proceed_to_reassessment: 'Go to dashboard',
 }[decisionKey] ?? 'Continue');
 
 const actionHref = (decision, module, nextModule) => {
@@ -31,7 +31,7 @@ const actionHref = (decision, module, nextModule) => {
 <template>
     <LearnerLayout :progress="100">
         <template #agent>
-            <AgentSpeakerPanel agent-type="evaluator" state="celebrating" :message="decision.user_friendly_message" />
+            <AgentSpeakerPanel agent-type="evaluator" state="celebrating" :message="resultMessage ?? decision.user_friendly_message" />
         </template>
 
         <section class="mx-auto grid max-w-2xl gap-5 text-center">
@@ -39,8 +39,7 @@ const actionHref = (decision, module, nextModule) => {
             <h1 class="text-4xl font-black text-text">Great effort!</h1>
             <ScoreCard label="Mastery score" :value="`${score}%`" />
             <div class="rounded-[28px] border border-border bg-surface p-6 shadow-lg shadow-primary/10">
-                <p class="text-xl font-black text-text">{{ decision.user_friendly_message }}</p>
-                <p class="mt-3 text-sm font-bold text-muted">Rule applied: {{ decision.rule_applied }}</p>
+                <p class="text-xl font-black text-text">{{ resultMessage ?? decision.user_friendly_message }}</p>
             </div>
         </section>
 

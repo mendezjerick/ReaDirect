@@ -104,7 +104,6 @@ const isVideoAsset = computed(() => !showPlaceholder.value && imageSrc.value.end
 const displayTitle = computed(() => props.title || agent.value.label);
 const displaySubtitle = computed(() => props.subtitle || agent.value.role);
 const naturalAudioUrl = computed(() => voicePayload.value?.audio_url ?? null);
-const browserSpeechAllowed = computed(() => voicePayload.value?.browser_speech_allowed ?? true);
 const stateLabel = computed(() => {
     const labels = {
         idle: 'Ready',
@@ -211,10 +210,10 @@ const loadNaturalVoice = async () => {
 
         voicePayload.value = response.ok
             ? await response.json()
-            : { audio_url: null, browser_speech_allowed: true };
+            : { audio_url: null };
     } catch {
         if (requestId === voiceRequestId.value) {
-            voicePayload.value = { audio_url: null, browser_speech_allowed: true };
+            voicePayload.value = { audio_url: null };
         }
     } finally {
         if (requestId === voiceRequestId.value) {
@@ -271,7 +270,6 @@ watch(
             :rate="rate"
             :pitch="pitch"
             :audio-url="naturalAudioUrl"
-            :browser-speech-allowed="browserSpeechAllowed"
             @speaking-start="handleSpeakingStart"
             @speaking-end="handleSpeakingEnd"
             @error="handleTtsError"

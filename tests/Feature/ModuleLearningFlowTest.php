@@ -12,6 +12,7 @@ use App\Services\ModuleActivitySelectionService;
 use App\Services\ModuleFeedbackService;
 use App\Services\ModuleScoringService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class ModuleLearningFlowTest extends TestCase
@@ -198,6 +199,81 @@ class ModuleLearningFlowTest extends TestCase
             ->assertRedirect(route('learner.dashboard'));
     }
 
+    public function test_module_overview_includes_lesson_boxes_and_safe_miss_ciel_copy(): void
+    {
+        [$learner, $module] = $this->moduleContext('module_1');
+        $learner->update(['current_module_id' => $module->id, 'current_stage' => 'module_assigned']);
+        $this->seedModuleActivities($module, 'listen_and_say', 5, false);
+        $this->seedModuleActivities($module, 'mastery_check', 10, true);
+        $this->seedRule($module, 'listen_and_say', 5, 0);
+        $this->seedRule($module, 'mastery_check', 0, 10);
+
+        $this->withSession(['learner_id' => $learner->id])
+            ->get(route('learner.modules.overview', $module))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Learner/Modules/ModuleOverview')
+                ->where('purpose', 'You will practice letters and sounds so you can say them clearly.')
+                ->where('lessonBoxes.0.key', 'listen_and_say')
+                ->where('lessonBoxes.0.explanation', 'This lesson helps you listen closely and say the sound clearly after you hear it.')
+                ->has('lessonBoxes', 1)
+                ->missing('debug')
+            );
+    }
+
+    public function test_continue_module_reuses_active_attempt_without_duplicate_attempt(): void
+    {
+        [$learner, $module] = $this->moduleContext('module_2');
+        $learner->update(['current_module_id' => $module->id, 'current_stage' => 'module_practice_in_progress']);
+        $this->seedModuleActivities($module, 'read_word', 5, false);
+        $this->seedRule($module, 'read_word', 5, 0);
+        $service = app(ModuleActivitySelectionService::class);
+        $attempt = $service->startOrResumeModuleAttempt($learner, $module);
+
+        $this->withSession(['learner_id' => $learner->id])
+            ->get(route('learner.modules.start', $module))
+            ->assertRedirect(route('learner.modules.overview', $module));
+
+        $this->assertSame(1, $learner->moduleAttempts()->where('module_id', $module->id)->count());
+        $this->assertSame($attempt->id, $learner->moduleAttempts()->where('module_id', $module->id)->first()->id);
+    }
+
+    public function test_stale_module_activity_post_does_not_create_new_attempt(): void
+    {
+        [$learner, $module] = $this->moduleContext('module_2');
+        $learner->update(['current_module_id' => $module->id, 'current_stage' => 'module_practice_in_progress']);
+        $this->seedModuleActivities($module, 'read_word', 5, false);
+        $this->seedRule($module, 'read_word', 5, 0);
+
+        $this->withSession(['learner_id' => $learner->id])
+            ->post(route('learner.modules.activity.store', [$module, 'read_word']), ['responses' => []])
+            ->assertRedirect(route('learner.modules.start', $module));
+
+        $this->assertSame(0, $learner->moduleAttempts()->where('module_id', $module->id)->count());
+    }
+
+    public function test_dashboard_shows_extra_drills_and_final_reassessment_actions(): void
+    {
+        [$learner, $module] = $this->moduleContext('module_1');
+        $learner->update(['current_module_id' => $module->id, 'current_stage' => 'extra_phoneme_drills']);
+
+        $this->withSession(['learner_id' => $learner->id])
+            ->get(route('learner.dashboard'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('flowState.primary_action_label', 'Continue Extra Drills')
+                ->where('flowState.module.current_module_key', 'module_1')
+            );
+
+        $learner->update(['current_module_id' => null, 'current_stage' => 'final_reassessment_pending']);
+
+        $this->withSession(['learner_id' => $learner->id])
+            ->get(route('learner.dashboard'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('flowState.primary_action_label', 'Start Final Reassessment')
+                ->where('flowState.current_module_id', null)
+            );
+    }
+
     private function moduleContext(string $moduleKey = 'module_2'): array
     {
         $school = School::create(['name' => 'Module Test School']);
@@ -248,5 +324,23 @@ class ModuleLearningFlowTest extends TestCase
                 'configuration' => $content->payload,
             ]);
         }
+    }
+
+    private function seedRule(Module $module, string $activityType, int $practiceCount, int $masteryCount): void
+    {
+        LearningContent::create([
+            'content_type' => 'module_activity_selection_rule',
+            'title' => $module->key.' '.$activityType.' rule',
+            'prompt' => 'Selection rule',
+            'payload' => [
+                'module_key' => $module->key,
+                'activity_type' => $activityType,
+                'practice_item_count' => $practiceCount,
+                'mastery_item_count' => $masteryCount,
+                'source_csv_id' => $module->key.'-'.$activityType,
+            ],
+            'difficulty' => 'grade_1',
+            'is_active' => true,
+        ]);
     }
 }

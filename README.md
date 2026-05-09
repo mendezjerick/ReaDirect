@@ -1,6 +1,6 @@
 # ReaDirect
 
-ReaDirect is a Laravel + Vue/Inertia Progressive Web Application for Grade 1 oral reading assessment and guided reading practice. It includes learner diagnostic assessment, reading comprehension, rule-based module placement, learning modules, module mastery decisions, browser audio recording, transcript/STT support, OpenAI-backed coach feedback with template fallback, Web Speech API TTS agent voices, teacher dashboards and reports, final reassessment, and admin/QA testing tools.
+ReaDirect is a Laravel + Vue/Inertia Progressive Web Application for Grade 1 oral reading assessment and guided reading practice. It includes learner diagnostic assessment, reading comprehension, rule-based module placement, learning modules, module mastery decisions, browser audio recording, transcript/STT support, OpenAI-backed coach feedback with template fallback, Kokoro-backed agent voices with text-only fallback, teacher dashboards and reports, final reassessment, and admin/QA testing tools.
 
 ## Tech Stack
 
@@ -12,7 +12,7 @@ ReaDirect is a Laravel + Vue/Inertia Progressive Web Application for Grade 1 ora
 - Roles and permissions: Spatie Laravel Permission
 - Auth/API support: Laravel Sanctum
 - Audio recording: browser MediaRecorder API
-- TTS: browser Web Speech API
+- TTS: local Kokoro service through `ReaDirect-TTS`
 - STT: `mock` provider by default, optional local `whisper_cpp` provider through `config/stt.php`
 - LLM feedback: OpenAI API integration through server-side Laravel HTTP calls, with template fallback
 - Package managers: Composer and npm

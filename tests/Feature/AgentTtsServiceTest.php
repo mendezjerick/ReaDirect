@@ -26,7 +26,7 @@ class AgentTtsServiceTest extends TestCase
         $this->assertSame(1.0, $service->voiceProfile('coach_feedback')['speed']);
     }
 
-    public function test_tts_disabled_returns_browser_and_text_fallback_without_local_paths(): void
+    public function test_tts_disabled_returns_text_fallback_without_local_paths(): void
     {
         config()->set('readirect.tts.enabled', false);
 
@@ -34,7 +34,8 @@ class AgentTtsServiceTest extends TestCase
 
         $this->assertFalse($payload['voice_enabled']);
         $this->assertNull($payload['audio_url']);
-        $this->assertTrue($payload['browser_speech_allowed']);
+        $this->assertArrayNotHasKey('browser_speech_allowed', $payload);
+        $this->assertTrue($payload['text_fallback_allowed']);
         $this->assertArrayNotHasKey('debug', $payload);
         $this->assertStringNotContainsString('storage', json_encode($payload));
     }

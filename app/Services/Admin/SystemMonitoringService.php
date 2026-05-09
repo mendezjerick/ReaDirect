@@ -55,7 +55,7 @@ class SystemMonitoringService
                 'git_commit' => trim((string) @shell_exec('git rev-parse --short HEAD')) ?: 'unavailable',
             ],
             'notes' => [
-                'tts' => 'Local Kokoro TTS when enabled; browser SpeechSynthesis and text remain fallbacks.',
+                'tts' => 'Local Kokoro TTS is the only spoken voice provider; text remains the safe fallback.',
                 'backup' => 'Backup automation placeholder; use pg_dump and private storage backup policy.',
             ],
         ];

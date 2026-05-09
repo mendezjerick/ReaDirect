@@ -44,7 +44,7 @@ class AgentSpeakerPanelStructureTest extends TestCase
         $this->assertStringContainsString('Replay agent message', $component);
     }
 
-    public function test_agent_speaker_tts_component_uses_web_speech_api_and_agent_voice_mapping(): void
+    public function test_agent_speaker_tts_component_uses_kokoro_audio_only(): void
     {
         $root = dirname(__DIR__, 2);
         $componentPath = $root.'/resources/js/Components/Agents/AgentSpeakerTTS.vue';
@@ -53,25 +53,55 @@ class AgentSpeakerPanelStructureTest extends TestCase
 
         $component = file_get_contents($componentPath);
 
-        $this->assertStringContainsString('speechSynthesis', $component);
         $this->assertStringContainsString('new Audio', $component);
         $this->assertStringContainsString('audioUrl', $component);
-        $this->assertStringContainsString('SpeechSynthesisUtterance', $component);
-        $this->assertStringContainsString('voiceschanged', $component);
-        $this->assertStringContainsString('assessment', $component);
-        $this->assertStringContainsString('coach_feedback', $component);
-        $this->assertStringContainsString('evaluator', $component);
+        $this->assertStringContainsString('Kokoro voice is unavailable right now.', $component);
         $this->assertStringContainsString('speakingStart', $component);
         $this->assertStringContainsString('speakingEnd', $component);
-        $this->assertStringContainsString('Web Speech API not supported.', $component);
+        $this->assertStringNotContainsString('SpeechSynthesisUtterance', $component);
+        $this->assertStringNotContainsString('voiceschanged', $component);
+        $this->assertStringNotContainsString('synth.speak', $component);
+        $this->assertStringNotContainsString('Web Speech API not supported.', $component);
     }
 
-    public function test_stop_agent_audio_utility_stops_browser_and_natural_audio(): void
+    public function test_stop_agent_audio_utility_cleans_up_legacy_browser_and_kokoro_audio(): void
     {
         $utility = file_get_contents(dirname(__DIR__, 2).'/resources/js/utils/stopAgentAudio.js');
 
         $this->assertStringContainsString('speechSynthesis.cancel', $utility);
         $this->assertStringContainsString('readirect:stop-agent-audio', $utility);
         $this->assertStringContainsString('readirect:stop-agent-speech', $utility);
+    }
+
+    public function test_module_overview_supports_miss_ciel_hover_explanations(): void
+    {
+        $component = file_get_contents(dirname(__DIR__, 2).'/resources/js/Pages/Learner/Modules/ModuleOverview.vue');
+
+        $this->assertStringContainsString('lessonBoxes', $component);
+        $this->assertStringContainsString('explainLesson', $component);
+        $this->assertStringContainsString('transitionMessages', $component);
+        $this->assertStringContainsString('Let us slow down and choose one lesson at a time.', $component);
+        $this->assertStringContainsString('Are you ready to choose one lesson without rushing?', $component);
+        $this->assertStringContainsString('transitionDelayFor', $component);
+        $this->assertStringContainsString('@mouseenter="explainLesson(lesson)"', $component);
+        $this->assertStringContainsString('@focus="explainLesson(lesson)"', $component);
+        $this->assertStringContainsString('@click="explainLesson(lesson)"', $component);
+        $this->assertStringNotContainsString('Try', $component);
+        $this->assertStringNotContainsString('mastery_check', $component);
+        $this->assertStringContainsString('Back to Learner Dashboard', $component);
+    }
+
+    public function test_module_activity_pages_include_safe_dashboard_return(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $activity = file_get_contents($root.'/resources/js/Pages/Learner/Modules/ModuleActivity.vue');
+        $mastery = file_get_contents($root.'/resources/js/Pages/Learner/Modules/ModuleMasteryCheck.vue');
+
+        foreach ([$activity, $mastery] as $component) {
+            $this->assertStringContainsString('returnToDashboard', $component);
+            $this->assertStringContainsString('See you next time!', $component);
+            $this->assertStringContainsString('readirect:stop-agent-speech', $component);
+            $this->assertStringContainsString("window.location.href = '/learner/dashboard'", $component);
+        }
     }
 }
