@@ -21,8 +21,9 @@ defineProps({
         </header>
         <main class="learner-frame learner-stage">
             <div v-if="$slots.agent" class="learner-stage-grid">
-                <aside class="sticky top-[68px] z-10 max-h-[calc(100vh-132px)] overflow-visible lg:top-20">
+                <aside class="z-10 overflow-visible lg:sticky lg:top-20 lg:pr-1">
                     <slot name="agent" />
+                    <div id="learner-agent-followup" class="mt-3 grid gap-3" />
                 </aside>
                 <div class="learner-content min-w-0">
                     <slot />

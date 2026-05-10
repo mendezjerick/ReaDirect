@@ -689,11 +689,15 @@ class DiagnosticAssessmentController extends Controller
                 : null);
             $expectedAnswer = $this->expectedAnswer($item);
             $acceptedAnswers = $this->acceptedAnswersForItem($item, $expectedAnswer);
-            $resolved = $analysis->resolve(
-                $allowManualFallback ? ($submitted['answer'] ?? null) : null,
+            $resolved = $this->resolveSubmittedAssessmentAnswer(
+                $attempt,
+                $item,
+                $submitted,
                 $audioFile,
-                $this->analysisContext($item, $expectedAnswer, $acceptedAnswers),
-                $this->sttOptionsForAssessmentItem($item)
+                $analysis,
+                $expectedAnswer,
+                $acceptedAnswers,
+                $allowManualFallback
             );
             $answer = $resolved['transcript'];
             $displayedAnswer = $resolved['displayed_transcript'] ?? $answer;
@@ -800,11 +804,15 @@ class DiagnosticAssessmentController extends Controller
 
             $expectedAnswer = $this->expectedAnswer($item);
             $acceptedAnswers = $this->acceptedAnswersForItem($item, $expectedAnswer);
-            $resolved = $analysis->resolve(
-                $allowManualFallback ? ($submitted['answer'] ?? null) : null,
+            $resolved = $this->resolveSubmittedAssessmentAnswer(
+                $attempt,
+                $item,
+                $submitted,
                 $audioFile,
-                $this->analysisContext($item, $expectedAnswer, $acceptedAnswers),
-                $this->sttOptionsForAssessmentItem($item)
+                $analysis,
+                $expectedAnswer,
+                $acceptedAnswers,
+                $allowManualFallback
             );
             $answer = $resolved['transcript'];
             $displayedAnswer = $resolved['displayed_transcript'] ?? $answer;
@@ -877,6 +885,49 @@ class DiagnosticAssessmentController extends Controller
         }
 
         return $sentenceScoring->summarize($evaluations);
+    }
+
+    private function resolveSubmittedAssessmentAnswer(
+        AssessmentAttempt $attempt,
+        AssessmentAttemptItem $item,
+        array $submitted,
+        ?AudioFile $audioFile,
+        AIAnalysisResolver $analysis,
+        ?string $expectedAnswer,
+        array $acceptedAnswers,
+        bool $allowManualFallback
+    ): array {
+        $manualAnswer = $allowManualFallback ? ($submitted['answer'] ?? null) : null;
+
+        if (! $allowManualFallback && $audioFile) {
+            $existingResponse = AssessmentTaskResponse::query()
+                ->where('assessment_attempt_id', $attempt->id)
+                ->where('assessment_attempt_item_id', $item->id)
+                ->where('audio_file_id', $audioFile->id)
+                ->latest('updated_at')
+                ->latest('id')
+                ->first();
+
+            $existingTranscript = trim((string) ($existingResponse?->learner_transcript ?? ''));
+
+            if ($existingTranscript !== '') {
+                return [
+                    'transcript' => $existingTranscript,
+                    'displayed_transcript' => trim((string) ($existingResponse->response_text ?: $existingTranscript)),
+                    'source' => $existingResponse->transcript_source ?: 'stt_auto',
+                    'confidence' => $existingResponse->stt_confidence,
+                    'stt_result' => null,
+                    'ai_response' => $existingResponse->ai_response,
+                ];
+            }
+        }
+
+        return $analysis->resolve(
+            $manualAnswer,
+            $audioFile,
+            $this->analysisContext($item, $expectedAnswer, $acceptedAnswers),
+            $this->sttOptionsForAssessmentItem($item)
+        );
     }
 
     private function itemsForForm(Collection $items): array
@@ -1194,8 +1245,17 @@ class DiagnosticAssessmentController extends Controller
 
     private function validateSubmittedAssessmentItemSet(Collection $items, array $responses): void
     {
-        $expected = $items->pluck('id')->sort()->values()->all();
-        $submitted = collect($responses)->pluck('assessment_attempt_item_id')->sort()->values()->all();
+        $expected = $items->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->sort()
+            ->values()
+            ->all();
+        $submitted = collect($responses)
+            ->pluck('assessment_attempt_item_id')
+            ->map(fn ($id) => (int) $id)
+            ->sort()
+            ->values()
+            ->all();
 
         if ($expected !== $submitted) {
             throw ValidationException::withMessages([

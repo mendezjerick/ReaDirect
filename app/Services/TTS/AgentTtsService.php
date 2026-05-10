@@ -50,6 +50,7 @@ class AgentTtsService
 
         try {
             $response = Http::timeout((int) config('readirect.tts.timeout_seconds', 10))
+                ->retry(2, 250, throw: false)
                 ->accept('audio/wav')
                 ->asJson()
                 ->post(rtrim((string) config('readirect.tts.base_url'), '/').'/synthesize', [
@@ -105,6 +106,7 @@ class AgentTtsService
 
         try {
             $response = Http::timeout((int) config('readirect.tts.timeout_seconds', 10))
+                ->retry(2, 250, throw: false)
                 ->acceptJson()
                 ->get($baseUrl.'/health');
         } catch (ConnectionException $exception) {

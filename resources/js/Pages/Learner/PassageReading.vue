@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import LearnerLayout from '../../Layouts/LearnerLayout.vue';
 import AudioRecorder from '../../Components/Learner/AudioRecorder.vue';
@@ -164,6 +164,11 @@ const buildDiff = (expectedText, actualText) => {
 };
 
 const diff = computed(() => buildDiff(props.passage?.prompt ?? '', transcript.value));
+const incorrectWordCount = computed(() => diff.value.incorrectCount);
+const incorrectHighlightCount = computed(() => diff.value.expectedStatus.filter((status) => status === 'incorrect' || status === 'missing').length);
+const extraWordCount = computed(() => diff.value.actualStatus.filter((status) => status === 'extra').length);
+const exactMatchCount = computed(() => diff.value.expectedStatus.filter((status) => status === 'correct').length);
+const hasTranscriptAnalysis = computed(() => transcript.value.trim() !== '');
 const highlightedPassageTokens = computed(() => {
     const tokens = wordTokens(props.passage?.prompt ?? '');
     const statuses = diff.value.expectedStatus;
@@ -180,6 +185,10 @@ const highlightedPassageTokens = computed(() => {
         return { text: token, status };
     });
 });
+
+watch(transcript, (value) => {
+    form.incorrect_words = value.trim() !== '' ? diff.value.incorrectCount : 0;
+}, { immediate: true });
 
 const canSubmit = computed(() => {
     const hasIncorrectWords = form.incorrect_words !== '' && form.incorrect_words !== null && Number(form.incorrect_words) >= 0;
@@ -223,12 +232,9 @@ const uploadTranscript = async (file) => {
         form.audio_file_id = result.audio_file_id ?? null;
         transcript.value = String(result.displayed_transcript ?? result.corrected_transcript ?? result.transcript ?? result.raw_transcript ?? '').trim();
 
-        if (transcript.value !== '') {
-            form.incorrect_words = diff.value.incorrectCount;
-            return;
+        if (transcript.value === '') {
+            uploadError.value = result.transcription_message ?? result.message ?? 'We could not hear your reading clearly. Please try recording again.';
         }
-
-        uploadError.value = result.transcription_message ?? result.message ?? 'We could not hear your reading clearly. Please try recording again.';
     } catch (error) {
         uploadError.value = error.message || 'We had trouble checking your reading. Please try again.';
     } finally {
@@ -297,6 +303,23 @@ const submit = () => form.post('/learner/diagnostic/passage', { forceFormData: t
                     @cleared="clearAudio"
                 />
                 <div class="grid gap-3">
+                    <div v-if="hasTranscriptAnalysis" class="grid gap-3 md:grid-cols-3">
+                        <div class="rounded-2xl border border-danger/20 bg-danger/10 px-4 py-3">
+                            <p class="text-xs font-black uppercase tracking-[0.18em] text-danger/80">Incorrect</p>
+                            <p class="mt-1 text-2xl font-black text-danger">{{ incorrectWordCount }}</p>
+                            <p class="text-xs font-bold text-danger/80">Words counted as incorrect</p>
+                        </div>
+                        <div class="rounded-2xl border border-primary/15 bg-primaryLight/50 px-4 py-3">
+                            <p class="text-xs font-black uppercase tracking-[0.18em] text-primaryDark/80">Correct</p>
+                            <p class="mt-1 text-2xl font-black text-primaryDark">{{ exactMatchCount }}</p>
+                            <p class="text-xs font-bold text-primaryDark/80">Words matched clearly</p>
+                        </div>
+                        <div class="rounded-2xl border border-warning/20 bg-warning/10 px-4 py-3">
+                            <p class="text-xs font-black uppercase tracking-[0.18em] text-warning/80">Review</p>
+                            <p class="mt-1 text-2xl font-black text-warning">{{ incorrectHighlightCount + extraWordCount }}</p>
+                            <p class="text-xs font-bold text-warning/80">Highlighted for review</p>
+                        </div>
+                    </div>
                     <label class="grid gap-2 text-lg font-black text-text">
                         You said
                         <div class="learner-transcript-box rounded-2xl border-2 border-border font-black text-text">
@@ -322,6 +345,10 @@ const submit = () => form.post('/learner/diagnostic/passage', { forceFormData: t
                     </label>
                     <p v-if="diff.semanticCount > 0" class="rounded-2xl bg-warning/15 px-4 py-3 text-sm font-black text-warning">
                         {{ diff.semanticCount }} meaning-preserving word {{ diff.semanticCount === 1 ? 'swap was' : 'swaps were' }} understood and not counted as a full mismatch.
+                    </p>
+                    <p v-if="hasTranscriptAnalysis" class="rounded-2xl bg-primaryLight/60 px-4 py-3 text-sm font-black text-primaryDark">
+                        <span v-if="incorrectWordCount === 0">No incorrect words were detected in this reading.</span>
+                        <span v-else>{{ incorrectWordCount }} incorrect {{ incorrectWordCount === 1 ? 'word was' : 'words were' }} detected. Red highlights show what needs attention.</span>
                     </p>
                     <p v-if="uploadError" class="rounded-2xl bg-warning/15 px-4 py-3 text-sm font-black text-warning">
                         {{ uploadError }}

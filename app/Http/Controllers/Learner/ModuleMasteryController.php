@@ -417,8 +417,17 @@ class ModuleMasteryController extends Controller
 
     private function validateSubmittedItemSet(Collection $items, array $responses): void
     {
-        $expected = $items->pluck('id')->sort()->values()->all();
-        $submitted = collect($responses)->pluck('module_attempt_item_id')->sort()->values()->all();
+        $expected = $items->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->sort()
+            ->values()
+            ->all();
+        $submitted = collect($responses)
+            ->pluck('module_attempt_item_id')
+            ->map(fn ($id) => (int) $id)
+            ->sort()
+            ->values()
+            ->all();
 
         if ($expected !== $submitted) {
             throw ValidationException::withMessages([

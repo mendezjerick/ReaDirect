@@ -207,20 +207,7 @@ tbody tr:hover {
     }
 
     .learner-audio-review-card {
-        position: fixed;
-        top: clamp(29.5rem, 54vh, 38rem);
-        left: max(
-            clamp(0.5rem, 3vw, 3rem),
-            calc((100vw - 1600px) / 2)
-        );
-        z-index: 12;
-        width: min(clamp(280px, 22vw, 420px), calc((100vw - clamp(1rem, 3vw, 3rem) * 2) * 0.28));
-        max-height: calc(100vh - 39rem);
-        overflow: hidden;
-    }
-
-    .learner-audio-review-card audio {
-        height: 2.5rem;
+        max-width: 100%;
     }
 
     .learner-content > .mx-auto.max-w-xl {
@@ -242,10 +229,6 @@ tbody tr:hover {
         grid-template-columns: minmax(320px, clamp(360px, 23vw, 460px)) minmax(0, 1fr);
     }
 
-    .learner-audio-review-card {
-        width: min(clamp(320px, 23vw, 460px), calc((100vw - clamp(1rem, 3vw, 3rem) * 2) * 0.28));
-    }
-
     .learner-content {
         font-size: 1.04rem;
     }
@@ -254,10 +237,6 @@ tbody tr:hover {
 @media (min-width: 1536px) {
     .learner-stage-grid {
         grid-template-columns: minmax(360px, clamp(400px, 24vw, 500px)) minmax(0, 1fr);
-    }
-
-    .learner-audio-review-card {
-        width: min(clamp(360px, 24vw, 500px), calc((100vw - 1600px) / 2 + 500px));
     }
 
     .learner-content > .mx-auto.max-w-xl {

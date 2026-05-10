@@ -51,12 +51,14 @@ const hasUsableTranscript = (item, answer) => {
 
     return normalizedAnswer.length >= Math.max(2, Math.floor(expectedPrompt.length * 0.6));
 };
-const hasAnswerOrAudio = (item, answer) => Boolean(uploadedAudioIds[item?.id]) && hasUsableTranscript(item, answer);
+const hasAcceptedTranscript = (item, answer) => Boolean(uploadedAudioIds[item?.id]) && hasUsableTranscript(item, answer);
+const hasAnswerOrAudio = (item, answer) => hasAcceptedTranscript(item, answer);
 const step = useStepAssessment(props.items, { emptyMessage: 'Almost there! Finish this item to continue.', initialIndex: props.initialIndex ?? 0, isAnswered: hasAnswerOrAudio });
 const agentMessage = ref('Read the word in the sentence. Speak clearly when you record.');
 const agentState = ref('listening');
 const isCurrentUploading = computed(() => Boolean(uploading[step.currentItem.value?.id]));
 const currentHasUploadedAudio = computed(() => Boolean(uploadedAudioIds[step.currentItem.value?.id]));
+const currentHasAcceptedTranscript = computed(() => hasAcceptedTranscript(step.currentItem.value, answerFor(step.currentItem.value)));
 const firstFormError = computed(() => Object.values(form.errors ?? {})[0] ?? '');
 
 const rememberAudio = (item, file) => {
@@ -118,8 +120,11 @@ const uploadAudio = async (item, file) => {
         if (transcript) {
             generatedTranscripts[item.id] = transcript;
             transcriptSources[item.id] = result.transcript_source ?? 'stt_auto';
-            step.feedback.value = '';
-            agentMessage.value = `You said: ${transcript}`;
+            const transcriptIsUsable = hasUsableTranscript(item, transcript);
+            step.feedback.value = transcriptIsUsable ? '' : 'We need the full highlighted word before continuing.';
+            agentMessage.value = transcriptIsUsable
+                ? `You said: ${transcript}`
+                : 'We only heard part of the word. Please try recording the highlighted word again.';
             agentState.value = 'speaking';
             return;
         }
@@ -225,7 +230,7 @@ const handlePrimary = () => {
                         :require-review-before-submit="requireReviewBeforeSubmit"
                         :auto-transcribe-on-stop="autoTranscribeOnStop"
                         :submitting="isCurrentUploading"
-                        :submitted="Boolean(uploadedAudioIds[step.currentItem.value.id]) && !uploadErrors[step.currentItem.value.id]"
+                        :submitted="currentHasAcceptedTranscript && !uploadErrors[step.currentItem.value.id]"
                         label="Word voice"
                         @recorded="(file) => rememberAudio(step.currentItem.value, file)"
                         @submit="(file) => uploadAudio(step.currentItem.value, file)"

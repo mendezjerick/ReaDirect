@@ -215,6 +215,8 @@ class AudioUploadController extends Controller
         }
 
         $snapshot = $item->prompt_snapshot ?? [];
+        $promptText = (string) ($snapshot['prompt'] ?? '');
+        $promptLabel = trim((string) ($snapshot['title'] ?? '')) ?: 'Reading passage';
         $response = AssessmentTaskResponse::updateOrCreate(
             ['assessment_attempt_id' => $assessmentAttempt->id, 'assessment_attempt_item_id' => $item->id],
             [
@@ -224,8 +226,8 @@ class AudioUploadController extends Controller
                 'task_key' => $assessmentAttempt->attempt_type === 'final_reassessment' ? 'final_reading_passage' : 'reading_passage',
                 'task_type' => AssessmentItemSelectionService::READING_PASSAGE,
                 'item_number' => $item->sequence,
-                'prompt' => $snapshot['prompt'] ?? null,
-                'expected_answer' => $snapshot['prompt'] ?? null,
+                'prompt' => $this->fitAssessmentResponseString($promptLabel),
+                'expected_answer' => $this->fitAssessmentResponseString($promptText),
                 'learner_transcript' => trim((string) ($resolved['transcript'] ?? '')),
                 'transcript_source' => $resolved['source'] ?? 'stt_auto',
                 'stt_confidence' => $resolved['confidence'] ?? null,
@@ -408,5 +410,16 @@ class AudioUploadController extends Controller
         }
 
         return config('stt.whisper_cpp.model_path');
+    }
+
+    private function fitAssessmentResponseString(?string $value, int $limit = 255): ?string
+    {
+        $normalized = trim((string) $value);
+
+        if ($normalized === '') {
+            return null;
+        }
+
+        return mb_substr($normalized, 0, $limit);
     }
 }

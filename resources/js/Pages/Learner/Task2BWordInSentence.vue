@@ -51,14 +51,22 @@ const hasUsableTranscript = (item, answer) => {
 
     return normalizedAnswer.length >= Math.max(2, Math.floor(expectedPrompt.length * 0.6));
 };
-const hasAnswerOrAudio = (item, answer) => Boolean(uploadedAudioIds[item?.id]) && hasUsableTranscript(item, answer);
+const hasAcceptedTranscript = (item, answer) => Boolean(uploadedAudioIds[item?.id]) && hasUsableTranscript(item, answer);
+const hasAnswerOrAudio = (item, answer) => hasAcceptedTranscript(item, answer);
 const step = useStepAssessment(props.items, { emptyMessage: 'Almost there! Finish this item to continue.', initialIndex: props.initialIndex ?? 0, isAnswered: hasAnswerOrAudio });
 const agentMessage = ref('Read the word in the sentence. Speak clearly when you record.');
 const agentState = ref('listening');
 const neutralMessages = ['Thank you. Let us continue.', 'Good effort. Let us go to the next one.', 'I heard your answer. Let us keep going.'];
 const isCurrentUploading = computed(() => Boolean(uploading[step.currentItem.value?.id]));
 const currentHasUploadedAudio = computed(() => Boolean(uploadedAudioIds[step.currentItem.value?.id]));
+const currentHasAcceptedTranscript = computed(() => hasAcceptedTranscript(step.currentItem.value, answerFor(step.currentItem.value)));
 const firstFormError = computed(() => Object.values(form.errors ?? {})[0] ?? '');
+const currentUploadError = computed(() => uploadErrors[step.currentItem.value?.id] ?? '');
+const visibleFormError = computed(() => {
+    const formError = String(firstFormError.value ?? '').trim();
+    const feedback = String(step.feedback.value ?? '').trim();
+    return formError && formError !== feedback ? formError : '';
+});
 
 const rememberAudio = (item, file) => {
     audioFiles[item.id] = file;
@@ -122,8 +130,11 @@ const uploadAudio = async (item, file) => {
         if (transcript) {
             generatedTranscripts[item.id] = transcript;
             transcriptSources[item.id] = result.transcript_source ?? 'stt_auto';
-            step.feedback.value = '';
-            agentMessage.value = `You said: ${transcript}`;
+            const transcriptIsUsable = hasUsableTranscript(item, transcript);
+            step.feedback.value = transcriptIsUsable ? '' : 'We need the full highlighted word before continuing.';
+            agentMessage.value = transcriptIsUsable
+                ? `You said: ${transcript}`
+                : 'We only heard part of the word. Please try recording the highlighted word again.';
             agentState.value = 'speaking';
             return;
         }
@@ -239,7 +250,7 @@ const handlePrimary = () => {
                         :require-review-before-submit="requireReviewBeforeSubmit"
                         :auto-transcribe-on-stop="autoTranscribeOnStop"
                         :submitting="isCurrentUploading"
-                        :submitted="Boolean(uploadedAudioIds[step.currentItem.value.id]) && !uploadErrors[step.currentItem.value.id]"
+                        :submitted="currentHasAcceptedTranscript && !uploadErrors[step.currentItem.value.id]"
                         label="Sentence voice"
                         @recorded="(file) => rememberAudio(step.currentItem.value, file)"
                         @submit="(file) => uploadAudio(step.currentItem.value, file)"
@@ -266,10 +277,10 @@ const handlePrimary = () => {
                         </label>
                     </div>
                 </div>
-                <p v-if="uploadErrors[step.currentItem.value.id]" class="mt-4 rounded-2xl bg-warning/15 px-4 py-3 text-sm font-black text-warning">
-                    {{ uploadErrors[step.currentItem.value.id] }}
+                <p v-if="currentUploadError" class="mt-4 rounded-2xl bg-warning/15 px-4 py-3 text-sm font-black text-warning">
+                    {{ currentUploadError }}
                 </p>
-                <p v-if="firstFormError" class="mt-4 rounded-2xl bg-warning/15 px-4 py-3 text-sm font-black text-warning">{{ firstFormError }}</p>
+                <p v-if="visibleFormError" class="mt-4 rounded-2xl bg-warning/15 px-4 py-3 text-sm font-black text-warning">{{ visibleFormError }}</p>
                 <p v-if="step.feedback.value" class="mt-4 rounded-2xl bg-accent px-4 py-3 text-lg font-black text-text">{{ step.feedback.value }}</p>
             </div>
         </section>

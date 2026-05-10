@@ -259,7 +259,7 @@ watch(
 </script>
 
 <template>
-    <section class="agent-speaker-panel grid gap-3 rounded-[24px] border border-border bg-surface shadow-xl shadow-primary/10 transition md:items-center" :class="[compact ? 'p-2.5 md:grid-cols-[86px_1fr] lg:grid-cols-1 lg:p-[clamp(0.8rem,1vw,1.25rem)]' : 'p-3 md:grid-cols-[132px_1fr] lg:grid-cols-1 lg:p-[clamp(0.9rem,1.1vw,1.4rem)]', isSpeaking ? 'ring-2 ring-primary/25' : '']">
+    <section class="agent-speaker-panel grid gap-3 rounded-[24px] border border-border bg-surface shadow-xl shadow-primary/10 transition md:items-center" :class="[compact ? 'p-2.5 md:grid-cols-[86px_1fr] lg:grid-cols-1 lg:gap-2 lg:p-3' : 'p-3 md:grid-cols-[132px_1fr] lg:grid-cols-1 lg:p-[clamp(0.9rem,1.1vw,1.4rem)]', isSpeaking ? 'ring-2 ring-primary/25' : '']">
         <AgentSpeakerTTS
             v-if="ttsEnabled && !voiceLoading"
             :key="ttsKey"
@@ -275,7 +275,7 @@ watch(
             @error="handleTtsError"
         />
         <div class="grid justify-items-center">
-            <div class="grid place-items-end overflow-hidden rounded-[20px] bg-white transition" :class="[compact ? 'h-24 w-20 md:h-24 md:w-20 lg:h-[clamp(11rem,22vh,18rem)] lg:w-[clamp(9.5rem,15vw,15rem)]' : 'h-36 w-32 md:h-40 md:w-36 lg:h-[clamp(13rem,26vh,22rem)] lg:w-[clamp(11rem,18vw,18rem)]', isSpeaking ? 'shadow-lg shadow-primary/25' : '']">
+            <div class="grid place-items-end overflow-hidden rounded-[20px] bg-white transition" :class="[compact ? 'h-24 w-20 md:h-24 md:w-20 lg:h-[clamp(8.5rem,17vh,12rem)] lg:w-[clamp(8rem,13vw,11rem)]' : 'h-36 w-32 md:h-40 md:w-36 lg:h-[clamp(13rem,26vh,22rem)] lg:w-[clamp(11rem,18vw,18rem)]', isSpeaking ? 'shadow-lg shadow-primary/25' : '']">
                 <video
                     v-if="isVideoAsset"
                     :key="imageSrc"
@@ -301,7 +301,7 @@ watch(
                 </div>
             </div>
         </div>
-        <div class="relative rounded-[22px] border-2 border-primary-light bg-background shadow-sm" :class="compact ? 'p-3 lg:p-4' : 'p-4'">
+        <div class="relative rounded-[22px] border-2 border-primary-light bg-background shadow-sm" :class="compact ? 'p-3 lg:p-3.5' : 'p-4'">
             <span class="absolute left-1/2 top-0 size-4 -translate-x-1/2 -translate-y-1/2 rotate-45 border-l-2 border-t-2 border-primary-light bg-background md:left-0 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 lg:left-1/2 lg:top-0 lg:-translate-x-1/2 lg:-translate-y-1/2" aria-hidden="true" />
             <div class="flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -332,7 +332,7 @@ watch(
                     </button>
                 </div>
             </div>
-            <p class="font-black leading-snug text-text" :class="compact ? 'mt-2 text-sm md:text-base lg:text-[17px]' : 'mt-3 text-lg'">
+            <p class="font-black leading-snug text-text" :class="compact ? 'mt-2 text-sm md:text-base lg:text-[15px]' : 'mt-3 text-lg'">
                 {{ displayMessage }}
             </p>
             <p v-if="ttsError" class="mt-2 text-xs font-bold text-muted">

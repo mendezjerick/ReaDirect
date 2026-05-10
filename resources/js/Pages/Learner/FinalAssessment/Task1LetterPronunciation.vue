@@ -47,6 +47,12 @@ const agentMessage = ref('Say this letter clearly for your final check.');
 const agentState = ref('listening');
 const isCurrentUploading = computed(() => Boolean(uploading[step.currentItem.value?.id]));
 const firstFormError = computed(() => Object.values(form.errors ?? {})[0] ?? '');
+const currentUploadError = computed(() => uploadErrors[step.currentItem.value?.id] ?? '');
+const visibleFormError = computed(() => {
+    const formError = String(firstFormError.value ?? '').trim();
+    const feedback = String(step.feedback.value ?? '').trim();
+    return formError && formError !== feedback ? formError : '';
+});
 
 const rememberAudio = (item, file) => {
     audioFiles[item.id] = file;
@@ -204,8 +210,8 @@ const handlePrimary = () => {
                         </label>
                     </div>
                 </div>
-                <p v-if="uploadErrors[step.currentItem.value.id]" class="mt-4 rounded-2xl bg-warning/15 px-4 py-3 text-sm font-black text-warning">{{ uploadErrors[step.currentItem.value.id] }}</p>
-                <p v-if="firstFormError" class="mt-4 rounded-2xl bg-warning/15 px-4 py-3 text-sm font-black text-warning">{{ firstFormError }}</p>
+                <p v-if="currentUploadError" class="mt-4 rounded-2xl bg-warning/15 px-4 py-3 text-sm font-black text-warning">{{ currentUploadError }}</p>
+                <p v-if="visibleFormError" class="mt-4 rounded-2xl bg-warning/15 px-4 py-3 text-sm font-black text-warning">{{ visibleFormError }}</p>
                 <p v-if="step.feedback.value" class="mt-4 rounded-2xl bg-accent px-4 py-3 text-lg font-black text-text">{{ step.feedback.value }}</p>
             </div>
         </section>
