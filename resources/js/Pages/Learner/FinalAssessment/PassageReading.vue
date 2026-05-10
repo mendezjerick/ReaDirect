@@ -14,9 +14,16 @@ const props = defineProps({
     assessmentMode: Object,
 });
 
-const form = useForm({ incorrect_words: 0, audio: null, audio_file_id: null, duration_seconds: null });
+const savedPassageResponse = props.passage?.saved_response ?? {};
+const form = useForm({
+    assessment_attempt_id: props.assessmentAttemptId,
+    incorrect_words: 0,
+    audio: null,
+    audio_file_id: savedPassageResponse.audio_file_id ?? null,
+    duration_seconds: null,
+});
 const audioFile = ref(null);
-const transcript = ref('');
+const transcript = ref(String(savedPassageResponse.displayed_transcript ?? savedPassageResponse.answer ?? '').trim());
 const uploadError = ref('');
 const uploading = ref(false);
 const canUseManualFallback = computed(() => props.assessmentMode?.canUseManualFallback === true);

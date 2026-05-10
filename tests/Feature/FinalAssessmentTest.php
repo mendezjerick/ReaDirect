@@ -63,6 +63,47 @@ class FinalAssessmentTest extends TestCase
         $this->assertSame(10, AssessmentTaskResponse::where('assessment_attempt_id', $final->id)->count());
     }
 
+    public function test_final_task_one_page_resumes_first_unanswered_item_from_database(): void
+    {
+        [$learner] = $this->learnerWithBaselineDiagnostic();
+        $this->withSession(['learner_id' => $learner->id])->post(route('final-assessment.start.store'));
+        $final = AssessmentAttempt::where('attempt_type', 'final_reassessment')->firstOrFail();
+        $answeredItems = $final->selectedItems()
+            ->where('task_type', AssessmentItemSelectionService::TASK_1_LETTER)
+            ->orderBy('sequence')
+            ->take(2)
+            ->get();
+
+        foreach ($answeredItems as $item) {
+            $item->update(['answered_at' => now()]);
+            AssessmentTaskResponse::create([
+                'assessment_attempt_id' => $final->id,
+                'learner_id' => $final->learner_id,
+                'learning_content_id' => $item->learning_content_id,
+                'assessment_attempt_item_id' => $item->id,
+                'task_key' => $item->task_type,
+                'task_type' => $item->task_type,
+                'item_number' => $item->sequence,
+                'prompt' => $item->prompt_snapshot['prompt'] ?? null,
+                'expected_answer' => 'A',
+                'learner_transcript' => 'A',
+                'transcript_source' => 'stt_auto',
+                'response_text' => 'A',
+                'rule_applied' => 'DIAGNOSTIC_ITEM_PROGRESS_SAVE_V1',
+            ]);
+        }
+
+        $this->withSession(['learner_id' => $learner->id])
+            ->get(route('final-assessment.task', 'task-1'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Learner/FinalAssessment/Task1LetterPronunciation')
+                ->where('initialIndex', 2)
+                ->where('items.0.saved_response.answer', 'A')
+                ->where('items.1.saved_response.answer', 'A')
+            );
+    }
+
     public function test_final_task_two_b_accepts_highlighted_word_responses(): void
     {
         [$learner] = $this->learnerWithBaselineDiagnostic();

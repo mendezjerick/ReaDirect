@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { CheckCircle2, Mic, RotateCcw, Send, Square } from 'lucide-vue-next';
-import { stopAllAgentAudioBeforeRecording } from '../../utils/stopAgentAudio';
+import { stopAllAgentAudio, stopAllAgentAudioBeforeRecording } from '../../utils/stopAgentAudio';
 
 const props = defineProps({
     disabled: { type: Boolean, default: false },
@@ -286,6 +286,10 @@ const submitRecording = () => {
     emit('submit', currentFile.value);
 };
 
+const stopAgentAudioForPlayback = () => {
+    stopAllAgentAudio();
+};
+
 const handleSpacebar = (event) => {
     if (!props.spacebarEnabled || props.disabled || props.submitting || props.submitted || event.code !== 'Space' || event.repeat || isEditableTarget(event.target)) {
         return;
@@ -409,7 +413,7 @@ onBeforeUnmount(() => {
                 </div>
                 <CheckCircle2 v-if="submitted" class="size-8 text-success" />
             </div>
-            <audio class="mt-3 w-full" controls :src="audioUrl" :disabled="submitting" />
+            <audio class="mt-3 w-full" controls :src="audioUrl" :disabled="submitting" @play="stopAgentAudioForPlayback" />
             <button
                 v-if="!submitted"
                 type="button"
@@ -421,7 +425,7 @@ onBeforeUnmount(() => {
                 {{ submitting ? 'Checking your answer...' : submitLabel }}
             </button>
         </div>
-        <audio v-else-if="audioUrl" class="mt-3 w-full" controls :src="audioUrl" />
+        <audio v-else-if="audioUrl" class="mt-3 w-full" controls :src="audioUrl" @play="stopAgentAudioForPlayback" />
         <p v-if="required && !audioUrl" class="mt-2 text-xs font-bold text-muted">Please record your answer before continuing.</p>
     </div>
 </template>

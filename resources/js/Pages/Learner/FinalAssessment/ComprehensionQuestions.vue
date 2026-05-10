@@ -12,15 +12,38 @@ import { useStepAssessment } from '../../../Composables/useStepAssessment';
 
 const props = defineProps({
     questions: Array,
+    assessmentAttemptId: Number,
     assessmentMode: Object,
 });
 const canUseDeveloperJumpControls = computed(() => props.assessmentMode?.canUseDeveloperJumpControls === true);
-const step = useStepAssessment(props.questions, { emptyMessage: 'Choose one answer before moving on.' });
-const form = useForm({ responses: [] });
+const savedAnswers = Object.fromEntries((props.questions ?? []).filter((question) => question.saved_answer).map((question) => [question.id, question.saved_answer]));
+const firstUnansweredIndex = (props.questions ?? []).findIndex((question) => !savedAnswers[question.id]);
+const step = useStepAssessment(props.questions, {
+    emptyMessage: 'Choose one answer before moving on.',
+    initialIndex: firstUnansweredIndex === -1 ? Math.max((props.questions ?? []).length - 1, 0) : firstUnansweredIndex,
+});
+const form = useForm({ assessment_attempt_id: props.assessmentAttemptId, responses: [] });
+Object.entries(savedAnswers).forEach(([id, answer]) => {
+    step.answers[id] = answer;
+});
 
 const choose = (choice) => {
     step.answers[step.currentItem.value.id] = choice;
     step.feedback.value = '';
+    fetch('/learner/assessment-progress/comprehension', {
+        method: 'POST',
+        headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '',
+        },
+        body: JSON.stringify({
+            assessment_attempt_id: props.assessmentAttemptId,
+            question_id: step.currentItem.value.id,
+            answer: choice,
+        }),
+    }).catch(() => {});
 };
 const submit = () => {
     if (!step.validateCurrent()) return;

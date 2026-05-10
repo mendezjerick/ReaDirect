@@ -132,6 +132,7 @@ class DiagnosticAssessmentController extends Controller
 
         return Inertia::render('Learner/Task1LetterPronunciation', [
             'items' => $this->itemsForForm($items),
+            'initialIndex' => $this->initialIndexForItems($items),
             'assessmentAttemptId' => $attempt->id,
             'assessmentMode' => $mode->props($request, $attempt, $attempt->learner),
         ]);
@@ -210,6 +211,7 @@ class DiagnosticAssessmentController extends Controller
 
         return Inertia::render('Learner/Task2ARhymingWords', [
             'items' => $this->itemsForForm($items),
+            'initialIndex' => $this->initialIndexForItems($items),
             'assessmentAttemptId' => $attempt->id,
             'assessmentMode' => $mode->props($request, $attempt, $attempt->learner),
         ]);
@@ -250,6 +252,7 @@ class DiagnosticAssessmentController extends Controller
 
         return Inertia::render('Learner/Task2BWordInSentence', [
             'items' => $this->itemsForForm($items),
+            'initialIndex' => $this->initialIndexForItems($items),
             'assessmentAttemptId' => $attempt->id,
             'assessmentMode' => $mode->props($request, $attempt, $attempt->learner),
         ]);
@@ -415,6 +418,7 @@ class DiagnosticAssessmentController extends Controller
 
         return Inertia::render('Learner/ComprehensionQuestions', [
             'questions' => $this->questionsForPassage($passage),
+            'assessmentAttemptId' => $attempt->id,
             'assessmentMode' => $mode->props($request, $attempt, $attempt->learner),
         ]);
     }
@@ -585,7 +589,8 @@ class DiagnosticAssessmentController extends Controller
                 ->with('info', 'You already completed your reading journey.');
         }
 
-        $attempt = $flow->resolveDiagnosticAttempt($request, $allowCompleted);
+        $attempt = $this->attemptFromRequest($request, $learner, $allowCompleted)
+            ?? $flow->resolveDiagnosticAttempt($request, $allowCompleted);
 
         if (! $attempt && $allowCompleted) {
             $attempt = $flow->latestDiagnosticAttempt($learner);
@@ -609,6 +614,33 @@ class DiagnosticAssessmentController extends Controller
             return redirect($flow->diagnosticResumeRoute($attempt))
                 ->with('info', 'We brought you back to the next step.');
         }
+
+        return $attempt;
+    }
+
+    private function attemptFromRequest(Request $request, Learner $learner, bool $allowCompleted = false): ?AssessmentAttempt
+    {
+        $attemptId = $request->input('assessment_attempt_id');
+
+        if (! $attemptId) {
+            return null;
+        }
+
+        $attempt = AssessmentAttempt::with('selectedItems')
+            ->where('id', $attemptId)
+            ->where('learner_id', $learner->id)
+            ->where('attempt_type', 'diagnostic')
+            ->first();
+
+        if (! $attempt) {
+            return null;
+        }
+
+        if (! $allowCompleted && app(LearnerFlowService::class)->isDiagnosticComplete($attempt)) {
+            return null;
+        }
+
+        $request->session()->put('assessment_attempt_id', $attempt->id);
 
         return $attempt;
     }
@@ -858,6 +890,13 @@ class DiagnosticAssessmentController extends Controller
             return null;
         }
 
+        $savedResponse = AssessmentTaskResponse::query()
+            ->where('assessment_attempt_id', $item->assessment_attempt_id)
+            ->where('assessment_attempt_item_id', $item->id)
+            ->latest('updated_at')
+            ->latest('id')
+            ->first();
+
         return [
             'id' => $item->id,
             'sequence' => $item->sequence,
@@ -866,7 +905,26 @@ class DiagnosticAssessmentController extends Controller
             'title' => $item->prompt_snapshot['title'] ?? '',
             'payload' => $this->payloadForForm($item),
             'accepted_answers' => $item->prompt_snapshot['accepted_answers'] ?? [],
+            'answered_at' => $item->answered_at?->toISOString(),
+            'saved_response' => $savedResponse ? [
+                'answer' => $savedResponse->learner_transcript ?: $savedResponse->response_text,
+                'displayed_transcript' => $savedResponse->response_text,
+                'audio_file_id' => $savedResponse->audio_file_id,
+                'transcript_source' => $savedResponse->transcript_source,
+            ] : null,
         ];
+    }
+
+    private function initialIndexForItems(Collection $items): int
+    {
+        $values = $items->values();
+        $firstUnanswered = $values->search(fn (AssessmentAttemptItem $item) => $item->answered_at === null);
+
+        if ($firstUnanswered === false) {
+            return max(0, $values->count() - 1);
+        }
+
+        return (int) $firstUnanswered;
     }
 
     private function expectedAnswer(AssessmentAttemptItem $item): ?string
@@ -1082,6 +1140,13 @@ class DiagnosticAssessmentController extends Controller
     private function questionsForPassage(?AssessmentAttemptItem $passage): array
     {
         $passageCsvId = $passage?->source_csv_id;
+        $savedAnswers = AssessmentTaskResponse::query()
+            ->where('assessment_attempt_id', $passage?->assessment_attempt_id)
+            ->where('task_type', 'comprehension_question')
+            ->get()
+            ->mapWithKeys(fn (AssessmentTaskResponse $response) => [
+                (string) ($response->metadata['source_csv_id'] ?? '') => $response->selected_answer ?: $response->response_text,
+            ]);
 
         return LearningContent::where('content_type', 'comprehension_question')
             ->where('is_active', true)
@@ -1098,6 +1163,7 @@ class DiagnosticAssessmentController extends Controller
                 'correct_answer' => $content->payload['correct_answer'] ?? '',
                 'accepted_answers' => $content->accepted_answers ?? [],
                 'choices' => $content->payload['choices'] ?? [],
+                'saved_answer' => $savedAnswers->get((string) ($content->payload['source_csv_id'] ?? $content->id)),
             ])
             ->all();
     }

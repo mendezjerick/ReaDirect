@@ -17,6 +17,7 @@ use App\Http\Controllers\Admin\DeveloperReinforcementModeController;
 use App\Http\Controllers\AgentVoiceController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\FinalAssessmentController;
+use App\Http\Controllers\Learner\AssessmentProgressController;
 use App\Http\Controllers\Learner\AudioUploadController;
 use App\Http\Controllers\Learner\DiagnosticAssessmentController;
 use App\Http\Controllers\Learner\LearnerAccessController;
@@ -50,7 +51,7 @@ Route::get('/agent-voice/{cacheKey}', [AgentVoiceController::class, 'show'])
     ->where('cacheKey', '[a-f0-9]{64}')
     ->name('agent-voice.show');
 Route::post('/agent-voice/synthesize', [AgentVoiceController::class, 'synthesize'])
-    ->middleware('throttle:assessment-submit')
+    ->middleware('throttle:agent-voice')
     ->name('agent-voice.synthesize');
 
 Route::get('/learner/access', [LearnerAccessController::class, 'create'])->name('learner.access');
@@ -58,7 +59,10 @@ Route::post('/learner/access', [LearnerAccessController::class, 'store'])->middl
 Route::get('/learner/dashboard', LearnerDashboardController::class)->name('learner.dashboard');
 Route::get('/learner/completion', [LearnerCompletionController::class, 'show'])->name('learner.completion');
 Route::post('/learner/completion/thank-you', [LearnerCompletionController::class, 'thankYou'])->middleware('throttle:assessment-submit')->name('learner.completion.thank-you');
-Route::post('/learner/audio/upload', [AudioUploadController::class, 'store'])->middleware('throttle:assessment-submit')->name('learner.audio.upload');
+Route::post('/learner/audio/upload', [AudioUploadController::class, 'store'])->middleware('throttle:audio-upload')->name('learner.audio.upload');
+Route::post('/learner/assessment-progress/comprehension', [AssessmentProgressController::class, 'storeComprehensionChoice'])
+    ->middleware('throttle:assessment-progress')
+    ->name('learner.assessment-progress.comprehension');
 
 Route::prefix('learner/diagnostic')->name('learner.diagnostic.')->group(function (): void {
     Route::get('/', fn () => redirect()->route('learner.diagnostic.start'))->name('intro');

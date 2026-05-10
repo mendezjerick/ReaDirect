@@ -44,6 +44,66 @@ class DiagnosticAssessmentValidationTest extends TestCase
         $this->assertSame(10, $attempt->refresh()->task_1_score);
     }
 
+    public function test_task_one_submission_uses_posted_attempt_when_session_points_to_stale_attempt(): void
+    {
+        $attempt = $this->attemptWithLockedItems(AssessmentItemSelectionService::TASK_1_LETTER, 'letter');
+        $staleAttempt = AssessmentAttempt::create([
+            'learner_id' => $attempt->learner_id,
+            'attempt_type' => 'diagnostic',
+            'status' => 'task_1',
+            'started_at' => now(),
+        ]);
+
+        $this->withSession($this->learnerSession($staleAttempt, ['admin_testing_mode' => true]))
+            ->post(route('learner.diagnostic.task-1.store'), [
+                'assessment_attempt_id' => $attempt->id,
+                'responses' => $this->responsesFor($attempt, AssessmentItemSelectionService::TASK_1_LETTER, 'A'),
+            ])
+            ->assertRedirect(route('learner.diagnostic.task-routing'));
+
+        $this->assertSame(10, $attempt->refresh()->task_1_score);
+        $this->assertNull($staleAttempt->refresh()->task_1_score);
+    }
+
+    public function test_task_one_page_resumes_first_unanswered_item_from_database(): void
+    {
+        $attempt = $this->attemptWithLockedItems(AssessmentItemSelectionService::TASK_1_LETTER, 'letter');
+        $answeredItems = $attempt->selectedItems()
+            ->where('task_type', AssessmentItemSelectionService::TASK_1_LETTER)
+            ->orderBy('sequence')
+            ->take(2)
+            ->get();
+
+        foreach ($answeredItems as $item) {
+            $item->update(['answered_at' => now()]);
+            AssessmentTaskResponse::create([
+                'assessment_attempt_id' => $attempt->id,
+                'learner_id' => $attempt->learner_id,
+                'learning_content_id' => $item->learning_content_id,
+                'assessment_attempt_item_id' => $item->id,
+                'task_key' => $item->task_type,
+                'task_type' => $item->task_type,
+                'item_number' => $item->sequence,
+                'prompt' => $item->prompt_snapshot['prompt'] ?? null,
+                'expected_answer' => 'A',
+                'learner_transcript' => 'A',
+                'transcript_source' => 'stt_auto',
+                'response_text' => 'A',
+                'rule_applied' => 'DIAGNOSTIC_ITEM_PROGRESS_SAVE_V1',
+            ]);
+        }
+
+        $this->withSession(['learner_id' => $attempt->learner_id])
+            ->get(route('learner.diagnostic.task-1'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Learner/Task1LetterPronunciation')
+                ->where('initialIndex', 2)
+                ->where('items.0.saved_response.answer', 'A')
+                ->where('items.1.saved_response.answer', 'A')
+            );
+    }
+
     public function test_incorrect_nonblank_answers_can_score_zero(): void
     {
         $attempt = $this->attemptWithLockedItems(AssessmentItemSelectionService::TASK_1_LETTER, 'letter');

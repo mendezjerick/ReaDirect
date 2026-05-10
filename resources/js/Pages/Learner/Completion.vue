@@ -30,41 +30,11 @@ const stopVoices = () => {
         activeAudio.value = null;
     }
 
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-    }
-
     if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('readirect:stop-agent-audio'));
         window.dispatchEvent(new CustomEvent('readirect:stop-agent-speech'));
     }
     activeAgent.value = null;
-};
-
-const speakWithBrowser = (message, agentKey) => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
-        voiceStatus.value = 'Voice is unavailable, but you can read each message here.';
-        activeAgent.value = null;
-        return;
-    }
-
-    const utterance = new SpeechSynthesisUtterance(message);
-    utterance.rate = 0.95;
-    utterance.pitch = 1.05;
-    utterance.volume = 1;
-    utterance.onend = () => {
-        if (activeAgent.value === agentKey) {
-            activeAgent.value = null;
-        }
-    };
-    utterance.onerror = () => {
-        if (activeAgent.value === agentKey) {
-            voiceStatus.value = 'Voice is unavailable, but you can read each message here.';
-            activeAgent.value = null;
-        }
-    };
-
-    window.speechSynthesis.speak(utterance);
 };
 
 const playAgent = async (agent) => {
@@ -101,15 +71,22 @@ const playAgent = async (agent) => {
                 }
                 activeAudio.value = null;
             };
-            audio.onerror = () => speakWithBrowser(message, agentKey);
+            audio.onerror = () => {
+                if (activeAgent.value === agentKey) {
+                    voiceStatus.value = 'Voice is unavailable, but you can read each message here.';
+                    activeAgent.value = null;
+                }
+                activeAudio.value = null;
+            };
             await audio.play();
             return;
         }
     } catch {
-        // Browser speech or visible text is enough for the learner flow.
+        // Visible text is enough for the learner flow.
     }
 
-    speakWithBrowser(message, agentKey);
+    voiceStatus.value = 'Voice is unavailable, but you can read each message here.';
+    activeAgent.value = null;
 };
 
 const submitThankYou = () => {

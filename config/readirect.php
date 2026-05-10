@@ -47,7 +47,6 @@ return [
         'provider' => env('TTS_PROVIDER', 'kokoro'),
         'base_url' => env('TTS_BASE_URL', 'http://127.0.0.1:8002'),
         'timeout_seconds' => (int) env('TTS_TIMEOUT_SECONDS', 10),
-        'fallback_to_browser' => filter_var(env('TTS_FALLBACK_TO_BROWSER', true), FILTER_VALIDATE_BOOLEAN),
         'fallback_to_text' => filter_var(env('TTS_FALLBACK_TO_TEXT', true), FILTER_VALIDATE_BOOLEAN),
         'cache_enabled' => filter_var(env('TTS_CACHE_ENABLED', true), FILTER_VALIDATE_BOOLEAN),
         'debug' => filter_var(env('TTS_DEBUG', false), FILTER_VALIDATE_BOOLEAN),

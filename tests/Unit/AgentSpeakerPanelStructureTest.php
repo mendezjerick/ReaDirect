@@ -44,7 +44,7 @@ class AgentSpeakerPanelStructureTest extends TestCase
         $this->assertStringContainsString('Replay agent message', $component);
     }
 
-    public function test_agent_speaker_tts_component_uses_kokoro_audio_then_browser_fallback(): void
+    public function test_agent_speaker_tts_component_uses_kokoro_audio_or_text_only_fallback(): void
     {
         $root = dirname(__DIR__, 2);
         $componentPath = $root.'/resources/js/Components/Agents/AgentSpeakerTTS.vue';
@@ -55,22 +55,32 @@ class AgentSpeakerPanelStructureTest extends TestCase
 
         $this->assertStringContainsString('new Audio', $component);
         $this->assertStringContainsString('audioUrl', $component);
-        $this->assertStringContainsString('SpeechSynthesisUtterance', $component);
-        $this->assertStringContainsString('speechSynthesis.speak', $component);
-        $this->assertStringContainsString('Browser voice is unavailable right now.', $component);
+        $this->assertStringContainsString('Kokoro voice is unavailable right now.', $component);
         $this->assertStringContainsString('speakingStart', $component);
         $this->assertStringContainsString('speakingEnd', $component);
+        $this->assertStringNotContainsString('SpeechSynthesisUtterance', $component);
+        $this->assertStringNotContainsString('speechSynthesis.speak', $component);
         $this->assertStringNotContainsString('voiceschanged', $component);
         $this->assertStringNotContainsString('Web Speech API not supported.', $component);
     }
 
-    public function test_stop_agent_audio_utility_cleans_up_legacy_browser_and_kokoro_audio(): void
+    public function test_stop_agent_audio_utility_dispatches_kokoro_stop_events(): void
     {
         $utility = file_get_contents(dirname(__DIR__, 2).'/resources/js/utils/stopAgentAudio.js');
 
-        $this->assertStringContainsString('speechSynthesis.cancel', $utility);
+        $this->assertStringContainsString('export function stopAllAgentAudio', $utility);
         $this->assertStringContainsString('readirect:stop-agent-audio', $utility);
         $this->assertStringContainsString('readirect:stop-agent-speech', $utility);
+        $this->assertStringNotContainsString('speechSynthesis', $utility);
+    }
+
+    public function test_learner_audio_playback_stops_agent_voice(): void
+    {
+        $component = file_get_contents(dirname(__DIR__, 2).'/resources/js/Components/Learner/AudioRecorder.vue');
+
+        $this->assertStringContainsString('stopAllAgentAudio', $component);
+        $this->assertStringContainsString('stopAgentAudioForPlayback', $component);
+        $this->assertStringContainsString('@play="stopAgentAudioForPlayback"', $component);
     }
 
     public function test_module_overview_supports_miss_ciel_hover_explanations(): void

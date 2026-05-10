@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Learner;
 use App\Http\Controllers\Controller;
 use App\Models\AssessmentAttempt;
 use App\Models\AssessmentAttemptItem;
+use App\Models\AssessmentTaskResponse;
 use App\Models\Learner;
 use App\Models\ModuleAttempt;
 use App\Models\ModuleAttemptItem;
 use App\Services\AI\AIAnalysisResolver;
+use App\Services\AssessmentItemSelectionService;
 use App\Services\AssessmentModeService;
 use App\Services\AudioStorageService;
 use App\Services\STT\AudioTranscriptionService;
@@ -66,6 +68,24 @@ class AudioUploadController extends Controller
             : $analysis->resolve(null, $audioFile, $context, $sttOptions);
         $transcript = trim((string) ($resolved['transcript'] ?? ''));
         $transcriptionMessage = $this->transcriptionMessage($resolved, $canSeeRawAiPayload);
+        $displayedTranscript = trim((string) ($resolved['displayed_transcript'] ?? $resolved['transcript'] ?? ''));
+
+        $audioFile->update([
+            'transcript' => $transcript !== '' ? $transcript : null,
+            'stt_confidence' => $resolved['confidence'] ?? null,
+            'stt_error' => $transcript === '' ? $transcriptionMessage : null,
+            'stt_completed_at' => now(),
+        ]);
+
+        if ($transcript !== '' && $assessmentAttempt) {
+            if (($validated['context_type'] ?? null) === 'assessment_task') {
+                $this->persistAssessmentProgress($assessmentAttempt, $validated, $audioFile, $resolved, $displayedTranscript);
+            }
+
+            if (($validated['context_type'] ?? null) === 'passage_reading') {
+                $this->persistPassageProgress($assessmentAttempt, $audioFile, $resolved, $displayedTranscript);
+            }
+        }
 
         $payload = [
             'audio_file_id' => $audioFile->id,
@@ -76,7 +96,7 @@ class AudioUploadController extends Controller
             'transcription_message' => $transcriptionMessage,
             'message' => $transcriptionMessage,
             'transcript' => $resolved['transcript'],
-            'displayed_transcript' => $resolved['displayed_transcript'] ?? $resolved['transcript'],
+            'displayed_transcript' => $displayedTranscript,
             'retry_required' => (bool) ($resolved['ai_response']['retry_required'] ?? false),
             'learner_retry_message' => $resolved['ai_response']['learner_retry_message'] ?? null,
             'transcript_source' => $transcript !== '' ? $resolved['source'] : null,
@@ -127,6 +147,97 @@ class AudioUploadController extends Controller
             'ai_error' => $resolved['ai_response']['error'] ?? null,
             'ai_warnings' => $resolved['ai_response']['warnings'] ?? [],
         ]));
+    }
+
+    private function persistAssessmentProgress(
+        AssessmentAttempt $assessmentAttempt,
+        array $validated,
+        $audioFile,
+        array $resolved,
+        string $displayedTranscript
+    ): void {
+        if (! isset($validated['item_id'])) {
+            return;
+        }
+
+        $item = $this->assessmentItem($assessmentAttempt, $validated);
+
+        if (! $item) {
+            return;
+        }
+
+        $snapshot = $item->prompt_snapshot ?? [];
+        $payload = $snapshot['payload'] ?? [];
+        $taskType = $validated['task_type'] ?? $item->task_type;
+        $expectedAnswer = $taskType === 'crla_task_2b_sentence'
+            ? ($payload['target_word'] ?? $payload['expected_answer'] ?? $snapshot['prompt'] ?? null)
+            : ($payload['expected_answer'] ?? $payload['target_word'] ?? $snapshot['prompt'] ?? null);
+
+        $response = AssessmentTaskResponse::updateOrCreate(
+            ['assessment_attempt_id' => $assessmentAttempt->id, 'assessment_attempt_item_id' => $item->id],
+            [
+                'learner_id' => $assessmentAttempt->learner_id,
+                'learning_content_id' => $item->learning_content_id,
+                'audio_file_id' => $audioFile->id,
+                'task_key' => $item->task_type,
+                'task_type' => $item->task_type,
+                'item_number' => $item->sequence,
+                'prompt' => $snapshot['prompt'] ?? null,
+                'expected_answer' => $expectedAnswer,
+                'learner_transcript' => trim((string) ($resolved['transcript'] ?? '')),
+                'transcript_source' => $resolved['source'] ?? 'stt_auto',
+                'stt_confidence' => $resolved['confidence'] ?? null,
+                'response_text' => $displayedTranscript,
+                'rule_applied' => 'DIAGNOSTIC_ITEM_PROGRESS_SAVE_V1',
+                'metadata' => ['source_csv_id' => $item->source_csv_id],
+                'metadata_json' => ['prompt_snapshot' => $snapshot],
+            ]
+        );
+
+        $audioFile->update(['assessment_task_response_id' => $response->id]);
+        $item->update(['answered_at' => now()]);
+    }
+
+    private function persistPassageProgress(
+        AssessmentAttempt $assessmentAttempt,
+        $audioFile,
+        array $resolved,
+        string $displayedTranscript
+    ): void {
+        $item = AssessmentAttemptItem::query()
+            ->where('assessment_attempt_id', $assessmentAttempt->id)
+            ->where('task_type', AssessmentItemSelectionService::READING_PASSAGE)
+            ->orderBy('sequence')
+            ->first();
+
+        if (! $item) {
+            return;
+        }
+
+        $snapshot = $item->prompt_snapshot ?? [];
+        $response = AssessmentTaskResponse::updateOrCreate(
+            ['assessment_attempt_id' => $assessmentAttempt->id, 'assessment_attempt_item_id' => $item->id],
+            [
+                'learner_id' => $assessmentAttempt->learner_id,
+                'learning_content_id' => $item->learning_content_id,
+                'audio_file_id' => $audioFile->id,
+                'task_key' => $assessmentAttempt->attempt_type === 'final_reassessment' ? 'final_reading_passage' : 'reading_passage',
+                'task_type' => AssessmentItemSelectionService::READING_PASSAGE,
+                'item_number' => $item->sequence,
+                'prompt' => $snapshot['prompt'] ?? null,
+                'expected_answer' => $snapshot['prompt'] ?? null,
+                'learner_transcript' => trim((string) ($resolved['transcript'] ?? '')),
+                'transcript_source' => $resolved['source'] ?? 'stt_auto',
+                'stt_confidence' => $resolved['confidence'] ?? null,
+                'response_text' => $displayedTranscript,
+                'rule_applied' => 'ASSESSMENT_PASSAGE_PROGRESS_SAVE_V1',
+                'metadata' => ['source_csv_id' => $item->source_csv_id],
+                'metadata_json' => ['prompt_snapshot' => $snapshot],
+            ]
+        );
+
+        $audioFile->update(['assessment_task_response_id' => $response->id]);
+        $item->update(['answered_at' => now()]);
     }
 
     private function sttOptions(?AssessmentAttempt $assessmentAttempt, array $validated): array

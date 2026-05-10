@@ -103,6 +103,27 @@ class ReadirectAIIntegrationTest extends TestCase
         });
     }
 
+    public function test_ai_analysis_resolver_uses_manual_transcript_without_remote_ai_call(): void
+    {
+        config([
+            'readirect_ai.enabled' => true,
+            'readirect_ai.base_url' => 'http://ai.test',
+            'readirect_ai.endpoints.analyze_text' => '/analyze-text',
+        ]);
+        Http::fake();
+
+        $resolved = app(AIAnalysisResolver::class)->resolve(' O ', null, [
+            'expected_text' => 'O',
+            'accepted_answers' => ['O'],
+        ]);
+
+        $this->assertSame('O', $resolved['transcript']);
+        $this->assertSame('O', $resolved['displayed_transcript']);
+        $this->assertSame('manual', $resolved['source']);
+        $this->assertNull($resolved['ai_response']);
+        Http::assertNothingSent();
+    }
+
     public function test_ai_analysis_resolver_prefers_corrected_transcript_for_scoring_and_preserves_raw(): void
     {
         Storage::fake('local');

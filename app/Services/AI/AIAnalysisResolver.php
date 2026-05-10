@@ -24,6 +24,10 @@ class AIAnalysisResolver
         $manual = $this->sanitizer->sanitize($manualTranscript);
         $aiResponse = null;
 
+        if ($manual !== '' && (bool) config('readirect_ai.fallback.use_manual_transcript_if_available', true)) {
+            return $this->resolved($manual, 'manual', null, null);
+        }
+
         if ($this->shouldUseAi()) {
             $aiResponse = $this->callAi($manual, $audioFile, $context);
 
@@ -48,10 +52,6 @@ class AIAnalysisResolver
                     aiResponse: $aiResponse,
                 );
             }
-        }
-
-        if ($manual !== '' && (bool) config('readirect_ai.fallback.use_manual_transcript_if_available', true)) {
-            return $this->resolved($manual, 'manual', null, $aiResponse);
         }
 
         if ($audioFile && (bool) config('readirect_ai.fallback.use_existing_stt_if_ai_offline', true)) {

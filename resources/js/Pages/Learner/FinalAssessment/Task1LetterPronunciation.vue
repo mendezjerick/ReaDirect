@@ -14,15 +14,21 @@ import { useStepAssessment } from '../../../Composables/useStepAssessment';
 
 const props = defineProps({
     items: Array,
+    initialIndex: Number,
     assessmentAttemptId: Number,
     assessmentMode: Object,
 });
-const form = useForm({ responses: [] });
+const form = useForm({ assessment_attempt_id: props.assessmentAttemptId, responses: [] });
 const audioFiles = reactive({});
 const audioDurations = reactive({});
-const uploadedAudioIds = reactive({});
-const transcriptSources = reactive({});
-const generatedTranscripts = reactive({});
+const savedEntries = (key) => Object.fromEntries((props.items ?? [])
+    .filter((item) => item?.saved_response?.[key] != null && item.saved_response[key] !== '')
+    .map((item) => [item.id, item.saved_response[key]]));
+const uploadedAudioIds = reactive(savedEntries('audio_file_id'));
+const transcriptSources = reactive(savedEntries('transcript_source'));
+const generatedTranscripts = reactive(Object.fromEntries((props.items ?? [])
+    .filter((item) => item?.saved_response?.answer || item?.saved_response?.displayed_transcript)
+    .map((item) => [item.id, item.saved_response.displayed_transcript ?? item.saved_response.answer])));
 const uploadErrors = reactive({});
 const uploading = reactive({});
 const canUseManualFallback = computed(() => props.assessmentMode?.canUseManualFallback === true);
@@ -36,10 +42,11 @@ const sourceFor = (item) => manualAnswerFor(item)
     ? 'manual'
     : (transcriptSources[item?.id] ?? (generatedTranscripts[item?.id] ? 'stt_auto' : 'stt_auto'));
 const hasAnswerOrAudio = (item) => answerFor(item).length > 0;
-const step = useStepAssessment(props.items, { emptyMessage: 'Try this one before moving on.', isAnswered: hasAnswerOrAudio });
+const step = useStepAssessment(props.items, { emptyMessage: 'Try this one before moving on.', initialIndex: props.initialIndex ?? 0, isAnswered: hasAnswerOrAudio });
 const agentMessage = ref('Say this letter clearly for your final check.');
 const agentState = ref('listening');
 const isCurrentUploading = computed(() => Boolean(uploading[step.currentItem.value?.id]));
+const firstFormError = computed(() => Object.values(form.errors ?? {})[0] ?? '');
 
 const rememberAudio = (item, file) => {
     audioFiles[item.id] = file;
@@ -114,7 +121,11 @@ const uploadAudio = async (item, file) => {
 };
 
 const submit = () => {
-    if (!step.validateCurrent()) return;
+    if (!step.validateComplete()) {
+        agentMessage.value = 'Almost there. Finish each letter before checking your answer.';
+        agentState.value = 'speaking';
+        return;
+    }
 
     form.responses = step.payload((item, answer) => ({
         assessment_attempt_item_id: item.id,
@@ -124,7 +135,15 @@ const submit = () => {
         audio: uploadedAudioIds[item.id] ? null : (audioFiles[item.id] ?? null),
         duration_seconds: audioDurations[item.id] ?? null,
     }));
-    form.post('/final-assessment/task-1/submit', { forceFormData: true });
+    form.post('/final-assessment/task-1/submit', {
+        forceFormData: true,
+        onError: (errors) => {
+            const firstError = Object.values(errors ?? {})[0] ?? 'We could not check these letters yet. Please review them and try again.';
+            step.feedback.value = Array.isArray(firstError) ? firstError[0] : firstError;
+            agentMessage.value = step.feedback.value;
+            agentState.value = 'speaking';
+        },
+    });
 };
 
 const handlePrimary = () => {
@@ -186,6 +205,7 @@ const handlePrimary = () => {
                     </div>
                 </div>
                 <p v-if="uploadErrors[step.currentItem.value.id]" class="mt-4 rounded-2xl bg-warning/15 px-4 py-3 text-sm font-black text-warning">{{ uploadErrors[step.currentItem.value.id] }}</p>
+                <p v-if="firstFormError" class="mt-4 rounded-2xl bg-warning/15 px-4 py-3 text-sm font-black text-warning">{{ firstFormError }}</p>
                 <p v-if="step.feedback.value" class="mt-4 rounded-2xl bg-accent px-4 py-3 text-lg font-black text-text">{{ step.feedback.value }}</p>
             </div>
         </section>

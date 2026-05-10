@@ -38,5 +38,17 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('assessment-submit', fn (Request $request) => [
             Limit::perMinute(20)->by($request->ip()),
         ]);
+
+        RateLimiter::for('audio-upload', fn (Request $request) => [
+            Limit::perMinute(30)->by($request->ip()),
+        ]);
+
+        RateLimiter::for('agent-voice', fn (Request $request) => [
+            Limit::perMinute(60)->by($request->ip()),
+        ]);
+
+        RateLimiter::for('assessment-progress', fn (Request $request) => [
+            Limit::perMinute(60)->by($request->ip()),
+        ]);
     }
 }
