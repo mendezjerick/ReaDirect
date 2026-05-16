@@ -8,6 +8,7 @@ use App\Models\Module;
 use App\Models\ModuleActivity;
 use App\Models\ModuleAttempt;
 use App\Models\ModuleAttemptItem;
+use App\Support\IsolatedLetterSet;
 use Illuminate\Support\Collection;
 
 class ModuleActivitySelectionService
@@ -55,6 +56,7 @@ class ModuleActivitySelectionService
             })
             ->get()
             ->filter(fn (ModuleActivity $activity) => ! (bool) ($activity->configuration['is_mastery_item'] ?? false))
+            ->filter(fn (ModuleActivity $activity) => $this->allowedForNewSelection($activity))
             ->shuffle()
             ->take($count)
             ->values();
@@ -83,6 +85,7 @@ class ModuleActivitySelectionService
             })
             ->get()
             ->filter(fn (ModuleActivity $activity) => (bool) ($activity->configuration['is_mastery_item'] ?? false))
+            ->filter(fn (ModuleActivity $activity) => $this->allowedForNewSelection($activity))
             ->shuffle()
             ->take($count)
             ->values();
@@ -186,5 +189,24 @@ class ModuleActivitySelectionService
         if ($activities->count() < $count) {
             throw new \RuntimeException("Not enough active module activities for {$activityType}.");
         }
+    }
+
+    private function allowedForNewSelection(ModuleActivity $activity): bool
+    {
+        $content = $activity->learningContent;
+        $payload = $content?->payload ?? $activity->configuration ?? [];
+        $acceptedAnswers = $content?->accepted_answers ?? [];
+        $letter = IsolatedLetterSet::expectedLetter($payload, $content?->prompt ?? $activity->title, $acceptedAnswers);
+
+        if ($letter === null) {
+            return true;
+        }
+
+        $promptIsSingleLetter = IsolatedLetterSet::normalize($content?->prompt ?? $activity->title) === $letter;
+        if (! $promptIsSingleLetter && ! IsolatedLetterSet::isIsolatedLetterActivity($activity->activity_type, $payload, $content?->content_type)) {
+            return true;
+        }
+
+        return IsolatedLetterSet::isAllowed($letter);
     }
 }

@@ -68,6 +68,7 @@ class AsrResponseNormalizerTest extends TestCase
         ]);
 
         $this->assertNull($missing['dynamic_correction_applied']);
+        $this->assertNull($missing['dynamic_suspicious_fragment']);
         $this->assertSame([], $missing['word_alignment']);
 
         $result = $this->normalizer->normalize([
@@ -86,6 +87,20 @@ class AsrResponseNormalizerTest extends TestCase
             'dynamic_homophone_match' => false,
             'dynamic_context_score' => 1.0,
             'dynamic_correction_reason' => 'raw transcript is close to expected word',
+            'dynamic_suspicious_fragment' => true,
+            'dynamic_fragment_reasons' => ['raw_looks_like_consonant_skeleton'],
+            'dynamic_phoneme_coverage' => 0.86,
+            'asr_spelling_variant_enabled' => true,
+            'asr_spelling_variant_applied' => true,
+            'asr_spelling_variant_strategy' => 'dynamic_asr_spelling_variant',
+            'asr_spelling_variant_sub_strategy' => 'vowel_tolerant_consonant_skeleton_match',
+            'asr_spelling_variant_confidence' => 0.88,
+            'asr_spelling_variant_threshold' => 0.78,
+            'consonant_skeleton_similarity' => 1.0,
+            'vowel_tolerant_similarity' => 0.91,
+            'expected_phoneme_coverage' => 0.86,
+            'variant_edit_similarity' => 0.75,
+            'variant_reason' => 'raw transcript appears to be a noisy ASR spelling of the expected word',
             'word_alignment' => [
                 [
                     'expected_word' => 'shield',
@@ -99,6 +114,13 @@ class AsrResponseNormalizerTest extends TestCase
         $this->assertTrue($result['dynamic_correction_applied']);
         $this->assertSame('spelling_context_expected_match', $result['dynamic_correction_sub_strategy']);
         $this->assertSame(0.91, $result['dynamic_correction_confidence']);
+        $this->assertTrue($result['dynamic_suspicious_fragment']);
+        $this->assertSame(['raw_looks_like_consonant_skeleton'], $result['dynamic_fragment_reasons']);
+        $this->assertSame(0.86, $result['dynamic_phoneme_coverage']);
+        $this->assertTrue($result['asr_spelling_variant_applied']);
+        $this->assertSame('vowel_tolerant_consonant_skeleton_match', $result['asr_spelling_variant_sub_strategy']);
+        $this->assertSame(1.0, $result['consonant_skeleton_similarity']);
+        $this->assertSame(0.91, $result['vowel_tolerant_similarity']);
         $this->assertSame('shield', $result['word_alignment'][0]['expected_word']);
     }
 

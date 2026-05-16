@@ -50,6 +50,26 @@ class ModuleLearningFlowTest extends TestCase
         $this->assertTrue($first->first()->is_mastery_item);
     }
 
+    public function test_new_module_letter_only_items_exclude_unreliable_isolated_letters(): void
+    {
+        [$learner, $module] = $this->moduleContext();
+        $this->seedModuleLetterActivities($module, 'listen_and_say', false);
+        $this->seedModuleLetterActivities($module, 'mastery_check', true);
+        $service = app(ModuleActivitySelectionService::class);
+        $attempt = $service->startOrResumeModuleAttempt($learner, $module);
+
+        $practice = $service->selectPracticeItemsForAttempt($attempt, 'listen_and_say', 10);
+        $mastery = $service->selectMasteryItemsForAttempt($attempt, 10);
+        $selected = $practice->merge($mastery)
+            ->map(fn ($item) => $item->prompt_snapshot['payload']['expected_answer'] ?? null)
+            ->filter()
+            ->all();
+
+        $this->assertCount(10, $practice);
+        $this->assertCount(10, $mastery);
+        $this->assertEmpty(array_intersect(['B', 'P', 'D', 'T'], $selected));
+    }
+
     public function test_module_scoring_accepts_correct_answers_and_scores_attempted_misses_zero(): void
     {
         [$learner, $module] = $this->moduleContext();
@@ -320,6 +340,38 @@ class ModuleLearningFlowTest extends TestCase
                 'module_id' => $module->id,
                 'learning_content_id' => $content->id,
                 'sequence' => $index,
+                'activity_type' => $activityType,
+                'title' => $content->prompt,
+                'configuration' => $content->payload,
+            ]);
+        }
+    }
+
+    private function seedModuleLetterActivities(Module $module, string $activityType, bool $isMastery): void
+    {
+        foreach (range('A', 'Z') as $index => $letter) {
+            $content = LearningContent::create([
+                'content_type' => 'module_activity',
+                'title' => $activityType.' '.$letter,
+                'prompt' => $letter,
+                'payload' => [
+                    'source_csv_id' => 'LETTER-'.$activityType.'-'.$letter,
+                    'module_key' => $module->key,
+                    'activity_type' => $activityType,
+                    'sequence' => $index + 1,
+                    'expected_answer' => $letter,
+                    'points' => 1,
+                    'is_mastery_item' => $isMastery,
+                ],
+                'accepted_answers' => [$letter],
+                'difficulty' => 'easy',
+                'is_active' => true,
+            ]);
+
+            ModuleActivity::create([
+                'module_id' => $module->id,
+                'learning_content_id' => $content->id,
+                'sequence' => $index + 1,
                 'activity_type' => $activityType,
                 'title' => $content->prompt,
                 'configuration' => $content->payload,

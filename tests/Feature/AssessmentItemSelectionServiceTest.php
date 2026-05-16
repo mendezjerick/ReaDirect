@@ -3,10 +3,12 @@
 namespace Tests\Feature;
 
 use App\Models\AssessmentAttempt;
+use App\Models\AssessmentAttemptItem;
 use App\Models\Learner;
 use App\Models\LearningContent;
 use App\Models\School;
 use App\Services\AssessmentItemSelectionService;
+use App\Support\IsolatedLetterSet;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -63,6 +65,55 @@ class AssessmentItemSelectionServiceTest extends TestCase
 
         $this->assertCount(10, $items);
         $this->assertSame(AssessmentItemSelectionService::TASK_2A_RHYME, $items->first()->task_type);
+    }
+
+    public function test_new_task_one_selection_excludes_unreliable_isolated_letters(): void
+    {
+        $attempt = $this->assessmentAttempt();
+        $letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
+
+        foreach ($letters as $letter) {
+            LearningContent::create([
+                'content_type' => 'letter',
+                'title' => 'Letter '.$letter,
+                'prompt' => $letter,
+                'payload' => ['source_csv_id' => 'T1-'.$letter, 'expected_answer' => $letter],
+                'accepted_answers' => [$letter],
+                'difficulty' => 'easy',
+                'is_active' => true,
+            ]);
+        }
+
+        $items = app(AssessmentItemSelectionService::class)->selectTask1LettersForAttempt($attempt);
+        $selected = $items->map(fn ($item) => $item->prompt_snapshot['payload']['expected_answer'] ?? $item->prompt_snapshot['prompt'])->all();
+
+        $this->assertCount(10, $items);
+        $this->assertEmpty(array_intersect(['B', 'P', 'D', 'T'], $selected));
+        foreach (['C', 'L', 'Q', 'X', 'Z'] as $letter) {
+            $this->assertContains($letter, IsolatedLetterSet::allowed());
+        }
+    }
+
+    public function test_existing_task_one_selection_with_excluded_letters_is_reused_safely(): void
+    {
+        $attempt = $this->assessmentAttempt();
+
+        AssessmentAttemptItem::create([
+            'assessment_attempt_id' => $attempt->id,
+            'task_type' => AssessmentItemSelectionService::TASK_1_LETTER,
+            'sequence' => 1,
+            'prompt_snapshot' => [
+                'prompt' => 'B',
+                'payload' => ['expected_answer' => 'B'],
+                'accepted_answers' => ['B'],
+            ],
+            'selected_at' => now(),
+        ]);
+
+        $items = app(AssessmentItemSelectionService::class)->selectTask1LettersForAttempt($attempt);
+
+        $this->assertCount(1, $items);
+        $this->assertSame('B', $items->first()->prompt_snapshot['payload']['expected_answer']);
     }
 
     public function test_it_locks_task_two_b_word_sentence_items(): void

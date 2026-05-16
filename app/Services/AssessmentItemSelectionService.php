@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\AssessmentAttempt;
 use App\Models\AssessmentAttemptItem;
 use App\Models\LearningContent;
+use App\Support\IsolatedLetterSet;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -18,7 +19,13 @@ class AssessmentItemSelectionService
 
     public function selectTask1LettersForAttempt(AssessmentAttempt $assessmentAttempt): Collection
     {
-        return $this->selectAndLock($assessmentAttempt, self::TASK_1_LETTER, ['letter', 'crla_task_1_letter'], 10);
+        return $this->selectAndLock(
+            $assessmentAttempt,
+            self::TASK_1_LETTER,
+            ['letter', 'crla_task_1_letter'],
+            10,
+            fn (LearningContent $content): bool => IsolatedLetterSet::isAllowed(IsolatedLetterSet::expectedLetterFromContent($content))
+        );
     }
 
     public function selectTask2ARhymingPromptsForAttempt(AssessmentAttempt $assessmentAttempt): Collection
@@ -54,21 +61,23 @@ class AssessmentItemSelectionService
         AssessmentAttempt $assessmentAttempt,
         string $taskType,
         array $contentTypes,
-        int $requiredCount
+        int $requiredCount,
+        ?callable $filter = null
     ): Collection {
-        return DB::transaction(function () use ($assessmentAttempt, $taskType, $contentTypes, $requiredCount): Collection {
+        return DB::transaction(function () use ($assessmentAttempt, $taskType, $contentTypes, $requiredCount, $filter): Collection {
             $existing = $this->getLockedItemsForAttempt($assessmentAttempt, $taskType);
 
             if ($existing->isNotEmpty()) {
                 return $existing;
             }
 
-            $items = LearningContent::query()
+            $query = LearningContent::query()
                 ->whereIn('content_type', $contentTypes)
-                ->where('is_active', true)
-                ->inRandomOrder()
-                ->limit($requiredCount)
-                ->get();
+                ->where('is_active', true);
+
+            $items = $filter === null
+                ? $query->inRandomOrder()->limit($requiredCount)->get()
+                : $query->get()->filter($filter)->shuffle()->take($requiredCount)->values();
 
             if ($items->count() < $requiredCount) {
                 throw new RuntimeException("Not enough active {$taskType} items are available.");

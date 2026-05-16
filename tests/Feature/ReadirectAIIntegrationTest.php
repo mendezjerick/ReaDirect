@@ -449,6 +449,84 @@ class ReadirectAIIntegrationTest extends TestCase
         $this->assertFalse(app(AIAnalysisResolver::class)->acceptedForShortPrompt($resolved['ai_response']));
     }
 
+    public function test_wrong_but_valid_letter_transcript_can_complete_as_incorrect_attempt(): void
+    {
+        Storage::fake('local');
+        config([
+            'readirect_ai.enabled' => true,
+            'readirect_ai.base_url' => 'http://ai.test',
+            'readirect_ai.endpoints.analyze_audio' => '/analyze-audio',
+        ]);
+        Http::fake([
+            'http://ai.test/analyze-audio' => Http::response([
+                'ok' => true,
+                'expected_text' => 'C',
+                'raw_transcript' => 'Z',
+                'corrected_transcript' => 'Z',
+                'displayed_transcript' => 'Z',
+                'accepted' => false,
+                'retry_required' => false,
+                'uncertain' => false,
+                'prompt_type' => 'letter',
+            ]),
+        ]);
+
+        $resolved = app(AIAnalysisResolver::class)->resolve(null, $this->audioFile(), [
+            'expected_text' => 'C',
+            'accepted_answers' => ['C'],
+            'prompt_type' => 'letter',
+        ]);
+
+        $analysis = app(AIAnalysisResolver::class);
+        $this->assertSame('Z', $resolved['transcript']);
+        $this->assertSame('Z', $resolved['displayed_transcript']);
+        $this->assertTrue($analysis->canComplete($resolved, ['expected_text' => 'C', 'prompt_type' => 'letter']));
+        $this->assertFalse($analysis->acceptedForShortPrompt($resolved['ai_response']));
+    }
+
+    public function test_wrong_word_for_letter_can_complete_but_retry_required_cannot(): void
+    {
+        Storage::fake('local');
+        config([
+            'readirect_ai.enabled' => true,
+            'readirect_ai.base_url' => 'http://ai.test',
+            'readirect_ai.endpoints.analyze_audio' => '/analyze-audio',
+        ]);
+        Http::fakeSequence()
+            ->push([
+                'ok' => true,
+                'expected_text' => 'C',
+                'raw_transcript' => 'banana',
+                'corrected_transcript' => 'banana',
+                'displayed_transcript' => 'banana',
+                'accepted' => false,
+                'retry_required' => false,
+                'uncertain' => false,
+                'prompt_type' => 'letter',
+            ])
+            ->push([
+                'ok' => true,
+                'expected_text' => 'C',
+                'raw_transcript' => '',
+                'corrected_transcript' => '',
+                'displayed_transcript' => '',
+                'accepted' => false,
+                'retry_required' => true,
+                'uncertain' => true,
+                'prompt_type' => 'letter',
+            ]);
+
+        $analysis = app(AIAnalysisResolver::class);
+        $context = ['expected_text' => 'C', 'accepted_answers' => ['C'], 'prompt_type' => 'letter'];
+        $wrong = $analysis->resolve(null, $this->audioFile(), $context);
+        $retry = $analysis->resolve(null, $this->audioFile(), $context);
+
+        $this->assertSame('banana', $wrong['transcript']);
+        $this->assertTrue($analysis->canComplete($wrong, $context));
+        $this->assertFalse($analysis->acceptedForShortPrompt($wrong['ai_response']));
+        $this->assertFalse($analysis->canComplete($retry, $context));
+    }
+
     public function test_laravel_display_falls_back_to_corrected_transcript_when_displayed_missing(): void
     {
         Storage::fake('local');
@@ -835,7 +913,7 @@ class ReadirectAIIntegrationTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertJsonPath('transcription_status', 'failed')
+            ->assertJsonPath('transcription_status', 'retry_required')
             ->assertJsonPath('retry_required', true)
             ->assertJsonPath('uncertain', true)
             ->assertJsonPath('uncertainty_reasons.0', 'audio_too_short')

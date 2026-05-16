@@ -63,8 +63,8 @@ const speechThresholdSeconds = computed(() => {
 
     return {
         letter: 0.25,
-        word: 0.35,
-        rhyme: 0.35,
+        word: 0.45,
+        rhyme: 0.45,
         sentence: 0.75,
         paragraph: 1.5,
         passage: 1.5,
@@ -282,8 +282,8 @@ const analyzeSpeech = (audioBuffer) => {
     const speechDuration = speechFrames.reduce((sum, [start, end]) => sum + ((end - start) / sampleRate), 0);
     const leadingSilence = firstSpeech === null ? totalDuration : firstSpeech / sampleRate;
     const trailingSilence = lastSpeech === null ? totalDuration : Math.max(0, totalDuration - (lastSpeech / sampleRate));
-    const trimStart = firstSpeech === null ? 0 : Math.max(0, leadingSilence - 0.08);
-    const trimEnd = lastSpeech === null ? totalDuration : Math.min(totalDuration, (lastSpeech / sampleRate) + 0.12);
+    const trimStart = firstSpeech === null ? 0 : Math.max(0, leadingSilence - 0.15);
+    const trimEnd = lastSpeech === null ? totalDuration : Math.min(totalDuration, (lastSpeech / sampleRate) + 0.25);
 
     return {
         total_duration_seconds: Number(totalDuration.toFixed(3)),
