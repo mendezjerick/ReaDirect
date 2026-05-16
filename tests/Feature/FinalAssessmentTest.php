@@ -4,13 +4,17 @@ namespace Tests\Feature;
 
 use App\Models\AssessmentAttempt;
 use App\Models\AssessmentTaskResponse;
+use App\Models\AudioFile;
 use App\Models\Learner;
+use App\Models\LearningContent;
 use App\Models\Module;
 use App\Models\School;
 use App\Services\Assessment\FinalAssessmentComparisonService;
 use App\Services\AssessmentItemSelectionService;
 use App\Support\LearnerStage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -146,6 +150,81 @@ class FinalAssessmentTest extends TestCase
             ->assertRedirect(route('final-assessment.task', 'passage'));
 
         $this->assertGreaterThanOrEqual(8, (int) $final->refresh()->task_2b_score);
+    }
+
+    public function test_final_sandbox_passage_can_continue_with_saved_audio_and_manual_incorrect_word_override_when_asr_retries(): void
+    {
+        Storage::fake('local');
+        config([
+            'readirect_ai.enabled' => true,
+            'readirect_ai.base_url' => 'http://ai.test',
+            'readirect_ai.endpoints.analyze_audio' => '/analyze-audio',
+        ]);
+        Http::fake([
+            'http://ai.test/analyze-audio' => Http::response([
+                'ok' => true,
+                'raw_transcript' => '',
+                'corrected_transcript' => '',
+                'displayed_transcript' => '',
+                'retry_required' => true,
+                'uncertain' => true,
+                'learner_retry_message' => 'Please record again.',
+                'audio_quality' => ['quality_flags' => ['too_short' => true]],
+            ]),
+        ]);
+
+        [$learner] = $this->learnerWithBaselineDiagnostic();
+        $final = AssessmentAttempt::create([
+            'learner_id' => $learner->id,
+            'attempt_type' => 'final_reassessment',
+            'status' => 'crla_completed',
+            'task_1_score' => 10,
+            'task_2a_score' => 10,
+            'task_2b_score' => 10,
+            'crla_total_score' => 30,
+            'is_sandbox' => true,
+            'started_at' => now(),
+        ]);
+        $this->addReadingPassage($final);
+        $audioFile = $this->audioFile($final);
+
+        $this->withSession(['learner_id' => $learner->id, 'final_assessment_attempt_id' => $final->id, 'admin_testing_mode' => true])
+            ->post(route('final-assessment.task.submit', 'passage'), [
+                'incorrect_words' => 3,
+                'audio_file_id' => $audioFile->id,
+            ])
+            ->assertRedirect(route('final-assessment.task', 'comprehension'));
+
+        $final->refresh();
+        $this->assertSame(3, (int) $final->incorrect_words);
+        $this->assertSame(94.0, (float) $final->reading_accuracy);
+    }
+
+    public function test_final_sandbox_passage_manual_incorrect_word_override_does_not_require_audio(): void
+    {
+        [$learner] = $this->learnerWithBaselineDiagnostic();
+        $final = AssessmentAttempt::create([
+            'learner_id' => $learner->id,
+            'attempt_type' => 'final_reassessment',
+            'status' => 'crla_completed',
+            'task_1_score' => 10,
+            'task_2a_score' => 10,
+            'task_2b_score' => 10,
+            'crla_total_score' => 30,
+            'is_sandbox' => true,
+            'started_at' => now(),
+        ]);
+        $this->addReadingPassage($final);
+
+        $this->withSession(['learner_id' => $learner->id, 'final_assessment_attempt_id' => $final->id, 'admin_testing_mode' => true])
+            ->post(route('final-assessment.task.submit', 'passage'), [
+                'incorrect_words' => 3,
+            ])
+            ->assertRedirect(route('final-assessment.task', 'comprehension'));
+
+        $final->refresh();
+        $this->assertSame(3, (int) $final->incorrect_words);
+        $this->assertSame(94.0, (float) $final->reading_accuracy);
     }
 
     public function test_final_comparison_service_calculates_deltas_and_percent_change(): void
@@ -308,6 +387,52 @@ class FinalAssessmentTest extends TestCase
         }
 
         return [$learner, $baseline];
+    }
+
+    private function addReadingPassage(AssessmentAttempt $attempt): void
+    {
+        $content = LearningContent::create([
+            'content_type' => 'reading_passage',
+            'title' => 'Final Passage',
+            'prompt' => 'Leo can read. Leo can run. Leo can hop.',
+            'payload' => ['source_csv_id' => 'FINAL-PASS-1'],
+            'accepted_answers' => [],
+            'difficulty' => 'easy',
+            'is_active' => true,
+        ]);
+
+        $attempt->selectedItems()->create([
+            'learning_content_id' => $content->id,
+            'source_csv_id' => 'FINAL-PASS-1',
+            'task_type' => AssessmentItemSelectionService::READING_PASSAGE,
+            'sequence' => 1,
+            'prompt_snapshot' => [
+                'prompt' => $content->prompt,
+                'payload' => $content->payload,
+                'accepted_answers' => [],
+            ],
+            'selected_at' => now(),
+        ]);
+    }
+
+    private function audioFile(AssessmentAttempt $attempt): AudioFile
+    {
+        $path = 'audio/learners/'.$attempt->learner->public_id.'/final-passage.webm';
+        Storage::disk('local')->put($path, 'fake-audio');
+
+        return AudioFile::create([
+            'learner_id' => $attempt->learner_id,
+            'assessment_attempt_id' => $attempt->id,
+            'disk' => 'local',
+            'path' => $path,
+            'file_path' => $path,
+            'mime_type' => 'audio/webm',
+            'size_bytes' => 10,
+            'file_size' => 10,
+            'file_hash' => hash('sha256', 'fake-audio'),
+            'recording_context' => 'final_passage_reading',
+            'sync_status' => 'synced',
+        ]);
     }
 
     private function learnerWithCompletedFinal(array $learnerOverrides = []): array

@@ -77,21 +77,20 @@ class AssessmentModeService
     public function props(Request $request, AssessmentAttempt|ModuleAttempt|null $attempt = null, ?Learner $learner = null): array
     {
         $isDeveloperQaMode = $this->isDeveloperQaMode($request, $attempt, $learner);
-        $autoTranscribeOnStop = $this->canAutoTranscribeOnStop($request, $attempt, $learner);
 
         return [
             'isDeveloperQaMode' => $isDeveloperQaMode,
             'canUseManualFallback' => $this->canUseManualFallback($request, $attempt, $learner),
             'canShowAssessmentDebug' => $this->canShowAssessmentDebug($request, $attempt, $learner),
-            'canUseDeveloperJumpControls' => $this->canUseJumpControls($request, $attempt, $learner),
-            'canBypassLinearFlow' => $this->canBypassLinearFlow($request, $attempt, $learner),
-            'canAutoTranscribeOnStop' => $autoTranscribeOnStop,
+            'canUseDeveloperJumpControls' => false,
+            'canBypassLinearFlow' => false,
+            'canAutoTranscribeOnStop' => false,
             'canForceLearnerStage' => $this->canForceLearnerStage($request, $attempt, $learner),
             'canResetLearnerFlow' => $this->canResetLearnerFlow($request, $attempt, $learner),
             'canSeeRawAiPayload' => $this->canSeeRawAiPayload($request, $attempt, $learner),
             'assessmentMode' => $isDeveloperQaMode ? 'developer_qa' : 'learner',
-            'requireReviewBeforeSubmit' => ! $autoTranscribeOnStop,
-            'autoTranscribeOnStop' => $autoTranscribeOnStop,
+            'requireReviewBeforeSubmit' => true,
+            'autoTranscribeOnStop' => false,
         ];
     }
 

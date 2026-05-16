@@ -157,6 +157,8 @@ const correctionRows = computed(() => [
     ['Correction Layer', reported(props.status?.correction_layer_enabled)],
     ['Expected-centric Scoring', reported(props.status?.expected_centric_scoring_enabled)],
     ['Phoneme Evidence', reported(props.status?.phoneme_evidence_enabled)],
+    ['GOP Pronunciation Evidence', reported(props.status?.gop_enabled)],
+    ['GOP Thresholds', reported(props.status?.gop_thresholds ?? props.status?.thresholds?.gop)],
     ['Reinforcement Correction Memory', reported(props.status?.reinforcement_corrections_enabled)],
     ['Audio Quality Validation', reported(props.status?.audio_quality_validation_enabled)],
     ['Pause Detection', reported(props.status?.pause_detection_enabled)],
@@ -176,6 +178,25 @@ const reinforcementWorking = computed(() => (
     && reinforcementLetters.value > 0
     && reinforcementWarnings.value.length === 0
 ));
+
+const gopEnabled = computed(() => props.status?.gop_enabled === true || props.status?.thresholds?.gop?.enabled === true);
+const gopThresholds = computed(() => props.status?.gop_thresholds ?? props.status?.thresholds?.gop ?? {});
+const gopWorking = computed(() => (
+    gopEnabled.value
+    && props.status?.wav2vec2_phoneme_available === true
+));
+
+const gopSummary = computed(() => {
+    if (!gopEnabled.value) {
+        return 'GOP pronunciation evidence is disabled or not reported by the ASR service.';
+    }
+
+    if (gopWorking.value) {
+        return 'GOP pronunciation evidence is enabled and the Wav2Vec2 phoneme model is available.';
+    }
+
+    return 'GOP is enabled, but the phoneme model is not reported as available.';
+});
 
 const reinforcementSummary = computed(() => {
     if (!reinforcementEnabled.value) {
@@ -312,6 +333,29 @@ const reinforcementSummary = computed(() => {
                         </div>
                     </dl>
                 </div>
+            </div>
+
+            <div class="mt-4 rounded-lg border border-emerald-200 bg-white/60 p-3">
+                <div class="flex items-center gap-2">
+                    <ShieldCheck :size="15" class="text-emerald-700" />
+                    <p class="font-extrabold">GOP Pronunciation Evidence</p>
+                </div>
+                <div class="mt-2 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                    <p class="max-w-3xl font-semibold leading-relaxed">{{ gopSummary }}</p>
+                    <span
+                        class="inline-flex w-fit items-center rounded-md px-2 py-1 text-[11px] font-extrabold"
+                        :class="gopWorking ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'"
+                    >
+                        {{ gopWorking ? 'Working' : 'Needs attention' }}
+                    </span>
+                </div>
+                <p class="mt-2 text-[11px] font-semibold opacity-80">
+                    Thresholds:
+                    letter {{ reported(gopThresholds.letter_threshold) }},
+                    word {{ reported(gopThresholds.word_threshold) }},
+                    rhyme {{ reported(gopThresholds.rhyme_threshold) }},
+                    sentence word {{ reported(gopThresholds.sentence_word_threshold) }}.
+                </p>
             </div>
 
             <div class="mt-4 rounded-lg border border-emerald-200 bg-white/60 p-3">

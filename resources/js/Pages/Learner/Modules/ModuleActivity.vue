@@ -24,7 +24,6 @@ const props = defineProps({
 });
 
 const form = useForm({ responses: [] });
-const retries = reactive({});
 const audioFiles = reactive({});
 const audioDurations = reactive({});
 const uploadedAudioIds = reactive({});
@@ -57,51 +56,12 @@ const coachState = ref('speaking');
 const returningToDashboard = ref(false);
 const isCurrentUploading = computed(() => Boolean(uploading[step.currentItem.value?.id]));
 
-const normalize = (value) => String(value ?? '').toLowerCase().trim().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ');
-const isAccepted = (item, answer) => item.accepted_answers.map(normalize).includes(normalize(answer));
-const distance = (a, b) => {
-    const left = normalize(a);
-    const right = normalize(b);
-    const matrix = Array.from({ length: left.length + 1 }, (_, i) => [i]);
-    for (let j = 1; j <= right.length; j += 1) matrix[0][j] = j;
-    for (let i = 1; i <= left.length; i += 1) {
-        for (let j = 1; j <= right.length; j += 1) {
-            matrix[i][j] = Math.min(
-                matrix[i - 1][j] + 1,
-                matrix[i][j - 1] + 1,
-                matrix[i - 1][j - 1] + (left[i - 1] === right[j - 1] ? 0 : 1)
-            );
-        }
-    }
-    return matrix[left.length][right.length];
-};
-const similarityLabel = (expected, answer) => {
-    const actual = normalize(answer);
-    const target = normalize(expected);
-    if (!actual) return 'blank';
-    if (actual === target) return 'exact';
-    const maxLength = Math.max(target.length, actual.length, 1);
-    const percent = (1 - distance(target, actual) / maxLength) * 100;
-    if (distance(target, actual) === 1 || percent >= 80) return 'very_close';
-    if (percent >= 60) return 'close';
-    if (percent >= 35) return 'somewhat_close';
-    return 'far';
-};
-const feedbackFor = (item, answer) => {
-    const expected = item.payload?.expected_answer ?? item.payload?.target_word ?? item.accepted_answers[0] ?? '';
-    const label = similarityLabel(expected, answer);
-    if (label === 'very_close') return 'Good try! That was very close. Let us fix one small sound.';
-    if (label === 'close' || label === 'somewhat_close') return 'Great effort! You are getting close. Let us try it slowly.';
-    return 'Good effort! Let us listen again and try one more time.';
-};
-
 const progressLabel = computed(() => `Activity ${step.currentIndex.value + 1} of ${props.items.length}`);
 
 watch(
     () => props.items.map((item) => item.id).join('|'),
     () => {
         step.reset(props.items);
-        Object.keys(retries).forEach((key) => delete retries[key]);
         Object.keys(audioFiles).forEach((key) => delete audioFiles[key]);
         Object.keys(audioDurations).forEach((key) => delete audioDurations[key]);
         Object.keys(uploadedAudioIds).forEach((key) => delete uploadedAudioIds[key]);
@@ -209,23 +169,7 @@ const tryCurrent = () => {
         return false;
     }
 
-    if (!canUseManualFallback.value) {
-        step.feedback.value = 'Answer saved.';
-        return true;
-    }
-
-    if (!isAccepted(item, answer)) {
-        retries[item.id] = (retries[item.id] ?? 0) + 1;
-        const message = feedbackFor(item, answer);
-        step.feedback.value = message;
-        coachMessage.value = message;
-        coachState.value = message.includes('close') ? 'encouraging' : 'thinking';
-        return false;
-    }
-
-    step.feedback.value = 'Nice reading!';
-    coachMessage.value = 'Nice reading! Keep going.';
-    coachState.value = 'happy';
+    step.feedback.value = 'Answer saved.';
     return true;
 };
 
@@ -235,7 +179,7 @@ const submit = () => {
     form.responses = step.payload((item, answer) => ({
         module_attempt_item_id: item.id,
         answer: answerFor(item, answer),
-        retry_count: retries[item.id] ?? 0,
+        retry_count: 0,
         transcript_source: sourceFor(item, answer),
         audio_file_id: uploadedAudioIds[item.id] ?? null,
         audio: uploadedAudioIds[item.id] ? null : (audioFiles[item.id] ?? null),

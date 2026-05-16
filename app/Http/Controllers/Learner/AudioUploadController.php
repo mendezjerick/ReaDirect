@@ -285,14 +285,18 @@ class AudioUploadController extends Controller
 
     private function analysisContext(?AssessmentAttempt $assessmentAttempt, ?ModuleAttempt $moduleAttempt, array $validated, bool $canShowDebug = false): array
     {
-        $item = $this->assessmentItem($assessmentAttempt, $validated) ?? $this->moduleItem($moduleAttempt, $validated);
+        $item = $this->assessmentItem($assessmentAttempt, $validated)
+            ?? $this->passageItem($assessmentAttempt, $validated)
+            ?? $this->moduleItem($moduleAttempt, $validated);
         $snapshot = $item?->prompt_snapshot ?? [];
         $payload = $snapshot['payload'] ?? [];
         $taskType = $validated['task_type'] ?? $item?->task_type ?? null;
 
-        $expectedText = $taskType === 'crla_task_2b_sentence'
+        $expectedText = ($validated['context_type'] ?? null) === 'passage_reading'
+            ? ($snapshot['prompt'] ?? $payload['expected_answer'] ?? null)
+            : ($taskType === 'crla_task_2b_sentence'
             ? ($payload['target_word'] ?? $payload['expected_answer'] ?? $snapshot['prompt'] ?? null)
-            : ($payload['expected_answer'] ?? $payload['target_word'] ?? $snapshot['prompt'] ?? null);
+            : ($payload['expected_answer'] ?? $payload['target_word'] ?? $snapshot['prompt'] ?? null));
 
         return [
             'expected_text' => $expectedText,
@@ -325,6 +329,19 @@ class AudioUploadController extends Controller
         return AssessmentAttemptItem::query()
             ->where('assessment_attempt_id', $assessmentAttempt->id)
             ->find($validated['item_id']);
+    }
+
+    private function passageItem(?AssessmentAttempt $assessmentAttempt, array $validated): ?AssessmentAttemptItem
+    {
+        if (! $assessmentAttempt || ($validated['context_type'] ?? null) !== 'passage_reading') {
+            return null;
+        }
+
+        return AssessmentAttemptItem::query()
+            ->where('assessment_attempt_id', $assessmentAttempt->id)
+            ->where('task_type', AssessmentItemSelectionService::READING_PASSAGE)
+            ->orderBy('sequence')
+            ->first();
     }
 
     private function moduleItem(?ModuleAttempt $moduleAttempt, array $validated): ?ModuleAttemptItem

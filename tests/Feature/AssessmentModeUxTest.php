@@ -66,11 +66,11 @@ class AssessmentModeUxTest extends TestCase
                 ->component('Learner/Task1LetterPronunciation')
                 ->where('assessmentMode.isDeveloperQaMode', true)
                 ->where('assessmentMode.canUseManualFallback', true)
-                ->where('assessmentMode.canUseDeveloperJumpControls', true)
-                ->where('assessmentMode.canAutoTranscribeOnStop', true)
+                ->where('assessmentMode.canUseDeveloperJumpControls', false)
+                ->where('assessmentMode.canAutoTranscribeOnStop', false)
                 ->where('assessmentMode.canSeeRawAiPayload', true)
                 ->where('assessmentMode.canBypassLinearFlow', false)
-                ->where('assessmentMode.requireReviewBeforeSubmit', false)
+                ->where('assessmentMode.requireReviewBeforeSubmit', true)
             );
     }
 
@@ -117,10 +117,10 @@ class AssessmentModeUxTest extends TestCase
                 ->component('Learner/Task1LetterPronunciation')
                 ->where('assessmentMode.isDeveloperQaMode', true)
                 ->where('assessmentMode.canUseManualFallback', true)
-                ->where('assessmentMode.canUseDeveloperJumpControls', true)
-                ->where('assessmentMode.canAutoTranscribeOnStop', true)
+                ->where('assessmentMode.canUseDeveloperJumpControls', false)
+                ->where('assessmentMode.canAutoTranscribeOnStop', false)
                 ->where('assessmentMode.canSeeRawAiPayload', true)
-                ->where('assessmentMode.requireReviewBeforeSubmit', false)
+                ->where('assessmentMode.requireReviewBeforeSubmit', true)
             );
     }
 

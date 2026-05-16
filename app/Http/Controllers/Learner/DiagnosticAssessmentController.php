@@ -395,7 +395,7 @@ class DiagnosticAssessmentController extends Controller
             if ($transcriptText === '') {
                 $resolved = $analysis->resolve(null, $audioFile, $analysisContext, $this->sttOptionsForPassage($passage));
 
-                if (! $analysis->canComplete($resolved, $analysisContext)) {
+                if (! $analysis->canComplete($resolved, $analysisContext) && ! $allowManualFallback) {
                     throw ValidationException::withMessages([
                         'audio' => $analysis->completionFailureMessage($resolved, $analysisContext),
                     ]);

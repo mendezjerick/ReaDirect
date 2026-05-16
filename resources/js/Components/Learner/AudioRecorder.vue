@@ -206,6 +206,26 @@ const sliceAudioBuffer = (audioBuffer, startSecond, endSecond) => {
     return trimmed;
 };
 
+const resampleAudioBuffer = async (audioBuffer, targetSampleRate = 16000) => {
+    if (audioBuffer.sampleRate === targetSampleRate) {
+        return audioBuffer;
+    }
+
+    const OfflineContextClass = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    if (!OfflineContextClass) {
+        return audioBuffer;
+    }
+
+    const length = Math.max(1, Math.ceil(audioBuffer.duration * targetSampleRate));
+    const offlineContext = new OfflineContextClass(1, length, targetSampleRate);
+    const source = offlineContext.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(offlineContext.destination);
+    source.start(0);
+
+    return offlineContext.startRendering();
+};
+
 const analyzeSpeech = (audioBuffer) => {
     const samples = audioBuffer.getChannelData(0);
     const sampleRate = audioBuffer.sampleRate;
@@ -266,9 +286,10 @@ const convertRecordingToWav = async (blob) => {
         const trimmedBuffer = metadata.was_trimmed
             ? sliceAudioBuffer(audioBuffer, metadata.trim_start_seconds, metadata.trim_end_seconds)
             : audioBuffer;
+        const uploadBuffer = await resampleAudioBuffer(trimmedBuffer, 16000);
 
         return {
-            blob: audioBufferToWavBlob(trimmedBuffer),
+            blob: audioBufferToWavBlob(uploadBuffer),
             durationSeconds: metadata.total_duration_seconds,
             extension: 'wav',
             audioMetadata: metadata,

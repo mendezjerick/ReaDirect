@@ -34,7 +34,7 @@ const requireReviewBeforeSubmit = computed(() => props.assessmentMode?.requireRe
 const hasIncorrectWords = () => form.incorrect_words !== '' && form.incorrect_words !== null && Number(form.incorrect_words) >= 0;
 const canSubmit = computed(() => {
     if (canUseManualFallback.value) {
-        return !uploading.value && (Boolean(form.audio_file_id) || Boolean(form.audio)) && hasIncorrectWords();
+        return !uploading.value && hasIncorrectWords();
     }
 
     return !uploading.value && Boolean(form.audio_file_id) && transcript.value.trim() !== '';
@@ -88,19 +88,28 @@ const uploadTranscript = async (file) => {
 
         if (asr.canSubmit) {
             form.audio_file_id = result.audio_file_id ?? null;
+            form.audio = null;
             transcript.value = asr.displayTranscript;
-        } else {
-            form.audio_file_id = null;
-            transcript.value = '';
-            uploadError.value = asr.message;
+            return;
         }
+
+        form.audio_file_id = null;
+        transcript.value = '';
+        uploadError.value = asr.message;
     } catch (error) {
         uploadError.value = error.message || 'We had trouble checking your reading. Please try again.';
     } finally {
         uploading.value = false;
     }
 };
-const submit = () => form.post('/final-assessment/passage/submit', { forceFormData: true });
+const submit = () => {
+    if (canUseManualFallback.value && !form.audio_file_id) {
+        form.audio = null;
+        form.duration_seconds = null;
+    }
+
+    form.post('/final-assessment/passage/submit', { forceFormData: true });
+};
 </script>
 
 <template>

@@ -94,6 +94,32 @@ class AudioRecordingTest extends TestCase
             ->assertJsonValidationErrors('duration_seconds');
     }
 
+    public function test_audio_upload_accepts_recorder_metadata_boolean_values(): void
+    {
+        Storage::fake('local');
+        $learner = $this->learner();
+
+        $this->withSession(['learner_id' => $learner->id])
+            ->postJson(route('learner.audio.upload'), [
+                'audio' => UploadedFile::fake()->create('passage.wav', 120, 'audio/wav'),
+                'context_type' => 'passage_reading',
+                'duration_seconds' => 4,
+                'audio_metadata' => [
+                    'total_duration_seconds' => 4.0,
+                    'speech_duration_seconds' => 3.2,
+                    'leading_silence_seconds' => 0.2,
+                    'trailing_silence_seconds' => 0.4,
+                    'silence_ratio' => 0.2,
+                    'speech_ratio' => 0.8,
+                    'was_trimmed' => '1',
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonStructure(['audio_file_id']);
+
+        $this->assertSame('1', AudioFile::firstOrFail()->metadata['audio_metadata']['was_trimmed']);
+    }
+
     public function test_audio_playback_is_authorized_for_assigned_teacher_only(): void
     {
         Storage::fake('local');
@@ -362,6 +388,91 @@ class AudioRecordingTest extends TestCase
 
         $this->assertNull($item->refresh()->answered_at);
         $this->assertSame(0, AssessmentTaskResponse::count());
+    }
+
+    public function test_passage_audio_upload_persists_long_prompt_and_expected_answer(): void
+    {
+        Storage::fake('local');
+        config([
+            'readirect_ai.enabled' => true,
+            'readirect_ai.base_url' => 'http://ai.test',
+            'readirect_ai.endpoints.analyze_audio' => '/analyze-audio',
+        ]);
+
+        $passage = trim(str_repeat(
+            'Arthur carried his brother shield through the bright churchyard while many knights watched in quiet wonder. ',
+            8
+        ));
+        $transcript = 'arthur carried his brother shield through the bright churchyard while many knights watched in quiet wonder';
+
+        Http::fake([
+            'http://ai.test/analyze-audio' => Http::response([
+                'ok' => true,
+                'request_id' => 'passage-req-1',
+                'asr_route' => 'wav2vec2_only',
+                'model_family' => 'wav2vec2',
+                'model_used' => 'models/wav2vec2-readirect-asr-letters-v2',
+                'transcript' => $transcript,
+                'raw_transcript' => $transcript,
+                'corrected_transcript' => $transcript,
+                'displayed_transcript' => $transcript,
+                'accepted' => false,
+                'prompt_type' => 'passage',
+                'retry_required' => false,
+                'uncertain' => false,
+                'audio_quality' => ['passed' => true],
+                'raw_wer' => 0.2,
+                'warnings' => [],
+            ]),
+        ]);
+
+        $learner = $this->learner();
+        $attempt = AssessmentAttempt::create([
+            'learner_id' => $learner->id,
+            'attempt_type' => 'diagnostic',
+            'status' => 'reading_passage',
+            'started_at' => now(),
+        ]);
+        $content = LearningContent::create([
+            'content_type' => 'reading_passage',
+            'title' => 'Long Passage',
+            'prompt' => $passage,
+            'payload' => ['source_csv_id' => 'PASS-LONG'],
+            'difficulty' => 'easy',
+            'is_active' => true,
+        ]);
+        $item = $attempt->selectedItems()->create([
+            'learning_content_id' => $content->id,
+            'source_csv_id' => 'PASS-LONG',
+            'task_type' => AssessmentItemSelectionService::READING_PASSAGE,
+            'sequence' => 1,
+            'prompt_snapshot' => [
+                'prompt' => $passage,
+                'payload' => $content->payload,
+                'accepted_answers' => null,
+            ],
+            'selected_at' => now(),
+        ]);
+
+        $this->assertGreaterThan(255, strlen($passage));
+
+        $response = $this->withSession(['learner_id' => $learner->id, 'assessment_attempt_id' => $attempt->id])
+            ->postJson(route('learner.audio.upload'), [
+                'audio' => UploadedFile::fake()->create('passage.wav', 120, 'audio/wav'),
+                'context_type' => 'passage_reading',
+                'assessment_attempt_id' => $attempt->id,
+                'duration_seconds' => 22,
+            ]);
+
+        $response->assertOk()
+            ->assertJsonPath('can_submit', true)
+            ->assertJsonPath('transcript', $transcript);
+
+        $stored = AssessmentTaskResponse::where('assessment_attempt_item_id', $item->id)->firstOrFail();
+
+        $this->assertSame($passage, $stored->prompt);
+        $this->assertSame($passage, $stored->expected_answer);
+        $this->assertSame($transcript, $stored->learner_transcript);
     }
 
     public function test_assessment_submission_uses_stt_transcript_when_manual_answer_is_blank(): void

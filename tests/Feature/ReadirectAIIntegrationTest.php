@@ -172,6 +172,57 @@ class ReadirectAIIntegrationTest extends TestCase
         $this->assertEquals(0.0, $resolved['ai_response']['corrected_wer']);
     }
 
+    public function test_gop_accepted_ai_response_scores_with_corrected_transcript_and_preserves_metadata(): void
+    {
+        Storage::fake('local');
+        config([
+            'readirect_ai.enabled' => true,
+            'readirect_ai.base_url' => 'http://ai.test',
+            'readirect_ai.endpoints.analyze_audio' => '/analyze-audio',
+        ]);
+        Http::fake([
+            'http://ai.test/analyze-audio' => Http::response([
+                'ok' => true,
+                'request_id' => 'req-gop',
+                'model_family' => 'wav2vec2',
+                'model_used' => 'models/wav2vec2-readirect-asr-letters-v2',
+                'transcript' => 'Leo',
+                'raw_transcript' => 'Layo',
+                'corrected_transcript' => 'Leo',
+                'displayed_transcript' => 'Leo',
+                'accepted' => true,
+                'correction_strategy_used' => 'gop_pronunciation_evidence',
+                'gop_enabled' => true,
+                'gop_available' => true,
+                'gop_score' => 0.82,
+                'gop_decision' => 'accepted_by_pronunciation_evidence',
+                'gop_threshold' => 0.75,
+                'gop_expected_phonemes' => ['L', 'IY', 'OW'],
+                'gop_observed_phonemes' => ['L', 'EY', 'OW'],
+                'gop_correction_applied' => true,
+                'warnings' => [],
+            ]),
+        ]);
+
+        $audioFile = $this->audioFile();
+
+        $resolved = app(AIAnalysisResolver::class)->resolve(null, $audioFile, [
+            'expected_text' => 'Leo',
+            'accepted_answers' => ['Leo'],
+            'prompt_type' => 'word',
+        ]);
+
+        $audioFile->refresh();
+
+        $this->assertSame('Leo', $resolved['transcript']);
+        $this->assertSame('Leo', $resolved['displayed_transcript']);
+        $this->assertSame('Layo', $audioFile->ai_transcript);
+        $this->assertSame('Leo', $audioFile->ai_normalized_transcript);
+        $this->assertSame('gop_pronunciation_evidence', $resolved['ai_response']['correction_strategy_used']);
+        $this->assertSame(0.82, $resolved['ai_response']['gop_score']);
+        $this->assertTrue($resolved['ai_response']['gop_correction_applied']);
+    }
+
     public function test_developer_reinforcement_flags_are_sent_only_for_admin_when_enabled(): void
     {
         Storage::fake('local');

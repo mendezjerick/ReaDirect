@@ -80,6 +80,9 @@ class ReadirectAIService
         $health = $this->health();
         $connected = (bool) ($health['ok'] ?? false);
         $version = $connected ? $this->version() : [];
+        $gopThresholds = data_get($health, 'thresholds.gop')
+            ?? data_get($version, 'config.gop')
+            ?? [];
 
         return [
             'enabled' => true,
@@ -114,6 +117,8 @@ class ReadirectAIService
             'correction_layer_enabled' => $health['correction_layer_enabled'] ?? null,
             'expected_centric_scoring_enabled' => $health['expected_centric_scoring_enabled'] ?? null,
             'phoneme_evidence_enabled' => $health['phoneme_evidence_enabled'] ?? null,
+            'gop_enabled' => data_get($gopThresholds, 'enabled'),
+            'gop_thresholds' => $gopThresholds,
             'thresholds' => $health['thresholds'] ?? null,
             'local_model_paths_loaded' => $health['local_model_paths_loaded'] ?? null,
             'reinforcement_corrections_enabled' => $health['reinforcement_corrections_enabled'] ?? null,

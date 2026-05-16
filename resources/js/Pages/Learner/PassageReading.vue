@@ -187,7 +187,7 @@ const canSubmit = computed(() => {
     const hasRecording = Boolean(form.audio_file_id) || Boolean(form.audio);
 
     if (canUseManualFallback.value) {
-        return !uploading.value && hasIncorrectWords && hasRecording;
+        return !uploading.value && hasIncorrectWords;
     }
 
     return !uploading.value && hasRecording && transcript.value.trim() !== '';
@@ -226,6 +226,7 @@ const uploadTranscript = async (file) => {
 
         if (asr.canSubmit) {
             form.audio_file_id = result.audio_file_id ?? null;
+            form.audio = null;
             transcript.value = asr.displayTranscript;
             form.incorrect_words = diff.value.incorrectCount;
             return;
@@ -259,7 +260,14 @@ const clearAudio = () => {
     uploadError.value = '';
 };
 
-const submit = () => form.post('/learner/diagnostic/passage', { forceFormData: true });
+const submit = () => {
+    if (canUseManualFallback.value && !form.audio_file_id) {
+        form.audio = null;
+        form.duration_seconds = null;
+    }
+
+    form.post('/learner/diagnostic/passage', { forceFormData: true });
+};
 </script>
 
 <template>

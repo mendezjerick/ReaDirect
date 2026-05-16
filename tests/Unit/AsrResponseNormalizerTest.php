@@ -30,6 +30,36 @@ class AsrResponseNormalizerTest extends TestCase
         $this->assertSame('raw word', $result['debug_transcript']);
     }
 
+    public function test_gop_metadata_is_preserved_when_present_and_missing_fields_are_safe(): void
+    {
+        $missing = $this->normalizer->normalize([
+            'raw_transcript' => 'Layo',
+            'corrected_transcript' => 'Layo',
+        ]);
+
+        $this->assertNull($missing['gop_score']);
+        $this->assertSame([], $missing['gop_expected_phonemes']);
+
+        $result = $this->normalizer->normalize([
+            'raw_transcript' => 'Layo',
+            'corrected_transcript' => 'Leo',
+            'displayed_transcript' => 'Leo',
+            'gop_enabled' => true,
+            'gop_available' => true,
+            'gop_score' => 0.82,
+            'gop_decision' => 'accepted_by_pronunciation_evidence',
+            'gop_threshold' => 0.75,
+            'gop_expected_phonemes' => ['L', 'IY', 'OW'],
+            'gop_observed_phonemes' => ['L', 'EY', 'OW'],
+            'gop_correction_applied' => true,
+        ]);
+
+        $this->assertSame(0.82, $result['gop_score']);
+        $this->assertSame('accepted_by_pronunciation_evidence', $result['gop_decision']);
+        $this->assertSame(['L', 'IY', 'OW'], $result['gop_expected_phonemes']);
+        $this->assertTrue($result['gop_correction_applied']);
+    }
+
     public function test_wrong_but_usable_word_can_complete(): void
     {
         $resolved = [

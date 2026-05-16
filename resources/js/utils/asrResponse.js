@@ -37,7 +37,7 @@ export const appendAudioMetadata = (payload, file) => {
 
     Object.entries(metadata).forEach(([key, value]) => {
         if (value !== null && value !== undefined) {
-            payload.append(`audio_metadata[${key}]`, String(value));
+            payload.append(`audio_metadata[${key}]`, typeof value === 'boolean' ? (value ? '1' : '0') : String(value));
         }
     });
 };
