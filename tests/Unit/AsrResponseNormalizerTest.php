@@ -60,6 +60,48 @@ class AsrResponseNormalizerTest extends TestCase
         $this->assertTrue($result['gop_correction_applied']);
     }
 
+    public function test_dynamic_correction_metadata_is_preserved_when_present_and_missing_fields_are_safe(): void
+    {
+        $missing = $this->normalizer->normalize([
+            'raw_transcript' => 'shild',
+            'corrected_transcript' => 'shild',
+        ]);
+
+        $this->assertNull($missing['dynamic_correction_applied']);
+        $this->assertSame([], $missing['word_alignment']);
+
+        $result = $this->normalizer->normalize([
+            'raw_transcript' => 'shild',
+            'corrected_transcript' => 'shield',
+            'displayed_transcript' => 'shield',
+            'dynamic_correction_enabled' => true,
+            'dynamic_correction_applied' => true,
+            'dynamic_correction_strategy' => 'dynamic_expected_word_correction',
+            'dynamic_correction_sub_strategy' => 'spelling_context_expected_match',
+            'dynamic_correction_confidence' => 0.91,
+            'dynamic_correction_threshold' => 0.78,
+            'dynamic_spelling_similarity' => 0.9,
+            'dynamic_phoneme_similarity' => 0.95,
+            'dynamic_gop_score' => 0.82,
+            'dynamic_homophone_match' => false,
+            'dynamic_context_score' => 1.0,
+            'dynamic_correction_reason' => 'raw transcript is close to expected word',
+            'word_alignment' => [
+                [
+                    'expected_word' => 'shield',
+                    'recognized_word' => 'shild',
+                    'status' => 'accepted_by_dynamic_expected_word_correction',
+                    'counts_as_correct' => true,
+                ],
+            ],
+        ]);
+
+        $this->assertTrue($result['dynamic_correction_applied']);
+        $this->assertSame('spelling_context_expected_match', $result['dynamic_correction_sub_strategy']);
+        $this->assertSame(0.91, $result['dynamic_correction_confidence']);
+        $this->assertSame('shield', $result['word_alignment'][0]['expected_word']);
+    }
+
     public function test_wrong_but_usable_word_can_complete(): void
     {
         $resolved = [

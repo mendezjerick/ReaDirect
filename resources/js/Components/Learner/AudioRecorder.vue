@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { CheckCircle2, Mic, RotateCcw, Send, Square } from 'lucide-vue-next';
 import { stopAllAgentAudio, stopAllAgentAudioBeforeRecording } from '../../utils/stopAgentAudio';
 
@@ -22,6 +22,7 @@ const props = defineProps({
     submitted: { type: Boolean, default: false },
     submitLabel: { type: String, default: 'Submit My Answer' },
     externalError: { type: String, default: '' },
+    resetKey: { type: [String, Number], default: null },
 });
 
 const emit = defineEmits(['recorded', 'submit', 'cleared', 'error', 'stateChanged']);
@@ -38,13 +39,15 @@ const timer = ref(null);
 const cueTimer = ref(null);
 const recordingStartedAt = ref(null);
 const canSpeak = ref(false);
+const hasPendingRecording = computed(() => Boolean(currentFile.value));
+const hasSubmittedRecording = computed(() => props.submitted && !hasPendingRecording.value);
 
 const statusLabel = computed(() => {
     const labels = {
         ready: 'Ready',
         recording: "I'm listening",
         processing: 'Processing',
-        saved: props.submitted ? 'Submitted' : 'Listen',
+        saved: hasSubmittedRecording.value ? 'Submitted' : 'Listen',
         retry: 'Retry',
         error: 'Needs permission',
     };
@@ -73,7 +76,7 @@ const helperText = computed(() => {
         ready: props.spacebarEnabled ? `Tap Start Recording or press Space. Record at least ${minDurationLabel.value}.` : `Tap Start Recording. Record at least ${minDurationLabel.value}.`,
         recording: canSpeak.value ? (props.spacebarEnabled ? 'Speak now. Press Space when finished.' : 'Speak now.') : 'Get ready. Speak when the cue changes.',
         processing: 'Saving your voice.',
-        saved: props.submitted ? 'Your answer was submitted.' : 'Listen to your answer. If you are happy with it, click Submit.',
+        saved: hasSubmittedRecording.value ? 'Your answer was submitted.' : 'Listen to your answer. If you are happy with it, click Submit.',
         retry: "Let's try recording again.",
         error: props.externalError || errorMessage.value || 'The microphone needs permission.',
     };
@@ -90,6 +93,8 @@ const formattedDuration = computed(() => {
 });
 
 const hasMinimumDuration = computed(() => duration.value >= props.minDurationSeconds);
+const cueDelaySeconds = computed(() => Math.max(0, Number(props.cueDelayMs ?? 0) / 1000));
+const shouldShowReviewSubmit = computed(() => props.requireReviewBeforeSubmit || !props.autoTranscribeOnStop);
 
 const cueText = computed(() => {
     if (status.value !== 'recording') {
@@ -123,7 +128,7 @@ const stopTracks = () => {
     stream.value = null;
 };
 
-const clearRecording = () => {
+const resetRecordingState = () => {
     clearTimer();
     stopTracks();
     if (audioUrl.value) {
@@ -137,6 +142,10 @@ const clearRecording = () => {
     canSpeak.value = false;
     errorMessage.value = '';
     setStatus('ready');
+};
+
+const clearRecording = () => {
+    resetRecordingState();
     emit('cleared');
 };
 
@@ -226,6 +235,26 @@ const resampleAudioBuffer = async (audioBuffer, targetSampleRate = 16000) => {
     return offlineContext.startRendering();
 };
 
+const padAudioBufferToDuration = (audioBuffer, minimumSeconds, audioContext = null) => {
+    const targetDuration = Math.max(Number(minimumSeconds ?? 0), audioBuffer.duration);
+    const targetLength = Math.ceil(targetDuration * audioBuffer.sampleRate);
+
+    if (targetLength <= audioBuffer.length) {
+        return audioBuffer;
+    }
+
+    if (!audioContext) {
+        return audioBuffer;
+    }
+
+    const padded = audioContext.createBuffer(1, targetLength, audioBuffer.sampleRate);
+    padded.copyToChannel(audioBuffer.getChannelData(0), 0);
+
+    return padded;
+};
+
+const minimumUploadDurationSeconds = computed(() => Math.max(1, Number(props.minDurationSeconds ?? 1)));
+
 const analyzeSpeech = (audioBuffer) => {
     const samples = audioBuffer.getChannelData(0);
     const sampleRate = audioBuffer.sampleRate;
@@ -269,6 +298,18 @@ const analyzeSpeech = (audioBuffer) => {
     };
 };
 
+const validationSilenceMetrics = (metadata) => {
+    const cueSeconds = Math.min(cueDelaySeconds.value, Number(metadata.total_duration_seconds ?? 0));
+    const totalAfterCue = Math.max(0.001, Number(metadata.total_duration_seconds ?? 0) - cueSeconds);
+    const leadingSilenceAfterCue = Math.max(0, Number(metadata.leading_silence_seconds ?? 0) - cueSeconds);
+    const speechDuration = Number(metadata.speech_duration_seconds ?? 0);
+
+    return {
+        leading_silence_seconds: leadingSilenceAfterCue,
+        silence_ratio: Number(Math.max(0, 1 - (speechDuration / totalAfterCue)).toFixed(3)),
+    };
+};
+
 const convertRecordingToWav = async (blob) => {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
 
@@ -286,7 +327,10 @@ const convertRecordingToWav = async (blob) => {
         const trimmedBuffer = metadata.was_trimmed
             ? sliceAudioBuffer(audioBuffer, metadata.trim_start_seconds, metadata.trim_end_seconds)
             : audioBuffer;
-        const uploadBuffer = await resampleAudioBuffer(trimmedBuffer, 16000);
+        const paddedBuffer = padAudioBufferToDuration(trimmedBuffer, minimumUploadDurationSeconds.value, context);
+        const uploadBuffer = await resampleAudioBuffer(paddedBuffer, 16000);
+        metadata.upload_duration_seconds = Number(uploadBuffer.duration.toFixed(3));
+        metadata.was_padded_for_upload = uploadBuffer.duration > trimmedBuffer.duration;
 
         return {
             blob: audioBufferToWavBlob(uploadBuffer),
@@ -342,7 +386,12 @@ const startRecording = async () => {
                     return;
                 }
 
-                if (metadata.leading_silence_seconds > props.maxLeadingSilenceSeconds || metadata.silence_ratio > props.maxSilenceRatio) {
+                const validationMetrics = validationSilenceMetrics(metadata);
+                metadata.validation_leading_silence_seconds = Number(validationMetrics.leading_silence_seconds.toFixed(3));
+                metadata.validation_silence_ratio = validationMetrics.silence_ratio;
+                metadata.cue_delay_seconds = Number(cueDelaySeconds.value.toFixed(3));
+
+                if (validationMetrics.leading_silence_seconds > props.maxLeadingSilenceSeconds || validationMetrics.silence_ratio > props.maxSilenceRatio) {
                     stopTracks();
                     errorMessage.value = 'Please record again and start speaking after the cue.';
                     setStatus('retry');
@@ -412,7 +461,7 @@ const stopRecording = () => {
 };
 
 const submitRecording = () => {
-    if (!currentFile.value || props.submitting || props.submitted) {
+    if (!currentFile.value || props.submitting) {
         return;
     }
 
@@ -445,6 +494,22 @@ const handleSpacebar = (event) => {
 onMounted(() => {
     window.addEventListener('keydown', handleSpacebar);
 });
+
+watch(
+    () => props.resetKey,
+    () => {
+        resetRecordingState();
+    }
+);
+
+watch(
+    () => props.submitted,
+    (submitted) => {
+        if (submitted && currentFile.value) {
+            currentFile.value = null;
+        }
+    }
+);
 
 onBeforeUnmount(() => {
     window.removeEventListener('keydown', handleSpacebar);
@@ -500,7 +565,7 @@ onBeforeUnmount(() => {
             </button>
 
             <button
-                v-if="audioUrl && !submitted"
+                v-if="audioUrl && hasPendingRecording"
                 type="button"
                 class="inline-flex items-center gap-2 rounded-2xl border-2 border-border bg-surface px-4 py-3 text-sm font-black text-primaryDark transition hover:border-primary"
                 :disabled="submitting"
@@ -536,19 +601,19 @@ onBeforeUnmount(() => {
         </p>
 
         <div
-            v-if="audioUrl && requireReviewBeforeSubmit"
+            v-if="audioUrl && shouldShowReviewSubmit"
             class="learner-audio-review-card mt-3 rounded-[24px] border-2 border-primary/25 bg-white p-4 shadow-md shadow-primary/10"
             aria-live="polite"
         >
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <p class="text-lg font-black text-text">{{ submitted ? 'Answer submitted' : 'Your audio' }}</p>
+                    <p class="text-lg font-black text-text">{{ hasSubmittedRecording ? 'Answer submitted' : 'Your audio' }}</p>
                 </div>
-                <CheckCircle2 v-if="submitted" class="size-8 text-success" />
+                <CheckCircle2 v-if="hasSubmittedRecording" class="size-8 text-success" />
             </div>
             <audio class="mt-3 w-full" controls :src="audioUrl" :disabled="submitting" @play="stopAgentAudioForPlayback" />
             <button
-                v-if="!submitted"
+                v-if="hasPendingRecording"
                 type="button"
                 class="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-success px-5 py-3 text-base font-black text-white shadow-md shadow-success/20 transition active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
                 :disabled="submitting || !currentFile"

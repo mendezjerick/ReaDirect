@@ -83,6 +83,9 @@ class ReadirectAIService
         $gopThresholds = data_get($health, 'thresholds.gop')
             ?? data_get($version, 'config.gop')
             ?? [];
+        $dynamicCorrectionThresholds = data_get($health, 'thresholds.dynamic_expected_correction')
+            ?? data_get($version, 'config.dynamic_expected_correction')
+            ?? [];
 
         return [
             'enabled' => true,
@@ -119,6 +122,8 @@ class ReadirectAIService
             'phoneme_evidence_enabled' => $health['phoneme_evidence_enabled'] ?? null,
             'gop_enabled' => data_get($gopThresholds, 'enabled'),
             'gop_thresholds' => $gopThresholds,
+            'dynamic_expected_correction_enabled' => data_get($dynamicCorrectionThresholds, 'enabled'),
+            'dynamic_expected_correction_thresholds' => $dynamicCorrectionThresholds,
             'thresholds' => $health['thresholds'] ?? null,
             'local_model_paths_loaded' => $health['local_model_paths_loaded'] ?? null,
             'reinforcement_corrections_enabled' => $health['reinforcement_corrections_enabled'] ?? null,

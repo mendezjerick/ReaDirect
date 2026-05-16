@@ -53,6 +53,19 @@ class AsrResponseNormalizer
             'weak_words' => $aiResponse['weak_words'] ?? [],
             'gop_correction_applied' => $aiResponse['gop_correction_applied'] ?? null,
             'gop_error' => $aiResponse['gop_error'] ?? null,
+            'dynamic_correction_enabled' => $aiResponse['dynamic_correction_enabled'] ?? null,
+            'dynamic_correction_applied' => $aiResponse['dynamic_correction_applied'] ?? null,
+            'dynamic_correction_strategy' => $aiResponse['dynamic_correction_strategy'] ?? null,
+            'dynamic_correction_sub_strategy' => $aiResponse['dynamic_correction_sub_strategy'] ?? null,
+            'dynamic_correction_confidence' => $aiResponse['dynamic_correction_confidence'] ?? null,
+            'dynamic_correction_threshold' => $aiResponse['dynamic_correction_threshold'] ?? null,
+            'dynamic_spelling_similarity' => $aiResponse['dynamic_spelling_similarity'] ?? null,
+            'dynamic_phoneme_similarity' => $aiResponse['dynamic_phoneme_similarity'] ?? null,
+            'dynamic_gop_score' => $aiResponse['dynamic_gop_score'] ?? null,
+            'dynamic_homophone_match' => $aiResponse['dynamic_homophone_match'] ?? null,
+            'dynamic_context_score' => $aiResponse['dynamic_context_score'] ?? null,
+            'dynamic_correction_reason' => $aiResponse['dynamic_correction_reason'] ?? null,
+            'word_alignment' => $aiResponse['word_alignment'] ?? [],
             'debug_metadata' => $aiResponse['debug_metadata'] ?? null,
         ];
     }
@@ -171,7 +184,16 @@ class AsrResponseNormalizer
 
     private function hasAsrEvidence(array $aiResponse): bool
     {
-        foreach (['raw_wer', 'corrected_wer', 'raw_cer', 'corrected_cer', 'phonetic_similarity_score'] as $key) {
+        foreach ([
+            'raw_wer',
+            'corrected_wer',
+            'raw_cer',
+            'corrected_cer',
+            'phonetic_similarity_score',
+            'dynamic_correction_confidence',
+            'dynamic_phoneme_similarity',
+            'dynamic_spelling_similarity',
+        ] as $key) {
             if (isset($aiResponse[$key]) && is_numeric($aiResponse[$key])) {
                 return true;
             }

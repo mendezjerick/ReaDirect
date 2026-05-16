@@ -159,6 +159,8 @@ const correctionRows = computed(() => [
     ['Phoneme Evidence', reported(props.status?.phoneme_evidence_enabled)],
     ['GOP Pronunciation Evidence', reported(props.status?.gop_enabled)],
     ['GOP Thresholds', reported(props.status?.gop_thresholds ?? props.status?.thresholds?.gop)],
+    ['Dynamic Expected-Word Correction', reported(props.status?.dynamic_expected_correction_enabled ?? props.status?.thresholds?.dynamic_expected_correction?.enabled)],
+    ['Dynamic Correction Thresholds', reported(props.status?.dynamic_expected_correction_thresholds ?? props.status?.thresholds?.dynamic_expected_correction)],
     ['Reinforcement Correction Memory', reported(props.status?.reinforcement_corrections_enabled)],
     ['Audio Quality Validation', reported(props.status?.audio_quality_validation_enabled)],
     ['Pause Detection', reported(props.status?.pause_detection_enabled)],

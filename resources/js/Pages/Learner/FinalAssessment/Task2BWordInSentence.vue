@@ -228,6 +228,7 @@ const handlePrimary = () => {
                 <div class="grid gap-3 md:grid-cols-[220px_1fr] md:items-center">
                     <AudioRecorder
                         :key="step.currentItem.value.id"
+                        :reset-key="step.currentItem.value.id"
                         compact
                         :max-duration-seconds="30"
                         prompt-type="word"

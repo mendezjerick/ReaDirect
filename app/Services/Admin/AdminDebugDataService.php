@@ -87,6 +87,7 @@ class AdminDebugDataService
                     'ai_gop_weak_words' => data_get($response?->ai_response, 'weak_words'),
                     'ai_gop_mispronounced_phonemes' => data_get($response?->ai_response, 'mispronounced_phonemes'),
                     'ai_gop_correction_applied' => data_get($response?->ai_response, 'gop_correction_applied'),
+                    ...$this->dynamicCorrectionDebugFields($response?->ai_response),
                     'reinforcement_mode' => data_get($response?->ai_response, 'developer_reinforcement_mode'),
                     'reinforcement_saved' => data_get($response?->ai_response, 'reinforcement_saved'),
                     'reinforcement_target_file' => data_get($response?->ai_response, 'reinforcement_target_file'),
@@ -180,6 +181,7 @@ class AdminDebugDataService
                 'ai_gop_weak_words' => data_get($response->ai_response, 'weak_words'),
                 'ai_gop_mispronounced_phonemes' => data_get($response->ai_response, 'mispronounced_phonemes'),
                 'ai_gop_correction_applied' => data_get($response->ai_response, 'gop_correction_applied'),
+                ...$this->dynamicCorrectionDebugFields($response->ai_response),
                 'reinforcement_mode' => data_get($response->ai_response, 'developer_reinforcement_mode'),
                 'reinforcement_saved' => data_get($response->ai_response, 'reinforcement_saved'),
                 'reinforcement_target_file' => data_get($response->ai_response, 'reinforcement_target_file'),
@@ -256,6 +258,7 @@ class AdminDebugDataService
             'ai_gop_weak_words' => data_get($response?->ai_response, 'weak_words'),
             'ai_gop_mispronounced_phonemes' => data_get($response?->ai_response, 'mispronounced_phonemes'),
             'ai_gop_correction_applied' => data_get($response?->ai_response, 'gop_correction_applied'),
+            ...$this->dynamicCorrectionDebugFields($response?->ai_response),
             'reinforcement_mode' => data_get($response?->ai_response, 'developer_reinforcement_mode'),
             'reinforcement_saved' => data_get($response?->ai_response, 'reinforcement_saved'),
             'reinforcement_target_file' => data_get($response?->ai_response, 'reinforcement_target_file'),
@@ -300,6 +303,25 @@ class AdminDebugDataService
             'recording_context' => $audioFile->recording_context,
             'safe_path' => basename((string) $audioFile->file_path),
             'play_url' => route('teacher.audio.play', $audioFile),
+        ];
+    }
+
+    private function dynamicCorrectionDebugFields(mixed $aiResponse): array
+    {
+        return [
+            'ai_dynamic_correction_enabled' => data_get($aiResponse, 'dynamic_correction_enabled'),
+            'ai_dynamic_correction_applied' => data_get($aiResponse, 'dynamic_correction_applied'),
+            'ai_dynamic_correction_strategy' => data_get($aiResponse, 'dynamic_correction_strategy'),
+            'ai_dynamic_correction_sub_strategy' => data_get($aiResponse, 'dynamic_correction_sub_strategy'),
+            'ai_dynamic_correction_confidence' => data_get($aiResponse, 'dynamic_correction_confidence'),
+            'ai_dynamic_correction_threshold' => data_get($aiResponse, 'dynamic_correction_threshold'),
+            'ai_dynamic_spelling_similarity' => data_get($aiResponse, 'dynamic_spelling_similarity'),
+            'ai_dynamic_phoneme_similarity' => data_get($aiResponse, 'dynamic_phoneme_similarity'),
+            'ai_dynamic_gop_score' => data_get($aiResponse, 'dynamic_gop_score'),
+            'ai_dynamic_homophone_match' => data_get($aiResponse, 'dynamic_homophone_match'),
+            'ai_dynamic_context_score' => data_get($aiResponse, 'dynamic_context_score'),
+            'ai_dynamic_correction_reason' => data_get($aiResponse, 'dynamic_correction_reason'),
+            'ai_word_alignment' => data_get($aiResponse, 'word_alignment', data_get($aiResponse, 'debug_metadata.word_alignment', [])),
         ];
     }
 }
