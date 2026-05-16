@@ -535,6 +535,74 @@ class AudioRecordingTest extends TestCase
         $this->assertTrue($response->is_correct);
     }
 
+    public function test_module_manual_override_accepts_long_transcript_and_expected_answer(): void
+    {
+        [$learner, $module] = $this->moduleContext();
+        $learner->update(['current_module_id' => $module->id, 'current_stage' => 'module_practice']);
+
+        $longAnswer = trim(str_repeat('the reader follows every word in the long practice passage ', 9));
+        $content = LearningContent::create([
+            'content_type' => 'module_activity',
+            'title' => 'Long reading practice',
+            'prompt' => $longAnswer,
+            'payload' => [
+                'source_csv_id' => 'AUD-MOD-LONG',
+                'module_key' => $module->key,
+                'activity_type' => 'read_sentence',
+                'sequence' => 1,
+                'expected_answer' => $longAnswer,
+                'points' => 1,
+                'is_mastery_item' => false,
+            ],
+            'accepted_answers' => [$longAnswer],
+            'difficulty' => 'easy',
+            'is_active' => true,
+        ]);
+        LearningContent::create([
+            'content_type' => 'module_activity_selection_rule',
+            'title' => 'Long reading rule',
+            'prompt' => 'Long reading rule',
+            'payload' => [
+                'source_csv_id' => 'AUD-MOD-RULE',
+                'module_key' => $module->key,
+                'activity_type' => 'read_sentence',
+                'practice_item_count' => 1,
+            ],
+            'difficulty' => 'easy',
+            'is_active' => true,
+        ]);
+        ModuleActivity::create([
+            'module_id' => $module->id,
+            'learning_content_id' => $content->id,
+            'sequence' => 1,
+            'activity_type' => 'read_sentence',
+            'title' => 'Long reading practice',
+            'configuration' => $content->payload,
+        ]);
+
+        $selection = app(ModuleActivitySelectionService::class);
+        $attempt = $selection->startOrResumeModuleAttempt($learner, $module);
+        $items = $selection->selectPracticeItemsForAttempt($attempt, 'read_sentence', 1);
+
+        $this->assertGreaterThan(255, strlen($longAnswer));
+
+        $this->withSession(['learner_id' => $learner->id, 'module_attempt_id' => $attempt->id, 'admin_testing_mode' => true])
+            ->post(route('learner.modules.activity.store', [$module, 'read_sentence']), [
+                'responses' => [[
+                    'module_attempt_item_id' => $items->first()->id,
+                    'answer' => $longAnswer,
+                    'transcript_source' => 'manual',
+                ]],
+            ])
+            ->assertRedirect();
+
+        $response = ModuleActivityResponse::where('module_attempt_item_id', $items->first()->id)->firstOrFail();
+
+        $this->assertSame($longAnswer, $response->expected_answer);
+        $this->assertSame($longAnswer, $response->learner_transcript);
+        $this->assertTrue($response->is_correct);
+    }
+
     public function test_normal_module_audio_submission_ignores_client_manual_transcript(): void
     {
         Storage::fake('local');

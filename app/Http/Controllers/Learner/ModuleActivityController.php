@@ -411,7 +411,7 @@ class ModuleActivityController extends Controller
         return [
             'responses' => ['required', 'array', 'size:'.$requiredCount],
             'responses.*.module_attempt_item_id' => ['required', 'integer', 'exists:module_attempt_items,id'],
-            'responses.*.answer' => ['nullable', 'string', 'max:255'],
+            'responses.*.answer' => ['nullable', 'string', 'max:5000'],
             'responses.*.retry_count' => ['nullable', 'integer', 'min:0'],
             'responses.*.transcript_source' => ['nullable', 'string', 'in:manual,ai_asr,stt_auto,stt_placeholder,teacher_review,future_asr'],
             'responses.*.audio_file_id' => ['nullable', 'integer', 'exists:audio_files,id'],
