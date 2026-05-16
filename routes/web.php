@@ -74,6 +74,7 @@ Route::prefix('learner/diagnostic')->name('learner.diagnostic.')->group(function
     Route::get('/task-routing', [DiagnosticAssessmentController::class, 'taskRouting'])->name('task-routing');
     Route::get('/task-2a', [DiagnosticAssessmentController::class, 'taskTwoA'])->name('task-2a');
     Route::post('/task-2a', [DiagnosticAssessmentController::class, 'storeTaskTwoA'])->middleware('throttle:assessment-submit')->name('task-2a.store');
+    Route::get('/task-2a-summary', [DiagnosticAssessmentController::class, 'taskTwoASummary'])->name('task-2a-summary');
     Route::get('/task-2b', [DiagnosticAssessmentController::class, 'taskTwoB'])->name('task-2b');
     Route::post('/task-2b', [DiagnosticAssessmentController::class, 'storeTaskTwoB'])->middleware('throttle:assessment-submit')->name('task-2b.store');
     Route::get('/crla-summary', [DiagnosticAssessmentController::class, 'crlaSummary'])->name('crla-summary');

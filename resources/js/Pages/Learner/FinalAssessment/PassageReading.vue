@@ -7,6 +7,7 @@ import AgentSpeakerPanel from '../../../Components/Learner/AgentSpeakerPanel.vue
 import PrimaryButton from '../../../Components/PrimaryButton.vue';
 import BottomActionBar from '../../../Components/BottomActionBar.vue';
 import StatusBadge from '../../../Components/StatusBadge.vue';
+import { appendAudioMetadata, normalizeAsrResponse } from '../../../utils/asrResponse';
 
 const props = defineProps({
     passage: Object,
@@ -66,6 +67,7 @@ const uploadTranscript = async (file) => {
         if (form.duration_seconds != null) {
             payload.append('duration_seconds', String(form.duration_seconds));
         }
+        appendAudioMetadata(payload, file);
 
         const response = await fetch('/learner/audio/upload', {
             method: 'POST',
@@ -82,11 +84,15 @@ const uploadTranscript = async (file) => {
             throw new Error(result.message ?? 'We had trouble checking your answer. Please try again.');
         }
 
-        form.audio_file_id = result.audio_file_id ?? null;
-        transcript.value = String(result.displayed_transcript ?? result.transcript ?? '').trim();
+        const asr = normalizeAsrResponse(result);
 
-        if (!transcript.value) {
-            uploadError.value = result.transcription_message ?? result.message ?? 'We could not hear your reading clearly. Please try recording again.';
+        if (asr.canSubmit) {
+            form.audio_file_id = result.audio_file_id ?? null;
+            transcript.value = asr.displayTranscript;
+        } else {
+            form.audio_file_id = null;
+            transcript.value = '';
+            uploadError.value = asr.message;
         }
     } catch (error) {
         uploadError.value = error.message || 'We had trouble checking your reading. Please try again.';
@@ -114,6 +120,7 @@ const submit = () => form.post('/final-assessment/passage/submit', { forceFormDa
                 <AudioRecorder
                     compact
                     :max-duration-seconds="60"
+                    prompt-type="passage"
                     :require-review-before-submit="requireReviewBeforeSubmit"
                     :auto-transcribe-on-stop="autoTranscribeOnStop"
                     :submitting="uploading"

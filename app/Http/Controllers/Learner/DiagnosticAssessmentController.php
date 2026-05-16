@@ -25,6 +25,7 @@ use App\Services\ReadingComprehensionScoringService;
 use App\Services\SentenceReadingScoringService;
 use App\Support\CurrentLearner;
 use App\Support\LearnerStage;
+use App\Support\SubmittedItemSet;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -238,7 +239,19 @@ class DiagnosticAssessmentController extends Controller
 
         $attempt->update(['task_2a_score' => $score, 'status' => 'task_2a_completed']);
 
-        return redirect()->route('learner.diagnostic.task-2b');
+        return redirect()->route('learner.diagnostic.task-2a-summary');
+    }
+
+    public function taskTwoASummary(Request $request, LearnerFlowService $flow): Response|RedirectResponse
+    {
+        $attempt = $this->attemptForStep($request, $flow, 'task-2a-summary');
+        if ($attempt instanceof RedirectResponse) {
+            return $attempt;
+        }
+
+        return Inertia::render('Learner/Task2ASummary', [
+            'attempt' => $attempt->only('task_1_score', 'task_2a_score', 'decision_reason'),
+        ]);
     }
 
     public function taskTwoB(Request $request, AssessmentItemSelectionService $itemSelection, LearnerFlowService $flow, AssessmentModeService $mode): Response|RedirectResponse
@@ -293,7 +306,7 @@ class DiagnosticAssessmentController extends Controller
         return redirect()->route('learner.diagnostic.crla-summary');
     }
 
-    public function crlaSummary(Request $request, LearnerFlowService $flow): Response|RedirectResponse
+    public function crlaSummary(Request $request, LearnerFlowService $flow, ModulePlacementService $placementService): Response|RedirectResponse
     {
         $attempt = $this->attemptForStep($request, $flow, 'crla-summary');
         if ($attempt instanceof RedirectResponse) {
@@ -302,6 +315,7 @@ class DiagnosticAssessmentController extends Controller
 
         return Inertia::render('Learner/CrlaSummary', [
             'attempt' => $attempt->only('task_1_score', 'task_2a_score', 'task_2b_score', 'crla_total_score', 'crla_classification'),
+            'placementPreview' => $placementService->crlaSummary((string) $attempt->crla_classification),
             'taskTwoBReview' => $this->taskTwoBSummary($attempt),
         ]);
     }
@@ -370,15 +384,23 @@ class DiagnosticAssessmentController extends Controller
 
         if ($audioFile) {
             $transcriptText = trim((string) $audioFile->transcript);
+            $analysisContext = [
+                'expected_text' => (string) ($passage?->prompt_snapshot['prompt'] ?? ''),
+                'prompt_id' => $passage?->source_csv_id,
+                'task_type' => 'reading_passage',
+                'content_metadata' => ['prompt_snapshot' => $passage?->prompt_snapshot ?? []],
+                'debug' => (bool) config('readirect_ai.debug.show_admin_debug'),
+            ];
 
             if ($transcriptText === '') {
-                $resolved = $analysis->resolve(null, $audioFile, [
-                    'expected_text' => (string) ($passage?->prompt_snapshot['prompt'] ?? ''),
-                    'prompt_id' => $passage?->source_csv_id,
-                    'task_type' => 'reading_passage',
-                    'content_metadata' => ['prompt_snapshot' => $passage?->prompt_snapshot ?? []],
-                    'debug' => (bool) config('readirect_ai.debug.show_admin_debug'),
-                ], $this->sttOptionsForPassage($passage));
+                $resolved = $analysis->resolve(null, $audioFile, $analysisContext, $this->sttOptionsForPassage($passage));
+
+                if (! $analysis->canComplete($resolved, $analysisContext)) {
+                    throw ValidationException::withMessages([
+                        'audio' => $analysis->completionFailureMessage($resolved, $analysisContext),
+                    ]);
+                }
+
                 $transcriptText = trim((string) $resolved['transcript']);
             }
 
@@ -545,6 +567,18 @@ class DiagnosticAssessmentController extends Controller
         ]);
 
         return Inertia::render('Learner/ModulePlacementResult', [
+            'attempt' => $attempt->only(
+                'task_1_score',
+                'task_2a_score',
+                'task_2b_score',
+                'crla_total_score',
+                'crla_classification',
+                'reading_accuracy',
+                'comprehension_correct_count',
+                'comprehension_percentage',
+                'final_reading_score',
+                'reading_classification'
+            ),
             'decision' => $decision,
             'module' => $module?->only('key', 'title', 'description'),
         ]);
@@ -689,19 +723,20 @@ class DiagnosticAssessmentController extends Controller
                 : null);
             $expectedAnswer = $this->expectedAnswer($item);
             $acceptedAnswers = $this->acceptedAnswersForItem($item, $expectedAnswer);
+            $analysisContext = $this->analysisContext($item, $expectedAnswer, $acceptedAnswers);
             $resolved = $analysis->resolve(
                 $allowManualFallback ? ($submitted['answer'] ?? null) : null,
                 $audioFile,
-                $this->analysisContext($item, $expectedAnswer, $acceptedAnswers),
+                $analysisContext,
                 $this->sttOptionsForAssessmentItem($item)
             );
             $answer = $resolved['transcript'];
             $displayedAnswer = $resolved['displayed_transcript'] ?? $answer;
             $transcriptSource = $resolved['source'];
 
-            if (trim($answer) === '') {
+            if (! $analysis->canComplete($resolved, $analysisContext)) {
                 throw ValidationException::withMessages([
-                    'responses.'.($submittedIndex === false ? 0 : $submittedIndex).'.answer' => 'Let us answer this first.',
+                    'responses.'.($submittedIndex === false ? 0 : $submittedIndex).'.answer' => $analysis->completionFailureMessage($resolved, $analysisContext),
                 ]);
             }
 
@@ -800,19 +835,20 @@ class DiagnosticAssessmentController extends Controller
 
             $expectedAnswer = $this->expectedAnswer($item);
             $acceptedAnswers = $this->acceptedAnswersForItem($item, $expectedAnswer);
+            $analysisContext = $this->analysisContext($item, $expectedAnswer, $acceptedAnswers);
             $resolved = $analysis->resolve(
                 $allowManualFallback ? ($submitted['answer'] ?? null) : null,
                 $audioFile,
-                $this->analysisContext($item, $expectedAnswer, $acceptedAnswers),
+                $analysisContext,
                 $this->sttOptionsForAssessmentItem($item)
             );
             $answer = $resolved['transcript'];
             $displayedAnswer = $resolved['displayed_transcript'] ?? $answer;
             $transcriptSource = $resolved['source'];
 
-            if (trim($answer) === '') {
+            if (! $analysis->canComplete($resolved, $analysisContext)) {
                 throw ValidationException::withMessages([
-                    'responses.'.($submittedIndex === false ? 0 : $submittedIndex).'.answer' => 'Let us answer this first.',
+                    'responses.'.($submittedIndex === false ? 0 : $submittedIndex).'.answer' => $analysis->completionFailureMessage($resolved, $analysisContext),
                 ]);
             }
 
@@ -1194,10 +1230,7 @@ class DiagnosticAssessmentController extends Controller
 
     private function validateSubmittedAssessmentItemSet(Collection $items, array $responses): void
     {
-        $expected = $items->pluck('id')->sort()->values()->all();
-        $submitted = collect($responses)->pluck('assessment_attempt_item_id')->sort()->values()->all();
-
-        if ($expected !== $submitted) {
+        if (! SubmittedItemSet::idsMatch($items, $responses, 'assessment_attempt_item_id')) {
             throw ValidationException::withMessages([
                 'responses' => 'Almost there! Continue from the current step.',
             ]);

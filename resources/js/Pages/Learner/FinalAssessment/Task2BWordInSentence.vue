@@ -10,6 +10,7 @@ import BottomActionBar from '../../../Components/BottomActionBar.vue';
 import StatusBadge from '../../../Components/StatusBadge.vue';
 import ModuleProgressBar from '../../../Components/ModuleProgressBar.vue';
 import { useStepAssessment } from '../../../Composables/useStepAssessment';
+import { appendAudioMetadata, normalizeAsrResponse } from '../../../utils/asrResponse';
 
 const props = defineProps({
     items: Array,
@@ -40,6 +41,7 @@ const answerFor = (item) => manualAnswerFor(item) || String(generatedTranscripts
 const sourceFor = (item) => manualAnswerFor(item)
     ? 'manual'
     : (transcriptSources[item?.id] ?? (generatedTranscripts[item?.id] ? 'stt_auto' : 'stt_auto'));
+const hasManualOverride = (item) => canUseManualFallback.value && manualAnswerFor(item).length > 0;
 const hasUsableTranscript = (item, answer) => {
     const expectedPrompt = String(item?.payload?.target_word ?? item?.payload?.expected_answer ?? item?.prompt ?? '').trim();
     const manualAnswer = String(answer ?? '').trim();
@@ -51,7 +53,7 @@ const hasUsableTranscript = (item, answer) => {
 
     return normalizedAnswer.length >= Math.max(2, Math.floor(expectedPrompt.length * 0.6));
 };
-const hasAnswerOrAudio = (item, answer) => Boolean(uploadedAudioIds[item?.id]) && hasUsableTranscript(item, answer);
+const hasAnswerOrAudio = (item, answer) => (Boolean(uploadedAudioIds[item?.id]) || hasManualOverride(item)) && hasUsableTranscript(item, answer);
 const step = useStepAssessment(props.items, { emptyMessage: 'Almost there! Finish this item to continue.', initialIndex: props.initialIndex ?? 0, isAnswered: hasAnswerOrAudio });
 const agentMessage = ref('Read the word in the sentence. Speak clearly when you record.');
 const agentState = ref('listening');
@@ -97,6 +99,7 @@ const uploadAudio = async (item, file) => {
         if (audioDurations[item.id] != null) {
             payload.append('duration_seconds', String(audioDurations[item.id]));
         }
+        appendAudioMetadata(payload, file);
 
         const response = await fetch('/learner/audio/upload', {
             method: 'POST',
@@ -113,9 +116,10 @@ const uploadAudio = async (item, file) => {
             throw new Error(result.message ?? 'We had trouble checking your answer. Please try again.');
         }
 
-        const transcript = String(result.displayed_transcript ?? result.corrected_transcript ?? result.transcript ?? result.raw_transcript ?? '').trim();
-        uploadedAudioIds[item.id] = result.audio_file_id;
-        if (transcript) {
+        const asr = normalizeAsrResponse(result);
+        if (asr.canSubmit) {
+            uploadedAudioIds[item.id] = result.audio_file_id;
+            const transcript = asr.displayTranscript;
             generatedTranscripts[item.id] = transcript;
             transcriptSources[item.id] = result.transcript_source ?? 'stt_auto';
             step.feedback.value = '';
@@ -124,7 +128,7 @@ const uploadAudio = async (item, file) => {
             return;
         }
 
-        uploadErrors[item.id] = result.transcription_message ?? result.message ?? 'We could not hear your answer clearly. Please try recording again.';
+        uploadErrors[item.id] = asr.message;
         agentMessage.value = uploadErrors[item.id];
         agentState.value = 'speaking';
     } catch (error) {
@@ -165,10 +169,14 @@ const submit = () => {
     });
 };
 const handlePrimary = () => {
-    if (!currentHasUploadedAudio.value) {
-        agentMessage.value = 'Please record the highlighted word first so we can check what you said.';
+    if (!currentHasUploadedAudio.value && !hasManualOverride(step.currentItem.value)) {
+        agentMessage.value = canUseManualFallback.value
+            ? 'Record the highlighted word, or enter a QA manual transcript override.'
+            : 'Please record the highlighted word first so we can check what you said.';
         agentState.value = 'speaking';
-        step.feedback.value = 'Record the highlighted word before going to the next one.';
+        step.feedback.value = canUseManualFallback.value
+            ? 'Record this item or enter a QA transcript override before continuing.'
+            : 'Record the highlighted word before going to the next one.';
         return;
     }
 
@@ -222,6 +230,7 @@ const handlePrimary = () => {
                         :key="step.currentItem.value.id"
                         compact
                         :max-duration-seconds="30"
+                        prompt-type="word"
                         :require-review-before-submit="requireReviewBeforeSubmit"
                         :auto-transcribe-on-stop="autoTranscribeOnStop"
                         :submitting="isCurrentUploading"

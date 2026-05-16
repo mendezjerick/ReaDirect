@@ -21,6 +21,7 @@ use App\Services\ModuleMasteryService;
 use App\Services\ModuleScoringService;
 use App\Support\CurrentLearner;
 use App\Support\LearnerStage;
+use App\Support\SubmittedItemSet;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -124,17 +125,18 @@ class ModuleMasteryController extends Controller
 
             $expectedAnswer = $this->expectedAnswer($item);
             $acceptedAnswers = $item->prompt_snapshot['accepted_answers'] ?? [];
+            $analysisContext = $this->analysisContext($item, $module, $expectedAnswer, $acceptedAnswers);
             $resolved = $analysis->resolve(
                 $mode->canShowManualFallback($request, $attempt, $learner) ? ($submitted['answer'] ?? null) : null,
                 $audioFile,
-                $this->analysisContext($item, $module, $expectedAnswer, $acceptedAnswers)
+                $analysisContext
             );
             $answer = $resolved['transcript'];
             $displayedAnswer = $resolved['displayed_transcript'] ?? $answer;
 
-            if (trim($answer) === '') {
+            if (! $analysis->canComplete($resolved, $analysisContext)) {
                 throw ValidationException::withMessages([
-                    'responses.'.($submittedIndex === false ? 0 : $submittedIndex).'.answer' => 'Let us answer this first.',
+                    'responses.'.($submittedIndex === false ? 0 : $submittedIndex).'.answer' => $analysis->completionFailureMessage($resolved, $analysisContext),
                 ]);
             }
 
@@ -417,10 +419,7 @@ class ModuleMasteryController extends Controller
 
     private function validateSubmittedItemSet(Collection $items, array $responses): void
     {
-        $expected = $items->pluck('id')->sort()->values()->all();
-        $submitted = collect($responses)->pluck('module_attempt_item_id')->sort()->values()->all();
-
-        if ($expected !== $submitted) {
+        if (! SubmittedItemSet::idsMatch($items, $responses, 'module_attempt_item_id')) {
             throw ValidationException::withMessages([
                 'responses' => 'Almost there! Finish this check before moving on.',
             ]);

@@ -3,6 +3,7 @@
 namespace App\Services\AI;
 
 use App\Models\AudioFile;
+use App\Services\ASR\AsrResponseNormalizer;
 use App\Services\DeveloperReinforcementModeService;
 use App\Services\STT\AudioTranscriptionService;
 use App\Services\STT\TranscriptSanitizer;
@@ -15,6 +16,7 @@ class AIAnalysisResolver
         private readonly ReadirectAIService $ai,
         private readonly AudioTranscriptionService $transcription,
         private readonly TranscriptSanitizer $sanitizer,
+        private readonly AsrResponseNormalizer $normalizer,
         private readonly DeveloperReinforcementModeService $developerReinforcementMode
     ) {
     }
@@ -107,6 +109,16 @@ class AIAnalysisResolver
         return $promptType === '' || in_array($promptType, ['letter', 'word'], true);
     }
 
+    public function canComplete(array $resolved, array $context = [], bool $allowUncertain = false): bool
+    {
+        return $this->normalizer->canComplete($resolved, $context, $allowUncertain);
+    }
+
+    public function completionFailureMessage(array $resolved, array $context = []): string
+    {
+        return $this->normalizer->completionFailureMessage($resolved, $context);
+    }
+
     private function shouldUseAi(): bool
     {
         return (bool) config('readirect_ai.enabled');
@@ -180,28 +192,12 @@ class AIAnalysisResolver
 
     private function extractTranscript(array $aiResponse, array $context = []): string
     {
-        foreach (['corrected_transcript', 'transcript', 'raw_transcript'] as $key) {
-            $value = $aiResponse[$key] ?? '';
-
-            if (trim((string) $value) !== '') {
-                return $this->sanitizer->sanitize($value);
-            }
-        }
-
-        return $this->sanitizer->sanitize($aiResponse['normalized_transcript'] ?? '');
+        return $this->normalizer->normalize($aiResponse)['scoring_transcript'];
     }
 
     private function extractDisplayedTranscript(array $aiResponse, string $scoringTranscript): string
     {
-        foreach (['displayed_transcript', 'corrected_transcript', 'transcript', 'raw_transcript'] as $key) {
-            $value = $aiResponse[$key] ?? '';
-
-            if (trim((string) $value) !== '') {
-                return $this->sanitizer->sanitize($value);
-            }
-        }
-
-        return $scoringTranscript;
+        return $this->normalizer->normalize($aiResponse, $scoringTranscript)['display_transcript'];
     }
 
     private function resolved(string $transcript, string $source, mixed $confidence, ?array $aiResponse, mixed $sttResult = null): array
@@ -209,6 +205,7 @@ class AIAnalysisResolver
         return [
             'transcript' => $transcript,
             'displayed_transcript' => $aiResponse ? $this->extractDisplayedTranscript($aiResponse, $transcript) : $transcript,
+            'debug_transcript' => $aiResponse ? $this->normalizer->normalize($aiResponse, $transcript)['debug_transcript'] : $transcript,
             'source' => $source,
             'confidence' => $confidence,
             'stt_result' => $sttResult,

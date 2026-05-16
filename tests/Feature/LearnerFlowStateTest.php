@@ -111,11 +111,20 @@ class LearnerFlowStateTest extends TestCase
         $this->withSession(['learner_id' => $learner->id, 'assessment_attempt_id' => $attempt->id])
             ->get(route('learner.diagnostic.task-2a'))
             ->assertRedirect(route('learner.diagnostic.task-2b'));
+        $this->withSession(['learner_id' => $learner->id, 'assessment_attempt_id' => $attempt->id])
+            ->get(route('learner.diagnostic.task-2a-summary'))
+            ->assertRedirect(route('learner.diagnostic.task-2b'));
 
         $attempt->update(['task_1_score' => 4, 'task_2a_score' => null, 'status' => 'task_1_completed']);
         $this->withSession(['learner_id' => $learner->id, 'assessment_attempt_id' => $attempt->id])
             ->get(route('learner.diagnostic.task-2b'))
             ->assertRedirect(route('learner.diagnostic.task-2a'));
+
+        $attempt->update(['task_2a_score' => 6, 'status' => 'task_2a_completed']);
+        $this->withSession(['learner_id' => $learner->id, 'assessment_attempt_id' => $attempt->id])
+            ->get(route('learner.diagnostic.task-2a-summary'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('Learner/Task2ASummary'));
     }
 
     public function test_module_access_and_dashboard_actions_follow_current_module_and_stage(): void

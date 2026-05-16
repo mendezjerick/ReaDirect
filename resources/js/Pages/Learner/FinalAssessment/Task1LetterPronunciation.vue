@@ -11,6 +11,7 @@ import BottomActionBar from '../../../Components/BottomActionBar.vue';
 import StatusBadge from '../../../Components/StatusBadge.vue';
 import ModuleProgressBar from '../../../Components/ModuleProgressBar.vue';
 import { useStepAssessment } from '../../../Composables/useStepAssessment';
+import { appendAudioMetadata, normalizeAsrResponse } from '../../../utils/asrResponse';
 
 const props = defineProps({
     items: Array,
@@ -84,6 +85,7 @@ const uploadAudio = async (item, file) => {
         if (audioDurations[item.id] != null) {
             payload.append('duration_seconds', String(audioDurations[item.id]));
         }
+        appendAudioMetadata(payload, file);
 
         const response = await fetch('/learner/audio/upload', {
             method: 'POST',
@@ -100,9 +102,10 @@ const uploadAudio = async (item, file) => {
             throw new Error(result.message ?? 'We had trouble checking your answer. Please try again.');
         }
 
-        const transcript = String(result.displayed_transcript ?? result.transcript ?? '').trim();
-        uploadedAudioIds[item.id] = result.audio_file_id;
-        if (transcript) {
+        const asr = normalizeAsrResponse(result);
+        if (asr.canSubmit) {
+            uploadedAudioIds[item.id] = result.audio_file_id;
+            const transcript = asr.displayTranscript;
             generatedTranscripts[item.id] = transcript;
             transcriptSources[item.id] = result.transcript_source ?? 'stt_auto';
             agentMessage.value = `You said: ${transcript}`;
@@ -110,7 +113,7 @@ const uploadAudio = async (item, file) => {
             return;
         }
 
-        uploadErrors[item.id] = result.transcription_message ?? result.message ?? 'We could not hear your answer clearly. Please try recording again.';
+        uploadErrors[item.id] = asr.message;
         agentMessage.value = uploadErrors[item.id];
     } catch (error) {
         uploadErrors[item.id] = error.message || 'We had trouble checking your answer. Please try again.';
@@ -184,6 +187,7 @@ const handlePrimary = () => {
                         :key="step.currentItem.value.id"
                         compact
                         :max-duration-seconds="30"
+                        prompt-type="letter"
                         :require-review-before-submit="requireReviewBeforeSubmit"
                         :auto-transcribe-on-stop="autoTranscribeOnStop"
                         :submitting="isCurrentUploading"

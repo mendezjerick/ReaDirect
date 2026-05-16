@@ -9,6 +9,7 @@ import BottomActionBar from '../../Components/BottomActionBar.vue';
 
 defineProps({
     attempt: Object,
+    placementPreview: Object,
     taskTwoBReview: Object,
 });
 
@@ -23,16 +24,28 @@ const accuracyTone = (percentage) => {
 <template>
     <LearnerLayout :progress="65">
         <template #agent>
-            <AgentSpeakerPanel agent-type="evaluator" state="celebrating" message="The first reading check is complete. Now we will read a short passage." />
+            <AgentSpeakerPanel agent-type="evaluator" state="celebrating" message="The CRLA tasks are complete. Review each score, then we will read a short passage to finish placement." />
         </template>
         <div class="mx-auto grid max-w-3xl gap-6 text-center">
             <RewardBadge title="CRLA Complete" />
-            <h1 class="text-4xl font-black text-text">Great effort. The first reading check is done.</h1>
-            <div class="grid gap-4 md:grid-cols-4">
-                <ScoreCard label="Letters" :value="attempt.task_1_score" />
-                <ScoreCard label="Rhymes" :value="attempt.task_2a_score" />
-                <ScoreCard label="Words" :value="attempt.task_2b_score" />
-                <ScoreCard label="CRLA level" :value="attempt.crla_classification" />
+            <h1 class="text-4xl font-black text-text">Your CRLA score is ready.</h1>
+            <div class="grid gap-4 md:grid-cols-3">
+                <ScoreCard label="Task 1 letters" :value="attempt.task_1_score" />
+                <ScoreCard label="Task 2A rhymes" :value="attempt.task_2a_score" />
+                <ScoreCard label="Task 2B words" :value="attempt.task_2b_score" />
+            </div>
+            <div class="rounded-2xl border border-border bg-surface px-6 py-5 text-left shadow-lg shadow-primary/10">
+                <p class="text-sm font-black uppercase tracking-wide text-muted">CRLA total</p>
+                <div class="mt-3 grid gap-4 md:grid-cols-[160px_1fr]">
+                    <div>
+                        <p class="text-4xl font-black text-primary">{{ attempt.crla_total_score }}/30</p>
+                        <p class="mt-1 text-base font-black text-text">{{ attempt.crla_classification }}</p>
+                    </div>
+                    <div>
+                        <p class="text-base font-bold text-muted">{{ placementPreview?.crla_meaning }}</p>
+                        <p class="mt-3 text-base font-bold text-text">{{ placementPreview?.decision_reason }}</p>
+                    </div>
+                </div>
             </div>
             <div v-if="taskTwoBReview" class="rounded-3xl border border-border bg-surface px-6 py-5 text-left shadow-lg shadow-primary/10">
                 <p class="text-sm font-black uppercase tracking-wide text-muted">Sentence reading check</p>
@@ -97,7 +110,7 @@ const accuracyTone = (percentage) => {
             </div>
         </div>
         <BottomActionBar>
-            <Link href="/learner/diagnostic/reading-intro"><PrimaryButton>Continue</PrimaryButton></Link>
+            <Link href="/learner/diagnostic/reading-intro"><PrimaryButton>Continue to Passage Reading</PrimaryButton></Link>
         </BottomActionBar>
     </LearnerLayout>
 </template>

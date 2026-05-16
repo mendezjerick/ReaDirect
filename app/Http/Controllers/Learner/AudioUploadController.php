@@ -37,6 +37,14 @@ class AudioUploadController extends Controller
             'task_type' => ['nullable', 'string', 'max:100'],
             'activity_type' => ['nullable', 'string', 'max:100'],
             'duration_seconds' => AudioStorageService::durationValidationRules(),
+            'audio_metadata' => ['nullable', 'array'],
+            'audio_metadata.total_duration_seconds' => ['nullable', 'numeric', 'min:0'],
+            'audio_metadata.speech_duration_seconds' => ['nullable', 'numeric', 'min:0'],
+            'audio_metadata.leading_silence_seconds' => ['nullable', 'numeric', 'min:0'],
+            'audio_metadata.trailing_silence_seconds' => ['nullable', 'numeric', 'min:0'],
+            'audio_metadata.silence_ratio' => ['nullable', 'numeric', 'min:0', 'max:1'],
+            'audio_metadata.speech_ratio' => ['nullable', 'numeric', 'min:0', 'max:1'],
+            'audio_metadata.was_trimmed' => ['nullable', 'boolean'],
         ], AudioStorageService::durationValidationMessages());
 
         $learner = CurrentLearner::require($request);
@@ -58,6 +66,7 @@ class AudioUploadController extends Controller
                 'item_id' => $validated['item_id'] ?? null,
                 'task_type' => $validated['task_type'] ?? null,
                 'activity_type' => $validated['activity_type'] ?? null,
+                'audio_metadata' => $validated['audio_metadata'] ?? null,
             ]
         );
         $canSeeRawAiPayload = $mode->canSeeRawAiPayload($request, $assessmentAttempt ?? $moduleAttempt, $learner);
@@ -69,15 +78,20 @@ class AudioUploadController extends Controller
         $transcript = trim((string) ($resolved['transcript'] ?? ''));
         $transcriptionMessage = $this->transcriptionMessage($resolved, $canSeeRawAiPayload);
         $displayedTranscript = trim((string) ($resolved['displayed_transcript'] ?? $resolved['transcript'] ?? ''));
+        $canComplete = $analysis->canComplete($resolved, $context);
+
+        if (! $canComplete && $transcript !== '') {
+            $transcriptionMessage = $analysis->completionFailureMessage($resolved, $context);
+        }
 
         $audioFile->update([
             'transcript' => $transcript !== '' ? $transcript : null,
             'stt_confidence' => $resolved['confidence'] ?? null,
-            'stt_error' => $transcript === '' ? $transcriptionMessage : null,
+            'stt_error' => $canComplete ? null : $transcriptionMessage,
             'stt_completed_at' => now(),
         ]);
 
-        if ($transcript !== '' && $assessmentAttempt) {
+        if ($canComplete && $assessmentAttempt) {
             if (($validated['context_type'] ?? null) === 'assessment_task') {
                 $this->persistAssessmentProgress($assessmentAttempt, $validated, $audioFile, $resolved, $displayedTranscript);
             }
@@ -92,14 +106,15 @@ class AudioUploadController extends Controller
             'audio_file_public_id' => $audioFile->public_id,
             'mime_type' => $audioFile->mime_type,
             'duration_seconds' => $audioFile->duration_seconds,
-            'transcription_status' => $transcript !== '' ? 'transcribed' : 'failed',
+            'transcription_status' => $canComplete ? 'transcribed' : (($resolved['ai_response']['retry_required'] ?? false) ? 'retry_required' : 'failed'),
             'transcription_message' => $transcriptionMessage,
             'message' => $transcriptionMessage,
             'transcript' => $resolved['transcript'],
             'displayed_transcript' => $displayedTranscript,
+            'can_submit' => $canComplete,
             'retry_required' => (bool) ($resolved['ai_response']['retry_required'] ?? false),
             'learner_retry_message' => $resolved['ai_response']['learner_retry_message'] ?? null,
-            'transcript_source' => $transcript !== '' ? $resolved['source'] : null,
+            'transcript_source' => $canComplete ? $resolved['source'] : null,
         ];
 
         if (! $canSeeRawAiPayload) {
@@ -195,7 +210,6 @@ class AudioUploadController extends Controller
         );
 
         $audioFile->update(['assessment_task_response_id' => $response->id]);
-        $item->update(['answered_at' => now()]);
     }
 
     private function persistPassageProgress(
@@ -237,7 +251,6 @@ class AudioUploadController extends Controller
         );
 
         $audioFile->update(['assessment_task_response_id' => $response->id]);
-        $item->update(['answered_at' => now()]);
     }
 
     private function sttOptions(?AssessmentAttempt $assessmentAttempt, array $validated): array

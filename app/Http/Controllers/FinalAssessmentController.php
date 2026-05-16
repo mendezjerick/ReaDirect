@@ -21,6 +21,7 @@ use App\Services\ReadingComprehensionScoringService;
 use App\Services\SentenceReadingScoringService;
 use App\Support\CurrentLearner;
 use App\Support\LearnerStage;
+use App\Support\SubmittedItemSet;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -299,15 +300,23 @@ class FinalAssessmentController extends Controller
 
         if ($audioFile) {
             $transcriptText = trim((string) $audioFile->transcript);
+            $analysisContext = [
+                'expected_text' => (string) ($passage?->prompt_snapshot['prompt'] ?? ''),
+                'prompt_id' => $passage?->source_csv_id,
+                'task_type' => 'final_reading_passage',
+                'content_metadata' => ['prompt_snapshot' => $passage?->prompt_snapshot ?? [], 'is_final_reassessment' => true],
+                'debug' => (bool) config('readirect_ai.debug.show_admin_debug'),
+            ];
 
             if ($transcriptText === '') {
-                $resolved = $analysis->resolve(null, $audioFile, [
-                    'expected_text' => (string) ($passage?->prompt_snapshot['prompt'] ?? ''),
-                    'prompt_id' => $passage?->source_csv_id,
-                    'task_type' => 'final_reading_passage',
-                    'content_metadata' => ['prompt_snapshot' => $passage?->prompt_snapshot ?? [], 'is_final_reassessment' => true],
-                    'debug' => (bool) config('readirect_ai.debug.show_admin_debug'),
-                ], $this->sttOptionsForPassage($passage));
+                $resolved = $analysis->resolve(null, $audioFile, $analysisContext, $this->sttOptionsForPassage($passage));
+
+                if (! $analysis->canComplete($resolved, $analysisContext)) {
+                    throw ValidationException::withMessages([
+                        'audio' => $analysis->completionFailureMessage($resolved, $analysisContext),
+                    ]);
+                }
+
                 $transcriptText = trim((string) $resolved['transcript']);
             }
 
@@ -431,17 +440,18 @@ class FinalAssessmentController extends Controller
                 : null);
             $expectedAnswer = $this->expectedAnswer($item);
             $acceptedAnswers = $this->acceptedAnswersForItem($item, $expectedAnswer);
+            $analysisContext = $this->analysisContext($item, $expectedAnswer, $acceptedAnswers);
             $resolved = $analysis->resolve(
                 $allowManualFallback ? ($submitted['answer'] ?? null) : null,
                 $audioFile,
-                $this->analysisContext($item, $expectedAnswer, $acceptedAnswers)
+                $analysisContext
             );
             $answer = $resolved['transcript'];
             $displayedAnswer = $resolved['displayed_transcript'] ?? $answer;
 
-            if (trim($answer) === '') {
+            if (! $analysis->canComplete($resolved, $analysisContext)) {
                 throw ValidationException::withMessages([
-                    'responses.'.($submittedIndex === false ? 0 : $submittedIndex).'.answer' => 'Let us answer this first.',
+                    'responses.'.($submittedIndex === false ? 0 : $submittedIndex).'.answer' => $analysis->completionFailureMessage($resolved, $analysisContext),
                 ]);
             }
 
@@ -519,17 +529,18 @@ class FinalAssessmentController extends Controller
                 : null);
             $expectedAnswer = $this->expectedAnswer($item);
             $acceptedAnswers = $this->acceptedAnswersForItem($item, $expectedAnswer);
+            $analysisContext = $this->analysisContext($item, $expectedAnswer, $acceptedAnswers);
             $resolved = $analysis->resolve(
                 $allowManualFallback ? ($submitted['answer'] ?? null) : null,
                 $audioFile,
-                $this->analysisContext($item, $expectedAnswer, $acceptedAnswers)
+                $analysisContext
             );
             $answer = $resolved['transcript'];
             $displayedAnswer = $resolved['displayed_transcript'] ?? $answer;
 
-            if (trim($answer) === '') {
+            if (! $analysis->canComplete($resolved, $analysisContext)) {
                 throw ValidationException::withMessages([
-                    'responses.'.($submittedIndex === false ? 0 : $submittedIndex).'.answer' => 'Let us answer this first.',
+                    'responses.'.($submittedIndex === false ? 0 : $submittedIndex).'.answer' => $analysis->completionFailureMessage($resolved, $analysisContext),
                 ]);
             }
 
@@ -970,10 +981,7 @@ class FinalAssessmentController extends Controller
 
     private function validateSubmittedAssessmentItemSet(Collection $items, array $responses): void
     {
-        $expected = $items->pluck('id')->sort()->values()->all();
-        $submitted = collect($responses)->pluck('assessment_attempt_item_id')->sort()->values()->all();
-
-        if ($expected !== $submitted) {
+        if (! SubmittedItemSet::idsMatch($items, $responses, 'assessment_attempt_item_id')) {
             throw ValidationException::withMessages([
                 'responses' => 'Almost there! Continue from the current step.',
             ]);

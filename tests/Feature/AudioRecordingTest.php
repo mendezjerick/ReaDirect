@@ -316,6 +316,54 @@ class AudioRecordingTest extends TestCase
         });
     }
 
+    public function test_retry_required_audio_upload_does_not_mark_assessment_item_answered(): void
+    {
+        Storage::fake('local');
+        config([
+            'readirect_ai.enabled' => true,
+            'readirect_ai.base_url' => 'http://ai.test',
+            'readirect_ai.endpoints.analyze_audio' => '/analyze-audio',
+        ]);
+        Http::fake([
+            'http://ai.test/analyze-audio' => Http::response([
+                'ok' => true,
+                'request_id' => 'retry-req-1',
+                'transcript' => 'tree',
+                'raw_transcript' => 'tree',
+                'corrected_transcript' => 'tree',
+                'displayed_transcript' => 'tree',
+                'accepted' => false,
+                'prompt_type' => 'word',
+                'retry_required' => true,
+                'learner_retry_message' => 'Please try again with clearer speech.',
+                'warnings' => [],
+            ]),
+        ]);
+
+        $attempt = $this->attemptWithTaskOneItems();
+        $item = $attempt->selectedItems()
+            ->where('task_type', AssessmentItemSelectionService::TASK_1_LETTER)
+            ->firstOrFail();
+
+        $response = $this->withSession(['learner_id' => $attempt->learner_id, 'assessment_attempt_id' => $attempt->id])
+            ->postJson(route('learner.audio.upload'), [
+                'audio' => UploadedFile::fake()->create('letter.wav', 100, 'audio/wav'),
+                'context_type' => 'assessment_task',
+                'assessment_attempt_id' => $attempt->id,
+                'item_id' => $item->id,
+                'task_type' => AssessmentItemSelectionService::TASK_1_LETTER,
+                'duration_seconds' => 2,
+            ]);
+
+        $response->assertOk()
+            ->assertJsonPath('can_submit', false)
+            ->assertJsonPath('retry_required', true)
+            ->assertJsonPath('transcript_source', null);
+
+        $this->assertNull($item->refresh()->answered_at);
+        $this->assertSame(0, AssessmentTaskResponse::count());
+    }
+
     public function test_assessment_submission_uses_stt_transcript_when_manual_answer_is_blank(): void
     {
         Storage::fake('local');

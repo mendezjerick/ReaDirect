@@ -151,9 +151,28 @@ class DiagnosticAssessmentValidationTest extends TestCase
             ->post(route('learner.diagnostic.task-2a.store'), [
                 'responses' => $this->responsesFor($attempt, AssessmentItemSelectionService::TASK_2A_RHYME, 'hat'),
             ])
-            ->assertRedirect(route('learner.diagnostic.task-2b'));
+            ->assertRedirect(route('learner.diagnostic.task-2a-summary'));
 
         $this->assertSame(0, (int) $attempt->refresh()->task_2a_score);
+    }
+
+    public function test_task_two_a_summary_shows_saved_score_before_task_two_b(): void
+    {
+        $attempt = $this->assessmentAttempt();
+        $attempt->update([
+            'task_1_score' => 4,
+            'task_2a_score' => 6,
+            'status' => 'task_2a_completed',
+        ]);
+
+        $this->withSession($this->learnerSession($attempt))
+            ->get(route('learner.diagnostic.task-2a-summary'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Learner/Task2ASummary')
+                ->where('attempt.task_1_score', 4)
+                ->where('attempt.task_2a_score', 6)
+            );
     }
 
     public function test_task_two_b_submission_with_missing_answer_is_rejected(): void

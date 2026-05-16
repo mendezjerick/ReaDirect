@@ -11,6 +11,7 @@ import ModuleProgressBar from '../../../Components/ModuleProgressBar.vue';
 import PromptCard from '../../../Components/PromptCard.vue';
 import StatusBadge from '../../../Components/StatusBadge.vue';
 import { useStepAssessment } from '../../../Composables/useStepAssessment';
+import { appendAudioMetadata, normalizeAsrResponse } from '../../../utils/asrResponse';
 
 const props = defineProps({
     module: Object,
@@ -35,6 +36,15 @@ const canUseManualFallback = computed(() => props.assessmentMode?.canUseManualFa
 const isDeveloperQaMode = computed(() => props.assessmentMode?.isDeveloperQaMode === true);
 const autoTranscribeOnStop = computed(() => props.assessmentMode?.canAutoTranscribeOnStop === true);
 const requireReviewBeforeSubmit = computed(() => props.assessmentMode?.requireReviewBeforeSubmit !== false);
+const recorderPromptType = computed(() => {
+    const activity = String(props.activityType ?? '');
+
+    if (activity.includes('sentence')) return 'sentence';
+    if (activity.includes('rhyme')) return 'rhyme';
+    if (activity.includes('letter')) return 'letter';
+
+    return 'word';
+});
 const manualAnswerFor = (item, answer = null) => canUseManualFallback.value ? String(answer ?? step.answers[item?.id] ?? '').trim() : '';
 const answerFor = (item, answer = null) => manualAnswerFor(item, answer) || String(generatedTranscripts[item?.id] ?? '').trim();
 const sourceFor = (item, answer = null) => manualAnswerFor(item, answer)
@@ -143,6 +153,7 @@ const uploadAudio = async (item, file) => {
         if (audioDurations[item.id] != null) {
             payload.append('duration_seconds', String(audioDurations[item.id]));
         }
+        appendAudioMetadata(payload, file);
 
         const response = await fetch('/learner/audio/upload', {
             method: 'POST',
@@ -159,9 +170,10 @@ const uploadAudio = async (item, file) => {
             throw new Error(result.message ?? 'We had trouble checking your answer. Please try again.');
         }
 
-        const transcript = String(result.displayed_transcript ?? result.transcript ?? '').trim();
-        uploadedAudioIds[item.id] = result.audio_file_id;
-        if (transcript) {
+        const asr = normalizeAsrResponse(result);
+        if (asr.canSubmit) {
+            uploadedAudioIds[item.id] = result.audio_file_id;
+            const transcript = asr.displayTranscript;
             generatedTranscripts[item.id] = transcript;
             transcriptSources[item.id] = result.transcript_source ?? 'stt_auto';
             step.feedback.value = '';
@@ -170,7 +182,7 @@ const uploadAudio = async (item, file) => {
             return;
         }
 
-        uploadErrors[item.id] = result.transcription_message ?? result.message ?? 'We could not hear your answer clearly. Please try recording again.';
+        uploadErrors[item.id] = asr.message;
         coachMessage.value = uploadErrors[item.id];
     } catch (error) {
         uploadErrors[item.id] = error.message || 'We had trouble checking your answer. Please try again.';
@@ -276,6 +288,7 @@ const returnToDashboard = () => {
                         :key="step.currentItem.value.id"
                         compact
                         :max-duration-seconds="45"
+                        :prompt-type="recorderPromptType"
                         :require-review-before-submit="requireReviewBeforeSubmit"
                         :auto-transcribe-on-stop="autoTranscribeOnStop"
                         :submitting="isCurrentUploading"

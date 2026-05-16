@@ -12,6 +12,10 @@ const props = defineProps({
     compact: { type: Boolean, default: false },
     spacebarEnabled: { type: Boolean, default: true },
     cueDelayMs: { type: Number, default: 1400 },
+    promptType: { type: String, default: 'word' },
+    minSpeechDurationSeconds: { type: Number, default: null },
+    maxLeadingSilenceSeconds: { type: Number, default: 1 },
+    maxSilenceRatio: { type: Number, default: 0.85 },
     requireReviewBeforeSubmit: { type: Boolean, default: true },
     autoTranscribeOnStop: { type: Boolean, default: false },
     submitting: { type: Boolean, default: false },
@@ -49,6 +53,20 @@ const statusLabel = computed(() => {
 });
 
 const minDurationLabel = computed(() => `${props.minDurationSeconds} ${props.minDurationSeconds === 1 ? 'second' : 'seconds'}`);
+const speechThresholdSeconds = computed(() => {
+    if (props.minSpeechDurationSeconds !== null) {
+        return props.minSpeechDurationSeconds;
+    }
+
+    return {
+        letter: 0.25,
+        word: 0.35,
+        rhyme: 0.35,
+        sentence: 0.75,
+        paragraph: 1.5,
+        passage: 1.5,
+    }[props.promptType] ?? 0.35;
+});
 
 const helperText = computed(() => {
     const messages = {
@@ -170,6 +188,67 @@ const audioBufferToWavBlob = (audioBuffer) => {
     return new Blob([view], { type: 'audio/wav' });
 };
 
+const sliceAudioBuffer = (audioBuffer, startSecond, endSecond) => {
+    const OfflineContextClass = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    if (!OfflineContextClass) {
+        return audioBuffer;
+    }
+
+    const sampleRate = audioBuffer.sampleRate;
+    const start = Math.max(0, Math.floor(startSecond * sampleRate));
+    const end = Math.min(audioBuffer.length, Math.ceil(endSecond * sampleRate));
+    const length = Math.max(1, end - start);
+    const offlineContext = new OfflineContextClass(1, length, sampleRate);
+    const trimmed = offlineContext.createBuffer(1, length, sampleRate);
+    const source = audioBuffer.getChannelData(0).slice(start, end);
+    trimmed.copyToChannel(source, 0);
+
+    return trimmed;
+};
+
+const analyzeSpeech = (audioBuffer) => {
+    const samples = audioBuffer.getChannelData(0);
+    const sampleRate = audioBuffer.sampleRate;
+    const frameSize = Math.max(1, Math.floor(sampleRate * 0.03));
+    const minRms = 0.018;
+    const speechFrames = [];
+
+    for (let start = 0; start < samples.length; start += frameSize) {
+        const end = Math.min(samples.length, start + frameSize);
+        let sum = 0;
+
+        for (let index = start; index < end; index += 1) {
+            sum += samples[index] * samples[index];
+        }
+
+        const rms = Math.sqrt(sum / Math.max(1, end - start));
+        if (rms >= minRms) {
+            speechFrames.push([start, end]);
+        }
+    }
+
+    const totalDuration = audioBuffer.duration;
+    const firstSpeech = speechFrames[0]?.[0] ?? null;
+    const lastSpeech = speechFrames[speechFrames.length - 1]?.[1] ?? null;
+    const speechDuration = speechFrames.reduce((sum, [start, end]) => sum + ((end - start) / sampleRate), 0);
+    const leadingSilence = firstSpeech === null ? totalDuration : firstSpeech / sampleRate;
+    const trailingSilence = lastSpeech === null ? totalDuration : Math.max(0, totalDuration - (lastSpeech / sampleRate));
+    const trimStart = firstSpeech === null ? 0 : Math.max(0, leadingSilence - 0.08);
+    const trimEnd = lastSpeech === null ? totalDuration : Math.min(totalDuration, (lastSpeech / sampleRate) + 0.12);
+
+    return {
+        total_duration_seconds: Number(totalDuration.toFixed(3)),
+        speech_duration_seconds: Number(speechDuration.toFixed(3)),
+        leading_silence_seconds: Number(leadingSilence.toFixed(3)),
+        trailing_silence_seconds: Number(trailingSilence.toFixed(3)),
+        silence_ratio: Number((totalDuration > 0 ? Math.max(0, 1 - (speechDuration / totalDuration)) : 1).toFixed(3)),
+        speech_ratio: Number((totalDuration > 0 ? speechDuration / totalDuration : 0).toFixed(3)),
+        was_trimmed: trimStart > 0 || trimEnd < totalDuration,
+        trim_start_seconds: trimStart,
+        trim_end_seconds: trimEnd,
+    };
+};
+
 const convertRecordingToWav = async (blob) => {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
 
@@ -183,10 +262,16 @@ const convertRecordingToWav = async (blob) => {
         const arrayBuffer = await blob.arrayBuffer();
         const audioBuffer = await context.decodeAudioData(arrayBuffer.slice(0));
 
+        const metadata = analyzeSpeech(audioBuffer);
+        const trimmedBuffer = metadata.was_trimmed
+            ? sliceAudioBuffer(audioBuffer, metadata.trim_start_seconds, metadata.trim_end_seconds)
+            : audioBuffer;
+
         return {
-            blob: audioBufferToWavBlob(audioBuffer),
-            durationSeconds: audioBuffer.duration,
+            blob: audioBufferToWavBlob(trimmedBuffer),
+            durationSeconds: metadata.total_duration_seconds,
             extension: 'wav',
+            audioMetadata: metadata,
         };
     } finally {
         await context.close();
@@ -218,8 +303,35 @@ const startRecording = async () => {
 
             try {
                 const converted = await convertRecordingToWav(blob);
+                const metadata = converted.audioMetadata ?? {
+                    total_duration_seconds: converted.durationSeconds || durationSeconds,
+                    speech_duration_seconds: converted.durationSeconds || durationSeconds,
+                    leading_silence_seconds: 0,
+                    trailing_silence_seconds: 0,
+                    silence_ratio: 0,
+                    speech_ratio: 1,
+                    was_trimmed: false,
+                };
+
+                if (metadata.speech_duration_seconds < speechThresholdSeconds.value) {
+                    stopTracks();
+                    errorMessage.value = `Please record again and speak for at least ${speechThresholdSeconds.value} seconds.`;
+                    setStatus('retry');
+                    emit('error', errorMessage.value);
+                    return;
+                }
+
+                if (metadata.leading_silence_seconds > props.maxLeadingSilenceSeconds || metadata.silence_ratio > props.maxSilenceRatio) {
+                    stopTracks();
+                    errorMessage.value = 'Please record again and start speaking after the cue.';
+                    setStatus('retry');
+                    emit('error', errorMessage.value);
+                    return;
+                }
+
                 const file = new File([converted.blob], `readirect-recording-${Date.now()}.${converted.extension}`, { type: converted.blob.type });
                 file.durationSeconds = converted.durationSeconds || durationSeconds;
+                file.audioMetadata = metadata;
                 currentFile.value = file;
                 audioUrl.value = URL.createObjectURL(converted.blob);
                 stopTracks();
@@ -390,7 +502,7 @@ onBeforeUnmount(() => {
             <span class="w-14 text-right text-sm font-black text-muted">{{ formattedDuration }}s</span>
         </div>
 
-        <p v-if="(errorMessage || externalError) && (status === 'recording' || status === 'error')" class="mt-2 text-xs font-black text-warning">
+        <p v-if="(errorMessage || externalError) && (status === 'recording' || status === 'retry' || status === 'error')" class="mt-2 text-xs font-black text-warning">
             {{ externalError || errorMessage }}
         </p>
 
