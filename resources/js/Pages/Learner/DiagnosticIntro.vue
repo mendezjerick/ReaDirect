@@ -8,7 +8,7 @@ import BottomActionBar from '../../Components/BottomActionBar.vue';
 </script>
 
 <template>
-    <LearnerLayout :progress="30">
+    <LearnerLayout :progress="30" diagnostic-step="warm-up">
         <div class="mx-auto grid max-w-2xl gap-6">
             <PromptCard label="Reading check" prompt="Say each letter clearly." size="sentence" />
             <AgentPanel title="Miss Vivian">I will show one letter at a time.</AgentPanel>

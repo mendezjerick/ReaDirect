@@ -48,7 +48,7 @@ const mark = (isCorrect) => {
 </script>
 
 <template>
-    <LearnerLayout :progress="progress">
+    <LearnerLayout :progress="progress" diagnostic-step="task-1">
         <div class="mx-auto grid max-w-2xl gap-6">
             <div class="flex items-center justify-between">
                 <StatusBadge :status="`Letter ${index + 1} of ${letters.length}`" />

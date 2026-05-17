@@ -182,7 +182,7 @@ const handlePrimary = () => {
 </script>
 
 <template>
-    <LearnerLayout :progress="58">
+    <LearnerLayout :progress="58" diagnostic-step="task-2a">
         <template #agent>
             <AgentSpeakerPanel compact agent-type="assessment" :state="agentState" :message="agentMessage" />
         </template>

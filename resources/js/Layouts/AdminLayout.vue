@@ -151,53 +151,8 @@
                     </div>
                 </div>
 
-                <!-- Right: notifications + user avatar dropdown -->
+                <!-- Right: user avatar dropdown -->
                 <div class="flex items-center gap-2">
-                    <div class="relative">
-                        <button
-                            @click="notificationsOpen = !notificationsOpen"
-                            class="relative rounded-xl p-2.5 text-slate-400 hover:bg-slate-100 hover:text-text transition-colors"
-                        >
-                            <Bell :size="18" />
-                            <span class="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-primary ring-2 ring-white"></span>
-                        </button>
-
-                        <Transition name="flash">
-                            <div
-                                v-if="notificationsOpen"
-                                class="absolute right-0 top-12 w-80 rounded-2xl border border-border/60 bg-surface p-3 shadow-xl shadow-black/10"
-                            >
-                                <div class="fixed inset-0 z-[-1]" @click="notificationsOpen = false" />
-
-                                <div class="mb-3 flex items-center justify-between px-1">
-                                    <div>
-                                        <p class="text-[13px] font-bold text-text">Notifications</p>
-                                        <p class="text-[11px] text-muted">System updates and admin reminders</p>
-                                    </div>
-                                    <span class="rounded-full bg-primary-light px-2.5 py-1 text-[11px] font-bold text-primary">{{ notifications.length }}</span>
-                                </div>
-
-                                <div class="space-y-2">
-                                    <div
-                                        v-for="notification in notifications"
-                                        :key="notification.id"
-                                        class="rounded-xl border border-border/60 bg-background px-3 py-3"
-                                    >
-                                        <div class="flex items-start justify-between gap-3">
-                                            <div class="min-w-0">
-                                                <p class="text-[13px] font-bold text-text">{{ notification.title }}</p>
-                                                <p class="mt-1 text-[12px] leading-relaxed text-muted">{{ notification.message }}</p>
-                                            </div>
-                                            <span class="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                                                {{ notification.time }}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </Transition>
-                    </div>
-
                     <!-- Avatar + dropdown -->
                     <div class="relative ml-1">
                         <button
@@ -295,7 +250,6 @@ import {
     Menu,
     X,
     Search,
-    Bell,
     UserCircle,
     LayoutDashboard,
     School,
@@ -315,24 +269,8 @@ import {
 
 const sidebarOpen = ref(false);
 const profileOpen = ref(false);
-const notificationsOpen = ref(false);
 const page = usePage();
 const currentUrl = computed(() => page.url);
-
-const notifications = [
-    {
-        id: 'admin-placeholder-1',
-        title: 'Dashboard scaffold ready',
-        message: 'Admin notifications are now visible here. Live system and content alerts can be connected next.',
-        time: 'now',
-    },
-    {
-        id: 'admin-placeholder-2',
-        title: 'Monitoring reminders',
-        message: 'Audit, prompt, and system monitoring updates will appear here once notification data is wired in.',
-        time: 'demo',
-    },
-];
 
 const isActive = (href) => {
     const url = currentUrl.value;

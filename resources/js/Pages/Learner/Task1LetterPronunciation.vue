@@ -1,15 +1,13 @@
 <script setup>
 import { computed, reactive, ref } from 'vue';
 import { useForm } from '@inertiajs/vue3';
+import { MessageCircle, Mic2, Volume2 } from 'lucide-vue-next';
 import LearnerLayout from '../../Layouts/LearnerLayout.vue';
-import PromptCard from '../../Components/PromptCard.vue';
 import AudioRecorder from '../../Components/Learner/AudioRecorder.vue';
 import AgentSpeakerPanel from '../../Components/Learner/AgentSpeakerPanel.vue';
 import PrimaryButton from '../../Components/PrimaryButton.vue';
 import SecondaryButton from '../../Components/SecondaryButton.vue';
 import BottomActionBar from '../../Components/BottomActionBar.vue';
-import StatusBadge from '../../Components/StatusBadge.vue';
-import ModuleProgressBar from '../../Components/ModuleProgressBar.vue';
 import { useStepAssessment } from '../../Composables/useStepAssessment';
 import { appendAudioMetadata, normalizeAsrResponse } from '../../utils/asrResponse';
 
@@ -182,41 +180,93 @@ const handlePrimary = () => {
 </script>
 
 <template>
-    <LearnerLayout :progress="35">
+    <LearnerLayout :progress="35" diagnostic-step="task-1">
         <template #agent>
-            <AgentSpeakerPanel compact agent-type="assessment" :state="agentState" :message="agentMessage" />
+            <AgentSpeakerPanel
+                agent-type="assessment"
+                :state="agentState"
+                :message="agentMessage"
+                presentation="assessment-task"
+            />
         </template>
 
-        <section class="mx-auto grid max-w-xl gap-3">
-            <div class="flex items-center justify-between">
-                <StatusBadge :status="`Letter ${step.currentIndex.value + 1} of ${items.length}`" />
-                <StatusBadge :status="isCurrentUploading ? 'Checking' : 'Voice check'" variant="primary" />
-            </div>
-            <ModuleProgressBar :value="step.progressPercent.value" />
-            <PromptCard :label="`Letter ${step.currentItem.value.sequence}`" :prompt="step.currentItem.value.prompt" size="letter" />
-            <div class="rounded-[24px] border border-border bg-surface p-4 shadow-lg shadow-primary/10">
-                <div class="grid gap-3 md:grid-cols-[220px_1fr] md:items-center">
-                    <AudioRecorder
-                        :key="step.currentItem.value.id"
-                        :reset-key="step.currentItem.value.id"
-                        compact
-                        :max-duration-seconds="30"
-                        :require-review-before-submit="requireReviewBeforeSubmit"
-                        :auto-transcribe-on-stop="autoTranscribeOnStop"
-                        :submitting="isCurrentUploading"
-                        :submitted="Boolean(uploadedAudioIds[step.currentItem.value.id]) && !uploadErrors[step.currentItem.value.id]"
-                        label="Letter voice"
-                        prompt-type="letter"
-                        @recorded="(file) => rememberAudio(step.currentItem.value, file)"
-                        @submit="(file) => uploadAudio(step.currentItem.value, file)"
-                        @cleared="() => clearAudio(step.currentItem.value)"
+        <section class="mx-auto grid w-full max-w-[1120px] gap-5">
+            <div class="grid gap-3">
+                <div class="flex flex-wrap items-center justify-between gap-3 px-1">
+                    <p class="text-base font-black text-primary">
+                        Letter {{ step.currentIndex.value + 1 }} of {{ items.length }}
+                    </p>
+                    <p class="inline-flex items-center gap-2 text-sm font-black text-primary">
+                        <Volume2 class="size-5" />
+                        {{ isCurrentUploading ? 'Checking' : 'Voice check' }}
+                    </p>
+                </div>
+                <div class="h-4 overflow-hidden rounded-full bg-primary-light">
+                    <div
+                        class="h-full rounded-full bg-primary transition-all duration-300"
+                        :style="{ width: `${step.progressPercent.value}%` }"
                     />
-                    <div class="grid gap-3">
-                        <label class="grid gap-2 text-lg font-black text-text">
-                            You said
+                </div>
+            </div>
+
+            <section class="relative overflow-hidden rounded-[28px] border border-blue-100 bg-surface px-6 py-7 text-center shadow-xl shadow-primary/10 sm:px-10 sm:py-8">
+                <span class="absolute left-6 top-8 size-14 rounded-full bg-primary-light/70" aria-hidden="true" />
+                <span class="absolute right-8 top-8 text-3xl font-black text-blue-100" aria-hidden="true">*</span>
+                <p class="relative text-lg font-black text-text sm:text-xl">
+                    Letter {{ step.currentItem.value.sequence }}
+                </p>
+                <p class="relative mt-5 text-[clamp(5.5rem,10vw,8.5rem)] font-black leading-none text-slate-950">
+                    {{ step.currentItem.value.prompt }}
+                </p>
+            </section>
+
+            <section class="rounded-[28px] border border-blue-100 bg-surface p-3 shadow-xl shadow-primary/10 sm:p-4 lg:p-5">
+                <div class="grid gap-4 lg:grid-cols-[300px_1fr] xl:grid-cols-[320px_1fr]">
+                    <div class="rounded-[24px] border border-blue-100 bg-surface p-3 shadow-sm shadow-primary/10">
+                        <div class="mb-3 flex items-center justify-between gap-3">
+                            <div class="flex items-center gap-3">
+                                <span class="grid size-12 place-items-center rounded-full bg-primary-light text-primary">
+                                    <Mic2 class="size-6" />
+                                </span>
+                                <div>
+                                    <p class="text-lg font-black text-text">Letter voice</p>
+                                    <p class="text-sm font-bold leading-snug text-muted">
+                                        Tap Start Recording or press Space.
+                                    </p>
+                                </div>
+                            </div>
+                            <span class="rounded-full bg-success/10 px-3 py-1.5 text-xs font-black text-success">
+                                {{ isCurrentUploading ? 'Checking' : 'Ready' }}
+                            </span>
+                        </div>
+                        <AudioRecorder
+                            :key="step.currentItem.value.id"
+                            :reset-key="step.currentItem.value.id"
+                            compact
+                            :max-duration-seconds="30"
+                            :require-review-before-submit="requireReviewBeforeSubmit"
+                            :auto-transcribe-on-stop="autoTranscribeOnStop"
+                            :submitting="isCurrentUploading"
+                            :submitted="Boolean(uploadedAudioIds[step.currentItem.value.id]) && !uploadErrors[step.currentItem.value.id]"
+                            label="Letter voice"
+                            prompt-type="letter"
+                            @recorded="(file) => rememberAudio(step.currentItem.value, file)"
+                            @submit="(file) => uploadAudio(step.currentItem.value, file)"
+                            @cleared="() => clearAudio(step.currentItem.value)"
+                        />
+                    </div>
+
+                    <div class="grid gap-3 rounded-[24px] border border-blue-100 bg-surface p-4 shadow-sm shadow-primary/10 sm:p-5">
+                        <label class="grid gap-3 text-lg font-black text-text">
+                            <span class="inline-flex items-center gap-3">
+                                <span class="grid size-11 place-items-center rounded-full bg-primary-light text-primary">
+                                    <MessageCircle class="size-6" />
+                                </span>
+                                You said
+                            </span>
                             <textarea
                                 :value="generatedTranscripts[step.currentItem.value.id] ?? ''"
-                                class="learner-transcript-box resize-none rounded-2xl border-2 border-border bg-background font-black text-text focus:border-primary focus:outline-none"
+                                class="learner-transcript-box min-h-44 resize-none rounded-[22px] border-2 border-blue-100 bg-background p-5 text-xl font-black text-text focus:border-primary focus:outline-none sm:min-h-52"
                                 readonly
                                 :placeholder="isCurrentUploading ? 'Checking your recording...' : 'Your words will appear here'"
                             />
@@ -237,7 +287,7 @@ const handlePrimary = () => {
                 </p>
                 <p v-if="firstFormError" class="mt-4 rounded-2xl bg-warning/15 px-4 py-3 text-sm font-black text-warning">{{ firstFormError }}</p>
                 <p v-if="step.feedback.value" class="mt-4 rounded-2xl bg-accent px-4 py-3 text-lg font-black text-text">{{ step.feedback.value }}</p>
-            </div>
+            </section>
         </section>
 
         <BottomActionBar>

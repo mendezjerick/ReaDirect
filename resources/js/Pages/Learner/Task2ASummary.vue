@@ -13,7 +13,7 @@ defineProps({
 </script>
 
 <template>
-    <LearnerLayout :progress="48">
+    <LearnerLayout :progress="48" diagnostic-step="task-2a">
         <template #agent>
             <AgentSpeakerPanel
                 agent-type="evaluator"

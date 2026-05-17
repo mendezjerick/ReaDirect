@@ -156,4 +156,30 @@ class AsrResponseNormalizerTest extends TestCase
             'ai_response' => ['audio_quality' => ['passed' => false]],
         ], $context));
     }
+
+    public function test_letter_transcript_can_complete_even_when_ai_marks_short_audio_uncertain(): void
+    {
+        $context = ['expected_text' => 'Z', 'task_type' => 'crla_task_1_letter'];
+
+        $this->assertTrue($this->normalizer->canComplete([
+            'transcript' => 'they',
+            'ai_response' => [
+                'raw_transcript' => 'they',
+                'corrected_transcript' => 'they',
+                'retry_required' => true,
+                'uncertain' => true,
+                'audio_quality' => ['passed' => false],
+                'prompt_type' => 'letter',
+            ],
+        ], $context));
+
+        $this->assertFalse($this->normalizer->canComplete([
+            'transcript' => '',
+            'ai_response' => [
+                'retry_required' => true,
+                'uncertain' => true,
+                'prompt_type' => 'letter',
+            ],
+        ], $context));
+    }
 }
