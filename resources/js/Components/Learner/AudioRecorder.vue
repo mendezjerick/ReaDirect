@@ -62,14 +62,16 @@ const speechThresholdSeconds = computed(() => {
     }
 
     return {
-        letter: 0.25,
-        word: 0.45,
-        rhyme: 0.45,
+        letter: 0.12,
+        word: 0.20,
+        rhyme: 0.20,
         sentence: 0.75,
         paragraph: 1.5,
         passage: 1.5,
     }[props.promptType] ?? 0.35;
 });
+
+const isShortVoicePrompt = computed(() => ['letter', 'word', 'rhyme', 'rhyming_word'].includes(props.promptType));
 
 const helperText = computed(() => {
     const messages = {
@@ -259,7 +261,7 @@ const analyzeSpeech = (audioBuffer) => {
     const samples = audioBuffer.getChannelData(0);
     const sampleRate = audioBuffer.sampleRate;
     const frameSize = Math.max(1, Math.floor(sampleRate * 0.03));
-    const minRms = 0.018;
+    const minRms = isShortVoicePrompt.value ? 0.012 : 0.018;
     const speechFrames = [];
 
     for (let start = 0; start < samples.length; start += frameSize) {

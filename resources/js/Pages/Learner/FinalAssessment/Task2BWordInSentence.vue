@@ -42,6 +42,25 @@ const sourceFor = (item) => manualAnswerFor(item)
     ? 'manual'
     : (transcriptSources[item?.id] ?? (generatedTranscripts[item?.id] ? 'stt_auto' : 'stt_auto'));
 const hasManualOverride = (item) => canUseManualFallback.value && manualAnswerFor(item).length > 0;
+const spokenLetterAliases = {
+    a: ['a', 'aye', 'ay'],
+    b: ['be', 'bee'],
+    c: ['see', 'sea'],
+    i: ['i', 'eye'],
+    o: ['o', 'oh'],
+    q: ['cue', 'queue'],
+    r: ['are'],
+    u: ['you', 'yew'],
+    x: ['ex'],
+    y: ['why'],
+};
+const normalizeText = (value) => String(value ?? '').trim().toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ');
+const isSpokenLetterAliasForExpected = (answer, expected) => {
+    const normalizedAnswer = normalizeText(answer);
+    const normalizedExpected = normalizeText(expected);
+
+    return normalizedAnswer.length === 1 && (spokenLetterAliases[normalizedAnswer] ?? []).includes(normalizedExpected);
+};
 const hasUsableTranscript = (item, answer) => {
     const expectedPrompt = String(item?.payload?.target_word ?? item?.payload?.expected_answer ?? item?.prompt ?? '').trim();
     const manualAnswer = String(answer ?? '').trim();
@@ -49,7 +68,9 @@ const hasUsableTranscript = (item, answer) => {
 
     if (!normalizedAnswer) return false;
     if (/^\d+$/.test(normalizedAnswer)) return false;
+    if (uploadedAudioIds[item?.id]) return true;
     if (!expectedPrompt) return normalizedAnswer.length > 0;
+    if (isSpokenLetterAliasForExpected(normalizedAnswer, expectedPrompt)) return true;
 
     return normalizedAnswer.length >= Math.max(2, Math.floor(expectedPrompt.length * 0.6));
 };
@@ -168,7 +189,14 @@ const submit = () => {
         },
     });
 };
-const handlePrimary = () => {
+const handlePrimary = async () => {
+    const currentItem = step.currentItem.value;
+
+    if (currentItem?.id && !currentHasUploadedAudio.value && audioFiles[currentItem.id] && !isCurrentUploading.value) {
+        await uploadAudio(currentItem, audioFiles[currentItem.id]);
+        return;
+    }
+
     if (!currentHasUploadedAudio.value && !hasManualOverride(step.currentItem.value)) {
         agentMessage.value = canUseManualFallback.value
             ? 'Record the highlighted word, or enter a QA manual transcript override.'

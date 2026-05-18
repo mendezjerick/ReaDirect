@@ -321,9 +321,17 @@ class FinalAssessmentController extends Controller
             }
 
             if ($transcriptText !== '') {
+                $passageResponse = AssessmentTaskResponse::query()
+                    ->where('assessment_attempt_id', $attempt->id)
+                    ->where('audio_file_id', $audioFile->id)
+                    ->latest('updated_at')
+                    ->latest('id')
+                    ->first();
+                $wordAlignment = data_get($passageResponse?->metadata_json, 'word_alignment', data_get($passageResponse?->metadata_json, 'asr.word_alignment', []));
                 $incorrectWords = $reading->calculateIncorrectWordCount(
                     (string) ($passage?->prompt_snapshot['prompt'] ?? ''),
                     $transcriptText,
+                    is_array($wordAlignment) ? $wordAlignment : [],
                 );
             }
         }
@@ -783,6 +791,7 @@ class FinalAssessmentController extends Controller
                 'displayed_transcript' => $savedResponse->response_text,
                 'audio_file_id' => $savedResponse->audio_file_id,
                 'transcript_source' => $savedResponse->transcript_source,
+                'word_alignment' => data_get($savedResponse->metadata_json, 'word_alignment', data_get($savedResponse->metadata_json, 'asr.word_alignment', [])),
             ] : null,
         ];
     }

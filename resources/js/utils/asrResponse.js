@@ -23,6 +23,7 @@ export const normalizeAsrResponse = (response = {}) => {
             && displayTranscript !== '',
         retryRequired: response.retry_required === true,
         uncertain: response.uncertain === true,
+        wordAlignment: Array.isArray(response.word_alignment) ? response.word_alignment : [],
         message: response.learner_retry_message
             ?? response.transcription_message
             ?? response.message

@@ -28,4 +28,13 @@ class AnswerMatchingServiceTest extends TestCase
 
         $this->assertFalse($service->isAcceptedAnswer('dog', 'bat|hat|mat'));
     }
+
+    public function test_it_accepts_spoken_letter_alias_for_word_answer(): void
+    {
+        $service = new AnswerMatchingService();
+
+        $this->assertTrue($service->isAcceptedAnswer('B', ['bee']));
+        $this->assertTrue($service->isAcceptedAnswer('c', 'see|sea'));
+        $this->assertFalse($service->isAcceptedAnswer('B', ['cat']));
+    }
 }

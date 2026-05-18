@@ -25,6 +25,7 @@ const form = useForm({
 });
 const audioFile = ref(null);
 const transcript = ref(String(savedPassageResponse.displayed_transcript ?? savedPassageResponse.answer ?? '').trim());
+const wordAlignment = ref(Array.isArray(savedPassageResponse.word_alignment) ? savedPassageResponse.word_alignment : []);
 const uploadError = ref('');
 const uploading = ref(false);
 const canUseManualFallback = computed(() => props.assessmentMode?.canUseManualFallback === true);
@@ -77,7 +78,48 @@ const compactWords = (text) => wordTokens(text)
     .map((token, index) => ({ index, raw: token, normalized: normalizeWord(token) }))
     .filter((token) => token.normalized !== '');
 
-const buildDiff = (expectedText, actualText) => {
+const acceptedAlignmentStatuses = new Set([
+    'correct',
+    'exact_correct',
+    'accepted_by_dynamic_expected_word_correction',
+    'accepted_by_homophone',
+    'accepted_by_phoneme_similarity',
+    'accepted_by_gop',
+    'accepted_by_asr_spelling_variant',
+    'accepted_by_split_merge',
+]);
+const buildDiffFromAlignment = (expectedText, actualText, alignment) => {
+    const expectedWords = compactWords(expectedText);
+    const actualWords = compactWords(actualText);
+    const expectedEntries = Array.isArray(alignment)
+        ? alignment.filter((item) => item?.expected_word !== null && item?.expected_word !== undefined)
+        : [];
+
+    if (expectedEntries.length !== expectedWords.length) {
+        return null;
+    }
+
+    const expectedStatus = expectedEntries.map((item) => {
+        if (acceptedAlignmentStatuses.has(item?.status)) return 'correct';
+        if (item?.status === 'partial') return 'semantic';
+        if (item?.status === 'missing') return 'missing';
+        return 'incorrect';
+    });
+    const incorrectCount = expectedStatus.filter((status) => status === 'incorrect' || status === 'missing' || status === 'semantic').length;
+
+    return {
+        incorrectCount,
+        semanticCount: expectedStatus.filter((status) => status === 'semantic').length,
+        expectedWords,
+        expectedStatus,
+        actualWords,
+        actualStatus: Array(actualWords.length).fill('correct'),
+    };
+};
+const buildDiff = (expectedText, actualText, alignment = []) => {
+    const aligned = buildDiffFromAlignment(expectedText, actualText, alignment);
+    if (aligned) return aligned;
+
     const expectedWords = compactWords(expectedText);
     const actualWords = compactWords(actualText);
     const costs = Array.from({ length: expectedWords.length + 1 }, () => Array(actualWords.length + 1).fill(0));
@@ -164,9 +206,18 @@ const buildDiff = (expectedText, actualText) => {
     };
 };
 
-const diff = computed(() => buildDiff(props.passage?.prompt ?? '', transcript.value));
+const diff = computed(() => buildDiff(props.passage?.prompt ?? '', transcript.value, wordAlignment.value));
+if (transcript.value.trim() !== '') {
+    form.incorrect_words = diff.value.incorrectCount;
+}
+const hasReadingResult = computed(() => transcript.value.trim() !== '' || wordAlignment.value.length > 0);
 const highlightedPassageTokens = computed(() => {
     const tokens = wordTokens(props.passage?.prompt ?? '');
+
+    if (!hasReadingResult.value) {
+        return tokens.map((token) => ({ text: token, status: 'neutral' }));
+    }
+
     const statuses = diff.value.expectedStatus;
     let wordIndex = 0;
 
@@ -228,12 +279,14 @@ const uploadTranscript = async (file) => {
             form.audio_file_id = result.audio_file_id ?? null;
             form.audio = null;
             transcript.value = asr.displayTranscript;
+            wordAlignment.value = asr.wordAlignment;
             form.incorrect_words = diff.value.incorrectCount;
             return;
         }
 
         form.audio_file_id = null;
         transcript.value = '';
+        wordAlignment.value = [];
         uploadError.value = asr.message;
     } catch (error) {
         uploadError.value = error.message || 'We had trouble checking your reading. Please try again.';
@@ -248,6 +301,7 @@ const rememberAudio = (file) => {
     form.audio_file_id = null;
     form.duration_seconds = file.durationSeconds ?? null;
     transcript.value = '';
+    wordAlignment.value = [];
     uploadError.value = '';
 };
 
@@ -257,6 +311,7 @@ const clearAudio = () => {
     form.audio_file_id = null;
     form.duration_seconds = null;
     transcript.value = '';
+    wordAlignment.value = [];
     uploadError.value = '';
 };
 

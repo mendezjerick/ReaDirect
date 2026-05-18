@@ -137,6 +137,25 @@ class AsrResponseNormalizerTest extends TestCase
         ]));
     }
 
+    public function test_spoken_letter_alias_for_short_word_can_complete(): void
+    {
+        $resolved = [
+            'transcript' => 'B',
+            'ai_response' => [
+                'raw_transcript' => 'B',
+                'transcript' => 'B',
+                'prompt_type' => 'word',
+                'retry_required' => false,
+                'uncertain' => false,
+            ],
+        ];
+
+        $this->assertTrue($this->normalizer->canComplete($resolved, [
+            'expected_text' => 'bee',
+            'task_type' => 'crla_task_2b_sentence',
+        ]));
+    }
+
     public function test_retry_uncertain_and_bad_audio_do_not_complete(): void
     {
         $context = ['expected_text' => 'tree', 'task_type' => 'word_reading'];
@@ -157,7 +176,7 @@ class AsrResponseNormalizerTest extends TestCase
         ], $context));
     }
 
-    public function test_letter_transcript_can_complete_even_when_ai_marks_short_audio_uncertain(): void
+    public function test_letter_transcript_can_complete_when_uncertain_but_not_retry_required(): void
     {
         $context = ['expected_text' => 'Z', 'task_type' => 'crla_task_1_letter'];
 
@@ -166,7 +185,7 @@ class AsrResponseNormalizerTest extends TestCase
             'ai_response' => [
                 'raw_transcript' => 'they',
                 'corrected_transcript' => 'they',
-                'retry_required' => true,
+                'retry_required' => false,
                 'uncertain' => true,
                 'audio_quality' => ['passed' => false],
                 'prompt_type' => 'letter',

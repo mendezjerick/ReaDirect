@@ -19,8 +19,14 @@ class ReadingComprehensionScoringService
         return max(0.0, 100.0 - ($incorrectWords * 2));
     }
 
-    public function calculateIncorrectWordCount(string $expectedPassage, string $transcript): int
+    public function calculateIncorrectWordCount(string $expectedPassage, string $transcript, array $wordAlignment = []): int
     {
+        $alignmentIncorrectCount = $this->incorrectWordCountFromAlignment($expectedPassage, $wordAlignment);
+
+        if ($alignmentIncorrectCount !== null) {
+            return $alignmentIncorrectCount;
+        }
+
         $expectedWords = $this->normalizedWords($expectedPassage);
         $actualWords = $this->normalizedWords($transcript);
 
@@ -37,10 +43,11 @@ class ReadingComprehensionScoringService
         return min($distance, 50);
     }
 
-    public function analyzePassageReading(string $expectedPassage, string $transcript): array
+    public function analyzePassageReading(string $expectedPassage, string $transcript, array $wordAlignment = []): array
     {
         $expectedWords = $this->normalizedWords($expectedPassage);
         $actualWords = $this->normalizedWords($transcript);
+        $alignmentIncorrectCount = $this->incorrectWordCountFromAlignment($expectedPassage, $wordAlignment);
 
         if ($expectedWords === []) {
             return [
@@ -66,7 +73,7 @@ class ReadingComprehensionScoringService
         }
 
         return [
-            'incorrect_count' => $this->calculateIncorrectWordCount($expectedPassage, $transcript),
+            'incorrect_count' => $alignmentIncorrectCount ?? $this->calculateIncorrectWordCount($expectedPassage, $transcript),
             'semantic_matches' => $semanticMatches,
             'exact_matches' => $exactMatches,
         ];
@@ -115,6 +122,43 @@ class ReadingComprehensionScoringService
         $normalized = preg_replace('/\\s+/', ' ', trim($normalized)) ?? '';
 
         return $normalized === '' ? [] : explode(' ', $normalized);
+    }
+
+    private function incorrectWordCountFromAlignment(string $expectedPassage, array $wordAlignment): ?int
+    {
+        if ($wordAlignment === []) {
+            return null;
+        }
+
+        $expectedEntries = array_values(array_filter(
+            $wordAlignment,
+            static fn ($item): bool => is_array($item)
+                && array_key_exists('expected_word', $item)
+                && $item['expected_word'] !== null
+        ));
+
+        $expectedWords = $this->normalizedWords($expectedPassage);
+
+        if ($expectedEntries === [] || count($expectedEntries) !== count($expectedWords)) {
+            return null;
+        }
+
+        $acceptedStatuses = [
+            'correct',
+            'exact_correct',
+            'accepted_by_dynamic_expected_word_correction',
+            'accepted_by_homophone',
+            'accepted_by_phoneme_similarity',
+            'accepted_by_gop',
+            'accepted_by_asr_spelling_variant',
+            'accepted_by_split_merge',
+        ];
+
+        return count(array_filter(
+            $expectedEntries,
+            static fn ($item): bool => ! ((bool) ($item['counts_as_correct'] ?? false)
+                || in_array((string) ($item['status'] ?? ''), $acceptedStatuses, true))
+        ));
     }
 
     private function wordLevenshteinDistance(array $expectedWords, array $actualWords): int

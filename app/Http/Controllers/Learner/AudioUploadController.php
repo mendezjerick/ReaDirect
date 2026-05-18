@@ -28,6 +28,8 @@ class AudioUploadController extends Controller
         AudioTranscriptionService $transcription,
         AssessmentModeService $mode
     ): JsonResponse {
+        $this->extendAudioRequestTime();
+
         $validated = $request->validate([
             'audio' => AudioStorageService::validationRules(true),
             'context_type' => ['required', 'string', Rule::in(['assessment_task', 'module_activity', 'passage_reading', 'comprehension_optional'])],
@@ -115,6 +117,7 @@ class AudioUploadController extends Controller
             'retry_required' => (bool) ($resolved['ai_response']['retry_required'] ?? false),
             'learner_retry_message' => $resolved['ai_response']['learner_retry_message'] ?? null,
             'transcript_source' => $canComplete ? $resolved['source'] : null,
+            'word_alignment' => data_get($resolved, 'ai_response.word_alignment', []),
         ];
 
         if (! $canSeeRawAiPayload) {
@@ -175,6 +178,17 @@ class AudioUploadController extends Controller
             'ai_error' => $resolved['ai_response']['error'] ?? null,
             'ai_warnings' => $resolved['ai_response']['warnings'] ?? [],
         ]));
+    }
+
+    private function extendAudioRequestTime(): void
+    {
+        $seconds = max(
+            30,
+            ((int) config('readirect_ai.timeout_seconds', 60)) + 15,
+            ((int) config('stt.timeout_seconds', 30)) + 15,
+        );
+
+        @set_time_limit($seconds);
     }
 
     private function persistAssessmentProgress(
@@ -259,7 +273,19 @@ class AudioUploadController extends Controller
                 'response_text' => $displayedTranscript,
                 'rule_applied' => 'ASSESSMENT_PASSAGE_PROGRESS_SAVE_V1',
                 'metadata' => ['source_csv_id' => $item->source_csv_id],
-                'metadata_json' => ['prompt_snapshot' => $snapshot],
+                'metadata_json' => [
+                    'prompt_snapshot' => $snapshot,
+                    'word_alignment' => data_get($resolved, 'ai_response.word_alignment', []),
+                    'asr' => [
+                        'raw_transcript' => data_get($resolved, 'ai_response.raw_transcript'),
+                        'corrected_transcript' => data_get($resolved, 'ai_response.corrected_transcript'),
+                        'displayed_transcript' => data_get($resolved, 'ai_response.displayed_transcript', $displayedTranscript),
+                        'word_alignment' => data_get($resolved, 'ai_response.word_alignment', []),
+                        'dynamic_correction_applied' => data_get($resolved, 'ai_response.dynamic_correction_applied'),
+                        'dynamic_correction_sub_strategy' => data_get($resolved, 'ai_response.dynamic_correction_sub_strategy'),
+                        'alignment_debug' => data_get($resolved, 'ai_response.debug_metadata.alignment_debug'),
+                    ],
+                ],
             ]
         );
 

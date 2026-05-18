@@ -25,6 +25,7 @@ const form = useForm({
 });
 const audioFile = ref(null);
 const transcript = ref(String(savedPassageResponse.displayed_transcript ?? savedPassageResponse.answer ?? '').trim());
+const wordAlignment = ref(Array.isArray(savedPassageResponse.word_alignment) ? savedPassageResponse.word_alignment : []);
 const uploadError = ref('');
 const uploading = ref(false);
 const canUseManualFallback = computed(() => props.assessmentMode?.canUseManualFallback === true);
@@ -32,6 +33,27 @@ const isDeveloperQaMode = computed(() => props.assessmentMode?.isDeveloperQaMode
 const autoTranscribeOnStop = computed(() => props.assessmentMode?.canAutoTranscribeOnStop === true);
 const requireReviewBeforeSubmit = computed(() => props.assessmentMode?.requireReviewBeforeSubmit !== false);
 const hasIncorrectWords = () => form.incorrect_words !== '' && form.incorrect_words !== null && Number(form.incorrect_words) >= 0;
+const acceptedAlignmentStatuses = new Set([
+    'correct',
+    'exact_correct',
+    'accepted_by_dynamic_expected_word_correction',
+    'accepted_by_homophone',
+    'accepted_by_phoneme_similarity',
+    'accepted_by_gop',
+    'accepted_by_asr_spelling_variant',
+    'accepted_by_split_merge',
+]);
+const incorrectWordsFromAlignment = (alignment) => {
+    if (!Array.isArray(alignment) || alignment.length === 0) return null;
+    const expectedEntries = alignment.filter((item) => item?.expected_word !== null && item?.expected_word !== undefined);
+    if (expectedEntries.length === 0) return null;
+
+    return expectedEntries.filter((item) => !acceptedAlignmentStatuses.has(item?.status)).length;
+};
+const initialAlignedIncorrectWords = incorrectWordsFromAlignment(wordAlignment.value);
+if (initialAlignedIncorrectWords !== null) {
+    form.incorrect_words = initialAlignedIncorrectWords;
+}
 const canSubmit = computed(() => {
     if (canUseManualFallback.value) {
         return !uploading.value && hasIncorrectWords();
@@ -45,6 +67,7 @@ const rememberAudio = (file) => {
     form.audio_file_id = null;
     form.duration_seconds = file.durationSeconds ?? null;
     transcript.value = '';
+    wordAlignment.value = [];
     uploadError.value = '';
 };
 const clearAudio = () => {
@@ -53,6 +76,7 @@ const clearAudio = () => {
     form.audio_file_id = null;
     form.duration_seconds = null;
     transcript.value = '';
+    wordAlignment.value = [];
     uploadError.value = '';
 };
 const uploadTranscript = async (file) => {
@@ -90,11 +114,17 @@ const uploadTranscript = async (file) => {
             form.audio_file_id = result.audio_file_id ?? null;
             form.audio = null;
             transcript.value = asr.displayTranscript;
+            wordAlignment.value = asr.wordAlignment;
+            const alignedIncorrectWords = incorrectWordsFromAlignment(asr.wordAlignment);
+            if (alignedIncorrectWords !== null) {
+                form.incorrect_words = alignedIncorrectWords;
+            }
             return;
         }
 
         form.audio_file_id = null;
         transcript.value = '';
+        wordAlignment.value = [];
         uploadError.value = asr.message;
     } catch (error) {
         uploadError.value = error.message || 'We had trouble checking your reading. Please try again.';

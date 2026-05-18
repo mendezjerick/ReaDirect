@@ -63,6 +63,38 @@ class SentenceReadingScoringServiceTest extends TestCase
         $this->assertSame(16.0, $result['wcpm']);
     }
 
+    public function test_wcpm_counts_ai_accepted_split_merge_alignment(): void
+    {
+        $result = (new SentenceReadingScoringService())->evaluate('time after lunch', 'timeafter lunch', 30, [
+            'word_alignment' => [
+                [
+                    'expected_word' => 'time',
+                    'recognized_word' => 'timeafter',
+                    'status' => 'accepted_by_split_merge',
+                    'counts_as_correct' => true,
+                    'chunk_match_id' => 'chunk_001',
+                ],
+                [
+                    'expected_word' => 'after',
+                    'recognized_word' => 'timeafter',
+                    'status' => 'accepted_by_split_merge',
+                    'counts_as_correct' => true,
+                    'chunk_match_id' => 'chunk_001',
+                ],
+                [
+                    'expected_word' => 'lunch',
+                    'recognized_word' => 'lunch',
+                    'status' => 'exact_correct',
+                    'counts_as_correct' => true,
+                ],
+            ],
+        ]);
+
+        $this->assertSame(3, $result['correct_words']);
+        $this->assertSame(6.0, $result['wcpm']);
+        $this->assertSame(100, $result['text_accuracy_percentage']);
+    }
+
     public function test_fluency_score_with_no_pauses(): void
     {
         $result = (new SentenceReadingScoringService())->evaluate('the red hen', 'the red hen', 3, [

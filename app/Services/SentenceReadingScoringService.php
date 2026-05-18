@@ -127,6 +127,7 @@ class SentenceReadingScoringService
     {
         $aiSignals ??= [];
         $alignment = $this->align($expectedSentence, $actualTranscript);
+        $alignment = $this->alignmentFromAiSignals($expectedSentence, $actualTranscript, $aiSignals) ?? $alignment;
         $expectedWords = $alignment['expected_words'];
         $actualWords = $alignment['actual_words'];
         $warnings = [];
@@ -624,5 +625,91 @@ class SentenceReadingScoringService
         }
 
         return (int) round(max(0, min(1, (float) $value)) * 100);
+    }
+
+    private function alignmentFromAiSignals(string $expectedSentence, string $actualTranscript, array $aiSignals): ?array
+    {
+        $wordAlignment = $aiSignals['word_alignment'] ?? null;
+
+        if (! is_array($wordAlignment) || $wordAlignment === []) {
+            return null;
+        }
+
+        $expectedEntries = array_values(array_filter(
+            $wordAlignment,
+            static fn ($item): bool => is_array($item) && array_key_exists('expected_word', $item) && $item['expected_word'] !== null
+        ));
+
+        if ($expectedEntries === []) {
+            return null;
+        }
+
+        $expectedWords = $this->normalizedWords($expectedSentence);
+        $actualWords = $this->normalizedWords($actualTranscript);
+
+        if (count($expectedEntries) !== count($expectedWords)) {
+            return null;
+        }
+
+        $acceptedStatuses = [
+            'correct',
+            'exact_correct',
+            'accepted_by_dynamic_expected_word_correction',
+            'accepted_by_homophone',
+            'accepted_by_phoneme_similarity',
+            'accepted_by_gop',
+            'accepted_by_asr_spelling_variant',
+            'accepted_by_split_merge',
+        ];
+        $path = [];
+        $correct = 0;
+        $substitutions = 0;
+        $deletions = 0;
+        $insertions = count(array_filter(
+            $wordAlignment,
+            static fn ($item): bool => is_array($item) && ($item['status'] ?? null) === 'inserted'
+        ));
+
+        foreach ($expectedEntries as $index => $item) {
+            $status = (string) ($item['status'] ?? 'incorrect');
+            $isCorrect = (bool) ($item['counts_as_correct'] ?? false) || in_array($status, $acceptedStatuses, true);
+
+            if ($isCorrect) {
+                $correct++;
+                $operation = $status === 'exact_correct' ? 'match' : 'accepted';
+            } elseif ($status === 'missing') {
+                $deletions++;
+                $operation = 'deletion';
+            } else {
+                $substitutions++;
+                $operation = $status === 'partial' ? 'partial' : 'substitution';
+            }
+
+            $path[] = [
+                'operation' => $operation,
+                'expected' => $expectedWords[$index] ?? $item['expected_word'],
+                'actual' => $item['recognized_word'] ?? null,
+                'status' => $status,
+                'chunk_match_id' => $item['chunk_match_id'] ?? null,
+            ];
+        }
+
+        $expectedCount = count($expectedWords);
+        $wer = $expectedCount > 0
+            ? round(($substitutions + $deletions + $insertions) / $expectedCount, 4)
+            : null;
+
+        return [
+            'expected_words' => $expectedWords,
+            'actual_words' => $actualWords,
+            'substitutions' => $substitutions,
+            'deletions' => $deletions,
+            'insertions' => $insertions,
+            'correct' => $correct,
+            'total_expected_words' => $expectedCount,
+            'wer' => $wer,
+            'accuracy_percentage' => $wer === null ? 0 : (int) round(max(0, 1 - $wer) * 100),
+            'alignment' => $path,
+        ];
     }
 }

@@ -90,12 +90,12 @@ class AsrResponseNormalizer
         $normalized = $this->normalize(is_array($aiResponse) ? $aiResponse : null, $resolved['transcript'] ?? null);
         $aiResponseArray = is_array($aiResponse) ? $aiResponse : [];
 
-        if ($this->hasUsableLetterTranscript($normalized['scoring_transcript'], $context, $aiResponseArray)) {
-            return true;
-        }
-
         if ($normalized['retry_required']) {
             return false;
+        }
+
+        if ($this->hasUsableLetterTranscript($normalized['scoring_transcript'], $context, $aiResponseArray)) {
+            return true;
         }
 
         if ($normalized['uncertain'] && ! $allowUncertain) {
@@ -130,7 +130,9 @@ class AsrResponseNormalizer
         }
 
         if (in_array($promptType, ['word', 'rhyme'], true)) {
-            return mb_strlen($value) > 1 || mb_strlen($expected) === 1;
+            return mb_strlen($value) > 1
+                || mb_strlen($expected) === 1
+                || $this->isSpokenLetterAliasForExpectedWord($value, $expected);
         }
 
         if ($promptType === 'passage' || $promptType === 'paragraph') {
@@ -228,6 +230,31 @@ class AsrResponseNormalizer
         }
 
         return $this->hasUsableTranscript($transcript, $context, $aiResponse);
+    }
+
+    private function isSpokenLetterAliasForExpectedWord(string $transcript, string $expected): bool
+    {
+        $letter = mb_strtolower($this->sanitizer->sanitize($transcript));
+        $word = mb_strtolower($this->sanitizer->sanitize($expected));
+
+        if (mb_strlen($letter) !== 1 || $word === '') {
+            return false;
+        }
+
+        $aliases = [
+            'a' => ['a', 'aye', 'ay'],
+            'b' => ['be', 'bee'],
+            'c' => ['see', 'sea'],
+            'i' => ['i', 'eye'],
+            'o' => ['o', 'oh'],
+            'q' => ['cue', 'queue'],
+            'r' => ['are'],
+            'u' => ['you', 'yew'],
+            'x' => ['ex'],
+            'y' => ['why'],
+        ];
+
+        return in_array($word, $aliases[$letter] ?? [], true);
     }
 
     private function effectivePromptType(array $context, array $aiResponse): string

@@ -37,6 +37,53 @@ class ScoringRulesTest extends TestCase
         $this->assertSame(0.0, $service->calculateAccuracyPercentage(60));
     }
 
+    public function test_passage_incorrect_count_uses_ai_split_merge_alignment(): void
+    {
+        $service = new ReadingComprehensionScoringService();
+        $expected = 'time after lunch';
+        $raw = 'timeafter lunch';
+        $alignment = [
+            [
+                'expected_word' => 'time',
+                'recognized_word' => 'timeafter',
+                'status' => 'accepted_by_split_merge',
+                'counts_as_correct' => true,
+            ],
+            [
+                'expected_word' => 'after',
+                'recognized_word' => 'timeafter',
+                'status' => 'accepted_by_split_merge',
+                'counts_as_correct' => true,
+            ],
+            [
+                'expected_word' => 'lunch',
+                'recognized_word' => 'lunch',
+                'status' => 'exact_correct',
+                'counts_as_correct' => true,
+            ],
+        ];
+
+        $this->assertSame(0, $service->calculateIncorrectWordCount($expected, $raw, $alignment));
+    }
+
+    public function test_passage_incorrect_count_accepts_legacy_correct_alignment_status(): void
+    {
+        $service = new ReadingComprehensionScoringService();
+
+        $this->assertSame(0, $service->calculateIncorrectWordCount('a proud carabao', 'a proud carabao', [
+            ['expected_word' => 'a', 'recognized_word' => 'a', 'status' => 'correct'],
+            ['expected_word' => 'proud', 'recognized_word' => 'proud', 'status' => 'correct'],
+            ['expected_word' => 'carabao', 'recognized_word' => 'carabao', 'status' => 'correct'],
+        ]));
+    }
+
+    public function test_passage_incorrect_count_falls_back_when_alignment_is_missing(): void
+    {
+        $service = new ReadingComprehensionScoringService();
+
+        $this->assertSame(2, $service->calculateIncorrectWordCount('time after lunch', 'timeafter lunch'));
+    }
+
     public function test_comprehension_percentage_formula(): void
     {
         $service = new ReadingComprehensionScoringService();

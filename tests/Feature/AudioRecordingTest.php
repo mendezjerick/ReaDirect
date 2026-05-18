@@ -390,6 +390,87 @@ class AudioRecordingTest extends TestCase
         $this->assertSame(0, AssessmentTaskResponse::count());
     }
 
+    public function test_task_two_b_short_spoken_letter_alias_upload_can_submit(): void
+    {
+        Storage::fake('local');
+        config([
+            'readirect_ai.enabled' => true,
+            'readirect_ai.base_url' => 'http://ai.test',
+            'readirect_ai.endpoints.analyze_audio' => '/analyze-audio',
+        ]);
+        Http::fake([
+            'http://ai.test/analyze-audio' => Http::response([
+                'ok' => true,
+                'request_id' => 'task-2b-bee-req',
+                'asr_route' => 'wav2vec2_only',
+                'model_family' => 'wav2vec2',
+                'model_used' => 'models/wav2vec2-readirect-asr-letters-v2',
+                'transcript' => 'B',
+                'raw_transcript' => 'B',
+                'displayed_transcript' => 'B',
+                'accepted' => false,
+                'prompt_type' => 'word',
+                'retry_required' => false,
+                'uncertain' => false,
+                'audio_quality' => ['passed' => true],
+                'warnings' => [],
+            ]),
+        ]);
+
+        $learner = $this->learner();
+        $attempt = AssessmentAttempt::create([
+            'learner_id' => $learner->id,
+            'attempt_type' => 'diagnostic',
+            'status' => 'task_2b',
+            'started_at' => now(),
+        ]);
+        $content = LearningContent::create([
+            'content_type' => 'word_sentence',
+            'title' => 'Bee sentence',
+            'prompt' => 'A bee is on the flower.',
+            'payload' => [
+                'source_csv_id' => 'T2B-BEE',
+                'target_word' => 'bee',
+                'expected_answer' => 'bee',
+            ],
+            'accepted_answers' => ['bee'],
+            'difficulty' => 'easy',
+            'is_active' => true,
+        ]);
+        $item = $attempt->selectedItems()->create([
+            'learning_content_id' => $content->id,
+            'source_csv_id' => 'T2B-BEE',
+            'task_type' => AssessmentItemSelectionService::TASK_2B_WORD_SENTENCE,
+            'sequence' => 1,
+            'prompt_snapshot' => [
+                'prompt' => 'A bee is on the flower.',
+                'payload' => $content->payload,
+                'accepted_answers' => $content->accepted_answers,
+            ],
+            'selected_at' => now(),
+        ]);
+
+        $response = $this->withSession(['learner_id' => $learner->id, 'assessment_attempt_id' => $attempt->id])
+            ->postJson(route('learner.audio.upload'), [
+                'audio' => UploadedFile::fake()->create('bee.wav', 100, 'audio/wav'),
+                'context_type' => 'assessment_task',
+                'assessment_attempt_id' => $attempt->id,
+                'item_id' => $item->id,
+                'task_type' => 'crla_task_2b_sentence',
+                'duration_seconds' => 1,
+            ]);
+
+        $response->assertOk()
+            ->assertJsonPath('can_submit', true)
+            ->assertJsonPath('transcript', 'B')
+            ->assertJsonPath('displayed_transcript', 'B');
+
+        $stored = AssessmentTaskResponse::where('assessment_attempt_item_id', $item->id)->firstOrFail();
+
+        $this->assertSame('bee', $stored->expected_answer);
+        $this->assertSame('B', $stored->learner_transcript);
+    }
+
     public function test_passage_audio_upload_persists_long_prompt_and_expected_answer(): void
     {
         Storage::fake('local');
@@ -421,6 +502,14 @@ class AudioRecordingTest extends TestCase
                 'retry_required' => false,
                 'uncertain' => false,
                 'audio_quality' => ['passed' => true],
+                'word_alignment' => [
+                    [
+                        'expected_word' => 'Arthur',
+                        'recognized_word' => 'arthur',
+                        'status' => 'exact_correct',
+                        'counts_as_correct' => true,
+                    ],
+                ],
                 'raw_wer' => 0.2,
                 'warnings' => [],
             ]),
@@ -466,13 +555,15 @@ class AudioRecordingTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('can_submit', true)
-            ->assertJsonPath('transcript', $transcript);
+            ->assertJsonPath('transcript', $transcript)
+            ->assertJsonPath('word_alignment.0.status', 'exact_correct');
 
         $stored = AssessmentTaskResponse::where('assessment_attempt_item_id', $item->id)->firstOrFail();
 
         $this->assertSame($passage, $stored->prompt);
         $this->assertSame($passage, $stored->expected_answer);
         $this->assertSame($transcript, $stored->learner_transcript);
+        $this->assertSame('exact_correct', $stored->metadata_json['word_alignment'][0]['status'] ?? null);
     }
 
     public function test_assessment_submission_uses_stt_transcript_when_manual_answer_is_blank(): void

@@ -26,11 +26,39 @@ class AnswerMatchingService
             : explode('|', (string) $acceptedAnswers);
 
         foreach ($answers as $acceptedAnswer) {
-            if ($this->normalizeAnswer((string) $acceptedAnswer) === $normalizedAnswer) {
+            $normalizedAccepted = $this->normalizeAnswer((string) $acceptedAnswer);
+
+            if ($normalizedAccepted === $normalizedAnswer) {
+                return true;
+            }
+
+            if ($this->isSpokenLetterAlias($normalizedAnswer, $normalizedAccepted)) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    private function isSpokenLetterAlias(string $answer, string $acceptedAnswer): bool
+    {
+        if (mb_strlen($answer) !== 1 || $acceptedAnswer === '') {
+            return false;
+        }
+
+        $aliases = [
+            'a' => ['a', 'aye', 'ay'],
+            'b' => ['be', 'bee'],
+            'c' => ['see', 'sea'],
+            'i' => ['i', 'eye'],
+            'o' => ['o', 'oh'],
+            'q' => ['cue', 'queue'],
+            'r' => ['are'],
+            'u' => ['you', 'yew'],
+            'x' => ['ex'],
+            'y' => ['why'],
+        ];
+
+        return in_array($acceptedAnswer, $aliases[$answer] ?? [], true);
     }
 }
