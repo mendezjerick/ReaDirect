@@ -25,6 +25,8 @@
 
 html {
     background: var(--color-background);
+    min-height: 100%;
+    overflow-y: auto;
     scroll-behavior: smooth;
 }
 
@@ -32,6 +34,8 @@ body {
     color: var(--color-text);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+    min-height: 100%;
+    overflow-y: auto;
 }
 
 /* ─── Focus Styles ─────────────────────────────────── */
@@ -176,7 +180,7 @@ tbody tr:hover {
 
 .learner-stage {
     padding-block-start: clamp(0.5rem, 1.4vh, 1rem);
-    padding-block-end: 5.75rem;
+    padding-block-end: clamp(8rem, 14vh, 12rem);
 }
 
 .learner-stage-grid {
@@ -206,17 +210,22 @@ tbody tr:hover {
         align-items: start;
     }
 
-    .learner-audio-review-card {
-        position: fixed;
-        top: clamp(29.5rem, 54vh, 38rem);
-        left: max(
-            clamp(0.5rem, 3vw, 3rem),
-            calc((100vw - 1600px) / 2)
-        );
-        z-index: 12;
-        width: min(clamp(280px, 22vw, 420px), calc((100vw - clamp(1rem, 3vw, 3rem) * 2) * 0.28));
-        max-height: calc(100vh - 39rem);
-        overflow: hidden;
+    .learner-content .learner-audio-recorder {
+        display: grid;
+        gap: 0.75rem;
+        border: 0;
+        background: transparent;
+        box-shadow: none;
+        padding: 0;
+    }
+
+    .learner-content .learner-audio-recorder .learner-audio-control-panel,
+    .learner-content .learner-audio-recorder .learner-audio-review-card {
+        border: 1px solid rgb(191 219 254 / 0.85);
+        background: var(--color-surface);
+        border-radius: 24px;
+        padding: 1rem;
+        box-shadow: 0 10px 15px -3px rgb(59 130 246 / 0.10), 0 4px 6px -4px rgb(59 130 246 / 0.10);
     }
 
     .learner-audio-review-card audio {
@@ -242,10 +251,6 @@ tbody tr:hover {
         grid-template-columns: minmax(320px, clamp(360px, 23vw, 460px)) minmax(0, 1fr);
     }
 
-    .learner-audio-review-card {
-        width: min(clamp(320px, 23vw, 460px), calc((100vw - clamp(1rem, 3vw, 3rem) * 2) * 0.28));
-    }
-
     .learner-content {
         font-size: 1.04rem;
     }
@@ -254,10 +259,6 @@ tbody tr:hover {
 @media (min-width: 1536px) {
     .learner-stage-grid {
         grid-template-columns: minmax(360px, clamp(400px, 24vw, 500px)) minmax(0, 1fr);
-    }
-
-    .learner-audio-review-card {
-        width: min(clamp(360px, 24vw, 500px), calc((100vw - 1600px) / 2 + 500px));
     }
 
     .learner-content > .mx-auto.max-w-xl {

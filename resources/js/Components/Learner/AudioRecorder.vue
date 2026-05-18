@@ -528,79 +528,81 @@ onBeforeUnmount(() => {
         class="learner-audio-recorder rounded-3xl border border-primary/15 bg-primaryLight/50 shadow-sm shadow-primary/10"
         :class="compact ? 'p-3' : 'p-4'"
     >
-        <div class="flex items-center justify-between gap-3">
-            <div>
-                <p class="text-sm font-black text-primaryDark">{{ label }}</p>
-                <p class="text-xs font-bold text-muted">{{ helperText }}</p>
-            </div>
-            <span class="rounded-full bg-surface px-3 py-1 text-xs font-black text-primaryDark">{{ statusLabel }}</span>
-        </div>
-
-        <div
-            class="mt-3 rounded-2xl border px-3 py-2 text-center text-sm font-black"
-            :class="status === 'recording' && canSpeak ? 'border-success/30 bg-success/10 text-success' : 'border-primary/15 bg-surface text-primaryDark'"
-            aria-live="polite"
-        >
-            {{ cueText }}
-        </div>
-
-        <div class="mt-3 flex flex-wrap items-center gap-3">
-            <button
-                v-if="status !== 'recording'"
-                type="button"
-                class="inline-flex items-center gap-2 rounded-2xl bg-primary px-4 py-3 text-sm font-black text-white shadow-md shadow-primary/20 transition active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
-                :disabled="disabled || submitting || submitted"
-                @click="startRecording"
-            >
-                <Mic class="size-4" />
-                {{ status === 'saved' ? 'Record again' : 'Start Recording' }}
-            </button>
-            <button
-                v-else
-                type="button"
-                class="inline-flex items-center gap-2 rounded-2xl bg-warning px-4 py-3 text-sm font-black text-white shadow-md shadow-warning/20 transition active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
-                :disabled="!hasMinimumDuration"
-                @click="stopRecording"
-            >
-                <Square class="size-4" />
-                Stop
-            </button>
-
-            <button
-                v-if="audioUrl && hasPendingRecording"
-                type="button"
-                class="inline-flex items-center gap-2 rounded-2xl border-2 border-border bg-surface px-4 py-3 text-sm font-black text-primaryDark transition hover:border-primary"
-                :disabled="submitting"
-                @click="clearRecording"
-            >
-                <RotateCcw class="size-4" />
-                Try Again
-            </button>
-
-            <div class="flex h-8 min-w-32 flex-1 items-end gap-1 rounded-2xl bg-surface px-3 py-2">
-                <span
-                    v-for="bar in 8"
-                    :key="bar"
-                    class="w-full rounded-full bg-primary/40"
-                    :class="status === 'recording' ? 'animate-pulse' : ''"
-                    :style="{ height: status === 'recording' ? `${20 + ((bar * 11 + duration * 7) % 55)}%` : `${18 + (bar % 4) * 8}%` }"
-                />
+        <div class="learner-audio-control-panel">
+            <div class="flex items-center justify-between gap-3">
+                <div>
+                    <p class="text-sm font-black text-primaryDark">{{ label }}</p>
+                    <p class="text-xs font-bold text-muted">{{ helperText }}</p>
+                </div>
+                <span class="rounded-full bg-surface px-3 py-1 text-xs font-black text-primaryDark">{{ statusLabel }}</span>
             </div>
 
-            <span class="w-14 text-right text-sm font-black text-muted">{{ formattedDuration }}s</span>
+            <div
+                class="mt-3 rounded-2xl border px-3 py-2 text-center text-sm font-black"
+                :class="status === 'recording' && canSpeak ? 'border-success/30 bg-success/10 text-success' : 'border-primary/15 bg-surface text-primaryDark'"
+                aria-live="polite"
+            >
+                {{ cueText }}
+            </div>
+
+            <div class="mt-3 flex flex-wrap items-center gap-3">
+                <button
+                    v-if="status !== 'recording'"
+                    type="button"
+                    class="inline-flex items-center gap-2 rounded-2xl bg-primary px-4 py-3 text-sm font-black text-white shadow-md shadow-primary/20 transition active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                    :disabled="disabled || submitting || submitted"
+                    @click="startRecording"
+                >
+                    <Mic class="size-4" />
+                    {{ status === 'saved' ? 'Record again' : 'Start Recording' }}
+                </button>
+                <button
+                    v-else
+                    type="button"
+                    class="inline-flex items-center gap-2 rounded-2xl bg-warning px-4 py-3 text-sm font-black text-white shadow-md shadow-warning/20 transition active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                    :disabled="!hasMinimumDuration"
+                    @click="stopRecording"
+                >
+                    <Square class="size-4" />
+                    Stop
+                </button>
+
+                <button
+                    v-if="audioUrl && hasPendingRecording"
+                    type="button"
+                    class="inline-flex items-center gap-2 rounded-2xl border-2 border-border bg-surface px-4 py-3 text-sm font-black text-primaryDark transition hover:border-primary"
+                    :disabled="submitting"
+                    @click="clearRecording"
+                >
+                    <RotateCcw class="size-4" />
+                    Try Again
+                </button>
+
+                <div class="flex h-8 min-w-32 flex-1 items-end gap-1 rounded-2xl bg-surface px-3 py-2">
+                    <span
+                        v-for="bar in 8"
+                        :key="bar"
+                        class="w-full rounded-full bg-primary/40"
+                        :class="status === 'recording' ? 'animate-pulse' : ''"
+                        :style="{ height: status === 'recording' ? `${20 + ((bar * 11 + duration * 7) % 55)}%` : `${18 + (bar % 4) * 8}%` }"
+                    />
+                </div>
+
+                <span class="w-14 text-right text-sm font-black text-muted">{{ formattedDuration }}s</span>
+            </div>
+
+            <p v-if="(errorMessage || externalError) && (status === 'recording' || status === 'retry' || status === 'error')" class="mt-2 text-xs font-black text-warning">
+                {{ externalError || errorMessage }}
+            </p>
+
+            <p
+                v-if="spacebarEnabled"
+                class="mt-3 rounded-2xl bg-surface px-3 py-2 text-xs font-black text-primaryDark"
+            >
+                Press <span class="rounded-lg border border-border bg-white px-2 py-1 text-[11px] font-black text-primary">Space</span>
+                to {{ status === 'recording' ? `stop after the ${minDurationLabel} minimum` : 'record' }}.
+            </p>
         </div>
-
-        <p v-if="(errorMessage || externalError) && (status === 'recording' || status === 'retry' || status === 'error')" class="mt-2 text-xs font-black text-warning">
-            {{ externalError || errorMessage }}
-        </p>
-
-        <p
-            v-if="spacebarEnabled"
-            class="mt-3 rounded-2xl bg-surface px-3 py-2 text-xs font-black text-primaryDark"
-        >
-            Press <span class="rounded-lg border border-border bg-white px-2 py-1 text-[11px] font-black text-primary">Space</span>
-            to {{ status === 'recording' ? `stop after the ${minDurationLabel} minimum` : 'record' }}.
-        </p>
 
         <div
             v-if="audioUrl && shouldShowReviewSubmit"
