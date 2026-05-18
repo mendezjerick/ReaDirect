@@ -23,6 +23,7 @@ use App\Http\Controllers\Learner\DiagnosticAssessmentController;
 use App\Http\Controllers\Learner\LearnerAccessController;
 use App\Http\Controllers\Learner\LearnerCompletionController;
 use App\Http\Controllers\Learner\LearnerDashboardController;
+use App\Http\Controllers\Learner\LearnerPageController;
 use App\Http\Controllers\Learner\ModuleActivityController;
 use App\Http\Controllers\Learner\ModuleController;
 use App\Http\Controllers\Learner\ModuleMasteryController;
@@ -57,6 +58,9 @@ Route::post('/agent-voice/synthesize', [AgentVoiceController::class, 'synthesize
 Route::get('/learner/access', [LearnerAccessController::class, 'create'])->name('learner.access');
 Route::post('/learner/access', [LearnerAccessController::class, 'store'])->middleware('throttle:learner-access')->name('learner.access.store');
 Route::get('/learner/dashboard', LearnerDashboardController::class)->name('learner.dashboard');
+Route::get('/learner/progress', [LearnerPageController::class, 'progress'])->name('learner.progress');
+Route::get('/learner/rewards', [LearnerPageController::class, 'rewards'])->name('learner.rewards');
+Route::get('/learner/help', [LearnerPageController::class, 'help'])->name('learner.help');
 Route::get('/learner/completion', [LearnerCompletionController::class, 'show'])->name('learner.completion');
 Route::post('/learner/completion/thank-you', [LearnerCompletionController::class, 'thankYou'])->middleware('throttle:assessment-submit')->name('learner.completion.thank-you');
 Route::post('/learner/audio/upload', [AudioUploadController::class, 'store'])->middleware('throttle:audio-upload')->name('learner.audio.upload');

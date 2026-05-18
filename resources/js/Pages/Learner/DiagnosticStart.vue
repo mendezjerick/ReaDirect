@@ -18,7 +18,7 @@ const startDeveloperRetest = () => retestForm.post('/learner/diagnostic/develope
 </script>
 
 <template>
-    <LearnerLayout :progress="25">
+    <LearnerLayout :progress="25" diagnostic-step="intro">
         <template #agent>
             <AgentSpeakerPanel agent-type="assessment" state="speaking" message="We will do a short reading check together. I will guide each step." show-audio-button />
         </template>

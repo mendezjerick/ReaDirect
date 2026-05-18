@@ -271,7 +271,7 @@ const submit = () => {
 </script>
 
 <template>
-    <LearnerLayout :progress="78">
+    <LearnerLayout :progress="78" diagnostic-step="sentence-reading">
         <template #agent>
             <AgentSpeakerPanel
                 agent-type="assessment"

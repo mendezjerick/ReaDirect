@@ -7,7 +7,6 @@ import {
     Trophy,
     HelpCircle,
     ClipboardList,
-    Bell,
     ChevronDown,
     Eye,
     BarChart3,
@@ -236,27 +235,30 @@ const lockedModuleMessage = computed(() => {
                     <BookOpen :size="16" />
                     <span>My Learning</span>
                 </a>
-                <a
-                    href="#"
+                <Link
+                    href="/learner/progress"
                     class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-500 hover:bg-slate-50 hover:text-text"
+                    @click="sidebarOpen = false"
                 >
                     <ClipboardList :size="16" />
                     <span>Progress</span>
-                </a>
-                <a
-                    href="#"
+                </Link>
+                <Link
+                    href="/learner/rewards"
                     class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-500 hover:bg-slate-50 hover:text-text"
+                    @click="sidebarOpen = false"
                 >
                     <Trophy :size="16" />
                     <span>Rewards</span>
-                </a>
-                <a
-                    href="#"
+                </Link>
+                <Link
+                    href="/learner/help"
                     class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-500 hover:bg-slate-50 hover:text-text"
+                    @click="sidebarOpen = false"
                 >
                     <HelpCircle :size="16" />
                     <span>Help</span>
-                </a>
+                </Link>
             </nav>
 
             <!-- Mascot card at bottom -->
@@ -289,10 +291,6 @@ const lockedModuleMessage = computed(() => {
 
                 <!-- Right side controls -->
                 <div class="flex items-center gap-3">
-                    <button class="relative rounded-full p-2 text-white transition-colors hover:bg-white/15">
-                        <Bell :size="18" />
-                        <span class="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-black text-white">3</span>
-                    </button>
                     <div class="flex items-center gap-2 rounded-full bg-white py-1 pl-1 pr-3 shadow-sm">
                         <div class="flex h-8 w-8 items-center justify-center rounded-full bg-linear-to-br from-blue-400 to-indigo-500 text-sm font-black text-white">
                             {{ initial }}
@@ -500,10 +498,10 @@ const lockedModuleMessage = computed(() => {
                         <span class="min-w-0">You're doing amazing! Keep going and enjoy your learning adventure!</span>
                         <Rocket :size="14" class="hidden shrink-0 text-primary sm:block" />
                     </p>
-                    <button class="flex shrink-0 items-center justify-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-bold text-white shadow-md shadow-primary/30 transition-colors hover:bg-primary-dark">
+                    <Link href="/learner/help" class="flex shrink-0 items-center justify-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-bold text-white shadow-md shadow-primary/30 transition-colors hover:bg-primary-dark">
                         <HelpCircle :size="14" />
                         Need Help?
-                    </button>
+                    </Link>
                 </footer>
             </main>
         </div>

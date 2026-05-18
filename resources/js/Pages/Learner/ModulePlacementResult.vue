@@ -1,13 +1,10 @@
 <script setup>
 import { computed } from 'vue';
 import { Link } from '@inertiajs/vue3';
+import { ArrowRight, Check, Star } from 'lucide-vue-next';
 import LearnerLayout from '../../Layouts/LearnerLayout.vue';
-import LessonCard from '../../Components/LessonCard.vue';
-import ScoreCard from '../../Components/ScoreCard.vue';
-import RewardBadge from '../../Components/RewardBadge.vue';
 import AgentSpeakerPanel from '../../Components/Learner/AgentSpeakerPanel.vue';
 import PrimaryButton from '../../Components/PrimaryButton.vue';
-import BottomActionBar from '../../Components/BottomActionBar.vue';
 
 const props = defineProps({ attempt: Object, decision: Object, module: Object });
 
@@ -19,60 +16,98 @@ const evaluatorMessage = computed(() => {
     }
     return "Wonderful! You're reading at grade level. Tap continue to head to your dashboard.";
 });
+
+const metrics = computed(() => [
+    { label: 'Task 1 Letters', value: props.attempt?.task_1_score ?? '-' },
+    { label: 'Task 2A Rhymes', value: props.attempt?.task_2a_score ?? '-' },
+    { label: 'Task 2B Words', value: props.attempt?.task_2b_score ?? '-' },
+    { label: 'CRLA Total', value: props.attempt?.crla_total_score ?? '-' },
+    { label: 'Passage Accuracy', value: props.attempt?.reading_accuracy ?? '-', suffix: '%' },
+    { label: 'Comprehension', value: props.attempt?.comprehension_percentage ?? '-', suffix: '%' },
+    { label: 'Reading Score', value: props.attempt?.final_reading_score ?? '-', suffix: '%' },
+]);
 </script>
 
 <template>
-    <LearnerLayout :progress="100">
+    <LearnerLayout :progress="100" diagnostic-step="sentence-reading">
         <template #agent>
             <AgentSpeakerPanel
                 agent-type="evaluator"
                 state="celebrating"
+                presentation="summary"
                 :message="evaluatorMessage"
             />
         </template>
 
-        <section class="mx-auto grid max-w-4xl gap-6 text-center">
-            <RewardBadge title="Path Ready" />
-            <h1 class="text-4xl font-black text-text">Your reading path is ready.</h1>
-            <LessonCard :title="moduleTitle" :description="decision.decision_reason" active />
+        <section class="relative mx-auto grid w-full max-w-[960px] gap-4 pb-4">
+            <div class="inline-flex min-h-11 w-full items-center gap-3 rounded-[16px] bg-accent px-5 py-2 text-base font-black text-text shadow-lg shadow-accent/25">
+                <Star class="size-5 fill-text text-text" />
+                Path Ready
+            </div>
+
+            <h1 class="text-center text-3xl font-black leading-tight text-text xl:text-4xl">Your reading path is ready.</h1>
+
+            <article class="flex items-center gap-4 rounded-[18px] border-2 border-primary bg-surface px-5 py-4 shadow-lg shadow-primary/10">
+                <span class="grid size-14 shrink-0 place-items-center rounded-[16px] bg-primary-light text-primary">
+                    <Check class="size-8 stroke-[4]" />
+                </span>
+                <div class="min-w-0">
+                    <p class="text-lg font-black text-text">{{ moduleTitle }}</p>
+                    <p class="mt-1 text-base font-medium leading-relaxed text-muted">{{ decision.decision_reason }}</p>
+                </div>
+            </article>
 
             <div class="grid gap-4 md:grid-cols-4">
-                <ScoreCard label="Task 1 letters" :value="attempt?.task_1_score ?? '-'" />
-                <ScoreCard label="Task 2A rhymes" :value="attempt?.task_2a_score ?? '-'" />
-                <ScoreCard label="Task 2B words" :value="attempt?.task_2b_score ?? '-'" />
-                <ScoreCard label="CRLA total" :value="attempt?.crla_total_score ?? '-'" />
+                <article
+                    v-for="metric in metrics.slice(0, 4)"
+                    :key="metric.label"
+                    class="rounded-[16px] border border-blue-100 bg-surface px-5 py-4 shadow-lg shadow-primary/10"
+                >
+                    <p class="text-sm font-black uppercase text-muted">{{ metric.label }}</p>
+                    <p class="mt-2 text-3xl font-black leading-none text-text">{{ metric.value }}<span v-if="metric.suffix" class="ml-1 text-xl">{{ metric.suffix }}</span></p>
+                    <p class="mt-3 text-sm font-medium text-muted">from last month</p>
+                </article>
             </div>
 
             <div class="grid gap-4 md:grid-cols-3">
-                <ScoreCard label="Passage accuracy" :value="attempt?.reading_accuracy ?? '-'" suffix="%" />
-                <ScoreCard label="Comprehension" :value="attempt?.comprehension_percentage ?? '-'" suffix="%" />
-                <ScoreCard label="Reading score" :value="attempt?.final_reading_score ?? '-'" suffix="%" />
+                <article
+                    v-for="metric in metrics.slice(4)"
+                    :key="metric.label"
+                    class="rounded-[16px] border border-blue-100 bg-surface px-5 py-4 shadow-lg shadow-primary/10"
+                >
+                    <p class="text-sm font-black uppercase text-muted">{{ metric.label }}</p>
+                    <p class="mt-2 text-3xl font-black leading-none text-text">{{ metric.value }}<span v-if="metric.suffix" class="ml-1 text-xl">{{ metric.suffix }}</span></p>
+                    <p class="mt-3 text-sm font-medium text-muted">from last month</p>
+                </article>
             </div>
 
-            <div class="grid gap-4 text-left md:grid-cols-2">
-                <div class="rounded-2xl border border-border bg-surface px-5 py-4 shadow-sm">
-                    <p class="text-sm font-black uppercase tracking-wide text-muted">CRLA level</p>
+            <div class="grid gap-4 md:grid-cols-2">
+                <article class="rounded-[16px] border border-blue-100 bg-surface px-5 py-4 shadow-lg shadow-primary/10">
+                    <p class="text-sm font-black uppercase text-primary">CRLA Level</p>
                     <p class="mt-2 text-2xl font-black text-text">{{ attempt?.crla_classification }}</p>
-                    <p class="mt-2 text-base font-bold text-muted">{{ decision.crla_meaning }}</p>
-                </div>
-                <div class="rounded-2xl border border-border bg-surface px-5 py-4 shadow-sm">
-                    <p class="text-sm font-black uppercase tracking-wide text-muted">Reading level</p>
+                    <p class="mt-4 text-base font-bold leading-relaxed text-muted">{{ decision.crla_meaning }}</p>
+                </article>
+                <article class="rounded-[16px] border border-blue-100 bg-surface px-5 py-4 shadow-lg shadow-primary/10">
+                    <p class="text-sm font-black uppercase text-primary">Reading Level</p>
                     <p class="mt-2 text-2xl font-black text-text">{{ attempt?.reading_classification }}</p>
-                    <p class="mt-2 text-base font-bold text-muted">{{ decision.reading_meaning }}</p>
-                </div>
+                    <p class="mt-4 text-base font-bold leading-relaxed text-muted">{{ decision.reading_meaning }}</p>
+                </article>
             </div>
 
-            <div class="rounded-2xl border border-primary/30 bg-primary-light px-5 py-4 text-left">
-                <p class="text-sm font-black uppercase tracking-wide text-primary">Why this path</p>
-                <p class="mt-2 text-base font-bold text-text">{{ decision.placement_explanation }}</p>
-                <p class="mt-3 text-sm font-bold text-muted">Rule applied: {{ decision.rule_applied }}</p>
+            <article class="rounded-[16px] border border-blue-200 bg-blue-50/60 px-5 py-4 shadow-lg shadow-primary/10">
+                <p class="text-sm font-black uppercase text-primary">Why This Path</p>
+                <p class="mt-3 text-base font-black leading-relaxed text-text">{{ decision.placement_explanation }}</p>
+                <p class="mt-4 text-sm font-black text-muted">Rule applied: {{ decision.rule_applied }}</p>
+            </article>
+
+            <div class="flex justify-end pt-1">
+                <Link href="/learner/dashboard" class="w-full sm:w-auto">
+                    <PrimaryButton class="w-full gap-3 rounded-[18px] px-6 text-base shadow-xl shadow-primary/25 sm:w-auto sm:min-w-[300px] sm:px-8">
+                        Continue to my Dashboard
+                        <ArrowRight class="size-5 stroke-[3]" />
+                    </PrimaryButton>
+                </Link>
             </div>
         </section>
-
-        <BottomActionBar>
-            <Link href="/learner/dashboard">
-                <PrimaryButton>Continue to my Dashboard</PrimaryButton>
-            </Link>
-        </BottomActionBar>
     </LearnerLayout>
 </template>

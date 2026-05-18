@@ -88,6 +88,11 @@ class AsrResponseNormalizer
     {
         $aiResponse = $resolved['ai_response'] ?? null;
         $normalized = $this->normalize(is_array($aiResponse) ? $aiResponse : null, $resolved['transcript'] ?? null);
+        $aiResponseArray = is_array($aiResponse) ? $aiResponse : [];
+
+        if ($this->hasUsableLetterTranscript($normalized['scoring_transcript'], $context, $aiResponseArray)) {
+            return true;
+        }
 
         if ($normalized['retry_required']) {
             return false;
@@ -97,11 +102,11 @@ class AsrResponseNormalizer
             return false;
         }
 
-        if ($this->audioQualityFailed($normalized['audio_quality'], is_array($aiResponse) ? $aiResponse : [])) {
+        if ($this->audioQualityFailed($normalized['audio_quality'], $aiResponseArray)) {
             return false;
         }
 
-        return $this->hasUsableTranscript($normalized['scoring_transcript'], $context, is_array($aiResponse) ? $aiResponse : []);
+        return $this->hasUsableTranscript($normalized['scoring_transcript'], $context, $aiResponseArray);
     }
 
     public function hasUsableTranscript(?string $transcript, array $context = [], array $aiResponse = []): bool
@@ -214,6 +219,15 @@ class AsrResponseNormalizer
         }
 
         return false;
+    }
+
+    private function hasUsableLetterTranscript(?string $transcript, array $context, array $aiResponse): bool
+    {
+        if ($this->effectivePromptType($context, $aiResponse) !== 'letter') {
+            return false;
+        }
+
+        return $this->hasUsableTranscript($transcript, $context, $aiResponse);
     }
 
     private function effectivePromptType(array $context, array $aiResponse): string

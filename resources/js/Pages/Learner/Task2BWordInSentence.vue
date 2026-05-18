@@ -1,6 +1,7 @@
 <script setup>
 import { computed, reactive, ref } from 'vue';
 import { useForm } from '@inertiajs/vue3';
+import { BookOpen, MessageCircle, Mic2, Volume2 } from 'lucide-vue-next';
 import LearnerLayout from '../../Layouts/LearnerLayout.vue';
 import AgentSpeakerPanel from '../../Components/Learner/AgentSpeakerPanel.vue';
 import AudioRecorder from '../../Components/Learner/AudioRecorder.vue';
@@ -61,6 +62,7 @@ const neutralMessages = ['Thank you. Let us continue.', 'Good effort. Let us go 
 const isCurrentUploading = computed(() => Boolean(uploading[step.currentItem.value?.id]));
 const currentHasUploadedAudio = computed(() => Boolean(uploadedAudioIds[step.currentItem.value?.id]));
 const firstFormError = computed(() => Object.values(form.errors ?? {})[0] ?? '');
+const currentTranscript = computed(() => String(generatedTranscripts[step.currentItem.value?.id] ?? '').trim());
 
 const rememberAudio = (item, file) => {
     audioFiles[item.id] = file;
@@ -218,32 +220,42 @@ const handlePrimary = () => {
 </script>
 
 <template>
-    <LearnerLayout :progress="58">
+    <LearnerLayout :progress="58" diagnostic-step="task-2b">
         <template #agent>
-            <AgentSpeakerPanel compact agent-type="assessment" :state="agentState" :message="agentMessage" />
+            <AgentSpeakerPanel
+                agent-type="assessment"
+                presentation="assessment-task"
+                :state="agentState"
+                :message="agentMessage"
+            />
         </template>
 
-        <section class="mx-auto grid max-w-xl gap-3">
+        <section class="mx-auto grid max-w-6xl gap-5 rounded-[28px] border border-blue-100 bg-surface p-7 shadow-xl shadow-primary/10">
             <div class="flex items-center justify-between">
                 <StatusBadge :status="`Sentence ${step.currentIndex.value + 1} of ${items.length}`" />
-                <StatusBadge :status="isCurrentUploading ? 'Checking' : 'Voice check'" variant="primary" />
+                <span class="inline-flex items-center gap-2 text-sm font-black text-primary">
+                    Voice check
+                    <Volume2 class="size-4" />
+                </span>
             </div>
             <ModuleProgressBar :value="step.progressPercent.value" />
-            <div class="rounded-[28px] border border-border bg-surface p-5 text-center shadow-xl shadow-primary/10">
-                <p class="text-base font-black text-muted">Read the highlighted word</p>
-                <p class="mt-3 text-2xl font-black leading-snug text-text md:text-3xl">
+            <div class="relative overflow-hidden rounded-[28px] border border-blue-100 bg-surface p-8 text-center shadow-lg shadow-primary/10">
+                <span class="absolute left-6 top-6 grid size-16 place-items-center rounded-full bg-primary-light text-primary">
+                    <BookOpen class="size-9" />
+                </span>
+                <p class="text-lg font-black text-muted">Read the highlighted word</p>
+                <p class="mt-4 text-5xl font-black leading-snug text-slate-950 md:text-6xl">
                     <template v-for="(part, index) in parts(step.currentItem.value)" :key="index">
-                        <mark v-if="part.toLowerCase() === (step.currentItem.value.payload?.target_word ?? '').toLowerCase()" class="rounded-xl bg-accent px-2">{{ part }}</mark>
+                        <mark v-if="part.toLowerCase() === (step.currentItem.value.payload?.target_word ?? '').toLowerCase()" class="rounded-2xl bg-accent px-4 py-1 text-slate-950">{{ part }}</mark>
                         <span v-else>{{ part }}</span>
                     </template>
                 </p>
             </div>
-            <div class="rounded-[24px] border border-border bg-surface p-4 shadow-lg shadow-primary/10">
-                <div class="grid gap-3 md:grid-cols-[220px_1fr] md:items-center">
+            <div class="grid gap-5 lg:grid-cols-[340px_1fr]">
+                <div class="rounded-[24px] border border-blue-100 bg-surface p-4 shadow-lg shadow-primary/10">
                     <AudioRecorder
                         :key="step.currentItem.value.id"
                         :reset-key="step.currentItem.value.id"
-                        compact
                         :max-duration-seconds="30"
                         :require-review-before-submit="requireReviewBeforeSubmit"
                         :auto-transcribe-on-stop="autoTranscribeOnStop"
@@ -255,32 +267,39 @@ const handlePrimary = () => {
                         @submit="(file) => uploadAudio(step.currentItem.value, file)"
                         @cleared="() => clearAudio(step.currentItem.value)"
                     />
-                    <div class="grid gap-3">
-                        <label class="grid gap-2 text-lg font-black text-text">
-                            You said
-                            <textarea
-                                :value="generatedTranscripts[step.currentItem.value.id] ?? ''"
-                                class="learner-transcript-box resize-none rounded-2xl border-2 border-border bg-background font-black text-text focus:border-primary focus:outline-none"
-                                readonly
-                                :placeholder="isCurrentUploading ? 'Checking your recording...' : 'Your words will appear here'"
-                            />
-                        </label>
-                        <label v-if="canUseManualFallback" class="grid gap-2 text-sm font-black text-muted">
-                            Developer QA: Manual Transcript Override
-                            <input
-                                :value="step.answers[step.currentItem.value.id]"
-                                class="w-full rounded-2xl border-2 border-border px-4 py-3 text-base font-black text-text focus:border-primary focus:outline-none"
-                                placeholder="Optional QA fallback text"
-                                @input="setAnswer(step.currentItem.value, $event.target.value)"
-                            >
-                        </label>
-                    </div>
                 </div>
-                <p v-if="uploadErrors[step.currentItem.value.id]" class="mt-4 rounded-2xl bg-warning/15 px-4 py-3 text-sm font-black text-warning">
+                <div class="grid gap-4 rounded-[24px] border border-blue-100 bg-surface p-5 shadow-lg shadow-primary/10">
+                    <div class="flex items-center gap-3">
+                        <span class="grid size-10 place-items-center rounded-full bg-primary-light text-primary">
+                            <MessageCircle class="size-5" />
+                        </span>
+                        <p class="text-xl font-black text-text">You said</p>
+                    </div>
+                    <div class="grid min-h-72 rounded-2xl border-2 border-blue-100 bg-blue-50/30 p-8 text-2xl font-black leading-snug text-slate-950">
+                        <p v-if="isCurrentUploading" class="place-self-center text-center text-muted">Checking your recording...</p>
+                        <p v-else-if="currentTranscript">{{ currentTranscript }}</p>
+                        <div v-else class="grid place-items-center gap-3 text-center text-muted">
+                            <span class="grid size-16 place-items-center rounded-full bg-primary-light text-muted">
+                                <Mic2 class="size-9" />
+                            </span>
+                            <span>Your words will appear here</span>
+                        </div>
+                    </div>
+                    <label v-if="canUseManualFallback" class="grid gap-2 text-sm font-black text-muted">
+                        Developer QA: Manual Transcript Override
+                        <input
+                            :value="step.answers[step.currentItem.value.id]"
+                            class="w-full rounded-2xl border-2 border-border px-4 py-3 text-base font-black text-text focus:border-primary focus:outline-none"
+                            placeholder="Optional QA fallback text"
+                            @input="setAnswer(step.currentItem.value, $event.target.value)"
+                        >
+                    </label>
+                </div>
+                <p v-if="uploadErrors[step.currentItem.value.id]" class="rounded-2xl bg-warning/15 px-4 py-3 text-sm font-black text-warning lg:col-span-2">
                     {{ uploadErrors[step.currentItem.value.id] }}
                 </p>
-                <p v-if="firstFormError" class="mt-4 rounded-2xl bg-warning/15 px-4 py-3 text-sm font-black text-warning">{{ firstFormError }}</p>
-                <p v-if="step.feedback.value" class="mt-4 rounded-2xl bg-accent px-4 py-3 text-lg font-black text-text">{{ step.feedback.value }}</p>
+                <p v-if="firstFormError" class="rounded-2xl bg-warning/15 px-4 py-3 text-sm font-black text-warning lg:col-span-2">{{ firstFormError }}</p>
+                <p v-if="step.feedback.value" class="rounded-2xl bg-accent px-4 py-3 text-lg font-black text-text lg:col-span-2">{{ step.feedback.value }}</p>
             </div>
         </section>
 
