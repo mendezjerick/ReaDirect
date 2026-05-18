@@ -19,6 +19,7 @@ use App\Support\LearnerStage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Http\UploadedFile;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -231,6 +232,120 @@ class AdminAreaTest extends TestCase
         $this->actingAs($student)
             ->get(route('admin.testing.assessment.debug', $attempt).'?admin_testing=1')
             ->assertForbidden();
+    }
+
+    public function test_true_sandbox_is_admin_only_and_loads_as_independent_testing_area(): void
+    {
+        $admin = $this->userWithRole('system_admin');
+        $student = $this->userWithRole('student');
+        LearningContent::create([
+            'content_type' => 'letter',
+            'title' => 'Letter C',
+            'prompt' => 'C',
+            'payload' => ['expected_answer' => 'C'],
+            'accepted_answers' => ['C'],
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($student)
+            ->get(route('admin.testing.true-sandbox.index'))
+            ->assertForbidden();
+
+        $this->actingAs($admin)
+            ->get(route('admin.testing.true-sandbox.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/Testing/TrueSandbox')
+                ->where('sections.0.key', 'diagnostic_letters')
+                ->where('initialItems.0.expected_text', 'C')
+                ->where('routes.items', route('admin.testing.true-sandbox.items'))
+                ->where('routes.analyze', route('admin.testing.true-sandbox.analyze'))
+            );
+    }
+
+    public function test_true_sandbox_can_load_module_asr_items_without_attempt_state(): void
+    {
+        $admin = $this->userWithRole('system_admin');
+        $module = Module::create(['sequence' => 1, 'key' => 'module_1', 'title' => 'Module 1', 'is_active' => true]);
+        $content = LearningContent::create([
+            'content_type' => 'module_activity',
+            'title' => 'Read cat',
+            'prompt' => 'cat',
+            'payload' => ['expected_answer' => 'cat'],
+            'accepted_answers' => ['cat'],
+            'is_active' => true,
+        ]);
+        ModuleActivity::create([
+            'module_id' => $module->id,
+            'learning_content_id' => $content->id,
+            'sequence' => 1,
+            'activity_type' => 'read_word',
+            'title' => 'Read cat',
+            'configuration' => ['is_active' => true],
+        ]);
+
+        $this->actingAs($admin)
+            ->getJson(route('admin.testing.true-sandbox.items', [
+                'section' => 'module_activities',
+                'module_id' => $module->id,
+            ]))
+            ->assertOk()
+            ->assertJsonPath('items.0.source', 'module_activity')
+            ->assertJsonPath('items.0.module.key', 'module_1')
+            ->assertJsonPath('items.0.prompt_type', 'word');
+    }
+
+    public function test_true_sandbox_analyze_calls_asr_directly_and_returns_debug_contract(): void
+    {
+        config([
+            'readirect_ai.enabled' => true,
+            'readirect_ai.base_url' => 'http://ai.test',
+            'readirect_ai.endpoints.analyze_audio' => '/analyze-audio',
+        ]);
+        Http::fake([
+            'http://ai.test/analyze-audio' => Http::response([
+                'ok' => true,
+                'raw_transcript' => 'hund',
+                'corrected_transcript' => 'hand',
+                'displayed_transcript' => 'hand',
+                'expected_text' => 'hand',
+                'prompt_type' => 'word',
+                'accepted' => true,
+                'retry_required' => false,
+                'uncertain' => false,
+                'correction_strategy_used' => 'dynamic_asr_spelling_variant',
+                'variant_reason' => 'raw transcript appears to be a noisy ASR spelling of the expected word',
+                'gop_score' => 0.84,
+            ]),
+        ]);
+
+        $response = $this->actingAs($this->userWithRole('system_admin'))
+            ->post(route('admin.testing.true-sandbox.analyze'), [
+                'section' => 'word_pronunciation',
+                'item_id' => 'content:123',
+                'item_source' => 'learning_content',
+                'expected_text' => 'hand',
+                'prompt_text' => 'hand',
+                'prompt_type' => 'word',
+                'task_type' => 'word_pronunciation',
+                'activity_type' => 'word_pronunciation',
+                'assessment_type' => 'true_sandbox',
+                'audio' => UploadedFile::fake()->create('answer.webm', 12, 'audio/webm'),
+                'duration_seconds' => 1.2,
+            ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('raw_transcript', 'hund')
+            ->assertJsonPath('corrected_transcript', 'hand')
+            ->assertJsonPath('displayed_transcript', 'hand')
+            ->assertJsonPath('scoring.accepted', true)
+            ->assertJsonPath('gop_score', 0.84);
+
+        Http::assertSent(fn ($request) => $request->url() === 'http://ai.test/analyze-audio'
+            && $request['expected_text'] === 'hand'
+            && $request['content_metadata']['true_sandbox'] === true
+            && ! array_key_exists('learner_id', $request->data()));
     }
 
     public function test_admin_jump_targets_prepare_sessions_and_include_modules(): void

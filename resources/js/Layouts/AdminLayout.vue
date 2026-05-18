@@ -263,6 +263,7 @@ import {
     ClipboardList,
     Activity,
     Settings,
+    FileSearch,
     CheckCircle,
     AlertCircle,
 } from 'lucide-vue-next';
@@ -276,6 +277,11 @@ const isActive = (href) => {
     const url = currentUrl.value;
     if (href === '/admin/dashboard') {
         return url === '/admin/dashboard' || url.startsWith('/admin/dashboard?');
+    }
+    if (href === '/admin/testing') {
+        return url === '/admin/testing'
+            || url.startsWith('/admin/testing?')
+            || (url.startsWith('/admin/testing/') && !url.startsWith('/admin/testing/true-sandbox'));
     }
     return url.startsWith(href);
 };
@@ -297,5 +303,6 @@ const adminNav = [
     { label: 'Audit Logs',           href: '/admin/audit-logs',          icon: ClipboardList },
     { label: 'System Monitoring',    href: '/admin/system-monitoring',   icon: Activity },
     { label: 'Testing / QA Mode',    href: '/admin/testing',             icon: Settings },
+    { label: 'True Sandbox',         href: '/admin/testing/true-sandbox', icon: FileSearch },
 ];
 </script>

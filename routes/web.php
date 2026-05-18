@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\AdminSchoolController;
 use App\Http\Controllers\Admin\AdminSystemMonitoringController;
 use App\Http\Controllers\Admin\AdminTeacherController;
 use App\Http\Controllers\Admin\AdminTestingController;
+use App\Http\Controllers\Admin\AdminTrueSandboxController;
 use App\Http\Controllers\Admin\DeveloperReinforcementModeController;
 use App\Http\Controllers\AgentVoiceController;
 use App\Http\Controllers\AuthController;
@@ -179,6 +180,9 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function (): v
 
     Route::prefix('testing')->name('testing.')->group(function (): void {
         Route::get('/', [AdminTestingController::class, 'index'])->name('index');
+        Route::get('/true-sandbox', [AdminTrueSandboxController::class, 'index'])->name('true-sandbox.index');
+        Route::get('/true-sandbox/items', [AdminTrueSandboxController::class, 'items'])->name('true-sandbox.items');
+        Route::post('/true-sandbox/analyze', [AdminTrueSandboxController::class, 'analyze'])->middleware('throttle:audio-upload')->name('true-sandbox.analyze');
         Route::get('/learners', [AdminTestingController::class, 'learners'])->name('learners');
         Route::get('/flow-jump', [AdminTestingController::class, 'flowJump'])->name('flow-jump');
         Route::get('/jump/{target}', [AdminTestingController::class, 'jump'])->name('jump');
