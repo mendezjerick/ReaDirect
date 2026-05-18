@@ -25,8 +25,6 @@
 
 html {
     background: var(--color-background);
-    min-height: 100%;
-    overflow-y: auto;
     scroll-behavior: smooth;
 }
 
@@ -34,8 +32,6 @@ body {
     color: var(--color-text);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
-    min-height: 100%;
-    overflow-y: auto;
 }
 
 /* ─── Focus Styles ─────────────────────────────────── */
@@ -180,7 +176,7 @@ tbody tr:hover {
 
 .learner-stage {
     padding-block-start: clamp(0.5rem, 1.4vh, 1rem);
-    padding-block-end: clamp(8rem, 14vh, 12rem);
+    padding-block-end: 5.75rem;
 }
 
 .learner-stage-grid {
