@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { Link } from '@inertiajs/vue3';
-import { Activity, AlertTriangle, ArrowLeft, CheckCircle2, FileSearch, Loader2, RefreshCcw, Search, XCircle } from 'lucide-vue-next';
+import { Activity, AlertTriangle, ArrowLeft, CheckCircle2, Database, FileSearch, Loader2, RefreshCcw, Search, XCircle } from 'lucide-vue-next';
 import AdminLayout from '../../../Layouts/AdminLayout.vue';
 import DashboardCard from '../../../Components/DashboardCard.vue';
 import AudioRecorder from '../../../Components/Learner/AudioRecorder.vue';
@@ -28,12 +28,24 @@ const submitting = ref(false);
 const result = ref(null);
 const error = ref('');
 const recorderResetKey = ref(0);
+const reinforcementSubmitting = ref(false);
+const reinforcementMessage = ref('');
+const reinforcementError = ref('');
+const reinforcementCase = ref(null);
 
 const selectedSection = computed(() => props.sections?.find((item) => item.key === section.value) ?? props.sections?.[0]);
 const selectedItem = computed(() => items.value.find((item) => item.id === selectedItemId.value) ?? items.value[0] ?? null);
 const normalizedResult = computed(() => result.value ? normalizeAsrResponse(result.value) : null);
 const isModuleSection = computed(() => selectedSection.value?.source === 'module');
 const expectedText = computed(() => String(selectedItem.value?.expected_text ?? '').trim());
+const canAddReinforcement = computed(() => (
+    result.value
+    && result.value.scoring?.accepted === false
+    && result.value.retry_required !== true
+    && result.value.uncertain !== true
+    && String(result.value.expected_text ?? '').trim() !== ''
+    && String(result.value.raw_transcript ?? '').trim() !== ''
+));
 const recorderPromptType = computed(() => {
     const type = String(selectedItem.value?.prompt_type ?? 'word');
     return type === 'reading_passage' ? 'passage' : type;
@@ -81,6 +93,9 @@ const loadItems = async () => {
     itemError.value = '';
     result.value = null;
     currentFile.value = null;
+    reinforcementMessage.value = '';
+    reinforcementError.value = '';
+    reinforcementCase.value = null;
 
     const params = new URLSearchParams({ section: section.value });
     if (search.value.trim()) params.set('search', search.value.trim());
@@ -117,6 +132,9 @@ watch(selectedItemId, () => {
     currentFile.value = null;
     result.value = null;
     error.value = '';
+    reinforcementMessage.value = '';
+    reinforcementError.value = '';
+    reinforcementCase.value = null;
     recorderResetKey.value += 1;
 });
 
@@ -124,12 +142,18 @@ const rememberAudio = (file) => {
     currentFile.value = file;
     result.value = null;
     error.value = '';
+    reinforcementMessage.value = '';
+    reinforcementError.value = '';
+    reinforcementCase.value = null;
 };
 
 const clearAudio = () => {
     currentFile.value = null;
     result.value = null;
     error.value = '';
+    reinforcementMessage.value = '';
+    reinforcementError.value = '';
+    reinforcementCase.value = null;
 };
 
 const appendItemPayload = (payload, item) => {
@@ -156,6 +180,9 @@ const runAsr = async (file = currentFile.value) => {
     submitting.value = true;
     error.value = '';
     result.value = null;
+    reinforcementMessage.value = '';
+    reinforcementError.value = '';
+    reinforcementCase.value = null;
 
     try {
         const payload = new FormData();
@@ -187,6 +214,49 @@ const runAsr = async (file = currentFile.value) => {
     } finally {
         submitting.value = false;
     }
+};
+
+const addReinforcement = async () => {
+    if (!result.value || !canAddReinforcement.value) {
+        reinforcementError.value = 'Only rejected, certain ASR results can be added as supervised reinforcement.';
+        return;
+    }
+
+    reinforcementSubmitting.value = true;
+    reinforcementMessage.value = '';
+    reinforcementError.value = '';
+
+    try {
+        const response = await fetch(props.routes.reinforcement, {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': csrf(),
+            },
+            body: JSON.stringify({ result: result.value }),
+        });
+        const payload = await response.json();
+
+        if (!response.ok || payload.ok !== true) {
+            const firstError = payload.errors ? Object.values(payload.errors).flat()[0] : null;
+            throw new Error(firstError ?? payload.message ?? 'Could not save supervised reinforcement.');
+        }
+
+        reinforcementCase.value = payload.case ?? null;
+        reinforcementMessage.value = payload.message ?? 'Supervised reinforcement case saved.';
+    } catch (saveError) {
+        reinforcementError.value = saveError.message ?? 'Could not save supervised reinforcement.';
+    } finally {
+        reinforcementSubmitting.value = false;
+    }
+};
+
+const rejectAndContinue = () => {
+    reinforcementMessage.value = 'Case skipped. No reinforcement data was saved.';
+    reinforcementError.value = '';
+    reinforcementCase.value = null;
 };
 </script>
 
@@ -470,6 +540,45 @@ const runAsr = async (file = currentFile.value) => {
                             </div>
 
                             <!-- Metrics grid — Dashboard row pattern -->
+                            <div class="rounded-2xl border border-border/60 bg-surface p-4 ts-result-card" style="--delay: 220ms">
+                                <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                                    <div class="min-w-0">
+                                        <p class="text-[11px] font-bold uppercase tracking-wider text-muted">Supervised reinforcement</p>
+                                        <p class="mt-1 text-sm font-semibold text-text">
+                                            {{ canAddReinforcement ? 'Confirmed false rejection can be added to correction memory.' : 'No correction memory will be written unless this is a confirmed false rejection.' }}
+                                        </p>
+                                    </div>
+                                    <div class="flex flex-col gap-2 sm:flex-row">
+                                        <button
+                                            type="button"
+                                            class="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                            :disabled="!canAddReinforcement || reinforcementSubmitting || reinforcementCase"
+                                            @click="addReinforcement"
+                                        >
+                                            <Loader2 v-if="reinforcementSubmitting" class="size-4 animate-spin" />
+                                            <Database v-else class="size-4" />
+                                            Accept as Correct / Add Reinforcement
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-700 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                            :disabled="reinforcementSubmitting"
+                                            @click="rejectAndContinue"
+                                        >
+                                            <XCircle class="size-4" />
+                                            Continue
+                                        </button>
+                                    </div>
+                                </div>
+                                <p v-if="reinforcementMessage" class="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200/70">
+                                    {{ reinforcementMessage }}
+                                    <span v-if="reinforcementCase?.target_file"> Target: {{ reinforcementCase.target_file }}.</span>
+                                </p>
+                                <p v-if="reinforcementError" class="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-700 ring-1 ring-red-200/70">
+                                    {{ reinforcementError }}
+                                </p>
+                            </div>
+
                             <div class="grid gap-2 rounded-2xl bg-background/60 p-4 sm:grid-cols-2 lg:grid-cols-3">
                                 <div class="flex flex-col min-w-0 rounded-xl bg-surface px-3.5 py-2.5 transition-colors duration-150 hover:bg-blue-50/60 ts-result-card" style="--delay: 240ms">
                                     <p class="text-[11px] font-bold uppercase tracking-wider text-muted mb-1">Strategy</p>

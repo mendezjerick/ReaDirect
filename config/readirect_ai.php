@@ -17,6 +17,7 @@ return [
         'analyze_text' => env('READIRECT_AI_ANALYZE_TEXT_ENDPOINT', '/analyze-text'),
         'recommend_next' => env('READIRECT_AI_RECOMMEND_NEXT_ENDPOINT', '/recommend-next'),
         'content_item' => env('READIRECT_AI_CONTENT_ITEM_ENDPOINT', '/content-item'),
+        'reinforcement_correction' => env('READIRECT_AI_REINFORCEMENT_CORRECTION_ENDPOINT', '/reinforcement/corrections'),
     ],
 
     'fallback' => [

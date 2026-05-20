@@ -3,12 +3,13 @@
 namespace Tests\Feature;
 
 use App\Models\AudioFile;
+use App\Models\AsrSupervisedReinforcementCase;
 use App\Models\Learner;
 use App\Models\School;
 use App\Models\User;
 use App\Services\AI\AIAnalysisResolver;
 use App\Services\AI\ReadirectAIService;
-use App\Services\DeveloperReinforcementModeService;
+use App\Services\ASR\SupervisedReinforcementService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
@@ -223,7 +224,7 @@ class ReadirectAIIntegrationTest extends TestCase
         $this->assertTrue($resolved['ai_response']['gop_correction_applied']);
     }
 
-    public function test_developer_reinforcement_flags_are_sent_only_for_admin_when_enabled(): void
+    public function test_audio_analysis_does_not_send_developer_reinforcement_flags(): void
     {
         Storage::fake('local');
         config([
@@ -231,7 +232,6 @@ class ReadirectAIIntegrationTest extends TestCase
             'readirect_ai.base_url' => 'http://ai.test',
             'readirect_ai.endpoints.analyze_audio' => '/analyze-audio',
         ]);
-        app(DeveloperReinforcementModeService::class)->setEnabled(true);
         $admin = $this->userWithRole('system_admin');
         $audioFile = $this->audioFile();
 
@@ -253,42 +253,61 @@ class ReadirectAIIntegrationTest extends TestCase
             'prompt_type' => 'word',
         ]);
 
-        Http::assertSent(fn ($request) => $request['developer_reinforcement_enabled'] === true
-            && $request['developer_user_role'] === 'admin'
-            && $request['developer_user_id'] === $admin->email);
+        Http::assertSent(fn ($request) => ! array_key_exists('developer_reinforcement_enabled', $request->data())
+            && ! array_key_exists('developer_user_role', $request->data())
+            && ! array_key_exists('developer_user_id', $request->data()));
     }
 
-    public function test_developer_reinforcement_flags_are_false_for_learner_requests(): void
+    public function test_true_sandbox_supervised_reinforcement_records_false_rejection_and_updates_ai_memory(): void
     {
-        Storage::fake('local');
         config([
             'readirect_ai.enabled' => true,
             'readirect_ai.base_url' => 'http://ai.test',
-            'readirect_ai.endpoints.analyze_audio' => '/analyze-audio',
+            'readirect_ai.endpoints.reinforcement_correction' => '/reinforcement/corrections',
         ]);
-        app(DeveloperReinforcementModeService::class)->setEnabled(true);
-        $audioFile = $this->audioFile();
+        $admin = $this->userWithRole('system_admin');
 
         Http::fake([
-            'http://ai.test/analyze-audio' => Http::response([
-                'ok' => true,
-                'transcript' => 'Layo',
-                'raw_transcript' => 'Layo',
-                'corrected_transcript' => 'Layo',
-                'displayed_transcript' => 'Layo',
-                'accepted' => false,
-                'warnings' => [],
+            'http://ai.test/reinforcement/corrections' => Http::response([
+                'saved' => true,
+                'target_file' => 'word-reinforcement.csv',
+                'reason' => 'new correction added',
+                'duplicate' => false,
             ]),
         ]);
 
-        app(AIAnalysisResolver::class)->resolve(null, $audioFile, [
-            'expected_text' => 'Leo',
+        $case = app(SupervisedReinforcementService::class)->approveFalseRejection([
+            'expected_text' => 'log',
+            'raw_transcript' => 'lug',
+            'normalized_transcript' => 'lug',
+            'corrected_transcript' => 'lug',
+            'displayed_transcript' => 'lug',
             'prompt_type' => 'word',
-        ]);
+            'task_type' => 'word_pronunciation',
+            'assessment_type' => 'true_sandbox',
+            'accepted' => false,
+            'retry_required' => false,
+            'uncertain' => false,
+            'scoring' => ['accepted' => false],
+            'phonetic_similarity_score' => 0.81,
+            'request_context' => ['item_id' => 'content:1', 'module_type' => 'module_2'],
+            'ai_response' => ['raw_transcript' => 'lug'],
+        ], $admin);
 
-        Http::assertSent(fn ($request) => $request['developer_reinforcement_enabled'] === false
-            && $request['developer_user_role'] === null
-            && $request['developer_user_id'] === null);
+        $this->assertInstanceOf(AsrSupervisedReinforcementCase::class, $case);
+        $this->assertDatabaseHas('asr_supervised_reinforcement_cases', [
+            'expected_text' => 'log',
+            'raw_transcript' => 'lug',
+            'prompt_type' => 'word',
+            'confirmed_by' => $admin->id,
+        ]);
+        $this->assertTrue((bool) $case->reinforcement_response['saved']);
+
+        Http::assertSent(fn ($request) => $request['expected_text'] === 'log'
+            && $request['raw_transcript'] === 'lug'
+            && $request['prompt_type'] === 'word'
+            && $request['source'] === 'true_sandbox_supervised'
+            && $request['supervised_reinforcement_enabled'] === true);
     }
 
     public function test_laravel_uses_corrected_and_displayed_transcripts_for_letter_alias_response(): void

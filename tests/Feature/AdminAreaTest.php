@@ -86,40 +86,6 @@ class AdminAreaTest extends TestCase
             );
     }
 
-    public function test_admin_can_toggle_developer_reinforcement_mode(): void
-    {
-        $admin = $this->userWithRole('system_admin');
-
-        $this->actingAs($admin)
-            ->get(route('admin.dashboard'))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->where('developerReinforcementMode.visible', true)
-                ->where('developerReinforcementMode.enabled', false)
-            );
-
-        $this->actingAs($admin)
-            ->post(route('admin.developer-reinforcement-mode.update'), ['enabled' => true])
-            ->assertRedirect();
-
-        $this->actingAs($admin)
-            ->get(route('admin.dashboard'))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->where('developerReinforcementMode.visible', true)
-                ->where('developerReinforcementMode.enabled', true)
-            );
-    }
-
-    public function test_non_admin_cannot_toggle_developer_reinforcement_mode(): void
-    {
-        $teacher = $this->userWithRole('teacher');
-
-        $this->actingAs($teacher)
-            ->post(route('admin.developer-reinforcement-mode.update'), ['enabled' => true])
-            ->assertForbidden();
-    }
-
     public function test_developer_reset_visibility_is_admin_only(): void
     {
         config(['readirect_ai.debug.enable_developer_assessment_reset' => true]);

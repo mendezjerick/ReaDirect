@@ -9,6 +9,7 @@ use App\Models\ModuleActivity;
 use App\Services\Admin\AdminAccessService;
 use App\Services\AI\ReadirectAIService;
 use App\Services\ASR\AsrResponseNormalizer;
+use App\Services\ASR\SupervisedReinforcementService;
 use App\Services\AudioStorageService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -148,6 +149,7 @@ class AdminTrueSandboxController extends Controller
             'routes' => [
                 'items' => route('admin.testing.true-sandbox.items'),
                 'analyze' => route('admin.testing.true-sandbox.analyze'),
+                'reinforcement' => route('admin.testing.true-sandbox.reinforcement.store'),
             ],
         ]);
     }
@@ -255,6 +257,51 @@ class AdminTrueSandboxController extends Controller
         } finally {
             Storage::disk('local')->delete($path);
         }
+    }
+
+    public function storeReinforcement(
+        Request $request,
+        AdminAccessService $access,
+        SupervisedReinforcementService $reinforcement
+    ): JsonResponse {
+        $access->ensureTesting($request->user());
+
+        $validated = $request->validate([
+            'result' => ['required', 'array'],
+            'result.expected_text' => ['required', 'string', 'max:6000'],
+            'result.raw_transcript' => ['required', 'string', 'max:6000'],
+            'result.normalized_transcript' => ['nullable', 'string', 'max:6000'],
+            'result.corrected_transcript' => ['nullable', 'string', 'max:6000'],
+            'result.displayed_transcript' => ['nullable', 'string', 'max:6000'],
+            'result.prompt_type' => ['required', 'string', 'max:100'],
+            'result.task_type' => ['nullable', 'string', 'max:100'],
+            'result.activity_type' => ['nullable', 'string', 'max:255'],
+            'result.assessment_type' => ['nullable', 'string', 'max:100'],
+            'result.accepted' => ['nullable', 'boolean'],
+            'result.retry_required' => ['nullable', 'boolean'],
+            'result.uncertain' => ['nullable', 'boolean'],
+            'result.scoring' => ['nullable', 'array'],
+            'result.request_context' => ['nullable', 'array'],
+            'result.ai_response' => ['nullable', 'array'],
+        ]);
+
+        $case = $reinforcement->approveFalseRejection($validated['result'], $request->user());
+
+        return response()->json([
+            'ok' => true,
+            'message' => ($case->reinforcement_response['saved'] ?? false)
+                ? 'Supervised reinforcement case saved.'
+                : (string) ($case->reinforcement_response['reason'] ?? 'Supervised case recorded, but correction memory was not updated.'),
+            'case' => [
+                'id' => $case->id,
+                'status' => $case->status,
+                'duplicate' => (bool) ($case->reinforcement_response['duplicate'] ?? false),
+                'reinforcement_saved' => (bool) ($case->reinforcement_response['saved'] ?? false),
+                'reinforcement_reason' => (string) ($case->reinforcement_response['reason'] ?? ''),
+                'target_file' => (string) ($case->reinforcement_response['target_file'] ?? ''),
+                'confirmed_at' => $case->confirmed_at?->toISOString(),
+            ],
+        ]);
     }
 
     private function loadItems(string $section, string $search = '', ?int $moduleId = null, string $activityType = ''): array

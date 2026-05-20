@@ -48,6 +48,11 @@ class ReadirectAIService
         return $this->post('content_item', $payload);
     }
 
+    public function reinforcementCorrection(array $payload): array
+    {
+        return $this->post('reinforcement_correction', $payload);
+    }
+
     public function isAvailable(): bool
     {
         $response = $this->health();

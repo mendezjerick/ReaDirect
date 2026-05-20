@@ -14,7 +14,6 @@ use App\Http\Controllers\Admin\AdminSystemMonitoringController;
 use App\Http\Controllers\Admin\AdminTeacherController;
 use App\Http\Controllers\Admin\AdminTestingController;
 use App\Http\Controllers\Admin\AdminTrueSandboxController;
-use App\Http\Controllers\Admin\DeveloperReinforcementModeController;
 use App\Http\Controllers\AgentVoiceController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\FinalAssessmentController;
@@ -141,7 +140,6 @@ Route::middleware('auth')->prefix('teacher')->name('teacher.')->group(function (
 
 Route::middleware('auth')->prefix('admin')->name('admin.')->group(function (): void {
     Route::get('/dashboard', AdminDashboardController::class)->name('dashboard');
-    Route::post('/developer-reinforcement-mode', [DeveloperReinforcementModeController::class, 'update'])->name('developer-reinforcement-mode.update');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit')->defaults('layout', 'admin');
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
@@ -183,6 +181,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function (): v
         Route::get('/true-sandbox', [AdminTrueSandboxController::class, 'index'])->name('true-sandbox.index');
         Route::get('/true-sandbox/items', [AdminTrueSandboxController::class, 'items'])->name('true-sandbox.items');
         Route::post('/true-sandbox/analyze', [AdminTrueSandboxController::class, 'analyze'])->middleware('throttle:audio-upload')->name('true-sandbox.analyze');
+        Route::post('/true-sandbox/reinforcement', [AdminTrueSandboxController::class, 'storeReinforcement'])->name('true-sandbox.reinforcement.store');
         Route::get('/learners', [AdminTestingController::class, 'learners'])->name('learners');
         Route::get('/flow-jump', [AdminTestingController::class, 'flowJump'])->name('flow-jump');
         Route::get('/jump/{target}', [AdminTestingController::class, 'jump'])->name('jump');
