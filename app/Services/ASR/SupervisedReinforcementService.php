@@ -13,16 +13,25 @@ class SupervisedReinforcementService
     {
     }
 
-    public function approveFalseRejection(array $sandboxResult, ?User $user): AsrSupervisedReinforcementCase
+    public function approveFalseRejection(array $sandboxResult, ?User $user, ?array $wordCase = null): AsrSupervisedReinforcementCase
     {
-        $expected = trim((string) ($sandboxResult['expected_text'] ?? data_get($sandboxResult, 'request_context.expected_text', '')));
-        $raw = trim((string) ($sandboxResult['raw_transcript'] ?? data_get($sandboxResult, 'ai_response.raw_transcript', '')));
-        $promptType = trim((string) ($sandboxResult['prompt_type'] ?? data_get($sandboxResult, 'ai_response.prompt_type', '')));
-        $accepted = (bool) data_get($sandboxResult, 'scoring.accepted', $sandboxResult['accepted'] ?? false);
+        $isWordCase = is_array($wordCase);
+        $expected = $isWordCase
+            ? trim((string) ($wordCase['expected_text'] ?? $wordCase['expected_word'] ?? ''))
+            : trim((string) ($sandboxResult['expected_text'] ?? data_get($sandboxResult, 'request_context.expected_text', '')));
+        $raw = $isWordCase
+            ? trim((string) ($wordCase['raw_transcript'] ?? $wordCase['recognized_word'] ?? ''))
+            : trim((string) ($sandboxResult['raw_transcript'] ?? data_get($sandboxResult, 'ai_response.raw_transcript', '')));
+        $promptType = $isWordCase
+            ? 'word'
+            : trim((string) ($sandboxResult['prompt_type'] ?? data_get($sandboxResult, 'ai_response.prompt_type', '')));
+        $accepted = $isWordCase
+            ? (bool) ($wordCase['counts_as_correct'] ?? false)
+            : (bool) data_get($sandboxResult, 'scoring.accepted', $sandboxResult['accepted'] ?? false);
         $retryRequired = (bool) ($sandboxResult['retry_required'] ?? false);
         $uncertain = (bool) ($sandboxResult['uncertain'] ?? false);
 
-        $this->assertApprovable($expected, $raw, $promptType, $accepted, $retryRequired, $uncertain);
+        $this->assertApprovable($expected, $raw, $promptType, $accepted, $retryRequired, $uncertain, ! $isWordCase);
 
         $case = AsrSupervisedReinforcementCase::query()->updateOrCreate(
             ['case_hash' => $this->caseHash($expected, $raw, $promptType)],
@@ -38,10 +47,10 @@ class SupervisedReinforcementService
                 'activity_type' => $sandboxResult['activity_type'] ?? data_get($sandboxResult, 'request_context.activity_type'),
                 'assessment_type' => $sandboxResult['assessment_type'] ?? data_get($sandboxResult, 'request_context.assessment_type'),
                 'module_type' => data_get($sandboxResult, 'request_context.module_type') ?? data_get($sandboxResult, 'request_context.module_key'),
-                'item_id' => data_get($sandboxResult, 'request_context.item_id'),
+                'item_id' => $this->itemId($sandboxResult, $wordCase),
                 'item_source' => data_get($sandboxResult, 'request_context.content_metadata.item_source'),
-                'similarity_scores' => $this->similarityScores($sandboxResult),
-                'decision_result' => $this->decisionResult($sandboxResult),
+                'similarity_scores' => $this->similarityScores($sandboxResult, $wordCase),
+                'decision_result' => $this->decisionResult($sandboxResult, $wordCase),
                 'request_context' => $sandboxResult['request_context'] ?? null,
                 'ai_response' => $sandboxResult['ai_response'] ?? null,
                 'confirmed_by' => $user?->id,
@@ -59,7 +68,9 @@ class SupervisedReinforcementService
             'correction_strategy_used' => (string) ($sandboxResult['correction_strategy_used'] ?? 'none'),
             'created_by' => $user?->email ?: (string) ($user?->id ?? 'admin'),
             'source' => 'true_sandbox_supervised',
-            'notes' => 'Manually approved false rejection from True Sandbox.',
+            'notes' => $isWordCase
+                ? 'Manually approved sentence word-level false rejection from True Sandbox.'
+                : 'Manually approved false rejection from True Sandbox.',
             'supervised_reinforcement_enabled' => true,
             'developer_reinforcement_enabled' => true,
             'developer_user_role' => 'admin',
@@ -72,7 +83,7 @@ class SupervisedReinforcementService
         return $case->refresh();
     }
 
-    private function assertApprovable(string $expected, string $raw, string $promptType, bool $accepted, bool $retryRequired, bool $uncertain): void
+    private function assertApprovable(string $expected, string $raw, string $promptType, bool $accepted, bool $retryRequired, bool $uncertain, bool $requireRejectedDecision): void
     {
         $errors = [];
 
@@ -88,8 +99,10 @@ class SupervisedReinforcementService
             $errors['prompt_type'] = 'This prompt type is not supported by supervised reinforcement.';
         }
 
-        if ($accepted) {
+        if ($accepted && $requireRejectedDecision) {
             $errors['decision'] = 'Only rejected ASR decisions can be added as supervised reinforcement.';
+        } elseif ($accepted) {
+            $errors['decision'] = 'Only incorrect aligned words can be added as supervised reinforcement.';
         }
 
         if ($retryRequired || $uncertain) {
@@ -105,7 +118,7 @@ class SupervisedReinforcementService
         }
     }
 
-    private function similarityScores(array $sandboxResult): array
+    private function similarityScores(array $sandboxResult, ?array $wordCase = null): array
     {
         return array_filter([
             'phonetic_similarity_score' => $sandboxResult['phonetic_similarity_score'] ?? null,
@@ -119,10 +132,14 @@ class SupervisedReinforcementService
             'corrected_wer' => $sandboxResult['corrected_wer'] ?? null,
             'raw_cer' => $sandboxResult['raw_cer'] ?? null,
             'corrected_cer' => $sandboxResult['corrected_cer'] ?? null,
+            'word_alignment_confidence' => $wordCase['alignment_confidence'] ?? $wordCase['dynamic_correction_confidence'] ?? null,
+            'word_spelling_similarity' => $wordCase['spelling_similarity'] ?? null,
+            'word_phoneme_similarity' => $wordCase['phoneme_similarity'] ?? null,
+            'word_gop_score' => $wordCase['gop_score'] ?? null,
         ], fn ($value) => $value !== null);
     }
 
-    private function decisionResult(array $sandboxResult): array
+    private function decisionResult(array $sandboxResult, ?array $wordCase = null): array
     {
         return [
             'accepted' => (bool) data_get($sandboxResult, 'scoring.accepted', $sandboxResult['accepted'] ?? false),
@@ -130,7 +147,21 @@ class SupervisedReinforcementService
             'uncertain' => (bool) ($sandboxResult['uncertain'] ?? false),
             'correction_strategy_used' => $sandboxResult['correction_strategy_used'] ?? null,
             'correction_reason' => data_get($sandboxResult, 'scoring.correction_reason') ?? ($sandboxResult['dynamic_correction_reason'] ?? $sandboxResult['variant_reason'] ?? null),
+            'word_case' => $wordCase,
         ];
+    }
+
+    private function itemId(array $sandboxResult, ?array $wordCase): ?string
+    {
+        $itemId = data_get($sandboxResult, 'request_context.item_id');
+
+        if (! is_array($wordCase)) {
+            return $itemId;
+        }
+
+        $index = $wordCase['index'] ?? $wordCase['word_index'] ?? null;
+
+        return $itemId ? $itemId.':word:'.$index : null;
     }
 
     private function caseHash(string $expected, string $raw, string $promptType): string

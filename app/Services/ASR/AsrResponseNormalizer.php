@@ -79,9 +79,48 @@ class AsrResponseNormalizer
             'expected_phoneme_coverage' => $aiResponse['expected_phoneme_coverage'] ?? null,
             'variant_edit_similarity' => $aiResponse['variant_edit_similarity'] ?? null,
             'variant_reason' => $aiResponse['variant_reason'] ?? null,
-            'word_alignment' => $aiResponse['word_alignment'] ?? [],
+            'word_alignment' => $this->normalizeWordAlignment($aiResponse['word_alignment'] ?? []),
             'debug_metadata' => $aiResponse['debug_metadata'] ?? null,
         ];
+    }
+
+    private function normalizeWordAlignment(mixed $wordAlignment): array
+    {
+        if (! is_array($wordAlignment)) {
+            return [];
+        }
+
+        return array_map(function ($item): mixed {
+            if (! is_array($item)) {
+                return $item;
+            }
+
+            $expected = $item['expected_word'] ?? $item['expected_chunk'] ?? null;
+            $recognized = $item['recognized_word'] ?? $item['recognized_chunk'] ?? null;
+
+            if (
+                is_string($expected)
+                && is_string($recognized)
+                && $this->normalizeComparableText($expected) !== ''
+                && $this->normalizeComparableText($expected) === $this->normalizeComparableText($recognized)
+            ) {
+                $item['status'] = 'exact_correct';
+                $item['counts_as_correct'] = true;
+                $item['alignment_confidence'] = max((float) ($item['alignment_confidence'] ?? 0), 1.0);
+                $item['dynamic_correction_confidence'] = max((float) ($item['dynamic_correction_confidence'] ?? 0), 1.0);
+                $item['dynamic_correction_reason'] = 'expected and recognized word match exactly';
+            }
+
+            return $item;
+        }, $wordAlignment);
+    }
+
+    private function normalizeComparableText(string $value): string
+    {
+        $value = mb_strtolower($this->sanitizer->sanitize($value));
+        $value = preg_replace('/[^\p{L}\p{N}]+/u', '', $value) ?? '';
+
+        return trim($value);
     }
 
     public function canComplete(array $resolved, array $context = [], bool $allowUncertain = false): bool

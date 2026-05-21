@@ -9,6 +9,7 @@ use App\Models\School;
 use App\Models\User;
 use App\Services\AI\AIAnalysisResolver;
 use App\Services\AI\ReadirectAIService;
+use App\Services\ASR\AsrResponseNormalizer;
 use App\Services\ASR\SupervisedReinforcementService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -310,6 +311,58 @@ class ReadirectAIIntegrationTest extends TestCase
             && $request['supervised_reinforcement_enabled'] === true);
     }
 
+    public function test_true_sandbox_supervised_reinforcement_can_save_sentence_word_pair(): void
+    {
+        config([
+            'readirect_ai.enabled' => true,
+            'readirect_ai.base_url' => 'http://ai.test',
+            'readirect_ai.endpoints.reinforcement_correction' => '/reinforcement/corrections',
+        ]);
+        $admin = $this->userWithRole('system_admin');
+
+        Http::fake([
+            'http://ai.test/reinforcement/corrections' => Http::response([
+                'saved' => true,
+                'target_file' => 'word-reinforcement.csv',
+                'reason' => 'new correction added',
+                'duplicate' => false,
+            ]),
+        ]);
+
+        $case = app(SupervisedReinforcementService::class)->approveFalseRejection([
+            'expected_text' => 'Arthur carried a shield.',
+            'raw_transcript' => 'arthur carried a shill',
+            'prompt_type' => 'sentence',
+            'assessment_type' => 'true_sandbox',
+            'retry_required' => false,
+            'uncertain' => false,
+            'scoring' => ['accepted' => false],
+            'request_context' => ['item_id' => 'content:12'],
+        ], $admin, [
+            'index' => 3,
+            'expected_word' => 'shield',
+            'recognized_word' => 'shill',
+            'status' => 'incorrect',
+            'counts_as_correct' => false,
+            'alignment_confidence' => 0.62,
+        ]);
+
+        $this->assertSame('shield', $case->expected_text);
+        $this->assertSame('shill', $case->raw_transcript);
+        $this->assertSame('word', $case->prompt_type);
+        $this->assertDatabaseHas('asr_supervised_reinforcement_cases', [
+            'expected_text' => 'shield',
+            'raw_transcript' => 'shill',
+            'prompt_type' => 'word',
+            'item_id' => 'content:12:word:3',
+        ]);
+
+        Http::assertSent(fn ($request) => $request['expected_text'] === 'shield'
+            && $request['raw_transcript'] === 'shill'
+            && $request['prompt_type'] === 'word'
+            && $request['notes'] === 'Manually approved sentence word-level false rejection from True Sandbox.');
+    }
+
     public function test_laravel_uses_corrected_and_displayed_transcripts_for_letter_alias_response(): void
     {
         Storage::fake('local');
@@ -427,6 +480,32 @@ class ReadirectAIIntegrationTest extends TestCase
         $this->assertSame('models/wav2vec2-readirect-asr-letters-v2', $audioFile->ai_model);
         $this->assertTrue($resolved['ai_response']['accepted_by_reinforcement_match']);
         $this->assertTrue(app(AIAnalysisResolver::class)->acceptedForShortPrompt($resolved['ai_response']));
+    }
+
+    public function test_laravel_normalizes_exact_word_alignment_rows_as_correct(): void
+    {
+        $normalized = app(AsrResponseNormalizer::class)->normalize([
+            'ok' => true,
+            'expected_text' => 'carried',
+            'raw_transcript' => 'carried',
+            'corrected_transcript' => 'carried',
+            'displayed_transcript' => 'carried',
+            'accepted' => false,
+            'prompt_type' => 'sentence',
+            'word_alignment' => [
+                [
+                    'expected_word' => 'carried',
+                    'recognized_word' => 'carried',
+                    'status' => 'partial',
+                    'counts_as_correct' => false,
+                    'alignment_confidence' => 0.789521,
+                ],
+            ],
+        ]);
+
+        $this->assertSame('exact_correct', $normalized['word_alignment'][0]['status']);
+        $this->assertTrue($normalized['word_alignment'][0]['counts_as_correct']);
+        $this->assertSame(1.0, $normalized['word_alignment'][0]['alignment_confidence']);
     }
 
     public function test_laravel_keeps_rejected_transcript_and_does_not_force_expected_text(): void

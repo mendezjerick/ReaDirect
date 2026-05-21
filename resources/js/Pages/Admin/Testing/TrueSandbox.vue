@@ -32,14 +32,19 @@ const reinforcementSubmitting = ref(false);
 const reinforcementMessage = ref('');
 const reinforcementError = ref('');
 const reinforcementCase = ref(null);
+const wordReinforcementSubmitting = ref({});
+const wordReinforcementMessages = ref({});
+const wordReinforcementErrors = ref({});
 
 const selectedSection = computed(() => props.sections?.find((item) => item.key === section.value) ?? props.sections?.[0]);
 const selectedItem = computed(() => items.value.find((item) => item.id === selectedItemId.value) ?? items.value[0] ?? null);
 const normalizedResult = computed(() => result.value ? normalizeAsrResponse(result.value) : null);
 const isModuleSection = computed(() => selectedSection.value?.source === 'module');
 const expectedText = computed(() => String(selectedItem.value?.expected_text ?? '').trim());
+const hasWordAlignmentErrors = computed(() => (result.value?.word_alignment ?? []).some((word) => canAddWordReinforcement(word)));
 const canAddReinforcement = computed(() => (
     result.value
+    && !hasWordAlignmentErrors.value
     && result.value.scoring?.accepted === false
     && result.value.retry_required !== true
     && result.value.uncertain !== true
@@ -96,6 +101,9 @@ const loadItems = async () => {
     reinforcementMessage.value = '';
     reinforcementError.value = '';
     reinforcementCase.value = null;
+    wordReinforcementSubmitting.value = {};
+    wordReinforcementMessages.value = {};
+    wordReinforcementErrors.value = {};
 
     const params = new URLSearchParams({ section: section.value });
     if (search.value.trim()) params.set('search', search.value.trim());
@@ -135,6 +143,9 @@ watch(selectedItemId, () => {
     reinforcementMessage.value = '';
     reinforcementError.value = '';
     reinforcementCase.value = null;
+    wordReinforcementSubmitting.value = {};
+    wordReinforcementMessages.value = {};
+    wordReinforcementErrors.value = {};
     recorderResetKey.value += 1;
 });
 
@@ -145,6 +156,9 @@ const rememberAudio = (file) => {
     reinforcementMessage.value = '';
     reinforcementError.value = '';
     reinforcementCase.value = null;
+    wordReinforcementSubmitting.value = {};
+    wordReinforcementMessages.value = {};
+    wordReinforcementErrors.value = {};
 };
 
 const clearAudio = () => {
@@ -154,6 +168,9 @@ const clearAudio = () => {
     reinforcementMessage.value = '';
     reinforcementError.value = '';
     reinforcementCase.value = null;
+    wordReinforcementSubmitting.value = {};
+    wordReinforcementMessages.value = {};
+    wordReinforcementErrors.value = {};
 };
 
 const appendItemPayload = (payload, item) => {
@@ -183,6 +200,9 @@ const runAsr = async (file = currentFile.value) => {
     reinforcementMessage.value = '';
     reinforcementError.value = '';
     reinforcementCase.value = null;
+    wordReinforcementSubmitting.value = {};
+    wordReinforcementMessages.value = {};
+    wordReinforcementErrors.value = {};
 
     try {
         const payload = new FormData();
@@ -250,6 +270,102 @@ const addReinforcement = async () => {
         reinforcementError.value = saveError.message ?? 'Could not save supervised reinforcement.';
     } finally {
         reinforcementSubmitting.value = false;
+    }
+};
+
+const wordKey = (word, index) => `${index}:${word?.expected_word ?? word?.expected_chunk ?? ''}:${word?.recognized_word ?? word?.recognized_chunk ?? ''}`;
+const normalizeComparableWord = (value) => String(value ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '').trim();
+
+const canAddWordReinforcement = (word) => {
+    if (!result.value || result.value.retry_required === true || result.value.uncertain === true) return false;
+    const expected = String(word?.expected_word ?? word?.expected_chunk ?? '').trim();
+    const recognized = String(word?.recognized_word ?? word?.recognized_chunk ?? '').trim();
+
+    return expected !== ''
+        && recognized !== ''
+        && normalizeComparableWord(expected) !== normalizeComparableWord(recognized)
+        && word?.counts_as_correct !== true
+        && word?.expected_word !== null
+        && word?.operation !== 'insertion';
+};
+
+const markWordAcceptedByReinforcement = (index) => {
+    if (!result.value?.word_alignment?.[index]) return;
+
+    const alignment = [...result.value.word_alignment];
+    const current = alignment[index];
+    const confidence = Number(current.alignment_confidence ?? current.dynamic_correction_confidence ?? 0);
+
+    alignment[index] = {
+        ...current,
+        status: 'accepted_by_reinforcement_match',
+        counts_as_correct: true,
+        alignment_confidence: Math.max(confidence, 1),
+        dynamic_correction_confidence: Math.max(confidence, 1),
+        dynamic_correction_reason: 'aligned word matched supervised reinforcement correction memory',
+    };
+
+    const totalWords = alignment.filter((item) => Object.prototype.hasOwnProperty.call(item ?? {}, 'expected_word')).length;
+    const correctWords = alignment.filter((item) => item?.counts_as_correct === true).length;
+
+    result.value = {
+        ...result.value,
+        word_alignment: alignment,
+        scoring: {
+            ...(result.value.scoring ?? {}),
+            correct_words: correctWords,
+            total_expected_words: totalWords,
+            word_accuracy: totalWords > 0 ? Math.round((correctWords / totalWords) * 10000) / 100 : result.value.scoring?.word_accuracy,
+        },
+    };
+};
+
+const addWordReinforcement = async (word, index) => {
+    if (!canAddWordReinforcement(word)) return;
+
+    const key = wordKey(word, index);
+    wordReinforcementSubmitting.value = { ...wordReinforcementSubmitting.value, [key]: true };
+    wordReinforcementErrors.value = { ...wordReinforcementErrors.value, [key]: '' };
+    wordReinforcementMessages.value = { ...wordReinforcementMessages.value, [key]: '' };
+
+    try {
+        const response = await fetch(props.routes.reinforcement, {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': csrf(),
+            },
+            body: JSON.stringify({
+                result: result.value,
+                word: {
+                    ...word,
+                    index,
+                    expected_text: word.expected_word ?? word.expected_chunk ?? '',
+                    raw_transcript: word.recognized_word ?? word.recognized_chunk ?? '',
+                },
+            }),
+        });
+        const payload = await response.json();
+
+        if (!response.ok || payload.ok !== true) {
+            const firstError = payload.errors ? Object.values(payload.errors).flat()[0] : null;
+            throw new Error(firstError ?? payload.message ?? 'Could not save word reinforcement.');
+        }
+
+        wordReinforcementMessages.value = {
+            ...wordReinforcementMessages.value,
+            [key]: payload.message ?? 'Word reinforcement saved.',
+        };
+        markWordAcceptedByReinforcement(index);
+    } catch (saveError) {
+        wordReinforcementErrors.value = {
+            ...wordReinforcementErrors.value,
+            [key]: saveError.message ?? 'Could not save word reinforcement.',
+        };
+    } finally {
+        wordReinforcementSubmitting.value = { ...wordReinforcementSubmitting.value, [key]: false };
     }
 };
 
@@ -615,7 +731,8 @@ const rejectAndContinue = () => {
                                             <th class="px-4 py-3 border-r border-border/40">Recognized</th>
                                             <th class="px-4 py-3 border-r border-border/40">Status</th>
                                             <th class="px-4 py-3 border-r border-border/40">Correct</th>
-                                            <th class="px-4 py-3">Confidence</th>
+                                            <th class="px-4 py-3 border-r border-border/40">Confidence</th>
+                                            <th class="px-4 py-3">Action</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -638,6 +755,24 @@ const rejectAndContinue = () => {
                                                 </span>
                                             </td>
                                             <td class="px-4 py-2.5 font-medium text-muted">{{ word.alignment_confidence ?? word.dynamic_correction_confidence ?? '' }}</td>
+                                            <td class="px-4 py-2.5">
+                                                <div class="flex min-w-[170px] flex-col gap-1.5">
+                                                    <button
+                                                        v-if="canAddWordReinforcement(word)"
+                                                        type="button"
+                                                        class="inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-[11px] font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                                        :disabled="wordReinforcementSubmitting[wordKey(word, index)] || wordReinforcementMessages[wordKey(word, index)]"
+                                                        @click="addWordReinforcement(word, index)"
+                                                    >
+                                                        <Loader2 v-if="wordReinforcementSubmitting[wordKey(word, index)]" class="size-3 animate-spin" />
+                                                        <Database v-else class="size-3" />
+                                                        Accept as Correct
+                                                    </button>
+                                                    <span v-else class="text-[11px] font-semibold text-muted">No action</span>
+                                                    <span v-if="wordReinforcementMessages[wordKey(word, index)]" class="text-[11px] font-bold text-emerald-700">{{ wordReinforcementMessages[wordKey(word, index)] }}</span>
+                                                    <span v-if="wordReinforcementErrors[wordKey(word, index)]" class="text-[11px] font-bold text-red-700">{{ wordReinforcementErrors[wordKey(word, index)] }}</span>
+                                                </div>
+                                            </td>
                                         </tr>
                                     </tbody>
                                 </table>

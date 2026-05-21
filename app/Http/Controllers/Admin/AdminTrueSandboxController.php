@@ -283,9 +283,23 @@ class AdminTrueSandboxController extends Controller
             'result.scoring' => ['nullable', 'array'],
             'result.request_context' => ['nullable', 'array'],
             'result.ai_response' => ['nullable', 'array'],
+            'word' => ['nullable', 'array'],
+            'word.index' => ['nullable', 'integer'],
+            'word.expected_word' => ['nullable', 'string', 'max:500'],
+            'word.recognized_word' => ['nullable', 'string', 'max:500'],
+            'word.expected_text' => ['nullable', 'string', 'max:500'],
+            'word.raw_transcript' => ['nullable', 'string', 'max:500'],
+            'word.status' => ['nullable', 'string', 'max:100'],
+            'word.operation' => ['nullable', 'string', 'max:100'],
+            'word.counts_as_correct' => ['nullable', 'boolean'],
+            'word.alignment_confidence' => ['nullable', 'numeric'],
+            'word.dynamic_correction_confidence' => ['nullable', 'numeric'],
+            'word.spelling_similarity' => ['nullable', 'numeric'],
+            'word.phoneme_similarity' => ['nullable', 'numeric'],
+            'word.gop_score' => ['nullable', 'numeric'],
         ]);
 
-        $case = $reinforcement->approveFalseRejection($validated['result'], $request->user());
+        $case = $reinforcement->approveFalseRejection($validated['result'], $request->user(), $validated['word'] ?? null);
 
         return response()->json([
             'ok' => true,
@@ -488,6 +502,7 @@ class AdminTrueSandboxController extends Controller
             'accepted_by_gop',
             'accepted_by_split_merge',
             'accepted_by_asr_spelling_variant',
+            'accepted_by_reinforcement_match',
         ];
         $correctWords = collect($alignment)->filter(function (array $item) use ($correctStatuses): bool {
             return ($item['counts_as_correct'] ?? false) === true
