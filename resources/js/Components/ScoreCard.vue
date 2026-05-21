@@ -1,10 +1,11 @@
 <script setup>
 defineProps({
-    label:  { type: String,           required: true },
-    value:  { type: [String, Number], required: true },
-    suffix: { type: String,           default: '' },
-    icon:   { type: Object,           default: null },
-    color:  { type: String,           default: 'blue' },
+    label:    { type: String,           required: true },
+    value:    { type: [String, Number], required: true },
+    suffix:   { type: String,           default: '' },
+    subtitle: { type: String,           default: 'from last month' },
+    icon:     { type: Object,           default: null },
+    color:    { type: String,           default: 'blue' },
 });
 
 /* Sociafy-style: clean white card, circular colored icon on right, large number.
@@ -28,7 +29,10 @@ const scheme = {
                 <p class="mt-2 text-3xl font-extrabold leading-none text-text">
                     {{ value }}<span v-if="suffix" class="ml-1 text-base font-semibold text-muted">{{ suffix }}</span>
                 </p>
-                <p class="mt-1.5 text-[11px] font-medium text-muted">from last month</p>
+                <!-- Footer slot or subtitle text -->
+                <slot name="footer">
+                    <p v-if="subtitle" class="mt-1.5 text-[11px] font-medium text-muted">{{ subtitle }}</p>
+                </slot>
             </div>
 
             <!-- Circular icon (right, Sociafy-style) -->
