@@ -7,6 +7,7 @@ import PrimaryButton from '../../../Components/PrimaryButton.vue';
 import SecondaryButton from '../../../Components/SecondaryButton.vue';
 import BottomActionBar from '../../../Components/BottomActionBar.vue';
 import StatusBadge from '../../../Components/StatusBadge.vue';
+import { PlayCircle, ArrowRight, ArrowLeft } from 'lucide-vue-next';
 
 const props = defineProps({
     module: Object,
@@ -148,42 +149,62 @@ onBeforeUnmount(() => {
             <AgentSpeakerPanel agent-type="coach_feedback" :state="guideState" :message="guideMessage" />
         </template>
 
-        <section class="module-overview-shell mx-auto grid w-full gap-4">
-            <div class="module-overview-card rounded-[28px] border border-border bg-surface p-5 shadow-xl shadow-primary/10">
-                <div>
-                    <StatusBadge status="Module Overview" variant="primary" />
-                    <h1 class="module-overview-title mt-3 font-black text-text">{{ module.title }}</h1>
-                    <p class="module-overview-purpose mt-3 font-bold leading-relaxed text-muted">{{ purpose ?? module.description }}</p>
+        <section class="module-overview-shell mx-auto grid w-full gap-5 xl:gap-6">
+            <div class="module-overview-card relative overflow-hidden rounded-[36px] bg-gradient-to-br from-sky-400 to-blue-600 p-6 text-white shadow-xl shadow-blue-500/20 sm:p-8 xl:p-10">
+                <!-- Decorative blobs -->
+                <div class="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
+                <div class="pointer-events-none absolute -bottom-10 right-40 h-32 w-32 rounded-full bg-white/5 blur-2xl" />
+
+                <div class="relative z-10 min-w-0">
+                    <span class="inline-block rounded-full bg-white/20 px-4 py-2 text-xs font-black uppercase tracking-widest text-white ring-1 ring-white/30 backdrop-blur-md xl:text-sm">Module Overview</span>
+                    <h1 class="module-overview-title mt-4 font-black leading-tight">{{ module.title }}</h1>
+                    <p class="module-overview-purpose mt-3 font-bold leading-relaxed text-white/90">{{ purpose ?? module.description }}</p>
                 </div>
-                <p class="module-overview-hint rounded-2xl bg-primaryLight px-4 py-3 font-black text-primaryDark">
+                <p class="relative z-10 rounded-[24px] bg-white/15 px-6 py-5 text-sm font-black text-white ring-1 ring-white/30 backdrop-blur-md xl:text-base">
                     Choose a lesson box. Miss Ciel will tell you what it means.
                 </p>
             </div>
 
-            <div class="module-lesson-panel grid min-h-0 gap-3" :class="{ 'module-lesson-panel-many': lessonBoxes.length > 4 }">
+            <div class="module-lesson-panel grid min-h-0 gap-4" :class="{ 'module-lesson-panel-many': lessonBoxes.length > 4 }">
                 <button
                     v-for="lesson in lessonBoxes"
                     :key="lesson.key"
                     type="button"
-                    class="module-lesson-card group rounded-[24px] border-2 bg-surface p-4 text-left shadow-lg shadow-primary/5 transition hover:-translate-y-0.5 hover:border-primary focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20"
-                    :class="activeLessonKey === lesson.key ? 'border-primary bg-primaryLight/40' : 'border-border'"
+                    class="module-lesson-card group relative flex flex-col overflow-hidden rounded-[28px] border-2 bg-white p-5 text-left shadow-lg shadow-slate-200/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-primary/20 xl:p-6"
+                    :class="activeLessonKey === lesson.key ? 'border-primary ring-4 ring-primary/10' : 'border-slate-200/80 hover:border-blue-400'"
                     @mouseenter="explainLesson(lesson)"
                     @focus="explainLesson(lesson)"
                     @click="explainLesson(lesson)"
                 >
-                    <div>
-                        <p class="module-lesson-title font-black text-text">{{ lesson.title ?? label(lesson.key) }}</p>
-                        <p class="module-lesson-description mt-2 font-bold text-muted">{{ lesson.description }}</p>
+                    <div class="flex items-start gap-4 xl:gap-5">
+                        <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-400 to-blue-500 text-white shadow-md shadow-blue-500/20 ring-1 ring-white/20 xl:h-14 xl:w-14">
+                            <PlayCircle class="size-6 xl:size-7" stroke-width="2.5" />
+                        </div>
+                        <div class="min-w-0">
+                            <p class="module-lesson-title font-black text-slate-800">{{ lesson.title ?? label(lesson.key) }}</p>
+                            <p class="module-lesson-description mt-2 font-semibold text-slate-500">{{ lesson.description }}</p>
+                        </div>
                     </div>
                 </button>
             </div>
         </section>
 
         <BottomActionBar>
-            <div class="flex w-full items-center justify-between gap-3">
-                <SecondaryButton :disabled="returning" @click="returnToDashboard">Back to Learner Dashboard</SecondaryButton>
-                <Link v-if="resumeRoute || firstActivityType" :href="resumeRoute ?? `/learner/modules/${module.key}/activity/${firstActivityType}`">
-                    <PrimaryButton>{{ actionLabel ?? 'Start Module' }}</PrimaryButton>
+            <div class="flex w-full flex-col-reverse items-center justify-between gap-4 sm:flex-row">
+                <button
+                    type="button"
+                    class="group inline-flex w-full items-center justify-center gap-2 rounded-[22px] border-2 border-slate-200/80 bg-white px-6 py-3.5 text-base font-bold text-slate-600 transition-all hover:border-slate-300 hover:bg-slate-50 sm:w-auto xl:px-8 xl:text-lg"
+                    :disabled="returning"
+                    @click="returnToDashboard"
+                >
+                    <ArrowLeft class="size-5 stroke-[2.5] transition-transform group-hover:-translate-x-1" />
+                    <span>Back to Learner Dashboard</span>
+                </button>
+                <Link v-if="resumeRoute || firstActivityType" :href="resumeRoute ?? `/learner/modules/${module.key}/activity/${firstActivityType}`" class="w-full sm:w-auto">
+                    <PrimaryButton class="group w-full gap-3 rounded-[22px] px-8 py-3.5 text-base shadow-xl shadow-primary/25 hover:-translate-y-0.5 hover:scale-[1.02] active:scale-[0.98] sm:w-auto xl:text-lg">
+                        {{ actionLabel ?? 'Start Module' }}
+                        <ArrowRight class="size-5 stroke-[3] sm:size-6 transition-transform group-hover:translate-x-1" />
+                    </PrimaryButton>
                 </Link>
             </div>
         </BottomActionBar>

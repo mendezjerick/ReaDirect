@@ -15,13 +15,13 @@ const visibleSteps = computed(() => props.steps.length ? props.steps : (props.di
 </script>
 
 <template>
-    <div class="min-h-screen bg-background text-text">
+    <div class="min-h-screen bg-gradient-to-b from-slate-50 to-blue-50/30 text-text">
         <AdminTestingToolbar />
-        <header class="sticky top-0 z-20 border-b border-border bg-surface/95 backdrop-blur">
+        <header class="anim-header sticky top-0 z-20 border-b border-blue-100/60 bg-white/90 backdrop-blur-lg">
             <div class="learner-frame flex items-center gap-4 py-3">
-                <a href="/" class="inline-flex shrink-0 items-center gap-3 text-xl font-black text-primary md:text-2xl">
-                    <span class="grid size-10 place-items-center rounded-2xl bg-primary-light text-primary">
-                        <BookOpenCheck class="size-7" />
+                <a href="/" class="group inline-flex shrink-0 items-center gap-2.5 text-xl font-black text-primary transition-all hover:scale-[1.02] md:text-2xl">
+                    <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-blue-600 text-white shadow-md shadow-primary/20 transition-shadow group-hover:shadow-lg group-hover:shadow-primary/30">
+                        <BookOpenCheck class="size-6" />
                     </span>
                     ReaDirect
                 </a>
@@ -33,41 +33,47 @@ const visibleSteps = computed(() => props.steps.length ? props.steps : (props.di
                     >
                         <div
                             v-if="index > 0"
-                            class="absolute left-0 top-3 h-1 w-1/2 -translate-x-1/2 rounded-full"
-                            :class="visibleSteps[index - 1]?.status === 'complete' ? 'bg-primary' : 'bg-border'"
+                            class="absolute left-0 top-3.5 h-[3px] w-1/2 -translate-x-1/2 rounded-full transition-colors duration-300"
+                            :class="visibleSteps[index - 1]?.status === 'complete' ? 'bg-primary' : 'bg-slate-200'"
                             aria-hidden="true"
                         />
                         <div
                             v-if="index < visibleSteps.length - 1"
-                            class="absolute right-0 top-3 h-1 w-1/2 translate-x-1/2 rounded-full"
-                            :class="step.status === 'complete' ? 'bg-primary' : 'bg-border'"
+                            class="absolute right-0 top-3.5 h-[3px] w-1/2 translate-x-1/2 rounded-full transition-colors duration-300"
+                            :class="step.status === 'complete' ? 'bg-primary' : 'bg-slate-200'"
                             aria-hidden="true"
                         />
                         <span
-                            class="relative z-10 grid size-7 place-items-center rounded-full border-4 bg-surface"
-                            :class="step.status === 'pending' ? 'border-border text-muted' : 'border-primary text-primary'"
+                            class="relative z-10 grid size-7 place-items-center rounded-full border-[3px] transition-all duration-300"
+                            :class="step.status === 'pending'
+                                ? 'border-slate-200 bg-white text-slate-300'
+                                : step.status === 'current'
+                                    ? 'border-primary bg-primary/10 text-primary shadow-sm shadow-primary/20'
+                                    : 'border-primary bg-primary text-white shadow-sm shadow-primary/20'"
                         >
                             <Check v-if="step.status === 'complete'" class="size-4 stroke-[4]" />
-                            <span v-else class="size-2 rounded-full" :class="step.status === 'current' ? 'bg-primary' : 'bg-border'" />
+                            <span v-else-if="step.status === 'current'" class="size-2.5 rounded-full bg-primary" />
+                            <span v-else class="size-2 rounded-full bg-slate-200" />
                         </span>
-                        <span class="text-sm font-black" :class="step.status === 'pending' ? 'text-muted' : 'text-primary'">
+                        <span class="text-[12px] font-bold" :class="step.status === 'pending' ? 'text-slate-400' : 'text-primary'">
                             {{ step.label }}
                         </span>
                     </div>
                 </div>
-                <div v-if="visibleSteps.length" class="h-4 flex-1 overflow-hidden rounded-full bg-primary-light lg:hidden">
-                    <div class="h-full rounded-full bg-primary transition-all" :style="{ width: `${progress}%` }" />
+                <div v-if="visibleSteps.length" class="h-3 flex-1 overflow-hidden rounded-full bg-slate-100 shadow-inner lg:hidden">
+                    <div class="h-full rounded-full bg-gradient-to-r from-primary to-blue-500 shadow-sm shadow-primary/30 transition-all duration-500" :style="{ width: `${progress}%` }" />
                 </div>
-                <div v-else class="h-4 flex-1 overflow-hidden rounded-full bg-primary-light">
-                    <div class="h-full rounded-full bg-primary transition-all" :style="{ width: `${progress}%` }" />
+                <div v-else class="h-3 flex-1 overflow-hidden rounded-full bg-slate-100 shadow-inner">
+                    <div class="h-full rounded-full bg-gradient-to-r from-primary to-blue-500 shadow-sm shadow-primary/30 transition-all duration-500" :style="{ width: `${progress}%` }" />
                 </div>
                 <SyncStatusBadge />
             </div>
         </header>
         <main class="learner-frame learner-stage">
             <div v-if="$slots.agent" class="learner-stage-grid">
-                <aside class="sticky top-[68px] z-10 max-h-[calc(100vh-132px)] overflow-visible lg:top-20">
+                <aside class="sticky top-[68px] z-10 flex flex-col gap-4 max-h-[calc(100vh-132px)] overflow-y-auto px-2 -mx-2 pb-8 lg:top-20 lg:max-h-[calc(100vh-140px)]">
                     <slot name="agent" />
+                    <div id="teleport-audio-review" class="empty:hidden"></div>
                 </aside>
                 <div class="learner-content min-w-0">
                     <slot />
@@ -79,3 +85,13 @@ const visibleSteps = computed(() => props.steps.length ? props.steps : (props.di
         </main>
     </div>
 </template>
+
+<style scoped>
+.anim-header {
+    animation: headerFade 0.4s ease-out forwards;
+}
+@keyframes headerFade {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+</style>

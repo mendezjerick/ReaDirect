@@ -18,31 +18,43 @@ import BottomActionBar from '../../Components/BottomActionBar.vue';
             />
         </template>
 
-        <div class="relative mx-auto grid w-full max-w-[980px] gap-6 pb-2">
-            <span class="pointer-events-none absolute -left-4 top-12 hidden text-2xl font-black text-blue-200 xl:block" aria-hidden="true">*</span>
-            <span class="pointer-events-none absolute right-12 top-5 text-4xl font-black text-accent" aria-hidden="true">*</span>
-            <span class="pointer-events-none absolute right-0 top-28 hidden text-2xl font-black text-blue-200 sm:block" aria-hidden="true">*</span>
-            <span class="pointer-events-none absolute -right-8 bottom-8 hidden text-3xl font-black text-blue-200 xl:block" aria-hidden="true">*</span>
+        <div class="anim-stagger relative mx-auto grid w-full max-w-[980px] gap-6 pb-2">
+            <!-- Sparkle decorations -->
+            <span class="pointer-events-none absolute -left-4 top-12 hidden text-2xl font-black text-primary/5 xl:block" aria-hidden="true">✦</span>
+            <span class="pointer-events-none absolute right-12 top-5 text-4xl font-black text-yellow-500" aria-hidden="true">✦</span>
+            <span class="pointer-events-none absolute right-0 top-28 hidden text-2xl font-black text-primary/5 sm:block" aria-hidden="true">✦</span>
+            <span class="pointer-events-none absolute -right-8 bottom-8 hidden text-3xl font-black text-primary/5 xl:block" aria-hidden="true">✦</span>
 
-            <section class="relative overflow-hidden rounded-[28px] border border-blue-100 bg-surface px-6 py-10 text-center shadow-lg shadow-primary/10 sm:px-10 sm:py-12">
-                <span class="absolute bottom-0 left-0 h-16 w-28 rounded-tr-full bg-blue-100" aria-hidden="true" />
-                <span class="absolute bottom-8 right-20 text-xl font-black text-blue-100" aria-hidden="true">*</span>
-                <span class="absolute bottom-6 right-10 text-2xl font-black text-blue-200" aria-hidden="true">*</span>
+            <!-- Hero card -->
+            <section class="anim-hero relative overflow-hidden rounded-[36px] border-[3px] border-primary/10 bg-white px-6 py-10 text-center shadow-2xl shadow-primary/10 sm:px-10 sm:py-12">
+                <!-- Decorative blur blobs -->
+                <span class="pointer-events-none absolute -left-10 -top-10 h-40 w-40 rounded-full bg-primary/5 blur-3xl" aria-hidden="true" />
+                <span class="pointer-events-none absolute -bottom-10 -right-10 h-40 w-40 rounded-full bg-blue-400/5 blur-3xl" aria-hidden="true" />
+
+                <!-- Bottom-left decorative shape -->
+                <span class="absolute bottom-0 left-0 h-16 w-28 rounded-tr-full bg-primary/5" aria-hidden="true" />
+                <!-- Inner sparkles -->
+                <span class="pointer-events-none absolute bottom-8 right-20 text-xl font-black text-yellow-500" aria-hidden="true">✦</span>
+                <span class="pointer-events-none absolute bottom-6 right-10 text-2xl font-black text-primary/5" aria-hidden="true">✦</span>
+
                 <div class="relative z-10 grid justify-items-center gap-5">
                     <p class="inline-flex items-center gap-3 text-xl font-black text-primary">
                         <Sparkles class="size-5 fill-primary/40 text-primary/70" />
                         Reading passage
                         <Sparkles class="size-5 fill-primary/40 text-primary/70" />
                     </p>
-                    <h1 class="text-5xl font-black leading-tight text-text sm:text-6xl">Read aloud.</h1>
+                    <h1 class="anim-text-pop text-5xl font-black leading-tight sm:text-6xl">
+                        <span class="bg-gradient-to-br from-slate-900 to-slate-700 bg-clip-text text-transparent">Read aloud.</span>
+                    </h1>
                 </div>
             </section>
 
-            <section class="relative overflow-hidden rounded-[22px] border border-blue-100 bg-surface px-7 py-6 shadow-lg shadow-primary/10">
-                <span class="absolute right-9 top-6 text-4xl font-black text-blue-100" aria-hidden="true">*</span>
+            <!-- Agent message card -->
+            <section class="relative overflow-hidden rounded-[28px] border border-slate-200/80 bg-white px-7 py-6 shadow-xl shadow-slate-200/30">
+                <span class="pointer-events-none absolute right-9 top-6 text-4xl font-black text-primary/5" aria-hidden="true">✦</span>
                 <div class="relative z-10">
-                    <p class="text-base font-black uppercase text-primary">Miss Vivian</p>
-                    <p class="mt-4 text-xl font-black leading-relaxed text-text">
+                    <p class="text-[14px] font-black uppercase tracking-widest text-primary">Miss Vivian</p>
+                    <p class="mt-4 text-xl font-black leading-relaxed text-slate-800">
                         Read the passage clearly. Then answer five short questions.
                     </p>
                 </div>
@@ -50,12 +62,47 @@ import BottomActionBar from '../../Components/BottomActionBar.vue';
         </div>
 
         <BottomActionBar>
-            <Link href="/learner/diagnostic/passage">
-                <PrimaryButton class="gap-3 rounded-[18px] px-8 shadow-xl shadow-primary/25 sm:min-w-[230px]">
+            <Link href="/learner/diagnostic/passage" class="w-full sm:w-auto">
+                <PrimaryButton class="w-full gap-3 rounded-[22px] px-5 text-base shadow-xl shadow-primary/25 sm:w-auto sm:min-w-[320px] sm:gap-4 sm:px-9 sm:text-lg">
                     Start passage
-                    <ArrowRight class="size-5 stroke-[3]" />
+                    <ArrowRight class="size-5 stroke-[3] sm:size-6" />
                 </PrimaryButton>
             </Link>
         </BottomActionBar>
     </LearnerLayout>
 </template>
+
+<style scoped>
+/* Staggered children */
+.anim-stagger > * {
+    animation: staggerIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.anim-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.anim-stagger > *:nth-child(2) { animation-delay: 150ms; }
+.anim-stagger > *:nth-child(3) { animation-delay: 300ms; }
+.anim-stagger > *:nth-child(4) { animation-delay: 450ms; }
+@keyframes staggerIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Hero card spring */
+.anim-hero {
+    animation: heroSpring 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+@keyframes heroSpring {
+    from { opacity: 0; transform: scale(0.92) translateY(20px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Title text pop */
+.anim-text-pop {
+    animation: textPop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    animation-delay: 0.2s;
+    opacity: 0;
+}
+@keyframes textPop {
+    from { opacity: 0; transform: scale(0.7); }
+    to   { opacity: 1; transform: scale(1); }
+}
+</style>

@@ -33,58 +33,82 @@ const progressItems = computed(() => [
         subtitle="Your latest reading check details"
         active="progress"
     >
-        <section class="grid gap-4 lg:grid-cols-[1fr_22rem]">
-            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div class="flex flex-wrap items-center justify-between gap-3">
+        <section class="grid gap-6 lg:grid-cols-[1fr_22rem] lg:items-start">
+            <!-- Main Progress Area -->
+            <div class="anim-fade-down rounded-[36px] border border-slate-200/60 bg-white/80 p-6 shadow-xl shadow-slate-200/40 backdrop-blur-md md:p-8">
+                <div class="flex flex-wrap items-center justify-between gap-4">
                     <div>
-                        <p class="text-sm font-black uppercase text-primary">Latest Progress</p>
-                        <h2 class="mt-1 text-2xl font-black text-text">Reading skills overview</h2>
+                        <p class="text-[13px] font-black uppercase tracking-widest text-primary">Latest Progress</p>
+                        <h2 class="mt-1 text-2xl font-black text-slate-800 md:text-3xl">Reading skills overview</h2>
                     </div>
-                    <Link
-                        :href="flowState?.primary_action_route ?? '/learner/dashboard'"
-                        class="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-black text-white shadow-md shadow-primary/30"
-                    >
-                        Continue
-                        <ArrowRight class="size-4" />
-                    </Link>
                 </div>
 
-                <div class="mt-5 grid gap-3 sm:grid-cols-2">
+                <div class="anim-stagger mt-8 grid gap-4 sm:grid-cols-2">
                     <article
                         v-for="item in progressItems"
                         :key="item.label"
-                        class="rounded-2xl border border-blue-100 bg-blue-50/40 p-4"
+                        class="relative flex flex-col rounded-[28px] bg-gradient-to-br from-blue-50 to-indigo-50/50 p-5 ring-1 ring-blue-100 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-blue-500/10"
                     >
                         <div class="flex items-start justify-between gap-3">
                             <div>
-                                <p class="text-sm font-black text-slate-500">{{ item.label }}</p>
-                                <p class="mt-2 text-3xl font-black text-primary">{{ item.value }}</p>
+                                <p class="text-[14px] font-black text-slate-500">{{ item.label }}</p>
+                                <p class="mt-2 text-4xl font-black text-blue-600">{{ item.value }}</p>
                             </div>
-                            <span class="grid size-11 place-items-center rounded-xl bg-white text-primary shadow-sm">
-                                <component :is="item.icon" class="size-6" />
+                            <span class="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-white text-blue-500 shadow-md shadow-blue-500/10">
+                                <component :is="item.icon" class="size-7" />
                             </span>
                         </div>
-                        <p class="mt-3 text-sm font-bold text-slate-600">{{ item.detail }}</p>
+                        <p class="mt-4 text-[14px] font-bold text-slate-600">{{ item.detail }}</p>
                     </article>
                 </div>
             </div>
 
-            <aside class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <span class="grid size-12 place-items-center rounded-xl bg-success/10 text-success">
-                    <CheckCircle2 class="size-7" />
+            <!-- Current Step Aside -->
+            <aside class="anim-slide-up rounded-[36px] border border-emerald-100 bg-gradient-to-br from-emerald-50 to-teal-50/50 p-6 shadow-xl shadow-emerald-500/10 md:p-8">
+                <span class="flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-500 text-white shadow-lg shadow-emerald-500/30">
+                    <CheckCircle2 class="size-8" />
                 </span>
-                <h2 class="mt-4 text-xl font-black text-text">Current step</h2>
-                <p class="mt-2 text-sm font-bold leading-relaxed text-slate-600">
+                <h2 class="mt-5 text-2xl font-black text-slate-800">Current step</h2>
+                <p class="mt-2 text-[15px] font-bold leading-relaxed text-slate-600">
                     {{ flowState?.message ?? 'Continue your reading path from the dashboard.' }}
                 </p>
                 <Link
                     :href="flowState?.primary_action_route ?? '/learner/dashboard'"
-                    class="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-black text-white shadow-md shadow-primary/30"
+                    class="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-[20px] bg-gradient-to-br from-primary to-blue-600 px-5 py-4 text-lg font-black text-white shadow-lg shadow-primary/20 ring-1 ring-white/20 transition-all duration-200 hover:-translate-y-0.5 hover:scale-[1.02] hover:shadow-xl active:scale-[0.98]"
                 >
                     {{ flowState?.primary_action_label ?? 'Continue' }}
-                    <ArrowRight class="size-4" />
+                    <ArrowRight class="size-5" />
                 </Link>
             </aside>
         </section>
     </LearnerSimplePageShell>
 </template>
+
+<style scoped>
+.anim-fade-down {
+    animation: fadeDown 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.anim-slide-up {
+    animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation-delay: 0.1s;
+    opacity: 0;
+}
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.anim-stagger > * {
+    opacity: 0;
+    animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.anim-stagger > *:nth-child(1) { animation-delay: 100ms; }
+.anim-stagger > *:nth-child(2) { animation-delay: 200ms; }
+.anim-stagger > *:nth-child(3) { animation-delay: 300ms; }
+.anim-stagger > *:nth-child(4) { animation-delay: 400ms; }
+</style>
