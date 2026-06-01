@@ -10,6 +10,7 @@ import BottomActionBar from '../../../Components/BottomActionBar.vue';
 import ModuleProgressBar from '../../../Components/ModuleProgressBar.vue';
 import PromptCard from '../../../Components/PromptCard.vue';
 import StatusBadge from '../../../Components/StatusBadge.vue';
+import { ArrowRight, ArrowLeft } from 'lucide-vue-next';
 import { useStepAssessment } from '../../../Composables/useStepAssessment';
 import { appendAudioMetadata, normalizeAsrResponse } from '../../../utils/asrResponse';
 
@@ -219,15 +220,15 @@ const returnToDashboard = () => {
             <AgentSpeakerPanel compact agent-type="coach_feedback" :state="coachState" :message="coachMessage" />
         </template>
 
-        <section class="mx-auto grid max-w-xl gap-3">
+        <section class="mx-auto grid max-w-2xl gap-4 xl:gap-5">
             <div class="flex items-center justify-between">
                 <StatusBadge :status="activityLabel" variant="primary" />
                 <StatusBadge :status="progressLabel" />
             </div>
             <ModuleProgressBar :value="step.progressPercent.value" />
             <PromptCard label="Practice" :prompt="step.currentItem.value.prompt" size="word" />
-            <div class="rounded-[24px] border border-border bg-surface p-4 shadow-lg shadow-primary/10">
-                <div class="grid gap-3 md:grid-cols-[220px_1fr] md:items-center">
+            <div class="rounded-[32px] border border-slate-200/80 bg-white p-5 shadow-xl shadow-slate-200/30 xl:p-7">
+                <div class="grid gap-5 md:grid-cols-[minmax(220px,1fr)_1.3fr] md:items-start xl:gap-6">
                     <AudioRecorder
                         :key="step.currentItem.value.id"
                         :reset-key="step.currentItem.value.id"
@@ -243,27 +244,41 @@ const returnToDashboard = () => {
                         @submit="(file) => uploadAudio(step.currentItem.value, file)"
                         @cleared="() => clearAudio(step.currentItem.value)"
                     />
-                    <div class="grid gap-3">
-                        <label class="grid gap-2 text-lg font-black text-text">
+                    <div class="grid gap-4">
+                        <label class="grid gap-2 text-base font-black text-slate-800 xl:text-lg">
                             You said
-                            <textarea :value="generatedTranscripts[step.currentItem.value.id] ?? ''" class="learner-transcript-box resize-none rounded-2xl border-2 border-border bg-background font-black text-text focus:border-primary focus:outline-none" readonly :placeholder="isCurrentUploading ? 'Checking your recording...' : 'Your words will appear here'" />
+                            <textarea :value="generatedTranscripts[step.currentItem.value.id] ?? ''" class="learner-transcript-box resize-none rounded-[20px] border border-slate-200/80 bg-slate-50/50 p-4 text-base font-bold text-slate-800 shadow-sm placeholder:text-slate-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-200/50 xl:p-5 xl:text-lg" readonly :placeholder="isCurrentUploading ? 'Checking your recording...' : 'Your words will appear here'" />
                         </label>
-                        <label v-if="canUseManualFallback" class="grid gap-2 text-sm font-black text-muted">
+                        <label v-if="canUseManualFallback" class="grid gap-2 text-sm font-black text-slate-500">
                             Developer QA: Manual Transcript Override
-                            <input v-model="step.answers[step.currentItem.value.id]" class="rounded-2xl border-2 border-border px-4 py-3 text-lg font-black focus:border-primary focus:outline-none" placeholder="Optional QA fallback text">
+                            <input v-model="step.answers[step.currentItem.value.id]" class="rounded-[16px] border border-slate-200/80 bg-white px-4 py-3 text-base font-bold focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-200/50" placeholder="Optional QA fallback text">
                         </label>
                     </div>
                 </div>
-                <p v-if="uploadErrors[step.currentItem.value.id]" class="mt-4 rounded-2xl bg-warning/15 px-4 py-3 text-sm font-black text-warning">{{ uploadErrors[step.currentItem.value.id] }}</p>
-                <p v-if="step.feedback.value" class="mt-4 rounded-2xl bg-primaryLight px-4 py-3 text-lg font-black text-primaryDark">{{ step.feedback.value }}</p>
+                <p v-if="uploadErrors[step.currentItem.value.id]" class="mt-4 rounded-[20px] bg-orange-50 px-5 py-3 text-sm font-black text-orange-600 ring-1 ring-orange-200/60">{{ uploadErrors[step.currentItem.value.id] }}</p>
+                <p v-if="step.feedback.value" class="mt-4 rounded-[20px] bg-blue-50 px-5 py-3 text-base font-black text-blue-700 ring-1 ring-blue-200/60">{{ step.feedback.value }}</p>
             </div>
         </section>
 
         <BottomActionBar>
-            <div class="flex w-full items-center justify-between gap-3">
-                <SecondaryButton :disabled="returningToDashboard || form.processing || isCurrentUploading" @click="returnToDashboard">Back to Learner Dashboard</SecondaryButton>
-                <PrimaryButton :disabled="form.processing || isCurrentUploading" :class="{ 'opacity-70': !step.isCurrentAnswered.value || isCurrentUploading }" @click="handlePrimary">
+            <div class="flex w-full flex-col-reverse items-center justify-between gap-4 sm:flex-row">
+                <button
+                    type="button"
+                    class="group inline-flex w-full items-center justify-center gap-2 rounded-[22px] border-2 border-slate-200/80 bg-white px-6 py-3.5 text-base font-bold text-slate-600 transition-all hover:border-slate-300 hover:bg-slate-50 sm:w-auto xl:px-8 xl:text-lg"
+                    :disabled="returningToDashboard || form.processing || isCurrentUploading"
+                    @click="returnToDashboard"
+                >
+                    <ArrowLeft class="size-5 stroke-[2.5] transition-transform group-hover:-translate-x-1" />
+                    <span>Back to Learner Dashboard</span>
+                </button>
+                <PrimaryButton
+                    class="group w-full gap-3 rounded-[22px] px-8 py-3.5 text-base shadow-xl shadow-primary/25 transition-all duration-200 hover:-translate-y-0.5 hover:scale-[1.02] active:scale-[0.98] sm:w-auto xl:text-lg"
+                    :disabled="form.processing || isCurrentUploading"
+                    :class="{ 'opacity-70': !step.isCurrentAnswered.value || isCurrentUploading }"
+                    @click="handlePrimary"
+                >
                     {{ step.isLast.value ? (nextActivityType ? 'Finish activity' : 'Start mastery check') : 'Next' }}
+                    <ArrowRight class="size-5 stroke-[3] transition-transform group-hover:translate-x-1 sm:size-6" />
                 </PrimaryButton>
             </div>
         </BottomActionBar>

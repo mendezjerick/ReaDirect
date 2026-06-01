@@ -251,6 +251,7 @@ const handlePrimary = async () => {
     <LearnerLayout :progress="58" diagnostic-step="task-2b">
         <template #agent>
             <AgentSpeakerPanel
+                compact
                 agent-type="assessment"
                 presentation="assessment-task"
                 :state="agentState"
@@ -258,29 +259,77 @@ const handlePrimary = async () => {
             />
         </template>
 
-        <section class="mx-auto grid max-w-6xl gap-5 rounded-[28px] border border-blue-100 bg-surface p-7 shadow-xl shadow-primary/10">
-            <div class="flex items-center justify-between">
+        <section class="anim-main mx-auto grid max-w-6xl gap-5 rounded-[32px] border border-slate-200/80 bg-white p-7 shadow-xl shadow-slate-200/30">
+            <!-- Progress header -->
+            <div class="anim-fade-down flex items-center justify-between">
                 <StatusBadge :status="`Sentence ${step.currentIndex.value + 1} of ${items.length}`" />
-                <span class="inline-flex items-center gap-2 text-sm font-black text-primary">
+                <span class="rounded-full bg-primary/5 px-3.5 py-1.5 text-[13px] font-black text-primary ring-1 ring-primary/10">
                     Voice check
-                    <Volume2 class="size-4" />
+                    <Volume2 class="mb-0.5 ml-1 inline size-3.5" />
                 </span>
             </div>
-            <ModuleProgressBar :value="step.progressPercent.value" />
-            <div class="relative overflow-hidden rounded-[28px] border border-blue-100 bg-surface p-8 text-center shadow-lg shadow-primary/10">
-                <span class="absolute left-6 top-6 grid size-16 place-items-center rounded-full bg-primary-light text-primary">
-                    <BookOpen class="size-9" />
-                </span>
-                <p class="text-lg font-black text-muted">Read the highlighted word</p>
-                <p class="mt-4 text-5xl font-black leading-snug text-slate-950 md:text-6xl">
-                    <template v-for="(part, index) in parts(step.currentItem.value)" :key="index">
-                        <mark v-if="part.toLowerCase() === (step.currentItem.value.payload?.target_word ?? '').toLowerCase()" class="rounded-2xl bg-accent px-4 py-1 text-slate-950">{{ part }}</mark>
-                        <span v-else>{{ part }}</span>
-                    </template>
-                </p>
+
+            <!-- Gradient progress bar -->
+            <div class="anim-fade-down h-3.5 overflow-hidden rounded-full bg-slate-100 shadow-inner">
+                <div
+                    class="h-full rounded-full bg-gradient-to-r from-primary to-blue-500 shadow-sm shadow-primary/30 transition-all duration-500 ease-out"
+                    :style="{ width: `${step.progressPercent.value}%` }"
+                />
             </div>
-            <div class="grid gap-5 lg:grid-cols-[340px_1fr]">
-                <div class="rounded-[24px] border border-blue-100 bg-surface p-4 shadow-lg shadow-primary/10">
+
+            <!-- Sentence card -->
+            <div
+                :key="step.currentItem.value.id"
+                class="anim-card relative overflow-hidden rounded-[36px] border-[3px] border-primary/10 bg-white p-8 text-center shadow-2xl shadow-primary/10"
+            >
+                <!-- Decorative blur blobs -->
+                <span class="pointer-events-none absolute -left-10 -top-10 h-40 w-40 rounded-full bg-primary/5 blur-3xl" aria-hidden="true" />
+                <span class="pointer-events-none absolute -bottom-10 -right-10 h-40 w-40 rounded-full bg-blue-400/5 blur-3xl" aria-hidden="true" />
+
+                <!-- Sparkle decorations -->
+                <span class="pointer-events-none absolute left-6 top-20 text-4xl font-black text-primary/5" aria-hidden="true">✦</span>
+                <span class="pointer-events-none absolute bottom-6 right-8 text-4xl font-black text-primary/5" aria-hidden="true">✦</span>
+
+                <div class="relative z-10">
+                    <span class="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-blue-600 text-white shadow-lg shadow-primary/20">
+                        <BookOpen class="size-7" />
+                    </span>
+                    <p class="mt-4 text-[14px] font-black uppercase tracking-widest text-slate-400">Read the highlighted word</p>
+                    <p class="anim-pop mt-5 text-5xl font-black leading-snug md:text-6xl">
+                        <template v-for="(part, index) in parts(step.currentItem.value)" :key="index">
+                            <mark
+                                v-if="part.toLowerCase() === (step.currentItem.value.payload?.target_word ?? '').toLowerCase()"
+                                class="rounded-2xl bg-gradient-to-r from-amber-100 to-yellow-100 px-4 py-1 text-slate-800 ring-1 ring-amber-200/50"
+                            >{{ part }}</mark>
+                            <span v-else class="text-slate-800">{{ part }}</span>
+                        </template>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Recording + Transcript panels -->
+            <div class="anim-slide-up grid gap-5 lg:grid-cols-[340px_1fr]">
+                <!-- Recording panel -->
+                <div class="rounded-[24px] border border-slate-200/60 bg-slate-50/50 p-4 shadow-sm">
+                    <div class="mb-4 flex items-center justify-between gap-3">
+                        <div class="flex items-center gap-3">
+                            <span class="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-blue-600 text-white shadow-lg shadow-primary/20">
+                                <Mic2 class="size-6" />
+                            </span>
+                            <div>
+                                <p class="text-[16px] font-black text-slate-800">Word voice</p>
+                                <p class="text-[12px] font-semibold leading-snug text-slate-400">Record the highlighted word</p>
+                            </div>
+                        </div>
+                        <span
+                            v-if="Boolean(uploadedAudioIds[step.currentItem.value.id]) && !uploadErrors[step.currentItem.value.id]"
+                            class="rounded-full bg-emerald-50 px-3 py-1 text-[12px] font-black text-emerald-600 ring-1 ring-emerald-200/60"
+                        >Ready</span>
+                        <span
+                            v-else-if="isCurrentUploading"
+                            class="rounded-full bg-amber-50 px-3 py-1 text-[12px] font-black text-amber-600 ring-1 ring-amber-200/60"
+                        >Checking…</span>
+                    </div>
                     <AudioRecorder
                         :key="step.currentItem.value.id"
                         :reset-key="step.currentItem.value.id"
@@ -296,38 +345,46 @@ const handlePrimary = async () => {
                         @cleared="() => clearAudio(step.currentItem.value)"
                     />
                 </div>
-                <div class="grid gap-4 rounded-[24px] border border-blue-100 bg-surface p-5 shadow-lg shadow-primary/10">
-                    <div class="flex items-center gap-3">
-                        <span class="grid size-10 place-items-center rounded-full bg-primary-light text-primary">
-                            <MessageCircle class="size-5" />
-                        </span>
-                        <p class="text-xl font-black text-text">You said</p>
-                    </div>
-                    <div class="grid min-h-72 rounded-2xl border-2 border-blue-100 bg-blue-50/30 p-8 text-2xl font-black leading-snug text-slate-950">
-                        <p v-if="isCurrentUploading" class="place-self-center text-center text-muted">Checking your recording...</p>
-                        <p v-else-if="currentTranscript">{{ currentTranscript }}</p>
-                        <div v-else class="grid place-items-center gap-3 text-center text-muted">
-                            <span class="grid size-16 place-items-center rounded-full bg-primary-light text-muted">
-                                <Mic2 class="size-9" />
+
+                <!-- Transcript panel -->
+                <div class="grid gap-4 rounded-[24px] border border-slate-200/60 bg-slate-50/50 p-5 shadow-sm">
+                    <label class="grid gap-3 text-[16px] font-black text-slate-800">
+                        <span class="inline-flex items-center gap-3">
+                            <span class="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-md shadow-violet-500/20">
+                                <MessageCircle class="size-5" />
                             </span>
-                            <span>Your words will appear here</span>
+                            You said
+                        </span>
+                    </label>
+                    <div class="grid min-h-72 rounded-[20px] border-2 border-slate-200/80 bg-white p-8 text-2xl font-black leading-snug text-slate-800">
+                        <p v-if="isCurrentUploading" class="place-self-center text-center text-[15px] font-semibold text-slate-400">Checking your recording…</p>
+                        <p v-else-if="currentTranscript">{{ currentTranscript }}</p>
+                        <div v-else class="grid place-items-center gap-3 text-center">
+                            <span class="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-blue-600 text-white/60 shadow-lg shadow-primary/10">
+                                <Mic2 class="size-7" />
+                            </span>
+                            <span class="text-[15px] font-semibold text-slate-400">Your words will appear here</span>
                         </div>
                     </div>
-                    <label v-if="canUseManualFallback" class="grid gap-2 text-sm font-black text-muted">
+                    <label v-if="canUseManualFallback" class="grid gap-2 text-[14px] font-black text-slate-400">
                         Developer QA: Manual Transcript Override
                         <input
                             :value="step.answers[step.currentItem.value.id]"
-                            class="w-full rounded-2xl border-2 border-border px-4 py-3 text-base font-black text-text focus:border-primary focus:outline-none"
+                            class="w-full rounded-[20px] border-2 border-slate-200/80 bg-white px-4 py-3 text-base font-black text-slate-800 transition-all placeholder:text-slate-300 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
                             placeholder="Optional QA fallback text"
                             @input="setAnswer(step.currentItem.value, $event.target.value)"
                         >
                     </label>
                 </div>
-                <p v-if="uploadErrors[step.currentItem.value.id]" class="rounded-2xl bg-warning/15 px-4 py-3 text-sm font-black text-warning lg:col-span-2">
+
+                <!-- Upload errors -->
+                <p v-if="uploadErrors[step.currentItem.value.id]" class="rounded-[20px] bg-rose-50 px-5 py-3 text-[14px] font-black text-rose-600 ring-1 ring-rose-200/60 lg:col-span-2">
                     {{ uploadErrors[step.currentItem.value.id] }}
                 </p>
-                <p v-if="firstFormError" class="rounded-2xl bg-warning/15 px-4 py-3 text-sm font-black text-warning lg:col-span-2">{{ firstFormError }}</p>
-                <p v-if="step.feedback.value" class="rounded-2xl bg-accent px-4 py-3 text-lg font-black text-text lg:col-span-2">{{ step.feedback.value }}</p>
+                <!-- Form errors -->
+                <p v-if="firstFormError" class="rounded-[20px] bg-rose-50 px-5 py-3 text-[14px] font-black text-rose-600 ring-1 ring-rose-200/60 lg:col-span-2">{{ firstFormError }}</p>
+                <!-- Feedback -->
+                <p v-if="step.feedback.value" class="rounded-[20px] bg-amber-50 px-5 py-3.5 text-[15px] font-black text-amber-700 ring-1 ring-amber-200/60 lg:col-span-2">{{ step.feedback.value }}</p>
             </div>
         </section>
 
@@ -342,3 +399,54 @@ const handlePrimary = async () => {
         </BottomActionBar>
     </LearnerLayout>
 </template>
+
+<style scoped>
+/* Main section fade */
+.anim-main {
+    animation: mainFade 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes mainFade {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Header fade down */
+.anim-fade-down {
+    animation: fadeDown 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-12px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Card spring entrance */
+.anim-card {
+    animation: cardSpring 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+@keyframes cardSpring {
+    from { opacity: 0; transform: scale(0.92) translateY(20px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Content pop (sentence text) */
+.anim-pop {
+    animation: sentPop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    animation-delay: 0.15s;
+    opacity: 0;
+}
+@keyframes sentPop {
+    from { opacity: 0; transform: scale(0.7); }
+    to   { opacity: 1; transform: scale(1); }
+}
+
+/* Panel slide up */
+.anim-slide-up {
+    animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation-delay: 0.1s;
+    opacity: 0;
+}
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+</style>

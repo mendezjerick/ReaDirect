@@ -145,7 +145,12 @@ const submit = () => {
 <template>
     <LearnerLayout :progress="72">
         <template #agent>
-            <AgentSpeakerPanel agent-type="assessment" state="listening" message="This is your final reading check. Read the passage aloud and try your best." />
+            <AgentSpeakerPanel
+                compact
+                agent-type="assessment"
+                state="listening"
+                message="This is your final reading check. Read the passage aloud and try your best."
+            />
         </template>
         <div class="mx-auto grid max-w-2xl gap-3">
             <div class="flex items-center justify-between">

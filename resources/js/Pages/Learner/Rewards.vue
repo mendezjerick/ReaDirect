@@ -28,41 +28,74 @@ const rewards = computed(() => [
         subtitle="Milestones from your reading journey"
         active="rewards"
     >
-        <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div class="flex items-center gap-3">
-                <span class="grid size-12 place-items-center rounded-xl bg-accent/20 text-yellow-600">
-                    <Sparkles class="size-7" />
+        <div class="anim-fade-down rounded-[36px] border border-slate-200/60 bg-white/80 p-6 shadow-xl shadow-slate-200/40 backdrop-blur-md md:p-8">
+            <div class="flex items-center gap-4">
+                <span class="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg shadow-amber-500/30">
+                    <Sparkles class="size-8" />
                 </span>
                 <div>
-                    <p class="text-sm font-black uppercase text-primary">Reward Path</p>
-                    <h2 class="text-2xl font-black text-text">Your badges</h2>
+                    <p class="text-[13px] font-black uppercase tracking-widest text-amber-500">Reward Path</p>
+                    <h2 class="text-2xl font-black text-slate-800 md:text-3xl">Your badges</h2>
                 </div>
             </div>
 
-            <div class="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div class="anim-stagger mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <article
                     v-for="reward in rewards"
                     :key="reward.title"
-                    class="rounded-2xl border p-4"
-                    :class="reward.unlocked ? 'border-yellow-200 bg-yellow-50/70' : 'border-slate-200 bg-slate-50'"
+                    class="relative flex flex-col rounded-[32px] p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+                    :class="reward.unlocked
+                        ? 'bg-gradient-to-br from-amber-50 to-orange-50/50 shadow-lg shadow-amber-500/10 ring-1 ring-amber-400/50'
+                        : 'border-2 border-slate-100 bg-white/50 opacity-80 shadow-sm'"
                 >
                     <span
-                        class="grid size-14 place-items-center rounded-2xl"
-                        :class="reward.unlocked ? 'bg-yellow-100 text-yellow-600' : 'bg-white text-slate-400'"
+                        class="flex size-16 shrink-0 items-center justify-center rounded-[20px] transition-transform duration-300 group-hover:scale-110"
+                        :class="reward.unlocked
+                            ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-md shadow-amber-500/40'
+                            : 'bg-slate-100 text-slate-300'"
                     >
-                        <component :is="reward.icon" class="size-8" />
+                        <component :is="reward.icon" class="size-8" :class="reward.unlocked ? 'fill-white/20' : ''" />
                     </span>
-                    <h3 class="mt-4 text-lg font-black text-text">{{ reward.title }}</h3>
-                    <p class="mt-2 text-sm font-bold leading-relaxed text-slate-600">{{ reward.detail }}</p>
-                    <p
-                        class="mt-4 inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-black"
-                        :class="reward.unlocked ? 'bg-success/10 text-success' : 'bg-white text-slate-500'"
-                    >
-                        <CheckCircle2 v-if="reward.unlocked" class="size-4" />
-                        {{ reward.unlocked ? 'Unlocked' : 'Locked' }}
-                    </p>
+                    <h3 class="mt-5 text-lg font-black" :class="reward.unlocked ? 'text-slate-800' : 'text-slate-500'">{{ reward.title }}</h3>
+                    <p class="mt-2 flex-1 text-[14px] font-bold leading-relaxed" :class="reward.unlocked ? 'text-slate-600' : 'text-slate-400'">{{ reward.detail }}</p>
+                    
+                    <div class="mt-6 flex">
+                        <span
+                            class="inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-[13px] font-black shadow-sm"
+                            :class="reward.unlocked
+                                ? 'bg-white text-amber-600 ring-1 ring-amber-200'
+                                : 'bg-slate-50 text-slate-400 ring-1 ring-slate-200'"
+                        >
+                            <CheckCircle2 v-if="reward.unlocked" class="size-4" />
+                            {{ reward.unlocked ? 'Unlocked' : 'Locked' }}
+                        </span>
+                    </div>
                 </article>
             </div>
-        </section>
+        </div>
     </LearnerSimplePageShell>
 </template>
+
+<style scoped>
+.anim-fade-down {
+    animation: fadeDown 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.anim-stagger > * {
+    opacity: 0;
+    animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.anim-stagger > *:nth-child(1) { animation-delay: 100ms; }
+.anim-stagger > *:nth-child(2) { animation-delay: 200ms; }
+.anim-stagger > *:nth-child(3) { animation-delay: 300ms; }
+.anim-stagger > *:nth-child(4) { animation-delay: 400ms; }
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+</style>

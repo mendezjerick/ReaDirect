@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { CheckCircle2, Mic, RotateCcw, Send, Square } from 'lucide-vue-next';
 import { stopAllAgentAudio, stopAllAgentAudioBeforeRecording } from '../../utils/stopAgentAudio';
+import LearnerAudioPlayer from './LearnerAudioPlayer.vue';
 
 const props = defineProps({
     disabled: { type: Boolean, default: false },
@@ -525,31 +526,34 @@ onBeforeUnmount(() => {
 
 <template>
     <div
-        class="learner-audio-recorder rounded-3xl border border-primary/15 bg-primaryLight/50 shadow-sm shadow-primary/10"
-        :class="compact ? 'p-3' : 'p-4'"
+        class="learner-audio-recorder rounded-[28px] border border-slate-200/80 bg-white shadow-lg shadow-slate-200/30"
+        :class="compact ? 'p-4' : 'p-5 xl:p-6'"
     >
         <div class="learner-audio-control-panel">
             <div class="flex items-center justify-between gap-3">
                 <div>
-                    <p class="text-sm font-black text-primaryDark">{{ label }}</p>
-                    <p class="text-xs font-bold text-muted">{{ helperText }}</p>
+                    <p class="text-sm font-black text-slate-800 xl:text-base">{{ label }}</p>
+                    <p class="mt-0.5 text-xs font-semibold text-slate-500 xl:text-sm">{{ helperText }}</p>
                 </div>
-                <span class="rounded-full bg-surface px-3 py-1 text-xs font-black text-primaryDark">{{ statusLabel }}</span>
+                <span
+                    class="shrink-0 rounded-full px-3 py-1.5 text-[11px] font-black uppercase tracking-widest ring-1 xl:text-[12px]"
+                    :class="status === 'recording' ? 'bg-red-50 text-red-600 ring-red-200/60' : status === 'saved' ? 'bg-emerald-50 text-emerald-600 ring-emerald-200/60' : 'bg-blue-50 text-blue-600 ring-blue-200/60'"
+                >{{ statusLabel }}</span>
             </div>
 
             <div
-                class="mt-3 rounded-2xl border px-3 py-2 text-center text-sm font-black"
-                :class="status === 'recording' && canSpeak ? 'border-success/30 bg-success/10 text-success' : 'border-primary/15 bg-surface text-primaryDark'"
+                class="mt-4 rounded-[20px] border px-4 py-3 text-center text-sm font-black xl:text-base"
+                :class="status === 'recording' && canSpeak ? 'border-emerald-200/60 bg-emerald-50/50 text-emerald-700' : 'border-slate-200/60 bg-slate-50/50 text-slate-700'"
                 aria-live="polite"
             >
                 {{ cueText }}
             </div>
 
-            <div class="mt-3 flex flex-wrap items-center gap-3">
+            <div class="mt-4 flex flex-wrap items-center gap-3">
                 <button
                     v-if="status !== 'recording'"
                     type="button"
-                    class="inline-flex items-center gap-2 rounded-2xl bg-primary px-4 py-3 text-sm font-black text-white shadow-md shadow-primary/20 transition active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                    class="inline-flex items-center gap-2 rounded-[18px] bg-gradient-to-br from-sky-400 to-blue-600 px-5 py-3 text-sm font-black text-white shadow-md shadow-blue-500/20 ring-1 ring-white/20 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 xl:text-base"
                     :disabled="disabled || submitting || submitted"
                     @click="startRecording"
                 >
@@ -559,7 +563,7 @@ onBeforeUnmount(() => {
                 <button
                     v-else
                     type="button"
-                    class="inline-flex items-center gap-2 rounded-2xl bg-warning px-4 py-3 text-sm font-black text-white shadow-md shadow-warning/20 transition active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                    class="inline-flex items-center gap-2 rounded-[18px] bg-gradient-to-br from-red-400 to-red-500 px-5 py-3 text-sm font-black text-white shadow-md shadow-red-500/20 ring-1 ring-white/20 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 xl:text-base"
                     :disabled="!hasMinimumDuration"
                     @click="stopRecording"
                 >
@@ -570,7 +574,7 @@ onBeforeUnmount(() => {
                 <button
                     v-if="audioUrl && hasPendingRecording"
                     type="button"
-                    class="inline-flex items-center gap-2 rounded-2xl border-2 border-border bg-surface px-4 py-3 text-sm font-black text-primaryDark transition hover:border-primary"
+                    class="inline-flex items-center gap-2 rounded-[18px] border-2 border-slate-200/80 bg-white px-5 py-3 text-sm font-black text-slate-600 transition-all hover:border-slate-300 hover:bg-slate-50 xl:text-base"
                     :disabled="submitting"
                     @click="clearRecording"
                 >
@@ -578,56 +582,60 @@ onBeforeUnmount(() => {
                     Try Again
                 </button>
 
-                <div class="flex h-8 min-w-32 flex-1 items-end gap-1 rounded-2xl bg-surface px-3 py-2">
+                <div class="flex h-8 min-w-32 flex-1 items-end gap-1 rounded-2xl bg-slate-50 px-3 py-2">
                     <span
                         v-for="bar in 8"
                         :key="bar"
-                        class="w-full rounded-full bg-primary/40"
+                        class="w-full rounded-full bg-blue-300/50"
                         :class="status === 'recording' ? 'animate-pulse' : ''"
                         :style="{ height: status === 'recording' ? `${20 + ((bar * 11 + duration * 7) % 55)}%` : `${18 + (bar % 4) * 8}%` }"
                     />
                 </div>
 
-                <span class="w-14 text-right text-sm font-black text-muted">{{ formattedDuration }}s</span>
+                <span class="w-14 text-right text-sm font-black text-slate-500">{{ formattedDuration }}s</span>
             </div>
 
-            <p v-if="(errorMessage || externalError) && (status === 'recording' || status === 'retry' || status === 'error')" class="mt-2 text-xs font-black text-warning">
+            <p v-if="(errorMessage || externalError) && (status === 'recording' || status === 'retry' || status === 'error')" class="mt-3 rounded-[16px] bg-orange-50 px-4 py-3 text-xs font-black text-orange-600 ring-1 ring-orange-200/60">
                 {{ externalError || errorMessage }}
             </p>
 
             <p
                 v-if="spacebarEnabled"
-                class="mt-3 rounded-2xl bg-surface px-3 py-2 text-xs font-black text-primaryDark"
+                class="mt-4 rounded-[16px] border border-slate-200/60 bg-slate-50/50 px-4 py-2.5 text-xs font-bold text-slate-600"
             >
-                Press <span class="rounded-lg border border-border bg-white px-2 py-1 text-[11px] font-black text-primary">Space</span>
+                Press <span class="rounded-lg border border-slate-200/80 bg-white px-2 py-1 text-[11px] font-black text-blue-600 shadow-sm">Space</span>
                 to {{ status === 'recording' ? `stop after the ${minDurationLabel} minimum` : 'record' }}.
             </p>
         </div>
 
-        <div
-            v-if="audioUrl && shouldShowReviewSubmit"
-            class="learner-audio-review-card mt-3 rounded-[24px] border-2 border-primary/25 bg-white p-4 shadow-md shadow-primary/10"
-            aria-live="polite"
-        >
-            <div class="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <p class="text-lg font-black text-text">{{ hasSubmittedRecording ? 'Answer submitted' : 'Your audio' }}</p>
-                </div>
-                <CheckCircle2 v-if="hasSubmittedRecording" class="size-8 text-success" />
-            </div>
-            <audio class="mt-3 w-full" controls :src="audioUrl" :disabled="submitting" @play="stopAgentAudioForPlayback" />
-            <button
-                v-if="hasPendingRecording"
-                type="button"
-                class="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-success px-5 py-3 text-base font-black text-white shadow-md shadow-success/20 transition active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
-                :disabled="submitting || !currentFile"
-                @click="submitRecording"
+        <Teleport defer to="#teleport-audio-review">
+            <div
+                v-if="audioUrl && shouldShowReviewSubmit"
+                class="learner-audio-review-card rounded-[28px] border border-slate-200/80 bg-white p-4 shadow-lg shadow-slate-200/30 xl:p-5"
+                aria-live="polite"
             >
-                <Send class="size-5" />
-                {{ submitting ? 'Checking your answer...' : submitLabel }}
-            </button>
-        </div>
-        <audio v-else-if="audioUrl" class="mt-3 w-full" controls :src="audioUrl" @play="stopAgentAudioForPlayback" />
-        <p v-if="required && !audioUrl" class="mt-2 text-xs font-bold text-muted">Please record your answer before continuing.</p>
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                        <p class="text-base font-black text-slate-800 xl:text-lg">{{ hasSubmittedRecording ? 'Answer submitted' : 'Your audio' }}</p>
+                    </div>
+                    <CheckCircle2 v-if="hasSubmittedRecording" class="size-6 text-emerald-500 xl:size-7" />
+                </div>
+                <LearnerAudioPlayer class="mt-3" :src="audioUrl" :disabled="submitting" @play="stopAgentAudioForPlayback" />
+                <button
+                    v-if="hasPendingRecording"
+                    type="button"
+                    class="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-[20px] bg-gradient-to-br from-emerald-400 to-emerald-500 px-5 py-3.5 text-base font-black text-white shadow-lg shadow-emerald-500/25 ring-1 ring-white/20 transition-all duration-200 hover:-translate-y-0.5 hover:scale-[1.02] hover:shadow-xl active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 xl:text-lg"
+                    :disabled="submitting || !currentFile"
+                    @click="submitRecording"
+                >
+                    <Send class="size-5 xl:size-6" />
+                    {{ submitting ? 'Checking your answer...' : submitLabel }}
+                </button>
+            </div>
+        </Teleport>
+        <Teleport defer to="#teleport-audio-review">
+            <LearnerAudioPlayer v-if="!shouldShowReviewSubmit && audioUrl" class="mt-4" :src="audioUrl" @play="stopAgentAudioForPlayback" />
+        </Teleport>
+        <p v-if="required && !audioUrl" class="mt-3 text-xs font-bold text-slate-500">Please record your answer before continuing.</p>
     </div>
 </template>
