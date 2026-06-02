@@ -183,6 +183,7 @@ const handlePrimary = () => {
     <LearnerLayout :progress="35" diagnostic-step="task-1">
         <template #agent>
             <AgentSpeakerPanel
+                compact
                 agent-type="assessment"
                 :state="agentState"
                 :message="agentMessage"
@@ -191,51 +192,71 @@ const handlePrimary = () => {
         </template>
 
         <section class="mx-auto grid w-full max-w-[1120px] gap-5">
-            <div class="grid gap-3">
+            <!-- Progress header -->
+            <div class="anim-fade-down grid gap-3">
                 <div class="flex flex-wrap items-center justify-between gap-3 px-1">
-                    <p class="text-base font-black text-primary">
+                    <p class="inline-flex items-center gap-2.5 text-[15px] font-black text-slate-700">
+                        <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-blue-600 text-[12px] font-black text-white shadow-sm shadow-primary/20">
+                            {{ step.currentIndex.value + 1 }}
+                        </span>
                         Letter {{ step.currentIndex.value + 1 }} of {{ items.length }}
                     </p>
-                    <p class="inline-flex items-center gap-2 text-sm font-black text-primary">
-                        <Volume2 class="size-5" />
+                    <p class="inline-flex items-center gap-2 rounded-full bg-primary/5 px-3.5 py-1.5 text-[13px] font-black text-primary ring-1 ring-primary/10">
+                        <Volume2 class="size-4" />
                         {{ isCurrentUploading ? 'Checking' : 'Voice check' }}
                     </p>
                 </div>
-                <div class="h-4 overflow-hidden rounded-full bg-primary-light">
+                <div class="h-3.5 overflow-hidden rounded-full bg-slate-100 shadow-inner">
                     <div
-                        class="h-full rounded-full bg-primary transition-all duration-300"
+                        class="h-full rounded-full bg-gradient-to-r from-primary to-blue-500 shadow-sm shadow-primary/30 transition-all duration-500 ease-out"
                         :style="{ width: `${step.progressPercent.value}%` }"
                     />
                 </div>
             </div>
 
-            <section class="relative overflow-hidden rounded-[28px] border border-blue-100 bg-surface px-6 py-7 text-center shadow-xl shadow-primary/10 sm:px-10 sm:py-8">
-                <span class="absolute left-6 top-8 size-14 rounded-full bg-primary-light/70" aria-hidden="true" />
-                <span class="absolute right-8 top-8 text-3xl font-black text-blue-100" aria-hidden="true">*</span>
-                <p class="relative text-lg font-black text-text sm:text-xl">
+            <!-- Letter display card -->
+            <section
+                :key="step.currentItem.value.id + '-card'"
+                class="anim-card relative overflow-hidden rounded-[36px] border-[3px] border-primary/10 bg-white px-6 py-8 text-center shadow-2xl shadow-primary/10 sm:px-10 sm:py-10"
+            >
+                <!-- Decorative blobs -->
+                <span class="pointer-events-none absolute -left-10 -top-10 h-40 w-40 rounded-full bg-primary/5 blur-3xl" aria-hidden="true" />
+                <span class="pointer-events-none absolute -bottom-10 -right-10 h-40 w-40 rounded-full bg-primary/5 blur-3xl" aria-hidden="true" />
+                <!-- Sparkle decorations -->
+                <span class="pointer-events-none absolute left-6 top-6 text-4xl font-black text-primary/5" aria-hidden="true">✦</span>
+                <span class="pointer-events-none absolute right-8 top-8 text-4xl font-black text-primary/5" aria-hidden="true">✦</span>
+
+                <p class="relative text-[14px] font-black uppercase tracking-widest text-slate-400">
                     Letter {{ step.currentItem.value.sequence }}
                 </p>
-                <p class="relative mt-5 text-[clamp(5.5rem,10vw,8.5rem)] font-black leading-none text-slate-950">
+                <p class="anim-pop relative mt-5 bg-gradient-to-br from-slate-900 to-slate-700 bg-clip-text text-[clamp(5.5rem,10vw,8.5rem)] font-black leading-none text-transparent">
                     {{ step.currentItem.value.prompt }}
                 </p>
             </section>
 
-            <section class="rounded-[28px] border border-blue-100 bg-surface p-3 shadow-xl shadow-primary/10 sm:p-4 lg:p-5">
+            <!-- Recording & transcript panel -->
+            <section class="anim-slide-up rounded-[32px] border border-slate-200/80 bg-white p-3 shadow-xl shadow-slate-200/30 sm:p-4 lg:p-5">
                 <div class="grid gap-4 lg:grid-cols-[300px_1fr] xl:grid-cols-[320px_1fr]">
-                    <div class="rounded-[24px] border border-blue-100 bg-surface p-3 shadow-sm shadow-primary/10">
-                        <div class="mb-3 flex items-center justify-between gap-3">
+                    <!-- Mic / recorder panel -->
+                    <div class="rounded-[24px] border border-slate-200/60 bg-slate-50/50 p-4 shadow-sm">
+                        <div class="mb-4 flex items-center justify-between gap-3">
                             <div class="flex items-center gap-3">
-                                <span class="grid size-12 place-items-center rounded-full bg-primary-light text-primary">
+                                <span class="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-blue-600 text-white shadow-lg shadow-primary/20">
                                     <Mic2 class="size-6" />
                                 </span>
                                 <div>
-                                    <p class="text-lg font-black text-text">Letter voice</p>
-                                    <p class="text-sm font-bold leading-snug text-muted">
+                                    <p class="text-[16px] font-black text-slate-800">Letter voice</p>
+                                    <p class="text-[12px] font-semibold leading-snug text-slate-400">
                                         Tap Start Recording or press Space.
                                     </p>
                                 </div>
                             </div>
-                            <span class="rounded-full bg-success/10 px-3 py-1.5 text-xs font-black text-success">
+                            <span
+                                :class="isCurrentUploading
+                                    ? 'bg-amber-50 text-amber-600 ring-1 ring-amber-200/60'
+                                    : 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200/60'"
+                                class="rounded-full px-3 py-1.5 text-[12px] font-black"
+                            >
                                 {{ isCurrentUploading ? 'Checking' : 'Ready' }}
                             </span>
                         </div>
@@ -256,37 +277,40 @@ const handlePrimary = () => {
                         />
                     </div>
 
-                    <div class="grid gap-3 rounded-[24px] border border-blue-100 bg-surface p-4 shadow-sm shadow-primary/10 sm:p-5">
-                        <label class="grid gap-3 text-lg font-black text-text">
+                    <!-- Transcript panel -->
+                    <div class="grid gap-4 rounded-[24px] border border-slate-200/60 bg-slate-50/50 p-5 shadow-sm">
+                        <label class="grid gap-3 text-[16px] font-black text-slate-800">
                             <span class="inline-flex items-center gap-3">
-                                <span class="grid size-11 place-items-center rounded-full bg-primary-light text-primary">
-                                    <MessageCircle class="size-6" />
+                                <span class="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-md shadow-violet-500/20">
+                                    <MessageCircle class="size-5" />
                                 </span>
                                 You said
                             </span>
                             <textarea
                                 :value="generatedTranscripts[step.currentItem.value.id] ?? ''"
-                                class="learner-transcript-box min-h-44 resize-none rounded-[22px] border-2 border-blue-100 bg-background p-5 text-xl font-black text-text focus:border-primary focus:outline-none sm:min-h-52"
+                                class="min-h-44 resize-none rounded-[20px] border-2 border-slate-200/80 bg-white p-5 text-xl font-black text-slate-800 transition-all placeholder:text-slate-300 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
                                 readonly
                                 :placeholder="isCurrentUploading ? 'Checking your recording...' : 'Your words will appear here'"
                             />
                         </label>
-                        <label v-if="canUseManualFallback" class="grid gap-2 text-sm font-black text-muted">
+                        <label v-if="canUseManualFallback" class="grid gap-2 text-sm font-black text-slate-400">
                             Developer QA: Manual Transcript Override
                             <input
                                 :value="step.answers[step.currentItem.value.id]"
-                                class="rounded-2xl border-2 border-border px-4 py-3 text-base font-black text-text focus:border-primary focus:outline-none"
+                                class="rounded-[20px] border-2 border-slate-200/80 bg-white px-4 py-3 text-base font-black text-slate-800 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
                                 placeholder="Optional QA fallback text"
                                 @input="setAnswer(step.currentItem.value, $event.target.value)"
                             >
                         </label>
                     </div>
                 </div>
-                <p v-if="uploadErrors[step.currentItem.value.id]" class="mt-4 rounded-2xl bg-warning/15 px-4 py-3 text-sm font-black text-warning">
+
+                <!-- Error / feedback messages -->
+                <p v-if="uploadErrors[step.currentItem.value.id]" class="mt-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-black text-rose-600 ring-1 ring-rose-200/60">
                     {{ uploadErrors[step.currentItem.value.id] }}
                 </p>
-                <p v-if="firstFormError" class="mt-4 rounded-2xl bg-warning/15 px-4 py-3 text-sm font-black text-warning">{{ firstFormError }}</p>
-                <p v-if="step.feedback.value" class="mt-4 rounded-2xl bg-accent px-4 py-3 text-lg font-black text-text">{{ step.feedback.value }}</p>
+                <p v-if="firstFormError" class="mt-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-black text-rose-600 ring-1 ring-rose-200/60">{{ firstFormError }}</p>
+                <p v-if="step.feedback.value" class="mt-4 rounded-2xl bg-amber-50 px-4 py-3 text-lg font-black text-amber-700 ring-1 ring-amber-200/60">{{ step.feedback.value }}</p>
             </section>
         </section>
 
@@ -301,3 +325,41 @@ const handlePrimary = () => {
         </BottomActionBar>
     </LearnerLayout>
 </template>
+
+<style scoped>
+.anim-card {
+    animation: cardSpring 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+@keyframes cardSpring {
+    from { opacity: 0; transform: scale(0.92) translateY(20px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.anim-pop {
+    animation: contentPop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    animation-delay: 0.15s;
+    opacity: 0;
+}
+@keyframes contentPop {
+    from { opacity: 0; transform: scale(0.7); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.anim-fade-down {
+    animation: fadeDown 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.anim-slide-up {
+    animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation-delay: 0.1s;
+    opacity: 0;
+}
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+</style>

@@ -329,77 +329,186 @@ const submit = () => {
     <LearnerLayout :progress="78" diagnostic-step="sentence-reading">
         <template #agent>
             <AgentSpeakerPanel
+                compact
                 agent-type="assessment"
                 :state="uploading ? 'speaking' : 'listening'"
                 :message="uploading ? 'Checking your reading.' : 'Read the passage aloud. Try your best and speak clearly.'"
             />
         </template>
-        <div class="mx-auto grid max-w-2xl gap-3">
-            <div class="flex items-center justify-between">
-                <StatusBadge status="50 words" />
-                <StatusBadge :status="uploading ? 'Checking' : 'Max 60 seconds'" :variant="uploading ? 'primary' : 'warning'" />
+
+        <div class="mx-auto grid max-w-2xl gap-4">
+            <!-- Header badges & progress -->
+            <div class="anim-fade-down grid gap-3 px-1">
+                <div class="flex items-center justify-between">
+                    <span class="rounded-full bg-emerald-50 px-3.5 py-1.5 text-[13px] font-black text-emerald-600 ring-1 ring-emerald-200/60">
+                        📖 50 words
+                    </span>
+                    <span
+                        :class="uploading
+                            ? 'rounded-full bg-amber-50 px-3.5 py-1.5 text-[13px] font-black text-amber-600 ring-1 ring-amber-200/60'
+                            : 'rounded-full bg-primary/5 px-3.5 py-1.5 text-[13px] font-black text-primary ring-1 ring-primary/10'"
+                    >
+                        {{ uploading ? '⏳ Checking' : '⏱️ Max 60 seconds' }}
+                    </span>
+                </div>
+                <div class="h-3.5 overflow-hidden rounded-full bg-slate-100 shadow-inner">
+                    <div class="h-full rounded-full bg-gradient-to-r from-primary to-blue-500 shadow-sm shadow-primary/30 transition-all duration-500 ease-out" style="width: 78%" />
+                </div>
             </div>
-            <section class="max-h-[34vh] overflow-y-auto rounded-[28px] border border-border bg-surface p-5 shadow-xl shadow-primary/10 lg:max-h-[42vh]">
-                <p class="text-2xl font-black leading-relaxed text-text md:text-[28px]">
+
+            <!-- Passage text card -->
+            <section
+                class="anim-card relative max-h-[34vh] overflow-y-auto rounded-[36px] border-[3px] border-primary/10 bg-white p-6 shadow-2xl shadow-primary/10 lg:max-h-[42vh]"
+            >
+                <!-- Decorative blur blobs -->
+                <div class="pointer-events-none absolute -left-10 -top-10 h-40 w-40 rounded-full bg-primary/5 blur-3xl" aria-hidden="true" />
+                <div class="pointer-events-none absolute -bottom-10 -right-10 h-40 w-40 rounded-full bg-blue-400/5 blur-3xl" aria-hidden="true" />
+
+                <p class="relative text-2xl font-black leading-relaxed text-slate-800 md:text-[28px]">
                     <template v-for="(token, index) in highlightedPassageTokens" :key="index">
                         <span
                             :class="{
-                                'rounded-lg bg-danger/15 px-1 text-danger': token.status === 'incorrect' || token.status === 'missing',
-                                'rounded-lg bg-warning/15 px-1 text-warning': token.status === 'semantic',
+                                'rounded-lg bg-rose-50 px-1 text-rose-600 ring-1 ring-rose-200/60': token.status === 'incorrect' || token.status === 'missing',
+                                'rounded-lg bg-amber-50 px-1 text-amber-700 ring-1 ring-amber-200/60': token.status === 'semantic',
                             }"
                         >{{ token.text }}</span>
                     </template>
                 </p>
             </section>
-            <div class="grid gap-3 rounded-[24px] border border-border bg-surface p-4 shadow-lg shadow-primary/10 md:grid-cols-[220px_1fr]">
-                <AudioRecorder
-                    compact
-                    :max-duration-seconds="60"
-                    :require-review-before-submit="requireReviewBeforeSubmit"
-                    :auto-transcribe-on-stop="autoTranscribeOnStop"
-                    :submitting="uploading"
-                    :submitted="Boolean(form.audio_file_id) && !uploadError"
-                    label="Passage voice"
-                    prompt-type="passage"
-                    @recorded="rememberAudio"
-                    @submit="uploadTranscript"
-                    @cleared="clearAudio"
-                />
+
+            <!-- Recording & transcript panel -->
+            <div class="anim-slide-up grid gap-4 rounded-[24px] border border-slate-200/60 bg-slate-50/50 p-4 shadow-sm md:grid-cols-[220px_1fr]">
+                <!-- Recorder header -->
+                <div class="flex flex-col gap-3">
+                    <div class="mb-2 flex items-center gap-3">
+                        <span class="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-blue-600 text-white shadow-lg shadow-primary/20">
+                            <!-- Mic icon inline SVG -->
+                            <svg xmlns="http://www.w3.org/2000/svg" class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="11" rx="3" /><path d="M5 10a7 7 0 0 0 14 0" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" /></svg>
+                        </span>
+                        <div>
+                            <p class="text-[16px] font-black text-slate-800">Passage voice</p>
+                            <p class="text-[12px] font-semibold leading-snug text-slate-400">Read aloud clearly</p>
+                        </div>
+                    </div>
+                    <AudioRecorder
+                        compact
+                        :max-duration-seconds="60"
+                        :require-review-before-submit="requireReviewBeforeSubmit"
+                        :auto-transcribe-on-stop="autoTranscribeOnStop"
+                        :submitting="uploading"
+                        :submitted="Boolean(form.audio_file_id) && !uploadError"
+                        label="Passage voice"
+                        prompt-type="passage"
+                        @recorded="rememberAudio"
+                        @submit="uploadTranscript"
+                        @cleared="clearAudio"
+                    />
+                </div>
+
+                <!-- Transcript section -->
                 <div class="grid gap-3">
-                    <label class="grid gap-2 text-lg font-black text-text">
-                        You said
-                        <div class="learner-transcript-box rounded-2xl border-2 border-border font-black text-text">
+                    <label class="grid gap-3 text-[16px] font-black text-slate-800">
+                        <span class="inline-flex items-center gap-3">
+                            <span class="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-md shadow-violet-500/20">
+                                <!-- MessageCircle icon inline SVG -->
+                                <svg xmlns="http://www.w3.org/2000/svg" class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" /></svg>
+                            </span>
+                            You said
+                        </span>
+                        <div class="min-h-32 rounded-[20px] border-2 border-slate-200/80 bg-white p-5 text-xl font-black text-slate-800 transition-all">
                             <span v-if="transcript">
                                 <template v-for="(word, index) in diff.actualWords" :key="`${word.index}-${index}`">
                                     <span
                                         class="mr-2 inline-block rounded-lg px-1"
                                         :class="{
-                                            'bg-danger/15 text-danger': diff.actualStatus[index] === 'incorrect' || diff.actualStatus[index] === 'extra',
-                                            'bg-warning/15 text-warning': diff.actualStatus[index] === 'semantic',
+                                            'bg-rose-50 text-rose-600 ring-1 ring-rose-200/60': diff.actualStatus[index] === 'incorrect' || diff.actualStatus[index] === 'extra',
+                                            'bg-amber-50 text-amber-700 ring-1 ring-amber-200/60': diff.actualStatus[index] === 'semantic',
                                         }"
                                     >{{ word.raw }}</span>
                                 </template>
                             </span>
-                            <span v-else class="text-muted">
+                            <span v-else class="text-[15px] font-semibold text-slate-400">
                                 {{ uploading ? 'Checking your recording...' : 'Your words will appear here' }}
                             </span>
                         </div>
                     </label>
-                    <label v-if="canUseManualFallback" class="grid content-center gap-2 text-lg font-black text-text">
+
+                    <!-- Manual fallback input -->
+                    <label v-if="canUseManualFallback" class="grid content-center gap-2 text-[16px] font-black text-slate-800">
                         Developer QA: Incorrect Words Override
-                        <input v-model="form.incorrect_words" type="number" min="0" max="50" class="rounded-2xl border-2 border-border px-4 py-3 text-lg font-black focus:border-primary focus:outline-none">
+                        <input v-model="form.incorrect_words" type="number" min="0" max="50" class="rounded-[20px] border-2 border-slate-200/80 bg-white px-4 py-3 text-lg font-black text-slate-800 transition-all focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10">
                     </label>
-                    <p v-if="diff.semanticCount > 0" class="rounded-2xl bg-warning/15 px-4 py-3 text-sm font-black text-warning">
+
+                    <!-- Semantic feedback -->
+                    <p v-if="diff.semanticCount > 0" class="rounded-[20px] bg-amber-50 px-4 py-3 text-[14px] font-semibold text-amber-700 ring-1 ring-amber-200/60">
                         {{ diff.semanticCount }} meaning-preserving word {{ diff.semanticCount === 1 ? 'swap was' : 'swaps were' }} understood and not counted as a full mismatch.
                     </p>
-                    <p v-if="uploadError" class="rounded-2xl bg-warning/15 px-4 py-3 text-sm font-black text-warning">
+
+                    <!-- Upload error -->
+                    <p v-if="uploadError" class="rounded-[20px] bg-rose-50 px-4 py-3 text-[14px] font-semibold text-rose-600 ring-1 ring-rose-200/60">
                         {{ uploadError }}
                     </p>
                 </div>
             </div>
         </div>
+
         <BottomActionBar>
             <PrimaryButton :disabled="form.processing || !canSubmit" @click="submit">Continue</PrimaryButton>
         </BottomActionBar>
     </LearnerLayout>
 </template>
+
+<style scoped>
+/* Card spring entrance */
+.anim-card {
+    animation: cardSpring 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+@keyframes cardSpring {
+    from { opacity: 0; transform: scale(0.92) translateY(20px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Content pop (for large text/letters) */
+.anim-pop {
+    animation: contentPop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    animation-delay: 0.15s;
+    opacity: 0;
+}
+@keyframes contentPop {
+    from { opacity: 0; transform: scale(0.7); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+/* Header fade down */
+.anim-fade-down {
+    animation: fadeDown 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Panel slide up */
+.anim-slide-up {
+    animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation-delay: 0.1s;
+    opacity: 0;
+}
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Staggered children */
+.anim-stagger > * {
+    animation: staggerIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.anim-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.anim-stagger > *:nth-child(2) { animation-delay: 150ms; }
+.anim-stagger > *:nth-child(3) { animation-delay: 300ms; }
+.anim-stagger > *:nth-child(4) { animation-delay: 450ms; }
+@keyframes staggerIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+</style>
