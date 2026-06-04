@@ -13,6 +13,7 @@ import StatusBadge from '../../../Components/StatusBadge.vue';
 import { ArrowRight, ArrowLeft } from 'lucide-vue-next';
 import { useStepAssessment } from '../../../Composables/useStepAssessment';
 import { appendAudioMetadata, normalizeAsrResponse } from '../../../utils/asrResponse';
+import { highlightTargetsForModuleItem } from '../../../utils/modulePromptHighlight';
 
 const props = defineProps({
     module: Object,
@@ -56,6 +57,7 @@ const coachMessage = ref('Read the prompt, then record your voice. I will help y
 const coachState = ref('speaking');
 const returningToDashboard = ref(false);
 const isCurrentUploading = computed(() => Boolean(uploading[step.currentItem.value?.id]));
+const currentHighlightTargets = computed(() => highlightTargetsForModuleItem(step.currentItem.value));
 
 const progressLabel = computed(() => `Activity ${step.currentIndex.value + 1} of ${props.items.length}`);
 
@@ -226,7 +228,7 @@ const returnToDashboard = () => {
                 <StatusBadge :status="progressLabel" />
             </div>
             <ModuleProgressBar :value="step.progressPercent.value" />
-            <PromptCard label="Practice" :prompt="step.currentItem.value.prompt" size="word" />
+            <PromptCard label="Practice" :prompt="step.currentItem.value.prompt" :highlight-targets="currentHighlightTargets" size="word" />
             <div class="rounded-[32px] border border-slate-200/80 bg-white p-5 shadow-xl shadow-slate-200/30 xl:p-7">
                 <div class="grid gap-5 md:grid-cols-[minmax(220px,1fr)_1.3fr] md:items-start xl:gap-6">
                     <AudioRecorder

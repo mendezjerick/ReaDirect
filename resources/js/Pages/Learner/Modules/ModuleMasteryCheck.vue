@@ -12,6 +12,7 @@ import PromptCard from '../../../Components/PromptCard.vue';
 import StatusBadge from '../../../Components/StatusBadge.vue';
 import { useStepAssessment } from '../../../Composables/useStepAssessment';
 import { appendAudioMetadata, normalizeAsrResponse } from '../../../utils/asrResponse';
+import { highlightTargetsForModuleItem } from '../../../utils/modulePromptHighlight';
 
 const props = defineProps({ module: Object, moduleAttemptId: Number, items: Array, assessmentMode: Object });
 const form = useForm({ responses: [] });
@@ -38,6 +39,7 @@ const agentState = ref('encouraging');
 const returningToDashboard = ref(false);
 const progressLabel = computed(() => `Mastery ${step.currentIndex.value + 1} of ${props.items.length}`);
 const isCurrentUploading = computed(() => Boolean(uploading[step.currentItem.value?.id]));
+const currentHighlightTargets = computed(() => highlightTargetsForModuleItem(step.currentItem.value));
 
 watch(
     () => props.items.map((item) => item.id).join('|'),
@@ -191,7 +193,7 @@ const returnToDashboard = () => {
                 <StatusBadge :status="progressLabel" />
             </div>
             <ModuleProgressBar :value="step.progressPercent.value" />
-            <PromptCard label="Check" :prompt="step.currentItem.value.prompt" size="word" />
+            <PromptCard label="Check" :prompt="step.currentItem.value.prompt" :highlight-targets="currentHighlightTargets" size="word" />
             <div class="rounded-[24px] border border-border bg-surface p-4 shadow-lg shadow-primary/10">
                 <div class="grid gap-3 md:grid-cols-[220px_1fr] md:items-center">
                     <AudioRecorder

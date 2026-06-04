@@ -1,8 +1,78 @@
 <script setup>
-defineProps({
+import { computed } from 'vue';
+
+const props = defineProps({
     label: { type: String, default: '' },
     prompt: { type: String, required: true },
     size: { type: String, default: 'letter' },
+    highlightTargets: { type: Array, default: () => [] },
+});
+
+const normalizeTarget = (target) => {
+    if (typeof target === 'string') {
+        return { text: target, matchCase: false, wholeWord: false };
+    }
+
+    return {
+        text: String(target?.text ?? ''),
+        matchCase: target?.matchCase === true,
+        wholeWord: target?.wholeWord === true,
+    };
+};
+
+const isBoundary = (text, index) => !/[A-Za-z0-9]/.test(text[index] ?? '');
+
+const findTarget = (text, target) => {
+    const needle = String(target.text ?? '');
+
+    if (!needle) return null;
+
+    const haystack = target.matchCase ? text : text.toLowerCase();
+    const query = target.matchCase ? needle : needle.toLowerCase();
+    let index = haystack.indexOf(query);
+
+    while (index !== -1) {
+        if (!target.wholeWord || (isBoundary(text, index - 1) && isBoundary(text, index + needle.length))) {
+            return { index, length: needle.length };
+        }
+
+        index = haystack.indexOf(query, index + 1);
+    }
+
+    return null;
+};
+
+const promptSegments = computed(() => {
+    const promptText = String(props.prompt ?? '');
+    const targets = props.highlightTargets.map(normalizeTarget).filter((target) => target.text);
+
+    if (!promptText || targets.length === 0) {
+        return [{ text: promptText, highlighted: false }];
+    }
+
+    const segments = [];
+    let remaining = promptText;
+
+    while (remaining) {
+        const match = targets
+            .map((target) => findTarget(remaining, target))
+            .filter(Boolean)
+            .sort((a, b) => a.index - b.index || b.length - a.length)[0];
+
+        if (!match) {
+            segments.push({ text: remaining, highlighted: false });
+            break;
+        }
+
+        if (match.index > 0) {
+            segments.push({ text: remaining.slice(0, match.index), highlighted: false });
+        }
+
+        segments.push({ text: remaining.slice(match.index, match.index + match.length), highlighted: true });
+        remaining = remaining.slice(match.index + match.length);
+    }
+
+    return segments;
 });
 </script>
 
@@ -20,9 +90,15 @@ defineProps({
                 'text-4xl md:text-5xl xl:text-6xl': size === 'word',
                 'text-2xl md:text-3xl xl:text-4xl': size === 'sentence',
             }"
-            class="prompt-text relative mt-2 bg-gradient-to-br from-slate-900 to-slate-700 bg-clip-text font-black leading-tight text-transparent"
+            class="prompt-text relative mt-2 font-black leading-tight"
         >
-            {{ prompt }}
+            <template v-for="(segment, index) in promptSegments" :key="index">
+                <mark
+                    v-if="segment.highlighted"
+                    class="rounded-2xl bg-gradient-to-r from-amber-100 to-yellow-100 px-3 py-1 text-slate-800 ring-1 ring-amber-200/50"
+                >{{ segment.text }}</mark>
+                <span v-else class="bg-gradient-to-br from-slate-900 to-slate-700 bg-clip-text text-transparent">{{ segment.text }}</span>
+            </template>
         </div>
     </section>
 </template>
