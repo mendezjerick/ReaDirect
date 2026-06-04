@@ -122,7 +122,6 @@ class AdminTestingService
                 ['label' => "{$module->title} activity", 'target' => "module-{$module->key}-activity", 'activity_type' => $activityType],
                 ['label' => "{$module->title} mastery check", 'target' => "module-{$module->key}-mastery"],
                 ['label' => "{$module->title} mastery result", 'target' => "module-{$module->key}-result"],
-                ['label' => "{$module->title} extra drills", 'target' => "module-{$module->key}-extra"],
             ];
 
             foreach ($moduleTargets as $target) {

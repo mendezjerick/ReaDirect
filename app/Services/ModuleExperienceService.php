@@ -21,7 +21,6 @@ class ModuleExperienceService
         return match ($decisionKey) {
             'move_to_module_2' => 'Great work! You are ready for Module 2.',
             'repeat_module_1' => 'You are doing better. Let us practice Module 1 again to make your sounds stronger.',
-            'extra_phoneme_drills' => 'Let us practice some sounds first. These drills will help you before trying again.',
             'move_to_module_3' => 'Great job! You are ready for Module 3.',
             'repeat_module_2' => 'Let us practice these words again so you can feel more confident.',
             'return_to_module_1' => 'We will go back to letter sounds for more practice. This will help your word reading.',

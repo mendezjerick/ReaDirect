@@ -30,15 +30,8 @@ class ModuleMasteryService
             ],
             [
                 'module' => 'Module 1',
-                'score_range' => '60-89',
+                'score_range' => '0-89',
                 'decision' => 'repeat_module_1',
-                'next' => 'Module 1',
-                'rule_applied' => 'MODULE_1_MASTERY_V1',
-            ],
-            [
-                'module' => 'Module 1',
-                'score_range' => '0-59',
-                'decision' => 'extra_phoneme_drills',
                 'next' => 'Module 1',
                 'rule_applied' => 'MODULE_1_MASTERY_V1',
             ],
@@ -91,8 +84,7 @@ class ModuleMasteryService
     {
         return match (true) {
             $score >= 90 => $this->result('move_to_module_2', 'module_2', 'MODULE_1_MASTERY_V1', $score, 'Great work! You are ready for Module 2.'),
-            $score >= 60 => $this->result('repeat_module_1', 'module_1', 'MODULE_1_MASTERY_V1', $score, 'You are doing better. Let us practice Module 1 again to make your sounds stronger.'),
-            default => $this->result('extra_phoneme_drills', 'module_1', 'MODULE_1_MASTERY_V1', $score, 'Let us practice some sounds first. These drills will help you before trying again.'),
+            default => $this->result('repeat_module_1', 'module_1', 'MODULE_1_MASTERY_V1', $score, 'Let us practice Module 1 again to make your sounds stronger.'),
         };
     }
 

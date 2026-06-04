@@ -577,7 +577,7 @@ class DiagnosticAssessmentValidationTest extends TestCase
 
     private function seedTaskOneLetters(): void
     {
-        foreach (range('A', 'J') as $letter) {
+        foreach (['A', 'C', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'] as $letter) {
             LearningContent::create([
                 'content_type' => 'letter',
                 'title' => 'Letter '.$letter,

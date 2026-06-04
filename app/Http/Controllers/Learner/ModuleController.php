@@ -76,23 +76,6 @@ class ModuleController extends Controller
         ]);
     }
 
-    public function extraDrills(Request $request, Module $module, LearnerFlowService $flow): Response|RedirectResponse
-    {
-        $learner = $this->learner($request);
-        if ($redirect = $this->guardModuleAccess($learner, $module, $flow)) {
-            return $redirect;
-        }
-
-        if (LearnerStage::normalize($learner->current_stage) !== LearnerStage::EXTRA_PHONEME_DRILLS) {
-            return redirect($flow->moduleResumeRoute($learner, $module))
-                ->with('info', 'Continue from your current module step.');
-        }
-
-        return Inertia::render('Learner/Modules/ExtraDrills', [
-            'module' => $module->only('key', 'title', 'description'),
-        ]);
-    }
-
     private function learner(Request $request): Learner
     {
         return CurrentLearner::require($request);

@@ -101,11 +101,12 @@ Route::prefix('learner/modules')->name('learner.modules.')->group(function (): v
     Route::post('/{module:key}/start', [ModuleController::class, 'start'])->middleware('throttle:assessment-submit')->name('start.store');
     Route::get('/{module:key}/overview', [ModuleController::class, 'overview'])->name('overview');
     Route::get('/{module:key}/activity/{activityType}', [ModuleActivityController::class, 'show'])->name('activity');
+    Route::post('/{module:key}/activity/{activityType}/check', [ModuleActivityController::class, 'check'])->middleware('throttle:assessment-submit')->name('activity.check');
     Route::post('/{module:key}/activity/{activityType}', [ModuleActivityController::class, 'store'])->middleware('throttle:assessment-submit')->name('activity.store');
     Route::get('/{module:key}/mastery-check', [ModuleMasteryController::class, 'show'])->name('mastery-check');
+    Route::post('/{module:key}/mastery-check/check', [ModuleMasteryController::class, 'check'])->middleware('throttle:assessment-submit')->name('mastery-check.check');
     Route::post('/{module:key}/mastery-check', [ModuleMasteryController::class, 'store'])->middleware('throttle:assessment-submit')->name('mastery-check.store');
     Route::get('/{module:key}/mastery-result', [ModuleMasteryController::class, 'result'])->name('mastery-result');
-    Route::get('/{module:key}/extra-drills', [ModuleController::class, 'extraDrills'])->name('extra-drills');
 });
 
 Route::prefix('final-assessment')->name('final-assessment.')->group(function (): void {

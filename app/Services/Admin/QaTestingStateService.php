@@ -255,10 +255,6 @@ class QaTestingStateService
                 $this->redirect($tester->fresh(), route('learner.modules.mastery-result', $module)),
                 fn () => $this->seedCompletedModuleAttempt($attempt, $module, $this->resultScoreFor($module))
             ),
-            'extra' => tap(
-                $this->redirect($tester->fresh(), route('learner.modules.extra-drills', $module)),
-                fn () => $this->seedExtraDrillState($tester, $attempt, $module)
-            ),
             default => abort(404),
         };
     }
@@ -463,19 +459,6 @@ class QaTestingStateService
             'current_stage' => $decision['decision_key'] === 'proceed_to_reassessment'
                 ? LearnerStage::FINAL_REASSESSMENT_PENDING
                 : LearnerStage::MODULE_ASSIGNED,
-        ]);
-    }
-
-    private function seedExtraDrillState(Learner $tester, ModuleAttempt $attempt, Module $module): void
-    {
-        if ($module->key === 'module_1') {
-            $this->seedCompletedModuleAttempt($attempt, $module, 50);
-            return;
-        }
-
-        $tester->update([
-            'current_module_id' => $module->id,
-            'current_stage' => LearnerStage::EXTRA_PHONEME_DRILLS,
         ]);
     }
 

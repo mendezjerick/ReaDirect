@@ -15,7 +15,7 @@ import { appendAudioMetadata, normalizeAsrResponse } from '../../../utils/asrRes
 import { highlightTargetsForModuleItem } from '../../../utils/modulePromptHighlight';
 
 const props = defineProps({ module: Object, moduleAttemptId: Number, items: Array, assessmentMode: Object });
-const form = useForm({ responses: [] });
+const form = useForm({});
 const audioFiles = reactive({});
 const audioDurations = reactive({});
 const uploadedAudioIds = reactive({});
@@ -23,23 +23,58 @@ const transcriptSources = reactive({});
 const generatedTranscripts = reactive({});
 const uploadErrors = reactive({});
 const uploading = reactive({});
+const checking = reactive({});
+const retryStates = reactive({});
+const recorderResetKeys = reactive({});
 const canUseManualFallback = computed(() => props.assessmentMode?.canUseManualFallback === true);
 const isDeveloperQaMode = computed(() => props.assessmentMode?.isDeveloperQaMode === true);
 const autoTranscribeOnStop = computed(() => props.assessmentMode?.canAutoTranscribeOnStop === true);
 const requireReviewBeforeSubmit = computed(() => props.assessmentMode?.requireReviewBeforeSubmit !== false);
+const recorderPromptType = computed(() => {
+    if (props.module?.key === 'module_1') return 'letter';
+    if (props.module?.key === 'module_3') return 'sentence';
+
+    return 'word';
+});
 const manualAnswerFor = (item, answer = null) => canUseManualFallback.value ? String(answer ?? step.answers[item?.id] ?? '').trim() : '';
 const answerFor = (item, answer = null) => manualAnswerFor(item, answer) || String(generatedTranscripts[item?.id] ?? '').trim();
 const sourceFor = (item, answer = null) => manualAnswerFor(item, answer)
     ? 'manual'
     : (transcriptSources[item?.id] ?? (generatedTranscripts[item?.id] ? 'stt_auto' : 'stt_auto'));
-const hasAnswerOrAudio = (item, answer) => answerFor(item, answer).length > 0;
+const defaultRetryState = () => ({ max_attempts: 3, attempt_count: 0, remaining_attempts: 3, attempts: [], is_correct: false, is_resolved: false, can_retry: true, next_attempt: 1, feedback: null });
+const seedRetryStates = (items) => {
+    Object.keys(retryStates).forEach((key) => delete retryStates[key]);
+    (items ?? []).forEach((item) => {
+        retryStates[item.id] = item.retry_state ?? defaultRetryState();
+    });
+};
+seedRetryStates(props.items);
+const hasAnswerOrAudio = (item, answer) => answerFor(item, answer).length > 0 || Boolean(uploadedAudioIds[item?.id]) || Boolean(audioFiles[item?.id]) || Boolean(retryStates[item?.id]?.is_resolved);
 const step = useStepAssessment(props.items, { emptyMessage: 'Try this one before moving on.', isAnswered: hasAnswerOrAudio });
 const agentMessage = ref('This is your mini mastery check. Do your best one item at a time.');
 const agentState = ref('encouraging');
 const returningToDashboard = ref(false);
 const progressLabel = computed(() => `Mastery ${step.currentIndex.value + 1} of ${props.items.length}`);
 const isCurrentUploading = computed(() => Boolean(uploading[step.currentItem.value?.id]));
+const isCurrentChecking = computed(() => Boolean(checking[step.currentItem.value?.id]));
 const currentHighlightTargets = computed(() => highlightTargetsForModuleItem(step.currentItem.value));
+const currentRetryState = computed(() => retryStates[step.currentItem.value?.id] ?? defaultRetryState());
+const currentAttemptSlots = computed(() => Array.from({ length: currentRetryState.value.max_attempts ?? 3 }, (_, index) => {
+    const attemptNumber = index + 1;
+    const attempt = currentRetryState.value.attempts?.find((entry) => Number(entry.attempt) === attemptNumber);
+
+    return {
+        attempt: attemptNumber,
+        status: attempt?.status ?? 'unused',
+    };
+}));
+const isCurrentResolved = computed(() => currentRetryState.value.is_resolved === true);
+const primaryLabel = computed(() => {
+    if (!isCurrentResolved.value) return 'Check';
+
+    return step.isLast.value ? 'Finish check' : 'Next';
+});
+const primaryDisabled = computed(() => form.processing || isCurrentUploading.value || isCurrentChecking.value);
 
 watch(
     () => props.items.map((item) => item.id).join('|'),
@@ -52,10 +87,12 @@ watch(
         Object.keys(generatedTranscripts).forEach((key) => delete generatedTranscripts[key]);
         Object.keys(uploadErrors).forEach((key) => delete uploadErrors[key]);
         Object.keys(uploading).forEach((key) => delete uploading[key]);
+        Object.keys(checking).forEach((key) => delete checking[key]);
+        Object.keys(recorderResetKeys).forEach((key) => delete recorderResetKeys[key]);
+        seedRetryStates(props.items);
         agentMessage.value = 'This is your mini mastery check. Do your best one item at a time.';
         agentState.value = 'encouraging';
         form.clearErrors();
-        form.responses = [];
     }
 );
 
@@ -78,6 +115,7 @@ const clearAudio = (item) => {
     delete generatedTranscripts[item.id];
     delete uploadErrors[item.id];
     delete uploading[item.id];
+    recorderResetKeys[item.id] = (recorderResetKeys[item.id] ?? 0) + 1;
 };
 
 const uploadAudio = async (item, file) => {
@@ -122,42 +160,105 @@ const uploadAudio = async (item, file) => {
             step.feedback.value = '';
             agentMessage.value = `You said: ${transcript}`;
             agentState.value = 'speaking';
-            return;
+            return true;
         }
 
         uploadErrors[item.id] = asr.message;
         agentMessage.value = uploadErrors[item.id];
+        return false;
     } catch (error) {
         uploadErrors[item.id] = error.message || 'We had trouble checking your answer. Please try again.';
         agentMessage.value = uploadErrors[item.id];
+        return false;
     } finally {
         uploading[item.id] = false;
     }
 };
 
-const submit = () => {
-    if (!step.validateCurrent()) return;
+const checkCurrent = async () => {
+    const item = step.currentItem.value;
 
-    form.responses = step.payload((item, answer) => ({
-        module_attempt_item_id: item.id,
-        answer: answerFor(item, answer),
-        transcript_source: sourceFor(item, answer),
-        audio_file_id: uploadedAudioIds[item.id] ?? null,
-        audio: uploadedAudioIds[item.id] ? null : (audioFiles[item.id] ?? null),
-        duration_seconds: audioDurations[item.id] ?? null,
-    }));
+    if (!item || isCurrentResolved.value || isCurrentChecking.value) return false;
+
+    const manualAnswer = manualAnswerFor(item);
+
+    if (!manualAnswer && !uploadedAudioIds[item.id] && audioFiles[item.id]) {
+        const uploaded = await uploadAudio(item, audioFiles[item.id]);
+        if (!uploaded) return false;
+    }
+
+    if (!answerFor(item) && !uploadedAudioIds[item.id]) {
+        agentMessage.value = 'Let us answer this first.';
+        agentState.value = 'encouraging';
+        step.feedback.value = 'Record this item before checking.';
+        return false;
+    }
+
+    checking[item.id] = true;
+    step.feedback.value = '';
+
+    try {
+        const response = await fetch(`/learner/modules/${props.module.key}/mastery-check/check`, {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '',
+            },
+            body: JSON.stringify({
+                module_attempt_item_id: item.id,
+                answer: answerFor(item),
+                transcript_source: sourceFor(item),
+                audio_file_id: uploadedAudioIds[item.id] ?? null,
+                duration_seconds: audioDurations[item.id] ?? null,
+            }),
+        });
+        const result = await response.json();
+
+        if (!response.ok) {
+            const message = result.message ?? Object.values(result.errors ?? {})?.[0]?.[0] ?? 'We could not check this item yet.';
+            throw new Error(message);
+        }
+
+        retryStates[item.id] = result.retry_state ?? defaultRetryState();
+        step.feedback.value = result.message ?? retryStates[item.id].feedback ?? '';
+
+        if (retryStates[item.id].is_correct) {
+            agentMessage.value = 'That is correct. Go to the next one.';
+            agentState.value = 'happy';
+        } else if (retryStates[item.id].can_retry) {
+            agentMessage.value = 'Try this same item again.';
+            agentState.value = 'encouraging';
+            clearAudio(item);
+            if (canUseManualFallback.value) {
+                step.answers[item.id] = '';
+            }
+        } else {
+            agentMessage.value = 'Good try. Go to the next one.';
+            agentState.value = 'speaking';
+        }
+
+        return retryStates[item.id].is_resolved;
+    } catch (error) {
+        step.feedback.value = error.message || 'We could not check this item yet.';
+        agentMessage.value = step.feedback.value;
+        agentState.value = 'speaking';
+        return false;
+    } finally {
+        checking[item.id] = false;
+    }
+};
+
+const submit = () => {
     form.post(`/learner/modules/${props.module.key}/mastery-check`, { forceFormData: true });
 };
 
-const handlePrimary = () => {
-    if (!step.validateCurrent()) {
-        agentMessage.value = 'Let us answer this first.';
-        agentState.value = 'encouraging';
+const handlePrimary = async () => {
+    if (!isCurrentResolved.value) {
+        await checkCurrent();
         return;
     }
-
-    agentMessage.value = 'Answer saved. Keep going.';
-    agentState.value = 'speaking';
 
     if (step.isLast.value) {
         submit();
@@ -165,6 +266,8 @@ const handlePrimary = () => {
     }
 
     step.goNext();
+    agentMessage.value = 'This is your mini mastery check. Do your best one item at a time.';
+    agentState.value = 'encouraging';
 };
 
 const returnToDashboard = () => {
@@ -198,13 +301,13 @@ const returnToDashboard = () => {
                 <div class="grid gap-3 md:grid-cols-[220px_1fr] md:items-center">
                     <AudioRecorder
                         :key="step.currentItem.value.id"
-                        :reset-key="step.currentItem.value.id"
+                        :reset-key="`${step.currentItem.value.id}-${recorderResetKeys[step.currentItem.value.id] ?? 0}`"
                         compact
                         :max-duration-seconds="45"
-                        prompt-type="word"
+                        :prompt-type="recorderPromptType"
                         :require-review-before-submit="requireReviewBeforeSubmit"
                         :auto-transcribe-on-stop="autoTranscribeOnStop"
-                        :submitting="isCurrentUploading"
+                        :submitting="isCurrentUploading || isCurrentChecking"
                         :submitted="Boolean(uploadedAudioIds[step.currentItem.value.id]) && !uploadErrors[step.currentItem.value.id]"
                         label="Check voice"
                         @recorded="(file) => rememberAudio(step.currentItem.value, file)"
@@ -212,6 +315,20 @@ const returnToDashboard = () => {
                         @cleared="() => clearAudio(step.currentItem.value)"
                     />
                     <div class="grid gap-3">
+                        <div class="flex flex-wrap gap-2">
+                            <span
+                                v-for="slot in currentAttemptSlots"
+                                :key="slot.attempt"
+                                class="rounded-full px-3 py-1.5 text-xs font-black ring-1"
+                                :class="{
+                                    'bg-emerald-50 text-emerald-700 ring-emerald-200': slot.status === 'correct',
+                                    'bg-rose-50 text-rose-700 ring-rose-200': slot.status === 'incorrect',
+                                    'bg-slate-50 text-slate-400 ring-slate-200': slot.status === 'unused',
+                                }"
+                            >
+                                Attempt {{ slot.attempt }}<span v-if="slot.status === 'correct'">: Correct</span><span v-else-if="slot.status === 'incorrect'">: Try again</span>
+                            </span>
+                        </div>
                         <label class="grid gap-2 text-lg font-black text-text">
                             You said
                             <textarea :value="generatedTranscripts[step.currentItem.value.id] ?? ''" class="learner-transcript-box resize-none rounded-2xl border-2 border-border bg-background font-black text-text focus:border-primary focus:outline-none" readonly :placeholder="isCurrentUploading ? 'Checking your recording...' : 'Your words will appear here'" />
@@ -229,9 +346,9 @@ const returnToDashboard = () => {
 
         <BottomActionBar>
             <div class="flex w-full items-center justify-between gap-3">
-                <SecondaryButton :disabled="returningToDashboard || form.processing || isCurrentUploading" @click="returnToDashboard">Back to Learner Dashboard</SecondaryButton>
-                <PrimaryButton :disabled="form.processing || isCurrentUploading" :class="{ 'opacity-70': !step.isCurrentAnswered.value || isCurrentUploading }" @click="handlePrimary">
-                    {{ step.isLast.value ? 'Finish check' : 'Next' }}
+                <SecondaryButton :disabled="returningToDashboard || form.processing || isCurrentUploading || isCurrentChecking" @click="returnToDashboard">Back to Learner Dashboard</SecondaryButton>
+                <PrimaryButton :disabled="primaryDisabled" :class="{ 'opacity-70': primaryDisabled }" @click="handlePrimary">
+                    {{ primaryLabel }}
                 </PrimaryButton>
             </div>
         </BottomActionBar>

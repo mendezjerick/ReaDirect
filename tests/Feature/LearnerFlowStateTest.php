@@ -183,7 +183,7 @@ class LearnerFlowStateTest extends TestCase
             );
     }
 
-    public function test_extra_drills_final_pending_and_grade_ready_are_actionable(): void
+    public function test_legacy_extra_drills_stage_final_pending_and_grade_ready_are_actionable(): void
     {
         [$module] = $this->modules();
         $learner = $this->learner([
@@ -194,7 +194,7 @@ class LearnerFlowStateTest extends TestCase
         $this->withSession(['learner_id' => $learner->id])
             ->get(route('learner.dashboard'))
             ->assertInertia(fn (Assert $page) => $page
-                ->where('flowState.primary_action_label', 'Continue Extra Drills')
+                ->where('flowState.primary_action_label', 'Start Module')
             );
 
         $learner->update(['current_module_id' => null, 'current_stage' => LearnerStage::FINAL_REASSESSMENT_PENDING]);
@@ -273,7 +273,7 @@ class LearnerFlowStateTest extends TestCase
 
     private function seedTaskOneLetters(): void
     {
-        foreach (range('A', 'J') as $letter) {
+        foreach (['A', 'C', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'] as $letter) {
             LearningContent::create([
                 'content_type' => 'letter',
                 'title' => 'Letter '.$letter,

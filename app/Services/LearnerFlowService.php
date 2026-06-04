@@ -94,6 +94,10 @@ class LearnerFlowService
             return LearnerStage::FINAL_REASSESSMENT_IN_PROGRESS;
         }
 
+        if ($stage === LearnerStage::EXTRA_PHONEME_DRILLS && $learner->current_module_id) {
+            return LearnerStage::MODULE_ASSIGNED;
+        }
+
         if ($activeDiagnostic) {
             return LearnerStage::DIAGNOSTIC_IN_PROGRESS;
         }
@@ -102,7 +106,6 @@ class LearnerFlowService
             LearnerStage::MODULE_ASSIGNED,
             LearnerStage::MODULE_PRACTICE_IN_PROGRESS,
             LearnerStage::MODULE_MASTERY_IN_PROGRESS,
-            LearnerStage::EXTRA_PHONEME_DRILLS,
             LearnerStage::FINAL_REASSESSMENT_PENDING,
             LearnerStage::GRADE_READY,
             LearnerStage::COMPLETED,
@@ -124,10 +127,6 @@ class LearnerFlowService
             return LearnerStage::normalize($learner->current_stage) === LearnerStage::DIAGNOSTIC_IN_PROGRESS
                 ? LearnerStage::DIAGNOSTIC_IN_PROGRESS
                 : LearnerStage::NEW;
-        }
-
-        if ($stage === LearnerStage::EXTRA_PHONEME_DRILLS) {
-            return $stage;
         }
 
         if ($stage === LearnerStage::FINAL_REASSESSMENT_PENDING) {
@@ -411,10 +410,6 @@ class LearnerFlowService
 
     public function moduleResumeRoute(Learner $learner, Module $module): string
     {
-        if (LearnerStage::normalize($learner->current_stage) === LearnerStage::EXTRA_PHONEME_DRILLS) {
-            return route('learner.modules.extra-drills', $module);
-        }
-
         $attempt = $this->activeModuleAttempt($learner, $module);
 
         if ($attempt?->status === 'mastery_started') {
@@ -465,7 +460,6 @@ class LearnerFlowService
             LearnerStage::MODULE_ASSIGNED => $this->action('Start Module', $learner->currentModule ? route('learner.modules.start', $learner->currentModule) : route('learner.dashboard'), 'Your current module is ready.'),
             LearnerStage::MODULE_PRACTICE_IN_PROGRESS => $this->action('Continue Module', $learner->currentModule ? $this->moduleResumeRoute($learner, $learner->currentModule) : route('learner.dashboard'), 'Continue your current module practice.'),
             LearnerStage::MODULE_MASTERY_IN_PROGRESS => $this->action('Continue Mastery Check', $learner->currentModule ? route('learner.modules.mastery-check', $learner->currentModule) : route('learner.dashboard'), 'Continue your mastery check.'),
-            LearnerStage::EXTRA_PHONEME_DRILLS => $this->action('Continue Extra Drills', $learner->currentModule ? route('learner.modules.extra-drills', $learner->currentModule) : route('learner.dashboard'), 'Extra sound practice is ready before trying the module again.'),
             LearnerStage::FINAL_REASSESSMENT_PENDING => $this->action('Start Final Reassessment', route('final-assessment.start'), 'You are ready for the final reassessment.'),
             LearnerStage::FINAL_REASSESSMENT_IN_PROGRESS => $this->action('Continue Final Reassessment', $activeFinal ? $this->finalResumeRoute($activeFinal) : route('final-assessment.start'), 'Continue the final reassessment from your saved step.'),
             LearnerStage::FINAL_REASSESSMENT_COMPLETED => $this->action('View Completion', route('learner.completion'), 'You completed your reading journey.'),

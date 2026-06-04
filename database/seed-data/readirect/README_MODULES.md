@@ -20,7 +20,7 @@ Practice activities may select a small set of active items for the requested act
 
 Miss Ciel feedback is coaching text only. Official mastery decisions must use `ModuleMasteryService` only:
 
-- Module 1: `>= 90` move to Module 2, `60-89` repeat Module 1, `< 60` extra phoneme drills.
+- Module 1: `>= 90` move to Module 2, `0-89` repeat Module 1.
 - Module 2: `>= 90` move to Module 3, `60-89` repeat Module 2, `< 60` return to Module 1.
 - Module 3: `>= 90` proceed to final reassessment placeholder, `70-89` repeat Module 3, `< 70` return to Module 2.
 

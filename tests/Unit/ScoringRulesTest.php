@@ -142,7 +142,8 @@ class ScoringRulesTest extends TestCase
         $this->assertSame('move_to_module_2', $service->decide('module_1', 90)['decision']);
         $this->assertSame('repeat_module_1', $service->decide('module_1', 89)['decision']);
         $this->assertSame('repeat_module_1', $service->decide('module_1', 60)['decision']);
-        $this->assertSame('extra_phoneme_drills', $service->decide('module_1', 59)['decision']);
+        $this->assertSame('repeat_module_1', $service->decide('module_1', 59)['decision']);
+        $this->assertSame('repeat_module_1', $service->decide('module_1', 0)['decision']);
         $this->assertSame('move_to_module_3', $service->decide('module_2', 90)['decision']);
         $this->assertSame('repeat_module_2', $service->decide('module_2', 89)['decision']);
         $this->assertSame('repeat_module_2', $service->decide('module_2', 60)['decision']);

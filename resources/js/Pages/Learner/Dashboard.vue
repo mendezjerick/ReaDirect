@@ -473,7 +473,7 @@ const lockedModuleMessage = computed(() => {
                             </article>
                         </template>
                     </div>
-                    <div v-if="['grade_ready', 'final_reassessment_pending', 'final_reassessment_in_progress', 'final_reassessment_completed', 'completed', 'extra_phoneme_drills'].includes(currentStage)" class="mt-5 rounded-[24px] border border-blue-200/60 bg-blue-50/50 px-6 py-4 text-base font-bold text-primary">
+                    <div v-if="['grade_ready', 'final_reassessment_pending', 'final_reassessment_in_progress', 'final_reassessment_completed', 'completed'].includes(currentStage)" class="mt-5 rounded-[24px] border border-blue-200/60 bg-blue-50/50 px-6 py-4 text-base font-bold text-primary">
                         {{ primaryMessage }}
                     </div>
                 </section>

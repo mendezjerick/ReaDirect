@@ -15,14 +15,12 @@ const actionLabel = (decisionKey) => ({
     repeat_module_1: 'Practice Module 1 again',
     repeat_module_2: 'Practice Module 2 again',
     repeat_module_3: 'Practice Module 3 again',
-    extra_phoneme_drills: 'Start extra drills',
     return_to_module_1: 'Return to Module 1',
     return_to_module_2: 'Return to Module 2',
     proceed_to_reassessment: 'Go to dashboard',
 }[decisionKey] ?? 'Continue');
 
 const actionHref = (decision, module, nextModule) => {
-    if (decision.decision_key === 'extra_phoneme_drills') return `/learner/modules/${module.key}/extra-drills`;
     if (decision.decision_key === 'proceed_to_reassessment') return '/learner/dashboard';
     return `/learner/modules/${nextModule?.key ?? module.key}/start`;
 };

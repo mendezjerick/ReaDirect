@@ -138,6 +138,55 @@ class ModuleLearningFlowTest extends TestCase
         $this->assertSame(0, ModuleActivityResponse::count());
     }
 
+    public function test_module_activity_item_retry_state_blocks_progress_until_correct_or_three_attempts(): void
+    {
+        [$learner, $module] = $this->moduleContext('module_2');
+        $learner->update(['current_module_id' => $module->id, 'current_stage' => 'module_practice_in_progress']);
+        $this->seedModuleActivities($module, 'read_word', 1, false);
+        $this->seedRule($module, 'read_word', 1, 0);
+        $service = app(ModuleActivitySelectionService::class);
+        $attempt = $service->startOrResumeModuleAttempt($learner, $module);
+        $attempt->update(['is_sandbox' => true, 'status' => 'practice_started']);
+        $item = $service->selectPracticeItemsForAttempt($attempt, 'read_word', 1)->first();
+
+        $this->withSession(['learner_id' => $learner->id, 'module_attempt_id' => $attempt->id, 'admin_testing_mode' => true])
+            ->postJson(route('learner.modules.activity.check', [$module, 'read_word']), [
+                'module_attempt_item_id' => $item->id,
+                'answer' => 'dog',
+                'transcript_source' => 'manual',
+            ])
+            ->assertOk()
+            ->assertJsonPath('retry_state.attempt_count', 1)
+            ->assertJsonPath('retry_state.can_retry', true)
+            ->assertJsonPath('retry_state.is_resolved', false)
+            ->assertJsonPath('retry_state.attempts.0.status', 'incorrect');
+
+        $this->assertNull($item->refresh()->answered_at);
+
+        $this->withSession(['learner_id' => $learner->id, 'module_attempt_id' => $attempt->id])
+            ->post(route('learner.modules.activity.store', [$module, 'read_word']))
+            ->assertRedirect(route('learner.modules.activity', [$module, 'read_word']));
+
+        $this->withSession(['learner_id' => $learner->id, 'module_attempt_id' => $attempt->id, 'admin_testing_mode' => true])
+            ->postJson(route('learner.modules.activity.check', [$module, 'read_word']), [
+                'module_attempt_item_id' => $item->id,
+                'answer' => 'cat',
+                'transcript_source' => 'manual',
+            ])
+            ->assertOk()
+            ->assertJsonPath('retry_state.attempt_count', 2)
+            ->assertJsonPath('retry_state.is_correct', true)
+            ->assertJsonPath('retry_state.is_resolved', true)
+            ->assertJsonPath('retry_state.attempts.1.status', 'correct');
+
+        $this->assertNotNull($item->refresh()->answered_at);
+        $this->assertSame(2, ModuleActivityResponse::firstOrFail()->retry_count);
+
+        $this->withSession(['learner_id' => $learner->id, 'module_attempt_id' => $attempt->id])
+            ->post(route('learner.modules.activity.store', [$module, 'read_word']))
+            ->assertRedirect(route('learner.modules.mastery-check', $module));
+    }
+
     public function test_module_mastery_submission_with_missing_answer_is_rejected(): void
     {
         [$learner, $module] = $this->moduleContext();
@@ -154,6 +203,44 @@ class ModuleLearningFlowTest extends TestCase
             ->assertSessionHasErrors('responses.0.answer');
 
         $this->assertSame(0, ModuleActivityResponse::count());
+    }
+
+    public function test_module_mastery_item_resolves_after_three_incorrect_attempts_and_scores_zero(): void
+    {
+        [$learner, $module] = $this->moduleContext('module_1');
+        $learner->update(['current_module_id' => $module->id, 'current_stage' => 'module_mastery_in_progress']);
+        $this->seedModuleActivities($module, 'mastery_check', 1, true);
+        $this->seedRule($module, 'mastery_check', 0, 1);
+        $service = app(ModuleActivitySelectionService::class);
+        $attempt = $service->startOrResumeModuleAttempt($learner, $module);
+        $attempt->update(['is_sandbox' => true, 'status' => 'mastery_started']);
+        $item = $service->selectMasteryItemsForAttempt($attempt, 1)->first();
+
+        foreach ([1, 2, 3] as $attemptNumber) {
+            $this->withSession(['learner_id' => $learner->id, 'module_attempt_id' => $attempt->id, 'admin_testing_mode' => true])
+                ->postJson(route('learner.modules.mastery-check.check', $module), [
+                    'module_attempt_item_id' => $item->id,
+                    'answer' => 'dog',
+                    'transcript_source' => 'manual',
+                ])
+                ->assertOk()
+                ->assertJsonPath('retry_state.attempt_count', $attemptNumber)
+                ->assertJsonPath('retry_state.attempts.'.($attemptNumber - 1).'.status', 'incorrect');
+        }
+
+        $response = ModuleActivityResponse::firstOrFail();
+        $this->assertFalse($response->is_correct);
+        $this->assertSame(0.0, $response->score);
+        $this->assertSame(3, $response->retry_count);
+        $this->assertNotNull($item->refresh()->answered_at);
+
+        $this->withSession(['learner_id' => $learner->id, 'module_attempt_id' => $attempt->id])
+            ->post(route('learner.modules.mastery-check.store', $module))
+            ->assertRedirect(route('learner.modules.mastery-result', $module));
+
+        $this->assertSame('completed', $attempt->refresh()->status);
+        $this->assertSame(0.0, $attempt->score);
+        $this->assertSame('repeat_module_1', $attempt->mastery_decision);
     }
 
     public function test_mastery_score_is_computed_from_mastery_responses(): void
@@ -272,7 +359,7 @@ class ModuleLearningFlowTest extends TestCase
         $this->assertSame(0, $learner->moduleAttempts()->where('module_id', $module->id)->count());
     }
 
-    public function test_dashboard_shows_extra_drills_and_final_reassessment_actions(): void
+    public function test_dashboard_maps_legacy_extra_drills_stage_to_module_start_and_final_reassessment_actions(): void
     {
         [$learner, $module] = $this->moduleContext('module_1');
         $learner->update(['current_module_id' => $module->id, 'current_stage' => 'extra_phoneme_drills']);
@@ -280,7 +367,7 @@ class ModuleLearningFlowTest extends TestCase
         $this->withSession(['learner_id' => $learner->id])
             ->get(route('learner.dashboard'))
             ->assertInertia(fn (Assert $page) => $page
-                ->where('flowState.primary_action_label', 'Continue Extra Drills')
+                ->where('flowState.primary_action_label', 'Start Module')
                 ->where('flowState.module.current_module_key', 'module_1')
             );
 

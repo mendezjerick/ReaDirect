@@ -63,8 +63,7 @@ class ModuleSeeder extends Seeder
         $rules = [
             'module_1' => [
                 [90, null, 'move_to_module_2', 'module_2', 'MODULE_1_MASTERY_V1'],
-                [60, 89, 'repeat_module_1', 'module_1', 'MODULE_1_MASTERY_V1'],
-                [0, 59, 'extra_phoneme_drills', 'module_1', 'MODULE_1_MASTERY_V1'],
+                [0, 89, 'repeat_module_1', 'module_1', 'MODULE_1_MASTERY_V1'],
             ],
             'module_2' => [
                 [90, null, 'move_to_module_3', 'module_3', 'MODULE_2_MASTERY_V1'],
@@ -80,6 +79,12 @@ class ModuleSeeder extends Seeder
 
         foreach ($rules as $moduleKey => $thresholds) {
             $module = Module::where('key', $moduleKey)->firstOrFail();
+
+            if ($moduleKey === 'module_1') {
+                MasteryThreshold::where('module_id', $module->id)
+                    ->where('decision', 'extra_phoneme_drills')
+                    ->delete();
+            }
 
             foreach ($thresholds as [$min, $max, $decision, $nextModuleKey, $ruleKey]) {
                 MasteryThreshold::updateOrCreate(
