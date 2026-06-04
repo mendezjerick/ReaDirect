@@ -51,6 +51,28 @@ class CrlaScoringService
         };
     }
 
+    public function classifyTotalScoreWithRule(int $totalScore): array
+    {
+        $classification = $this->classifyTotalScore($totalScore);
+
+        return [
+            'classification' => $classification,
+            'rule_applied' => 'CRLA_TOTAL_CLASSIFICATION_V1',
+            'matched_threshold' => match ($classification) {
+                self::FULL_REFRESHER => '0-10',
+                self::MODERATE_REFRESHER => '11-16',
+                self::LIGHT_REFRESHER => '17-26',
+                self::GRADE_READY => '27-30',
+            },
+            'condition' => match ($classification) {
+                self::FULL_REFRESHER => 'CRLA total score is 0-10.',
+                self::MODERATE_REFRESHER => 'CRLA total score is 11-16.',
+                self::LIGHT_REFRESHER => 'CRLA total score is 17-26.',
+                self::GRADE_READY => 'CRLA total score is 27-30.',
+            },
+        ];
+    }
+
     private function assertScoreRange(int $score): void
     {
         if ($score < 0 || $score > 10) {

@@ -35,6 +35,7 @@ class ModulePlacementService
             'crla_meaning' => $this->crlaMeaning($crlaClassification),
             'reading_meaning' => $this->readingMeaning($readingClassification),
             'placement_explanation' => $this->placementExplanation($moduleKey, $crlaClassification, $readingClassification),
+            'matched_condition' => $this->matchedCondition($moduleKey, $crlaClassification, $readingClassification),
         ];
     }
 
@@ -104,6 +105,16 @@ class ModulePlacementService
             'module_2' => "The CRLA result is Grade Ready, but the reading level ({$readingClassification}) shows the learner still needs supported practice before longer passages.",
             'module_3' => "The CRLA result is Grade Ready and the reading level ({$readingClassification}) points to practice with sentence and passage reading.",
             default => 'The learner met both the early reading and passage reading targets, so the path goes back to the dashboard without assigning a module.',
+        };
+    }
+
+    private function matchedCondition(?string $moduleKey, string $crlaClassification, string $readingClassification): string
+    {
+        return match ($moduleKey) {
+            'module_1' => 'CRLA classification is Full Refresher, Moderate Refresher, or Light Refresher.',
+            'module_2' => 'CRLA classification is Grade Ready and reading classification is Low Emerging Reader or High Emerging Reader.',
+            'module_3' => 'CRLA classification is Grade Ready and reading classification is Developing Reader or Transitioning Reader.',
+            default => 'CRLA classification is Grade Ready and reading classification is Reading at Grade Level.',
         };
     }
 }

@@ -10,8 +10,6 @@ use App\Models\AssessmentTaskResponse;
 use App\Models\AudioFile;
 use App\Models\Learner;
 use App\Models\LearningContent;
-use App\Models\Module;
-use App\Models\Recommendation;
 use App\Services\Agents\AgentCommentaryService;
 use App\Services\AI\AIAnalysisResolver;
 use App\Services\AnswerMatchingService;
@@ -19,6 +17,7 @@ use App\Services\AssessmentItemSelectionService;
 use App\Services\AssessmentModeService;
 use App\Services\AudioStorageService;
 use App\Services\CrlaScoringService;
+use App\Services\DiagnosticPlacementService;
 use App\Services\LearnerFlowService;
 use App\Services\ModulePlacementService;
 use App\Services\ReadingComprehensionScoringService;
@@ -533,46 +532,16 @@ class DiagnosticAssessmentController extends Controller
         ]);
     }
 
-    public function modulePlacement(Request $request, ModulePlacementService $placementService, LearnerFlowService $flow): Response|RedirectResponse
+    public function modulePlacement(Request $request, DiagnosticPlacementService $placementService, LearnerFlowService $flow): Response|RedirectResponse
     {
         $attempt = $this->attemptForStep($request, $flow, 'module-placement');
         if ($attempt instanceof RedirectResponse) {
             return $attempt;
         }
-        $decision = $placementService->place($attempt->crla_classification, $attempt->reading_classification);
-        $module = $decision['module_key'] ? Module::where('key', $decision['module_key'])->first() : null;
-
-        $attempt->update([
-            'assigned_module_id' => $module?->id,
-            'placement_decision' => $decision['decision'],
-            'status' => 'module_placement_completed',
-            'completed_at' => now(),
-        ]);
-
-        Recommendation::updateOrCreate(
-            ['assessment_attempt_id' => $attempt->id, 'recommendation_type' => 'module_placement'],
-            [
-                'learner_id' => $attempt->learner_id,
-                'module_id' => $module?->id,
-                'recommended_module_id' => $module?->id,
-                'source_type' => 'diagnostic_assessment',
-                'source_id' => $attempt->id,
-                'decision' => $decision['decision'],
-                'rule_applied' => $decision['rule_applied'],
-                'generated_by' => AgentProfile::EVALUATOR_RECOMMENDATION,
-                'decision_reason' => $decision['decision_reason'],
-                'input_scores' => [
-                    'crla_classification' => $attempt->crla_classification,
-                    'reading_classification' => $attempt->reading_classification,
-                    'final_reading_score' => $attempt->final_reading_score,
-                ],
-            ]
-        );
-
-        $attempt->learner->update([
-            'current_module_id' => $module?->id,
-            'current_stage' => $module ? LearnerStage::MODULE_ASSIGNED : LearnerStage::GRADE_READY,
-        ]);
+        $placementResult = $placementService->completePlacement($attempt);
+        $attempt = $placementResult['attempt'];
+        $decision = $placementResult['decision'];
+        $module = $placementResult['module'];
 
         return Inertia::render('Learner/ModulePlacementResult', [
             'attempt' => $attempt->only(

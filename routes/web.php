@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\AdminAssessmentContentController;
 use App\Http\Controllers\Admin\AdminAuditLogController;
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AdminLearnerController;
+use App\Http\Controllers\Admin\AdminModuleMasterySimulatorController;
 use App\Http\Controllers\Admin\AdminModuleContentController;
 use App\Http\Controllers\Admin\AdminPromptTemplateController;
 use App\Http\Controllers\Admin\AdminRuleController;
@@ -182,6 +183,9 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function (): v
         Route::get('/true-sandbox/items', [AdminTrueSandboxController::class, 'items'])->name('true-sandbox.items');
         Route::post('/true-sandbox/analyze', [AdminTrueSandboxController::class, 'analyze'])->middleware('throttle:audio-upload')->name('true-sandbox.analyze');
         Route::post('/true-sandbox/reinforcement', [AdminTrueSandboxController::class, 'storeReinforcement'])->name('true-sandbox.reinforcement.store');
+        Route::get('/module-mastery-simulator', [AdminModuleMasterySimulatorController::class, 'index'])->name('module-mastery-simulator.index');
+        Route::post('/module-mastery-simulator', [AdminModuleMasterySimulatorController::class, 'store'])->name('module-mastery-simulator.store');
+        Route::post('/module-mastery-simulator/reset', [AdminModuleMasterySimulatorController::class, 'reset'])->name('module-mastery-simulator.reset');
         Route::get('/learners', [AdminTestingController::class, 'learners'])->name('learners');
         Route::get('/flow-jump', [AdminTestingController::class, 'flowJump'])->name('flow-jump');
         Route::get('/jump/{target}', [AdminTestingController::class, 'jump'])->name('jump');

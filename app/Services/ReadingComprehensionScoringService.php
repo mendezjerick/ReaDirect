@@ -109,6 +109,30 @@ class ReadingComprehensionScoringService
         };
     }
 
+    public function classifyReadingLevelWithRule(float|int $finalReadingScore): array
+    {
+        $classification = $this->classifyReadingLevelFromFinalScore($finalReadingScore);
+
+        return [
+            'classification' => $classification,
+            'rule_applied' => 'READING_LEVEL_CLASSIFICATION_V1',
+            'matched_threshold' => match ($classification) {
+                self::LOW_EMERGING => '0-25',
+                self::HIGH_EMERGING => '25.01-50',
+                self::DEVELOPING => '50.01-75',
+                self::TRANSITIONING => '75.01-90',
+                self::GRADE_LEVEL => '90.01-100',
+            },
+            'condition' => match ($classification) {
+                self::LOW_EMERGING => 'Final reading score is 0-25.',
+                self::HIGH_EMERGING => 'Final reading score is above 25 and up to 50.',
+                self::DEVELOPING => 'Final reading score is above 50 and up to 75.',
+                self::TRANSITIONING => 'Final reading score is above 75 and up to 90.',
+                self::GRADE_LEVEL => 'Final reading score is above 90.',
+            },
+        ];
+    }
+
     private function assertPercentage(float $percentage): void
     {
         if ($percentage < 0 || $percentage > 100) {

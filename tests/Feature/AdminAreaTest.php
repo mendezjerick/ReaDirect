@@ -229,6 +229,105 @@ class AdminAreaTest extends TestCase
             );
     }
 
+    public function test_module_mastery_simulator_is_admin_only_and_loads_mm_learner(): void
+    {
+        $admin = $this->userWithRole('system_admin');
+        $student = $this->userWithRole('student');
+
+        $this->actingAs($student)
+            ->get(route('admin.testing.module-mastery-simulator.index'))
+            ->assertForbidden();
+
+        $this->actingAs($admin)
+            ->get(route('admin.testing.module-mastery-simulator.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/Testing/ModuleMasterySimulator')
+                ->where('learner.name', 'MM Simulator')
+                ->where('learner.learner_code', 'MM-SIMULATOR')
+                ->where('learner.is_simulator', true)
+                ->where('result', null)
+                ->where('routes.simulate', route('admin.testing.module-mastery-simulator.store'))
+                ->where('routes.reset', route('admin.testing.module-mastery-simulator.reset'))
+            );
+    }
+
+    public function test_module_mastery_simulator_uses_real_diagnostic_placement_services_and_resets_mm(): void
+    {
+        $admin = $this->userWithRole('system_admin');
+        $modules = $this->placementModules();
+
+        $this->actingAs($admin)
+            ->post(route('admin.testing.module-mastery-simulator.store'), [
+                'task_1_score' => 10,
+                'task_2_score' => 0,
+                'task_3_score' => 10,
+                'incorrect_words' => 10,
+                'comprehension_correct_count' => 1,
+            ])
+            ->assertRedirect(route('admin.testing.module-mastery-simulator.index'));
+
+        $learner = Learner::where('learner_code', 'MM-SIMULATOR')->firstOrFail();
+        $attempt = AssessmentAttempt::where('learner_id', $learner->id)->firstOrFail();
+
+        $this->assertTrue($attempt->is_sandbox);
+        $this->assertSame('module_placement_completed', $attempt->status);
+        $this->assertSame(10, $attempt->task_2a_score);
+        $this->assertSame(30, $attempt->crla_total_score);
+        $this->assertSame('Grade Ready', $attempt->crla_classification);
+        $this->assertSame(80.0, $attempt->reading_accuracy);
+        $this->assertSame(20.0, $attempt->comprehension_percentage);
+        $this->assertSame(44.0, $attempt->final_reading_score);
+        $this->assertSame('High Emerging Reader', $attempt->reading_classification);
+        $this->assertSame($modules['module_2']->id, $attempt->assigned_module_id);
+        $this->assertSame($modules['module_2']->id, $learner->fresh()->current_module_id);
+
+        $this->assertDatabaseHas('recommendations', [
+            'learner_id' => $learner->id,
+            'assessment_attempt_id' => $attempt->id,
+            'recommendation_type' => 'module_placement',
+            'decision' => 'assign_module_2',
+            'rule_applied' => 'MODULE_PLACEMENT_V1',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.testing.module-mastery-simulator.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('result.module.key', 'module_2')
+                ->where('result.inputs.task_2_score_entered', 0)
+                ->where('result.computed.effective_task_2_score', 10)
+                ->where('result.computed.weight_calculation.comprehension_contribution', 12)
+                ->where('result.computed.weight_calculation.accuracy_contribution', 32)
+                ->where('result.computed.weight_calculation.sum', 44)
+                ->where('result.rules.module_placement.rule_applied', 'MODULE_PLACEMENT_V1')
+                ->where('result.rules.module_placement.decision', 'assign_module_2')
+                ->where('result.rule_tables.0.title', 'Task 1 Routing')
+                ->where('result.rule_tables.4.title', 'Module Mastery Progression')
+            );
+
+        $this->actingAs($admin)
+            ->post(route('admin.testing.module-mastery-simulator.reset'))
+            ->assertRedirect(route('admin.testing.module-mastery-simulator.index'));
+
+        $this->assertDatabaseMissing('assessment_attempts', ['learner_id' => $learner->id]);
+        $this->assertDatabaseMissing('recommendations', ['learner_id' => $learner->id]);
+        $this->assertNull($learner->fresh()->current_module_id);
+        $this->assertSame(LearnerStage::DIAGNOSTIC_IN_PROGRESS, $learner->fresh()->current_stage);
+    }
+
+    public function test_mm_simulator_learner_code_cannot_enter_normal_learner_flow(): void
+    {
+        $admin = $this->userWithRole('system_admin');
+
+        $this->actingAs($admin)
+            ->get(route('admin.testing.module-mastery-simulator.index'))
+            ->assertOk();
+
+        $this->post(route('learner.access.store'), ['learner_code' => 'MM-SIMULATOR'])
+            ->assertSessionHasErrors('learner_code');
+    }
+
     public function test_true_sandbox_can_load_module_asr_items_without_attempt_state(): void
     {
         $admin = $this->userWithRole('system_admin');
@@ -645,6 +744,23 @@ class AdminAreaTest extends TestCase
         ]);
 
         return [$module, $activityType];
+    }
+
+    private function placementModules(): array
+    {
+        $modules = [];
+
+        foreach ([1 => ['module_1', 'Letter and Sound Learning'], 2 => ['module_2', 'Word Reading'], 3 => ['module_3', 'Sentence Reading and Fluency']] as $sequence => [$key, $title]) {
+            $modules[$key] = Module::create([
+                'sequence' => $sequence,
+                'key' => $key,
+                'title' => $title,
+                'description' => $title,
+                'is_active' => true,
+            ]);
+        }
+
+        return $modules;
     }
 
     private function moduleContentFilterData(): array

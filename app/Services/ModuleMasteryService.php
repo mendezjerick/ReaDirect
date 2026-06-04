@@ -18,6 +18,75 @@ class ModuleMasteryService
         };
     }
 
+    public function ruleTable(): array
+    {
+        return [
+            [
+                'module' => 'Module 1',
+                'score_range' => '90-100',
+                'decision' => 'move_to_module_2',
+                'next' => 'Module 2',
+                'rule_applied' => 'MODULE_1_MASTERY_V1',
+            ],
+            [
+                'module' => 'Module 1',
+                'score_range' => '60-89',
+                'decision' => 'repeat_module_1',
+                'next' => 'Module 1',
+                'rule_applied' => 'MODULE_1_MASTERY_V1',
+            ],
+            [
+                'module' => 'Module 1',
+                'score_range' => '0-59',
+                'decision' => 'extra_phoneme_drills',
+                'next' => 'Module 1',
+                'rule_applied' => 'MODULE_1_MASTERY_V1',
+            ],
+            [
+                'module' => 'Module 2',
+                'score_range' => '90-100',
+                'decision' => 'move_to_module_3',
+                'next' => 'Module 3',
+                'rule_applied' => 'MODULE_2_MASTERY_V1',
+            ],
+            [
+                'module' => 'Module 2',
+                'score_range' => '60-89',
+                'decision' => 'repeat_module_2',
+                'next' => 'Module 2',
+                'rule_applied' => 'MODULE_2_MASTERY_V1',
+            ],
+            [
+                'module' => 'Module 2',
+                'score_range' => '0-59',
+                'decision' => 'return_to_module_1',
+                'next' => 'Module 1',
+                'rule_applied' => 'MODULE_2_MASTERY_V1',
+            ],
+            [
+                'module' => 'Module 3',
+                'score_range' => '90-100',
+                'decision' => 'proceed_to_reassessment',
+                'next' => 'Final reassessment',
+                'rule_applied' => 'MODULE_3_MASTERY_V1',
+            ],
+            [
+                'module' => 'Module 3',
+                'score_range' => '70-89',
+                'decision' => 'repeat_module_3',
+                'next' => 'Module 3',
+                'rule_applied' => 'MODULE_3_MASTERY_V1',
+            ],
+            [
+                'module' => 'Module 3',
+                'score_range' => '0-69',
+                'decision' => 'return_to_module_2',
+                'next' => 'Module 2',
+                'rule_applied' => 'MODULE_3_MASTERY_V1',
+            ],
+        ];
+    }
+
     private function moduleOne(float $score): array
     {
         return match (true) {

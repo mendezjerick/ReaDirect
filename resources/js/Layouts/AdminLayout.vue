@@ -264,6 +264,7 @@ import {
     Activity,
     Settings,
     FileSearch,
+    FlaskConical,
     CheckCircle,
     AlertCircle,
 } from 'lucide-vue-next';
@@ -281,7 +282,9 @@ const isActive = (href) => {
     if (href === '/admin/testing') {
         return url === '/admin/testing'
             || url.startsWith('/admin/testing?')
-            || (url.startsWith('/admin/testing/') && !url.startsWith('/admin/testing/true-sandbox'));
+            || (url.startsWith('/admin/testing/')
+                && !url.startsWith('/admin/testing/true-sandbox')
+                && !url.startsWith('/admin/testing/module-mastery-simulator'));
     }
     return url.startsWith(href);
 };
@@ -304,5 +307,6 @@ const adminNav = [
     { label: 'System Monitoring',    href: '/admin/system-monitoring',   icon: Activity },
     { label: 'Testing / QA Mode',    href: '/admin/testing',             icon: Settings },
     { label: 'True Sandbox',         href: '/admin/testing/true-sandbox', icon: FileSearch },
+    { label: 'Module Mastery Simulator', href: '/admin/testing/module-mastery-simulator', icon: FlaskConical },
 ];
 </script>
