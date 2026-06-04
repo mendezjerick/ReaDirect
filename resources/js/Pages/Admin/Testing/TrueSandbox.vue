@@ -521,6 +521,10 @@ const rejectAndContinue = () => {
                             :max-duration-seconds="recorderPromptType === 'passage' ? 90 : 30"
                             :min-duration-seconds="recorderPromptType === 'passage' ? 1 : 0.5"
                             :prompt-type="recorderPromptType"
+                            :cue-delay-ms="0"
+                            :min-speech-duration-seconds="0"
+                            :max-leading-silence-seconds="30"
+                            :max-silence-ratio="1"
                             :require-review-before-submit="true"
                             :submitting="submitting"
                             :submitted="Boolean(result?.ok)"
@@ -530,6 +534,7 @@ const rejectAndContinue = () => {
                             @submit="runAsr"
                             @cleared="clearAudio"
                         />
+                        <div id="teleport-audio-review" class="mt-3 empty:hidden"></div>
                         <button
                             type="button"
                             class="mt-3 w-full inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-semibold text-slate-600 transition-all duration-200 hover:bg-primary-light hover:text-primary hover:border-primary/30 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed"
