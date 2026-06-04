@@ -190,6 +190,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function (): v
         Route::get('/flow-jump', [AdminTestingController::class, 'flowJump'])->name('flow-jump');
         Route::get('/jump/{target}', [AdminTestingController::class, 'jump'])->name('jump');
         Route::post('/start-sandbox', [AdminTestingController::class, 'startSandbox'])->name('start-sandbox');
+        Route::post('/reset-tester', [AdminTestingController::class, 'resetTester'])->name('reset-tester');
         Route::post('/exit', [AdminTestingController::class, 'exit'])->name('exit');
         Route::get('/learner/{learner}/jump', [AdminTestingController::class, 'learnerJump'])->name('learner-jump');
         Route::get('/assessment/{assessmentAttempt}/debug', [AdminTestingController::class, 'assessmentDebug'])->name('assessment.debug');

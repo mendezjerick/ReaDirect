@@ -154,7 +154,7 @@ class AdminAreaTest extends TestCase
     {
         $admin = $this->userWithRole('system_admin');
         $learner = $this->learner();
-        foreach (range('A', 'J') as $letter) {
+        foreach (['A', 'C', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'] as $letter) {
             LearningContent::create([
                 'content_type' => 'letter',
                 'title' => 'Letter '.$letter,
@@ -172,7 +172,12 @@ class AdminAreaTest extends TestCase
             ])
             ->assertRedirect(route('admin.testing.flow-jump'));
 
-        $attempt = AssessmentAttempt::where('learner_id', $learner->id)->where('is_sandbox', true)->firstOrFail();
+        $this->assertDatabaseMissing('assessment_attempts', ['learner_id' => $learner->id]);
+
+        $tester = Learner::where('learner_code', 'QA-TESTER')->firstOrFail();
+        $this->assertTrue((bool) ($tester->metadata['admin_qa_tester'] ?? false));
+
+        $attempt = AssessmentAttempt::where('learner_id', $tester->id)->where('is_sandbox', true)->firstOrFail();
         $this->assertTrue($attempt->is_sandbox);
 
         $this->actingAs($admin)
@@ -426,6 +431,7 @@ class AdminAreaTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/Testing/FlowJump')
+                ->where('learner.learner_code', 'QA-TESTER')
                 ->where('targets.0.group', 'Learner')
                 ->where('targets.18.group', 'Modules')
             );
@@ -435,10 +441,74 @@ class AdminAreaTest extends TestCase
             ->get(route('admin.testing.jump', 'diagnostic-task-1'))
             ->assertRedirect(route('learner.diagnostic.task-1'));
 
+        $tester = Learner::where('learner_code', 'QA-TESTER')->firstOrFail();
+        $this->assertDatabaseMissing('assessment_attempts', ['learner_id' => $learner->id]);
+        $this->assertDatabaseHas('assessment_attempts', [
+            'learner_id' => $tester->id,
+            'attempt_type' => 'diagnostic',
+            'status' => 'task_1',
+            'is_sandbox' => true,
+        ]);
+
         $this->actingAs($admin)
             ->withSession(['admin_testing_mode' => true, 'admin_testing_learner_id' => $learner->id])
             ->get(route('admin.testing.jump', "module-{$module->key}-activity"))
             ->assertRedirect(route('learner.modules.activity', [$module, $activityType]));
+
+        $tester->refresh();
+        $this->assertDatabaseMissing('assessment_attempts', [
+            'learner_id' => $tester->id,
+            'attempt_type' => 'diagnostic',
+            'status' => 'task_1',
+        ]);
+        $this->assertSame($module->id, $tester->current_module_id);
+        $this->assertDatabaseHas('module_attempts', [
+            'learner_id' => $tester->id,
+            'module_id' => $module->id,
+            'is_sandbox' => true,
+            'status' => 'practice_started',
+        ]);
+    }
+
+    public function test_qa_testing_prepares_tester_for_final_assessment_without_real_learner_state(): void
+    {
+        $admin = $this->userWithRole('system_admin');
+        $realLearner = $this->learner();
+        $this->seedDiagnosticTaskOneItems();
+        $this->moduleWithContent('module_1');
+        $this->moduleWithContent('module_2');
+        $this->moduleWithContent('module_3');
+
+        $this->actingAs($admin)
+            ->withSession(['admin_testing_mode' => true, 'admin_testing_learner_id' => $realLearner->id])
+            ->get(route('admin.testing.jump', 'final-task-1'))
+            ->assertRedirect(route('final-assessment.task', 'task-1'));
+
+        $tester = Learner::where('learner_code', 'QA-TESTER')->firstOrFail();
+        $this->assertDatabaseMissing('assessment_attempts', ['learner_id' => $realLearner->id]);
+        $this->assertSame(LearnerStage::FINAL_REASSESSMENT_IN_PROGRESS, $tester->current_stage);
+
+        $baseline = AssessmentAttempt::where('learner_id', $tester->id)
+            ->where('attempt_type', 'diagnostic')
+            ->where('status', 'module_placement_completed')
+            ->firstOrFail();
+        $this->assertTrue($baseline->is_sandbox);
+
+        $final = AssessmentAttempt::where('learner_id', $tester->id)
+            ->where('attempt_type', 'final_reassessment')
+            ->firstOrFail();
+        $this->assertSame($baseline->id, $final->baseline_assessment_attempt_id);
+        $this->assertTrue($final->is_sandbox);
+
+        $this->assertSame(3, ModuleAttempt::where('learner_id', $tester->id)
+            ->where('is_sandbox', true)
+            ->where('status', 'completed')
+            ->count());
+        $this->assertDatabaseHas('module_attempts', [
+            'learner_id' => $tester->id,
+            'mastery_decision' => 'proceed_to_reassessment',
+            'rule_applied' => 'MODULE_3_MASTERY_V1',
+        ]);
     }
 
     public function test_sandbox_attempts_are_excluded_from_teacher_reports(): void
@@ -662,7 +732,7 @@ class AdminAreaTest extends TestCase
 
     private function seedDiagnosticTaskOneItems(): void
     {
-        foreach (range('A', 'J') as $letter) {
+        foreach (['A', 'C', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'] as $letter) {
             LearningContent::create([
                 'content_type' => 'letter',
                 'title' => 'Letter '.$letter,
@@ -676,10 +746,11 @@ class AdminAreaTest extends TestCase
 
     private function moduleWithContent(string $key): array
     {
+        $sequence = (int) str_replace('module_', '', $key);
         $module = Module::create([
-            'sequence' => 1,
+            'sequence' => $sequence,
             'key' => $key,
-            'title' => 'Module 1',
+            'title' => 'Module '.$sequence,
             'description' => 'Test module',
             'is_active' => true,
         ]);

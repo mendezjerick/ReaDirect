@@ -21,6 +21,8 @@ const form = useForm({
     type: 'diagnostic',
     module_id: props.modules?.[0]?.id ?? '',
 });
+const resetForm = useForm({});
+const exitForm = useForm({});
 
 const typeLabels = {
     diagnostic: { label: 'Sandbox Diagnostic', color: 'blue' },
@@ -34,15 +36,33 @@ const typeLabels = {
         <!-- ── Page header ─────────────────────────────────── -->
         <div class="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
-                <h1 class="text-2xl font-extrabold text-text">Flow Jump</h1>
+                <h1 class="text-2xl font-extrabold text-text">QA Testing Flow Jump</h1>
                 <p class="mt-1 text-sm font-medium text-muted">
-                    Jump links prepare the needed sandbox/session state before opening learner pages.
+                    Jump links reset Tester, prepare only the needed QA state, then open the real learner page.
                 </p>
             </div>
-            <Link href="/admin/testing/learners" class="group inline-flex shrink-0 w-full md:w-auto items-center justify-center gap-2 rounded-xl bg-background px-4 py-2.5 text-[13px] font-semibold text-slate-500 transition-all duration-200 hover:bg-primary-light hover:text-primary hover:shadow-sm">
-                <ArrowLeft class="size-4 transition-transform duration-200 group-hover:-translate-x-0.5" />
-                Back to Learner Select
-            </Link>
+            <div class="flex flex-wrap gap-2">
+                <Link href="/admin/testing" class="group inline-flex shrink-0 w-full md:w-auto items-center justify-center gap-2 rounded-xl bg-background px-4 py-2.5 text-[13px] font-semibold text-slate-500 transition-all duration-200 hover:bg-primary-light hover:text-primary hover:shadow-sm">
+                    <ArrowLeft class="size-4 transition-transform duration-200 group-hover:-translate-x-0.5" />
+                    Back to QA
+                </Link>
+                <button
+                    type="button"
+                    class="inline-flex shrink-0 w-full md:w-auto items-center justify-center gap-2 rounded-xl bg-background px-4 py-2.5 text-[13px] font-semibold text-slate-500 transition-all duration-200 hover:bg-primary-light hover:text-primary hover:shadow-sm disabled:opacity-60"
+                    :disabled="resetForm.processing"
+                    @click="resetForm.post('/admin/testing/reset-tester')"
+                >
+                    Reset Tester
+                </button>
+                <button
+                    type="button"
+                    class="inline-flex shrink-0 w-full md:w-auto items-center justify-center gap-2 rounded-xl bg-rose-50 px-4 py-2.5 text-[13px] font-bold text-rose-600 transition-all duration-200 hover:bg-rose-100 disabled:opacity-60"
+                    :disabled="exitForm.processing"
+                    @click="exitForm.post('/admin/testing/exit')"
+                >
+                    Exit QA
+                </button>
+            </div>
         </div>
 
         <!-- ── Learner + Create Attempt ────────────────────── -->
@@ -51,7 +71,7 @@ const typeLabels = {
                 <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-500">
                     <GraduationCap class="size-4" />
                 </div>
-                <h2 class="text-sm font-bold text-text">Sandbox Session</h2>
+                <h2 class="text-sm font-bold text-text">Tester QA Session</h2>
             </div>
 
             <!-- Current learner info -->
@@ -60,7 +80,7 @@ const typeLabels = {
                     {{ learner ? (learner.first_name ?? learner.learner_code ?? '?').charAt(0).toUpperCase() : '?' }}
                 </div>
                 <div class="min-w-0">
-                    <p class="text-[11px] font-bold uppercase tracking-wider text-muted">Current learner</p>
+                    <p class="text-[11px] font-bold uppercase tracking-wider text-muted">Dedicated QA learner</p>
                     <p v-if="learner" class="text-sm font-semibold text-text truncate">
                         <span class="font-bold text-primary">{{ learner.learner_code }}</span>
                         <span class="text-muted font-medium mx-1">&mdash;</span>
@@ -70,7 +90,7 @@ const typeLabels = {
                 </div>
             </div>
 
-            <!-- Create attempt form -->
+            <!-- Optional create attempt form -->
             <form v-if="learner" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" @submit.prevent="form.post('/admin/testing/start-sandbox')">
                 <input v-model="form.learner_id" type="hidden">
 
@@ -98,13 +118,13 @@ const typeLabels = {
                     >
                         <Loader2 v-if="form.processing" class="size-4 animate-spin" />
                         <Rocket v-else class="size-4" />
-                        Create Sandbox Attempt
+                        Create Tester Attempt
                     </button>
                 </div>
             </form>
 
             <div v-else class="rounded-xl bg-amber-50 border border-amber-200/60 px-4 py-3 text-sm font-semibold text-amber-700">
-                No learner selected. Go back and choose a learner to continue.
+                Tester was not prepared. Reload this page to start QA Testing.
             </div>
         </DashboardCard>
 
@@ -122,7 +142,7 @@ const typeLabels = {
             <EmptyState
                 v-if="!targets?.length"
                 title="No jump targets"
-                message="Create a sandbox attempt first to generate jump targets."
+                message="No QA targets are available yet."
             />
 
             <div v-else class="grid gap-2 sm:grid-cols-2">

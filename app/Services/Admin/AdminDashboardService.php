@@ -17,11 +17,16 @@ class AdminDashboardService
     public function summary(): array
     {
         $realAssessments = AssessmentAttempt::query()->where('is_sandbox', false);
+        $realLearners = Learner::query()
+            ->whereNotIn('learner_code', [
+                QaTestingStateService::LEARNER_CODE,
+                ModuleMasterySimulatorService::LEARNER_CODE,
+            ]);
         $metrics = [
             'schools' => School::count(),
             'teachers' => $this->roleCount('teacher'),
-            'learners' => Learner::count(),
-            'active_learners' => Learner::where('is_active', true)->count(),
+            'learners' => (clone $realLearners)->count(),
+            'active_learners' => (clone $realLearners)->where('is_active', true)->count(),
             'completed_diagnostics' => (clone $realAssessments)->where('attempt_type', 'diagnostic')->where('status', 'module_placement_completed')->count(),
             'completed_final_reassessments' => (clone $realAssessments)->where('attempt_type', 'final_reassessment')->where('status', 'final_reassessment_completed')->count(),
             'sandbox_attempts' => AssessmentAttempt::where('is_sandbox', true)->count() + ModuleAttempt::where('is_sandbox', true)->count(),
@@ -30,7 +35,7 @@ class AdminDashboardService
         return [
             'metrics' => $metrics,
             'counts' => $metrics,
-            'moduleDistribution' => Learner::with('currentModule')->get()
+            'moduleDistribution' => (clone $realLearners)->with('currentModule')->get()
                 ->groupBy(fn (Learner $learner) => $learner->currentModule?->title ?? 'No module needed')
                 ->map->count()
                 ->all(),

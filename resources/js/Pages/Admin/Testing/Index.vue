@@ -66,15 +66,15 @@ const allAttempts = [
         <!-- ── Page header ─────────────────────────────────── -->
         <div class="mb-6">
             <h1 class="text-2xl font-extrabold text-text">Testing / QA Mode</h1>
-            <p class="mt-1 text-sm font-medium text-muted">Admin-only sandbox attempts, page jumps, STT debug, and LLM debug.</p>
+            <p class="mt-1 text-sm font-medium text-muted">Admin-only Tester QA flow jumps, sandbox attempts, STT debug, and LLM debug.</p>
         </div>
 
         <!-- ── Stat cards ──────────────────────────────────── -->
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <ScoreCard label="Learners" :value="learnersCount" :icon="GraduationCap" color="blue" subtitle="">
+            <ScoreCard label="QA Testing" value="Tester" :icon="GraduationCap" color="blue" subtitle="dedicated QA learner">
                 <template #footer>
-                    <Link href="/admin/testing/learners" class="group mt-3 inline-flex items-center gap-1.5 text-[12px] font-bold text-primary transition-colors hover:text-primary-dark">
-                        Select learner
+                    <Link href="/admin/testing/flow-jump" class="group mt-3 inline-flex items-center gap-1.5 text-[12px] font-bold text-primary transition-colors hover:text-primary-dark">
+                        Open QA Testing
                         <ArrowRight class="size-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
                     </Link>
                 </template>
