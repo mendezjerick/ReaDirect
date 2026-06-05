@@ -53,19 +53,28 @@ class ModuleLearningFlowTest extends TestCase
     public function test_new_module_letter_only_items_exclude_unreliable_isolated_letters(): void
     {
         [$learner, $module] = $this->moduleContext();
-        $this->seedModuleLetterActivities($module, 'listen_and_say', false);
+        $this->seedModuleLetterActivities($module, 'hear_and_repeat', false);
+        $this->seedModuleLetterActivities($module, 'sound_drill', false);
+        $this->seedModuleLetterActivities($module, 'see_letter_say_sound', false);
         $this->seedModuleLetterActivities($module, 'mastery_check', true);
         $service = app(ModuleActivitySelectionService::class);
         $attempt = $service->startOrResumeModuleAttempt($learner, $module);
 
-        $practice = $service->selectPracticeItemsForAttempt($attempt, 'listen_and_say', 10);
+        $hearAndRepeat = $service->selectPracticeItemsForAttempt($attempt, 'hear_and_repeat', 10);
+        $soundDrill = $service->selectPracticeItemsForAttempt($attempt, 'sound_drill', 10);
+        $seeLetter = $service->selectPracticeItemsForAttempt($attempt, 'see_letter_say_sound', 10);
         $mastery = $service->selectMasteryItemsForAttempt($attempt, 10);
-        $selected = $practice->merge($mastery)
+        $selected = $hearAndRepeat
+            ->merge($soundDrill)
+            ->merge($seeLetter)
+            ->merge($mastery)
             ->map(fn ($item) => $item->prompt_snapshot['payload']['expected_answer'] ?? null)
             ->filter()
             ->all();
 
-        $this->assertCount(10, $practice);
+        $this->assertCount(10, $hearAndRepeat);
+        $this->assertCount(10, $soundDrill);
+        $this->assertCount(10, $seeLetter);
         $this->assertCount(10, $mastery);
         $this->assertEmpty(array_intersect(['B', 'P', 'D', 'T'], $selected));
     }

@@ -183,6 +183,27 @@ const reinforcementWorking = computed(() => (
 
 const gopEnabled = computed(() => props.status?.gop_enabled === true || props.status?.thresholds?.gop?.enabled === true);
 const gopThresholds = computed(() => props.status?.gop_thresholds ?? props.status?.thresholds?.gop ?? {});
+const gopStatusLabel = computed(() => {
+    const reportedStatus = String(props.status?.gop_status ?? '').trim();
+    const normalized = reportedStatus.toLowerCase();
+
+    if (['off', 'ready', 'active', 'fallback', 'failed'].includes(normalized)) {
+        return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+    }
+
+    if (!gopEnabled.value) return 'Off';
+    if (props.status?.wav2vec2_phoneme_available === true) return 'Ready';
+    if (props.status?.wav2vec2_phoneme_available === false) return 'Failed';
+
+    return 'Fallback';
+});
+const gopStatusStyles = computed(() => ({
+    Off: 'bg-slate-100 text-slate-700',
+    Ready: 'bg-emerald-100 text-emerald-800',
+    Active: 'bg-blue-100 text-blue-800',
+    Fallback: 'bg-amber-100 text-amber-800',
+    Failed: 'bg-red-100 text-red-800',
+}[gopStatusLabel.value] ?? 'bg-slate-100 text-slate-700'));
 const gopWorking = computed(() => (
     gopEnabled.value
     && props.status?.wav2vec2_phoneme_available === true
@@ -190,14 +211,14 @@ const gopWorking = computed(() => (
 
 const gopSummary = computed(() => {
     if (!gopEnabled.value) {
-        return 'GOP pronunciation evidence is disabled or not reported by the ASR service.';
+        return 'Acoustic GOP is off. Existing expected-centric ASR behavior is unchanged.';
     }
 
     if (gopWorking.value) {
-        return 'GOP pronunciation evidence is enabled and the Wav2Vec2 phoneme model is available.';
+        return 'Acoustic GOP is enabled and the Wav2Vec2 phoneme model is available.';
     }
 
-    return 'GOP is enabled, but the phoneme model is not reported as available.';
+    return 'Acoustic GOP is enabled, but the phoneme model is not reported as available.';
 });
 
 const reinforcementSummary = computed(() => {
@@ -346,9 +367,9 @@ const reinforcementSummary = computed(() => {
                     <p class="max-w-3xl font-semibold leading-relaxed">{{ gopSummary }}</p>
                     <span
                         class="inline-flex w-fit items-center rounded-md px-2 py-1 text-[11px] font-extrabold"
-                        :class="gopWorking ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'"
+                        :class="gopStatusStyles"
                     >
-                        {{ gopWorking ? 'Working' : 'Needs attention' }}
+                        GOP: {{ gopStatusLabel }}
                     </span>
                 </div>
                 <p class="mt-2 text-[11px] font-semibold opacity-80">
@@ -357,6 +378,7 @@ const reinforcementSummary = computed(() => {
                     word {{ reported(gopThresholds.word_threshold) }},
                     rhyme {{ reported(gopThresholds.rhyme_threshold) }},
                     sentence word {{ reported(gopThresholds.sentence_word_threshold) }}.
+                    Model: {{ reported(status?.gop_model_version ?? gopThresholds.model_version ?? gopThresholds.model_name ?? status?.wav2vec2_phoneme_model_name) }}.
                 </p>
             </div>
 

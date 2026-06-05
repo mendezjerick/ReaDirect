@@ -55,6 +55,90 @@ const recorderPromptType = computed(() => {
     const type = String(selectedItem.value?.prompt_type ?? 'word');
     return type === 'reading_passage' ? 'passage' : type;
 });
+const pickResultValue = (key, fallback = null) => (
+    result.value?.[key] ?? result.value?.ai_response?.[key] ?? fallback
+);
+const reported = (value) => {
+    if (value === true) return 'Yes';
+    if (value === false) return 'No';
+    if (Array.isArray(value)) return value.length ? value.join(', ') : 'Not reported';
+    const text = String(value ?? '').trim();
+    return text || 'Not reported';
+};
+const formatScore = (value) => {
+    if (value === null || value === undefined || value === '') return 'Not reported';
+    const number = Number(value);
+    return Number.isFinite(number) ? number.toFixed(3).replace(/0+$/, '').replace(/\.$/, '') : String(value);
+};
+const acousticGop = computed(() => {
+    if (!result.value) return null;
+
+    const phonemeScores = pickResultValue('phoneme_scores', pickResultValue('gop_phoneme_scores', [])) ?? [];
+
+    return {
+        enabled: pickResultValue('gop_enabled'),
+        supported: pickResultValue('gop_supported'),
+        model: pickResultValue('gop_model_version', pickResultValue('gop_model_path')),
+        alignment: pickResultValue('alignment_quality'),
+        overall: pickResultValue('overall_gop_score', pickResultValue('gop_score')),
+        weakPhoneme: pickResultValue('weak_phoneme', pickResultValue('lowest_phoneme')),
+        weakScore: pickResultValue('weak_phoneme_score', pickResultValue('lowest_phoneme_score')),
+        nearest: pickResultValue('nearest_confusion'),
+        decoded: pickResultValue('decoded_acoustic_phonemes', pickResultValue('decoded_phonemes', pickResultValue('gop_observed_phonemes', []))),
+        expected: pickResultValue('canonical_expected_phonemes', pickResultValue('canonical_phonemes', pickResultValue('gop_expected_phonemes', []))),
+        frameCount: pickResultValue('gop_frame_count'),
+        duration: pickResultValue('gop_duration_seconds'),
+        fallback: pickResultValue('gop_fallback_used'),
+        error: pickResultValue('gop_error'),
+        phonemeScores: Array.isArray(phonemeScores) ? phonemeScores : [],
+    };
+});
+const gopMetricText = computed(() => {
+    if (!acousticGop.value) return 'Not reported';
+
+    const parts = [];
+    if (acousticGop.value.overall !== null && acousticGop.value.overall !== undefined && acousticGop.value.overall !== '') {
+        parts.push(`score ${formatScore(acousticGop.value.overall)}`);
+    }
+    if (acousticGop.value.supported === true) {
+        parts.push('supported');
+    } else if (acousticGop.value.supported === false) {
+        parts.push('not supported');
+    }
+    if (acousticGop.value.alignment) {
+        parts.push(`alignment ${acousticGop.value.alignment}`);
+    }
+    if (acousticGop.value.fallback === true) {
+        parts.push('fallback used');
+    }
+    if (acousticGop.value.error) {
+        parts.push(String(acousticGop.value.error));
+    }
+
+    return parts.length ? parts.join(' / ') : 'Not reported';
+});
+const failureDetails = computed(() => {
+    if (!result.value || result.value.ok !== false) return [];
+
+    const details = [
+        result.value.message,
+        result.value.error,
+        result.value.ai_response?.error,
+        result.value.ai_response?.debug_info?.error,
+        result.value.ai_response?.debug_info?.asr?.error,
+        result.value.debug_info?.error,
+        result.value.debug_info?.asr?.error,
+    ];
+
+    const warnings = [
+        ...(Array.isArray(result.value.warnings) ? result.value.warnings : []),
+        ...(Array.isArray(result.value.ai_response?.warnings) ? result.value.ai_response.warnings : []),
+    ];
+
+    return [...details, ...warnings]
+        .map((item) => String(item ?? '').trim())
+        .filter((item, index, all) => item !== '' && all.indexOf(item) === index);
+});
 const compactDebug = computed(() => {
     if (!result.value) return null;
 
@@ -71,6 +155,7 @@ const compactDebug = computed(() => {
         variant_reason: result.value.variant_reason,
         gop_score: result.value.gop_score,
         gop_decision: result.value.gop_decision,
+        acoustic_gop: acousticGop.value,
         phonetic_similarity_score: result.value.phonetic_similarity_score,
         dynamic_correction_confidence: result.value.dynamic_correction_confidence,
         dynamic_spelling_similarity: result.value.dynamic_spelling_similarity,
@@ -615,6 +700,18 @@ const rejectAndContinue = () => {
 
                         <!-- Results -->
                         <div v-else key="asr-results" class="mt-4 grid gap-4">
+                            <div v-if="failureDetails.length" class="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+                                <div class="flex items-start gap-2">
+                                    <AlertTriangle class="mt-0.5 size-4 shrink-0" />
+                                    <div class="min-w-0">
+                                        <p class="font-extrabold">Failure details</p>
+                                        <ul class="mt-2 space-y-1 font-semibold">
+                                            <li v-for="detail in failureDetails" :key="detail" class="break-words">{{ detail }}</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- Transcript cards with colored left borders -->
                             <div class="grid gap-3 sm:grid-cols-2">
                                 <div class="rounded-2xl border border-border/60 border-l-[3px] border-l-slate-300 p-4 flex flex-col ts-result-card" style="--delay: 0ms">
@@ -719,11 +816,94 @@ const rejectAndContinue = () => {
                                 </div>
                                 <div class="flex flex-col min-w-0 rounded-xl bg-surface px-3.5 py-2.5 transition-colors duration-150 hover:bg-blue-50/60 ts-result-card" style="--delay: 400ms">
                                     <p class="text-[11px] font-bold uppercase tracking-wider text-muted mb-1">GOP</p>
-                                    <p class="font-mono text-xs font-semibold text-text break-words whitespace-pre-wrap max-h-24 overflow-y-auto">{{ result.gop_score ?? 'Not reported' }} <span v-if="result.gop_decision">({{ result.gop_decision }})</span></p>
+                                    <p class="font-mono text-xs font-semibold text-text break-words whitespace-pre-wrap max-h-24 overflow-y-auto">{{ gopMetricText }} <span v-if="result.gop_decision">({{ result.gop_decision }})</span></p>
                                 </div>
                                 <div class="flex flex-col min-w-0 rounded-xl bg-surface px-3.5 py-2.5 transition-colors duration-150 hover:bg-blue-50/60 ts-result-card" style="--delay: 440ms">
                                     <p class="text-[11px] font-bold uppercase tracking-wider text-muted mb-1">Word accuracy</p>
                                     <p class="font-mono text-xs font-semibold text-text break-words whitespace-pre-wrap max-h-24 overflow-y-auto">{{ result.scoring?.word_accuracy ?? 'Not reported' }}</p>
+                                </div>
+                            </div>
+
+                            <div v-if="acousticGop" class="rounded-2xl border border-border/60 bg-surface p-4 ts-result-card" style="--delay: 480ms">
+                                <div class="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                                    <div>
+                                        <p class="text-[11px] font-bold uppercase tracking-wider text-muted">Acoustic GOP</p>
+                                        <p class="mt-1 text-sm font-semibold text-text">Frame-level phoneme evidence from the Wav2Vec2 phoneme model.</p>
+                                    </div>
+                                    <span
+                                        class="inline-flex w-fit rounded-full px-3 py-1 text-[11px] font-bold"
+                                        :class="{
+                                            'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/70': acousticGop.supported === true && acousticGop.alignment !== 'failed',
+                                            'bg-amber-50 text-amber-700 ring-1 ring-amber-200/70': acousticGop.fallback === true || acousticGop.supported === false,
+                                            'bg-red-50 text-red-700 ring-1 ring-red-200/70': acousticGop.alignment === 'failed' && acousticGop.error,
+                                            'bg-slate-50 text-slate-700 ring-1 ring-slate-200/70': acousticGop.supported == null && acousticGop.fallback == null
+                                        }"
+                                    >
+                                        {{ acousticGop.enabled === false ? 'GOP: Off' : acousticGop.supported === true ? 'GOP: Active' : acousticGop.fallback === true ? 'GOP: Fallback' : acousticGop.alignment === 'failed' ? 'GOP: Failed' : acousticGop.supported === false ? 'GOP: Not supported' : 'GOP: Not reported' }}
+                                    </span>
+                                </div>
+
+                                <div class="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                                    <div class="rounded-xl bg-background/70 px-3 py-2">
+                                        <p class="text-[11px] font-bold uppercase tracking-wider text-muted">Enabled / supported</p>
+                                        <p class="mt-1 font-mono text-xs font-semibold text-text">{{ reported(acousticGop.enabled) }} / {{ reported(acousticGop.supported) }}</p>
+                                    </div>
+                                    <div class="rounded-xl bg-background/70 px-3 py-2">
+                                        <p class="text-[11px] font-bold uppercase tracking-wider text-muted">Alignment</p>
+                                        <p class="mt-1 font-mono text-xs font-semibold text-text">{{ reported(acousticGop.alignment) }}</p>
+                                    </div>
+                                    <div class="rounded-xl bg-background/70 px-3 py-2">
+                                        <p class="text-[11px] font-bold uppercase tracking-wider text-muted">Overall GOP</p>
+                                        <p class="mt-1 font-mono text-xs font-semibold text-text">{{ formatScore(acousticGop.overall) }}</p>
+                                    </div>
+                                    <div class="rounded-xl bg-background/70 px-3 py-2">
+                                        <p class="text-[11px] font-bold uppercase tracking-wider text-muted">Model</p>
+                                        <p class="mt-1 break-all font-mono text-xs font-semibold text-text">{{ reported(acousticGop.model) }}</p>
+                                    </div>
+                                    <div class="rounded-xl bg-background/70 px-3 py-2">
+                                        <p class="text-[11px] font-bold uppercase tracking-wider text-muted">Weak phoneme</p>
+                                        <p class="mt-1 font-mono text-xs font-semibold text-text">{{ reported(acousticGop.weakPhoneme) }} / {{ formatScore(acousticGop.weakScore) }}</p>
+                                    </div>
+                                    <div class="rounded-xl bg-background/70 px-3 py-2">
+                                        <p class="text-[11px] font-bold uppercase tracking-wider text-muted">Nearest confusion</p>
+                                        <p class="mt-1 font-mono text-xs font-semibold text-text">{{ reported(acousticGop.nearest) }}</p>
+                                    </div>
+                                    <div class="rounded-xl bg-background/70 px-3 py-2">
+                                        <p class="text-[11px] font-bold uppercase tracking-wider text-muted">Expected phonemes</p>
+                                        <p class="mt-1 break-words font-mono text-xs font-semibold text-text">{{ reported(acousticGop.expected) }}</p>
+                                    </div>
+                                    <div class="rounded-xl bg-background/70 px-3 py-2">
+                                        <p class="text-[11px] font-bold uppercase tracking-wider text-muted">Decoded acoustic phonemes</p>
+                                        <p class="mt-1 break-words font-mono text-xs font-semibold text-text">{{ reported(acousticGop.decoded) }}</p>
+                                    </div>
+                                </div>
+
+                                <div v-if="acousticGop.error || acousticGop.fallback === true" class="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 ring-1 ring-amber-200/70">
+                                    <span v-if="acousticGop.error">Error: {{ acousticGop.error }}.</span>
+                                    <span v-if="acousticGop.fallback === true"> Fallback: existing expected-centric logic used.</span>
+                                </div>
+
+                                <div v-if="acousticGop.phonemeScores.length" class="mt-3 overflow-x-auto rounded-xl border border-border/60">
+                                    <table class="min-w-full text-left text-xs">
+                                        <thead class="bg-background text-[11px] font-bold uppercase tracking-wider text-muted">
+                                            <tr>
+                                                <th class="px-3 py-2">Phoneme</th>
+                                                <th class="px-3 py-2">Score</th>
+                                                <th class="px-3 py-2">Status</th>
+                                                <th class="px-3 py-2">Range</th>
+                                                <th class="px-3 py-2">Competitor</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr v-for="(phone, index) in acousticGop.phonemeScores" :key="`${phone.phoneme ?? phone.phone ?? index}-${index}`" class="border-t border-border/50">
+                                                <td class="px-3 py-2 font-mono font-bold text-text">{{ phone.phoneme ?? phone.phone ?? '' }}</td>
+                                                <td class="px-3 py-2 font-mono font-semibold text-text">{{ formatScore(phone.score ?? phone.gop_score) }}</td>
+                                                <td class="px-3 py-2 font-semibold text-text">{{ reported(phone.status) }}</td>
+                                                <td class="px-3 py-2 font-mono text-muted">{{ phone.start_ms ?? '...' }}-{{ phone.end_ms ?? '...' }} ms</td>
+                                                <td class="px-3 py-2 font-mono text-muted">{{ reported(phone.nearest_competitor ?? phone.nearest_confusion) }} <span v-if="phone.competitor_score != null">({{ formatScore(phone.competitor_score) }})</span></td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
 

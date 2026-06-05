@@ -88,6 +88,9 @@ class ReadirectAIService
         $gopThresholds = data_get($health, 'thresholds.gop')
             ?? data_get($version, 'config.gop')
             ?? [];
+        $gopEnabled = (bool) data_get($gopThresholds, 'enabled', false);
+        $phonemeAvailable = (bool) ($health['wav2vec2_phoneme_available'] ?? false);
+        $gopStatus = $health['gop_status'] ?? (! $gopEnabled ? 'Off' : ($phonemeAvailable ? 'Ready' : 'Failed'));
         $dynamicCorrectionThresholds = data_get($health, 'thresholds.dynamic_expected_correction')
             ?? data_get($version, 'config.dynamic_expected_correction')
             ?? [];
@@ -126,6 +129,8 @@ class ReadirectAIService
             'expected_centric_scoring_enabled' => $health['expected_centric_scoring_enabled'] ?? null,
             'phoneme_evidence_enabled' => $health['phoneme_evidence_enabled'] ?? null,
             'gop_enabled' => data_get($gopThresholds, 'enabled'),
+            'gop_status' => $gopStatus,
+            'gop_model_version' => data_get($gopThresholds, 'model_version') ?? data_get($gopThresholds, 'model_name'),
             'gop_thresholds' => $gopThresholds,
             'dynamic_expected_correction_enabled' => data_get($dynamicCorrectionThresholds, 'enabled'),
             'dynamic_expected_correction_thresholds' => $dynamicCorrectionThresholds,

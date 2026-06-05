@@ -202,6 +202,10 @@ class ModuleActivitySelectionService
             return true;
         }
 
+        if (($payload['module_key'] ?? null) === 'module_1' && IsolatedLetterSet::isExcluded($letter)) {
+            return false;
+        }
+
         $promptIsSingleLetter = IsolatedLetterSet::normalize($content?->prompt ?? $activity->title) === $letter;
         if (! $promptIsSingleLetter && ! IsolatedLetterSet::isIsolatedLetterActivity($activity->activity_type, $payload, $content?->content_type)) {
             return true;

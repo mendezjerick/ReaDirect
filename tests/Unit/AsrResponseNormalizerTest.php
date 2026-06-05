@@ -51,12 +51,33 @@ class AsrResponseNormalizerTest extends TestCase
             'gop_threshold' => 0.75,
             'gop_expected_phonemes' => ['L', 'IY', 'OW'],
             'gop_observed_phonemes' => ['L', 'EY', 'OW'],
+            'canonical_expected_phonemes' => ['L', 'IY', 'OW'],
+            'decoded_acoustic_phonemes' => ['L', 'EY', 'OW'],
+            'overall_gop_score' => 0.82,
+            'phoneme_scores' => [
+                ['phoneme' => 'IY', 'score' => 0.41, 'status' => 'weak', 'nearest_competitor' => 'EY'],
+            ],
+            'weak_phoneme' => 'IY',
+            'weak_phoneme_score' => 0.41,
+            'nearest_confusion' => 'EY',
+            'alignment_quality' => 'usable',
+            'gop_model_version' => 'existing_wavtec_phoneme_model',
+            'gop_fallback_used' => false,
             'gop_correction_applied' => true,
         ]);
 
         $this->assertSame(0.82, $result['gop_score']);
+        $this->assertSame(0.82, $result['overall_gop_score']);
         $this->assertSame('accepted_by_pronunciation_evidence', $result['gop_decision']);
         $this->assertSame(['L', 'IY', 'OW'], $result['gop_expected_phonemes']);
+        $this->assertSame(['L', 'IY', 'OW'], $result['canonical_expected_phonemes']);
+        $this->assertSame(['L', 'EY', 'OW'], $result['decoded_acoustic_phonemes']);
+        $this->assertSame('IY', $result['weak_phoneme']);
+        $this->assertSame(0.41, $result['weak_phoneme_score']);
+        $this->assertSame('EY', $result['nearest_confusion']);
+        $this->assertSame('usable', $result['alignment_quality']);
+        $this->assertSame('existing_wavtec_phoneme_model', $result['gop_model_version']);
+        $this->assertFalse($result['gop_fallback_used']);
         $this->assertTrue($result['gop_correction_applied']);
     }
 
