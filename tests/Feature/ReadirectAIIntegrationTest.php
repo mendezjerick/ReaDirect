@@ -52,6 +52,28 @@ class ReadirectAIIntegrationTest extends TestCase
             && $request['actual_text'] === 'cap');
     }
 
+    public function test_readirect_ai_service_extends_timeout_for_passage_audio(): void
+    {
+        config([
+            'readirect_ai.timeout_seconds' => 60,
+            'readirect_ai.passage_timeout_seconds' => 180,
+            'readirect_ai.max_timeout_seconds' => 300,
+        ]);
+
+        $service = app(ReadirectAIService::class);
+        $method = new \ReflectionMethod($service, 'timeoutForAudioPayload');
+        $method->setAccessible(true);
+
+        $timeout = $method->invoke($service, [
+            'prompt_type' => 'reading_passage',
+            'content_metadata' => [
+                'duration_seconds' => 48,
+            ],
+        ]);
+
+        $this->assertSame(237, $timeout);
+    }
+
     public function test_ai_analysis_resolver_prefers_ai_audio_response_and_stores_audio_fields(): void
     {
         Storage::fake('local');

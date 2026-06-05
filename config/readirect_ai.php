@@ -5,6 +5,8 @@ return [
     'base_url' => env('AI_ASR_SERVICE_URL', env('READIRECT_AI_BASE_URL', 'http://127.0.0.1:8001')),
     'api_token' => env('READIRECT_AI_API_TOKEN'),
     'timeout_seconds' => (int) env('READIRECT_AI_TIMEOUT_SECONDS', 60),
+    'passage_timeout_seconds' => (int) env('READIRECT_AI_PASSAGE_TIMEOUT_SECONDS', 180),
+    'max_timeout_seconds' => (int) env('READIRECT_AI_MAX_TIMEOUT_SECONDS', 300),
     'asr_architecture' => env('ASR_ARCHITECTURE', 'wav2vec2_only'),
     'use_corrected_transcript_for_scoring' => filter_var(env('USE_CORRECTED_TRANSCRIPT_FOR_SCORING', true), FILTER_VALIDATE_BOOLEAN),
     'use_displayed_transcript_for_learner_ui' => filter_var(env('USE_DISPLAYED_TRANSCRIPT_FOR_LEARNER_UI', true), FILTER_VALIDATE_BOOLEAN),

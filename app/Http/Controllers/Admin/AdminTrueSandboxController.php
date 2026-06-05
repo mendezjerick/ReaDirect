@@ -545,6 +545,16 @@ class AdminTrueSandboxController extends Controller
 
     private function extendAudioRequestTime(): void
     {
-        @set_time_limit(max(30, ((int) config('readirect_ai.timeout_seconds', 60)) + 15));
+        @set_time_limit($this->audioRequestTimeLimitSeconds());
+    }
+
+    private function audioRequestTimeLimitSeconds(): int
+    {
+        return max(
+            30,
+            ((int) config('readirect_ai.timeout_seconds', 60)) + 15,
+            ((int) config('readirect_ai.passage_timeout_seconds', 180)) + 30,
+            ((int) config('readirect_ai.max_timeout_seconds', 300)) + 30,
+        );
     }
 }

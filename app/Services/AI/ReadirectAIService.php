@@ -35,7 +35,7 @@ class ReadirectAIService
 
     public function analyzeAudio(array $payload): array
     {
-        return $this->post('analyze_audio', $payload);
+        return $this->post('analyze_audio', $payload, $this->timeoutForAudioPayload($payload));
     }
 
     public function recommendNext(array $payload): array
@@ -183,14 +183,14 @@ class ReadirectAIService
         }
     }
 
-    private function post(string $endpointKey, array $payload): array
+    private function post(string $endpointKey, array $payload, ?int $timeoutSeconds = null): array
     {
         if (! config('readirect_ai.enabled')) {
             return $this->disabledResponse();
         }
 
         try {
-            $response = $this->client()->post($this->url($endpointKey), $this->sanitizePayload($payload));
+            $response = $this->client($timeoutSeconds)->post($this->url($endpointKey), $this->sanitizePayload($payload));
 
             return $this->normalizeResponse($response->json(), $response->successful(), $response->status());
         } catch (Throwable $exception) {
@@ -198,9 +198,9 @@ class ReadirectAIService
         }
     }
 
-    private function client(): PendingRequest
+    private function client(?int $timeoutSeconds = null): PendingRequest
     {
-        $client = Http::timeout((int) config('readirect_ai.timeout_seconds', 60))
+        $client = Http::timeout($timeoutSeconds ?? (int) config('readirect_ai.timeout_seconds', 60))
             ->acceptJson()
             ->asJson();
 
@@ -211,6 +211,27 @@ class ReadirectAIService
         }
 
         return $client;
+    }
+
+    private function timeoutForAudioPayload(array $payload): int
+    {
+        $base = max(1, (int) config('readirect_ai.timeout_seconds', 60));
+        $max = max($base, (int) config('readirect_ai.max_timeout_seconds', 300));
+        $passageTimeout = max($base, (int) config('readirect_ai.passage_timeout_seconds', 180));
+        $promptType = strtolower((string) ($payload['prompt_type'] ?? $payload['task_type'] ?? ''));
+        $duration = (float) data_get($payload, 'content_metadata.duration_seconds', 0);
+
+        if (in_array($promptType, ['passage', 'paragraph', 'reading_passage', 'final_reading_passage'], true)) {
+            $durationTimeout = $duration > 0 ? (int) ceil(($duration * 4) + 45) : 0;
+
+            return min($max, max($passageTimeout, $durationTimeout));
+        }
+
+        if ($duration > 30) {
+            return min($max, max($base, (int) ceil(($duration * 4) + 45)));
+        }
+
+        return $base;
     }
 
     private function url(string $endpointKey): string

@@ -418,6 +418,21 @@ class AdminAreaTest extends TestCase
             && ! array_key_exists('learner_id', $request->data()));
     }
 
+    public function test_true_sandbox_audio_request_limit_covers_long_passage_timeout(): void
+    {
+        config([
+            'readirect_ai.timeout_seconds' => 60,
+            'readirect_ai.passage_timeout_seconds' => 180,
+            'readirect_ai.max_timeout_seconds' => 300,
+        ]);
+
+        $controller = app(\App\Http\Controllers\Admin\AdminTrueSandboxController::class);
+        $method = new \ReflectionMethod($controller, 'audioRequestTimeLimitSeconds');
+        $method->setAccessible(true);
+
+        $this->assertSame(330, $method->invoke($controller));
+    }
+
     public function test_admin_jump_targets_prepare_sessions_and_include_modules(): void
     {
         $admin = $this->userWithRole('system_admin');
