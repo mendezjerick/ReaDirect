@@ -21,6 +21,8 @@ const moduleId = ref('');
 const activityType = ref('');
 const items = ref(props.initialItems ?? []);
 const selectedItemId = ref(items.value[0]?.id ?? '');
+const sandboxMode = ref('single');
+const selectedLineItemIds = ref([]);
 const loadingItems = ref(false);
 const itemError = ref('');
 const currentFile = ref(null);
@@ -41,6 +43,36 @@ const selectedItem = computed(() => items.value.find((item) => item.id === selec
 const normalizedResult = computed(() => result.value ? normalizeAsrResponse(result.value) : null);
 const isModuleSection = computed(() => selectedSection.value?.source === 'module');
 const expectedText = computed(() => String(selectedItem.value?.expected_text ?? '').trim());
+const isWordLineMode = computed(() => sandboxMode.value === 'word_line');
+const isSingleWordTarget = (value) => {
+    const text = String(value ?? '').trim();
+
+    return text !== ''
+        && text.length <= 80
+        && /^[\p{L}\p{M}'-]+$/u.test(text)
+        && !/\s/.test(text);
+};
+const wordLineCandidateItems = computed(() => items.value.filter((item) => {
+    const expected = String(item?.expected_text ?? '').trim();
+    const promptType = String(item?.prompt_type ?? '').toLowerCase();
+    const contentType = String(item?.content_type ?? '').toLowerCase();
+    const activity = String(item?.activity_type ?? item?.task_type ?? '').toLowerCase();
+    const typeContext = `${promptType} ${contentType} ${activity}`;
+
+    return isSingleWordTarget(expected)
+        && !['letter', 'sentence', 'passage', 'paragraph', 'reading_passage'].includes(promptType)
+        && !(expected.length === 1 && typeContext.includes('letter'));
+}));
+const selectedLineItems = computed(() => selectedLineItemIds.value
+    .map((id) => wordLineCandidateItems.value.find((item) => item.id === id))
+    .filter(Boolean));
+const wordLineExpectedText = computed(() => selectedLineItems.value
+    .map((item) => String(item.expected_text ?? '').trim())
+    .filter(Boolean)
+    .join(' '));
+const activeExpectedText = computed(() => isWordLineMode.value ? wordLineExpectedText.value : expectedText.value);
+const activePromptText = computed(() => isWordLineMode.value ? wordLineExpectedText.value : (selectedItem.value?.prompt || expectedText.value));
+const hasRunnableTarget = computed(() => isWordLineMode.value ? selectedLineItems.value.length > 0 : Boolean(selectedItem.value));
 const hasWordAlignmentErrors = computed(() => (result.value?.word_alignment ?? []).some((word) => canAddWordReinforcement(word)));
 const canAddReinforcement = computed(() => (
     result.value
@@ -52,8 +84,15 @@ const canAddReinforcement = computed(() => (
     && String(result.value.raw_transcript ?? '').trim() !== ''
 ));
 const recorderPromptType = computed(() => {
+    if (isWordLineMode.value) return 'sentence';
+
     const type = String(selectedItem.value?.prompt_type ?? 'word');
     return type === 'reading_passage' ? 'passage' : type;
+});
+const recorderContextKey = computed(() => {
+    if (!isWordLineMode.value) return selectedItem.value?.id ?? 'none';
+
+    return selectedLineItemIds.value.length ? `word-line-${selectedLineItemIds.value.join('-')}` : 'word-line-empty';
 });
 const pickResultValue = (key, fallback = null) => (
     result.value?.[key] ?? result.value?.ai_response?.[key] ?? fallback
@@ -205,11 +244,13 @@ const loadItems = async () => {
 
         items.value = payload.items ?? [];
         selectedItemId.value = items.value[0]?.id ?? '';
+        selectedLineItemIds.value = [];
         recorderResetKey.value += 1;
     } catch (loadError) {
         itemError.value = loadError.message ?? 'Could not load True Sandbox items.';
         items.value = [];
         selectedItemId.value = '';
+        selectedLineItemIds.value = [];
     } finally {
         loadingItems.value = false;
     }
@@ -218,10 +259,39 @@ const loadItems = async () => {
 watch(section, () => {
     moduleId.value = '';
     activityType.value = '';
+    selectedLineItemIds.value = [];
     loadItems();
 });
 
 watch(selectedItemId, () => {
+    currentFile.value = null;
+    result.value = null;
+    error.value = '';
+    reinforcementMessage.value = '';
+    reinforcementError.value = '';
+    reinforcementCase.value = null;
+    wordReinforcementSubmitting.value = {};
+    wordReinforcementMessages.value = {};
+    wordReinforcementErrors.value = {};
+    recorderResetKey.value += 1;
+});
+
+watch(sandboxMode, () => {
+    currentFile.value = null;
+    result.value = null;
+    error.value = '';
+    reinforcementMessage.value = '';
+    reinforcementError.value = '';
+    reinforcementCase.value = null;
+    wordReinforcementSubmitting.value = {};
+    wordReinforcementMessages.value = {};
+    wordReinforcementErrors.value = {};
+    recorderResetKey.value += 1;
+});
+
+watch(selectedLineItemIds, () => {
+    if (!isWordLineMode.value) return;
+
     currentFile.value = null;
     result.value = null;
     error.value = '';
@@ -272,10 +342,58 @@ const appendItemPayload = (payload, item) => {
     (item.accepted_answers ?? []).forEach((answer) => payload.append('accepted_answers[]', answer));
 };
 
+const appendLinePayload = (payload) => {
+    const lineItems = selectedLineItems.value;
+
+    payload.append('section', section.value);
+    payload.append('item_id', `word_line:${lineItems.length}`);
+    payload.append('item_source', 'true_sandbox_word_line');
+    payload.append('expected_text', wordLineExpectedText.value);
+    payload.append('prompt_text', wordLineExpectedText.value);
+    payload.append('prompt_type', 'sentence');
+    payload.append('task_type', 'true_sandbox_word_line');
+    payload.append('activity_type', 'true_sandbox_word_line');
+    payload.append('assessment_type', 'true_sandbox_word_line');
+    payload.append('module_key', lineItems.find((item) => item.module?.key)?.module?.key ?? '');
+    payload.append('accepted_answers[]', wordLineExpectedText.value);
+    payload.append('content_metadata[mode]', 'word_line');
+    payload.append('content_metadata[line_text]', wordLineExpectedText.value);
+    payload.append('content_metadata[line_item_count]', String(lineItems.length));
+
+    lineItems.forEach((item, index) => {
+        payload.append(`content_metadata[line_items][${index}][id]`, item.id);
+        payload.append(`content_metadata[line_items][${index}][source]`, item.source ?? '');
+        payload.append(`content_metadata[line_items][${index}][source_id]`, String(item.source_id ?? ''));
+        payload.append(`content_metadata[line_items][${index}][expected_text]`, item.expected_text ?? '');
+        payload.append(`content_metadata[line_items][${index}][prompt_type]`, item.prompt_type ?? '');
+        payload.append(`content_metadata[line_items][${index}][task_type]`, item.task_type ?? '');
+        payload.append(`content_metadata[line_items][${index}][module_key]`, item.module?.key ?? '');
+    });
+};
+
+const toggleLineItem = (itemId) => {
+    if (selectedLineItemIds.value.includes(itemId)) {
+        selectedLineItemIds.value = selectedLineItemIds.value.filter((id) => id !== itemId);
+        return;
+    }
+
+    selectedLineItemIds.value = [...selectedLineItemIds.value, itemId];
+};
+
+const selectAllLineItems = () => {
+    selectedLineItemIds.value = wordLineCandidateItems.value.map((item) => item.id);
+};
+
+const clearLineItems = () => {
+    selectedLineItemIds.value = [];
+};
+
 const runAsr = async (file = currentFile.value) => {
     const item = selectedItem.value;
-    if (!item || !file) {
-        error.value = 'Choose an item and record audio first.';
+    if (!hasRunnableTarget.value || !file) {
+        error.value = isWordLineMode.value
+            ? 'Select one or more word items and record audio first.'
+            : 'Choose an item and record audio first.';
         return;
     }
 
@@ -296,7 +414,11 @@ const runAsr = async (file = currentFile.value) => {
             payload.append('duration_seconds', String(file.durationSeconds));
         }
         appendAudioMetadata(payload, file);
-        appendItemPayload(payload, item);
+        if (isWordLineMode.value) {
+            appendLinePayload(payload);
+        } else {
+            appendItemPayload(payload, item);
+        }
 
         const response = await fetch(props.routes.analyze, {
             method: 'POST',
@@ -534,8 +656,39 @@ const rejectAndContinue = () => {
                         </p>
                     </Transition>
 
+                    <div class="mt-4 grid gap-2">
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-muted">Sandbox item mode</span>
+                        <div class="grid grid-cols-2 rounded-xl border border-border/70 bg-background p-1">
+                            <button
+                                type="button"
+                                class="rounded-lg px-3 py-2 text-xs font-extrabold transition"
+                                :class="sandboxMode === 'single' ? 'bg-white text-primary shadow-sm ring-1 ring-primary/10' : 'text-muted hover:text-text'"
+                                @click="sandboxMode = 'single'"
+                            >
+                                Single item
+                            </button>
+                            <button
+                                type="button"
+                                class="rounded-lg px-3 py-2 text-xs font-extrabold transition"
+                                :class="sandboxMode === 'word_line' ? 'bg-white text-primary shadow-sm ring-1 ring-primary/10' : 'text-muted hover:text-text'"
+                                @click="sandboxMode = 'word_line'"
+                            >
+                                Word line
+                            </button>
+                        </div>
+                    </div>
+
                     <div class="mt-4 grid gap-1.5">
-                        <span class="text-[11px] font-bold uppercase tracking-wider text-muted">Test item ({{ items.length }} loaded)</span>
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-[11px] font-bold uppercase tracking-wider text-muted">
+                                {{ isWordLineMode ? 'Line words' : 'Test item' }}
+                                ({{ isWordLineMode ? wordLineCandidateItems.length : items.length }} loaded)
+                            </span>
+                            <div v-if="isWordLineMode && wordLineCandidateItems.length" class="flex items-center gap-2">
+                                <button type="button" class="text-[11px] font-bold text-primary hover:text-primary-dark" @click="selectAllLineItems">Select all</button>
+                                <button type="button" class="text-[11px] font-bold text-muted hover:text-text" @click="clearLineItems">Clear</button>
+                            </div>
+                        </div>
                         <div class="flex flex-col max-h-64 sm:max-h-80 overflow-y-auto rounded-xl border border-border/60 bg-white shadow-inner">
                             <!-- Loading skeleton for items -->
                             <template v-if="loadingItems">
@@ -545,7 +698,7 @@ const rejectAndContinue = () => {
                                     </div>
                                 </div>
                             </template>
-                            <template v-else>
+                            <template v-else-if="!isWordLineMode">
                                 <button
                                     v-for="item in items"
                                     :key="item.id"
@@ -561,37 +714,64 @@ const rejectAndContinue = () => {
                                     <p class="text-sm font-medium">No items found.</p>
                                 </div>
                             </template>
+                            <template v-else>
+                                <label
+                                    v-for="item in wordLineCandidateItems"
+                                    :key="item.id"
+                                    class="flex cursor-pointer items-center gap-3 border-b border-border/40 px-3 py-2.5 text-sm font-semibold text-text transition hover:bg-slate-50"
+                                    :class="selectedLineItemIds.includes(item.id) ? 'bg-primary/6 text-primary border-l-[3px] border-l-primary' : ''"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        class="size-4 rounded border-border text-primary focus:ring-primary/20"
+                                        :checked="selectedLineItemIds.includes(item.id)"
+                                        @change="toggleLineItem(item.id)"
+                                    >
+                                    <span class="min-w-0 flex-1 truncate">{{ item.expected_text }}</span>
+                                    <span class="shrink-0 rounded bg-background px-2 py-1 text-[10px] font-bold uppercase text-muted">{{ item.source }}</span>
+                                </label>
+                                <div v-if="wordLineCandidateItems.length === 0" class="flex flex-col items-center gap-2 px-3 py-8 text-center text-muted">
+                                    <FileSearch class="size-6 text-slate-300" />
+                                    <p class="text-sm font-medium">No single-word items found in this section.</p>
+                                </div>
+                            </template>
                         </div>
                     </div>
                 </DashboardCard>
 
                 <!-- Selected Prompt -->
                 <Transition name="ts-card-slide">
-                    <DashboardCard v-if="selectedItem" class="card-in" style="animation-delay: 80ms">
+                    <DashboardCard v-if="hasRunnableTarget" class="card-in" style="animation-delay: 80ms">
                         <div class="mb-4 flex items-center gap-2.5">
                             <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-500">
                                 <Search class="size-4" />
                             </div>
-                            <h2 class="text-sm font-bold text-text">Selected Prompt</h2>
+                            <h2 class="text-sm font-bold text-text">{{ isWordLineMode ? 'Selected Word Line' : 'Selected Prompt' }}</h2>
                         </div>
                         <div class="grid gap-3 text-sm">
                             <div class="flex flex-col">
                                 <p class="text-[11px] font-bold uppercase tracking-wider text-muted mb-1.5">Expected text</p>
                                 <div class="rounded-xl bg-primary/5 border border-primary/10 px-3.5 py-2.5 transition-all duration-200">
-                                    <p class="font-bold text-primary break-words whitespace-pre-wrap">{{ expectedText }}</p>
+                                    <p class="font-bold text-primary break-words whitespace-pre-wrap">{{ activeExpectedText }}</p>
                                 </div>
                             </div>
                             <div class="flex flex-col">
                                 <p class="text-[11px] font-bold uppercase tracking-wider text-muted mb-1.5">Prompt</p>
                                 <div class="rounded-xl bg-background border border-border/60 px-3.5 py-2.5 max-h-40 overflow-y-auto">
-                                    <p class="font-semibold text-text break-words whitespace-pre-wrap">{{ selectedItem.prompt || expectedText }}</p>
+                                    <p class="font-semibold text-text break-words whitespace-pre-wrap">{{ activePromptText }}</p>
                                 </div>
                             </div>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div v-if="!isWordLineMode" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                 <span class="flex items-center rounded-lg bg-background px-3 py-2 text-[11px] font-bold text-muted truncate transition-colors duration-150 hover:bg-slate-100" :title="selectedItem.prompt_type">Prompt: {{ selectedItem.prompt_type }}</span>
                                 <span class="flex items-center rounded-lg bg-background px-3 py-2 text-[11px] font-bold text-muted truncate transition-colors duration-150 hover:bg-slate-100" :title="selectedItem.task_type">Task: {{ selectedItem.task_type }}</span>
                                 <span v-if="selectedItem.module" class="flex items-center rounded-lg bg-background px-3 py-2 text-[11px] font-bold text-muted truncate transition-colors duration-150 hover:bg-slate-100" :title="selectedItem.module.title">Module: {{ selectedItem.module.title }}</span>
                                 <span class="flex items-center rounded-lg bg-background px-3 py-2 text-[11px] font-bold text-muted truncate transition-colors duration-150 hover:bg-slate-100" :title="selectedItem.source">Source: {{ selectedItem.source }}</span>
+                            </div>
+                            <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <span class="flex items-center rounded-lg bg-background px-3 py-2 text-[11px] font-bold text-muted truncate transition-colors duration-150 hover:bg-slate-100">Prompt: sentence</span>
+                                <span class="flex items-center rounded-lg bg-background px-3 py-2 text-[11px] font-bold text-muted truncate transition-colors duration-150 hover:bg-slate-100">Words: {{ selectedLineItems.length }}</span>
+                                <span class="flex items-center rounded-lg bg-background px-3 py-2 text-[11px] font-bold text-muted truncate transition-colors duration-150 hover:bg-slate-100">Task: true_sandbox_word_line</span>
+                                <span class="flex items-center rounded-lg bg-background px-3 py-2 text-[11px] font-bold text-muted truncate transition-colors duration-150 hover:bg-slate-100">Source: True Sandbox only</span>
                             </div>
                         </div>
                     </DashboardCard>
@@ -599,12 +779,12 @@ const rejectAndContinue = () => {
 
                 <!-- Audio Recorder -->
                 <Transition name="ts-card-slide">
-                    <DashboardCard v-if="selectedItem" class="card-in" style="animation-delay: 160ms">
+                    <DashboardCard v-if="hasRunnableTarget" class="card-in" style="animation-delay: 160ms">
                         <AudioRecorder
-                            :key="`${selectedItem.id}-${recorderResetKey}`"
-                            :reset-key="`${selectedItem.id}-${recorderResetKey}`"
-                            :max-duration-seconds="recorderPromptType === 'passage' ? 90 : 30"
-                            :min-duration-seconds="recorderPromptType === 'passage' ? 1 : 0.5"
+                            :key="`${recorderContextKey}-${recorderResetKey}`"
+                            :reset-key="`${recorderContextKey}-${recorderResetKey}`"
+                            :max-duration-seconds="isWordLineMode || recorderPromptType === 'passage' ? 90 : 30"
+                            :min-duration-seconds="isWordLineMode || recorderPromptType === 'passage' ? 1 : 0.5"
                             :prompt-type="recorderPromptType"
                             :cue-delay-ms="0"
                             :min-speech-duration-seconds="0"
