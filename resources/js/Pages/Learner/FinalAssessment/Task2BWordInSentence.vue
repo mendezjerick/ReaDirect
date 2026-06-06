@@ -7,8 +7,6 @@ import AudioRecorder from '../../../Components/Learner/AudioRecorder.vue';
 import PrimaryButton from '../../../Components/PrimaryButton.vue';
 import SecondaryButton from '../../../Components/SecondaryButton.vue';
 import BottomActionBar from '../../../Components/BottomActionBar.vue';
-import StatusBadge from '../../../Components/StatusBadge.vue';
-import ModuleProgressBar from '../../../Components/ModuleProgressBar.vue';
 import { useStepAssessment } from '../../../Composables/useStepAssessment';
 import { appendAudioMetadata, normalizeAsrResponse } from '../../../utils/asrResponse';
 
@@ -237,23 +235,42 @@ const handlePrimary = async () => {
         <template #agent>
             <AgentSpeakerPanel compact agent-type="assessment" :state="agentState" :message="agentMessage" />
         </template>
-        <section class="mx-auto grid max-w-xl gap-3">
-            <div class="flex items-center justify-between">
-                <StatusBadge :status="`Word ${step.currentIndex.value + 1} of ${items.length}`" />
-                <StatusBadge :status="isCurrentUploading ? 'Checking' : 'Voice check'" variant="primary" />
+
+        <section class="relative mx-auto grid w-full max-w-[960px] gap-4 sm:gap-5 xl:gap-6">
+            <span class="pointer-events-none absolute -left-14 top-12 hidden text-4xl font-black text-primary/5 xl:block" aria-hidden="true">✦</span>
+            <span class="pointer-events-none absolute -right-8 bottom-12 hidden text-3xl font-black text-primary/5 xl:block" aria-hidden="true">✦</span>
+            <div class="pointer-events-none absolute -left-20 top-0 h-40 w-40 rounded-full bg-primary/5 blur-3xl" aria-hidden="true" />
+            <div class="pointer-events-none absolute -right-16 bottom-0 h-40 w-40 rounded-full bg-blue-400/5 blur-3xl" aria-hidden="true" />
+
+            <!-- Progress header -->
+            <div class="anim-fade-down grid gap-3 px-1">
+                <div class="flex items-center justify-between">
+                    <span class="rounded-full bg-primary/5 px-3.5 py-1.5 text-[13px] font-black text-primary ring-1 ring-primary/10">
+                        Word {{ step.currentIndex.value + 1 }} of {{ items.length }}
+                    </span>
+                    <span class="rounded-full bg-primary/8 px-3.5 py-1.5 text-[13px] font-black text-primary ring-1 ring-primary/15">
+                        {{ isCurrentUploading ? '🔄 Checking' : '🎙️ Voice check' }}
+                    </span>
+                </div>
+                <div class="h-3.5 overflow-hidden rounded-full bg-slate-100 shadow-inner">
+                    <div class="h-full rounded-full bg-gradient-to-r from-primary to-blue-500 shadow-sm shadow-primary/30 transition-all duration-500 ease-out" :style="{ width: `${step.progressPercent.value}%` }" />
+                </div>
             </div>
-            <ModuleProgressBar :value="step.progressPercent.value" />
-            <div class="rounded-[28px] border border-border bg-surface p-5 text-center shadow-xl shadow-primary/10">
-                <p class="text-base font-black text-muted">Read the highlighted word</p>
-                <p class="mt-3 text-2xl font-black leading-snug text-text md:text-3xl">
+
+            <!-- Sentence prompt card -->
+            <div class="anim-card relative overflow-hidden rounded-[36px] border-[3px] border-primary/10 bg-white p-6 text-center shadow-2xl shadow-primary/10 sm:p-7">
+                <p class="text-base font-black text-slate-400">Read the highlighted word</p>
+                <p class="mt-3 text-2xl font-black leading-snug text-slate-800 md:text-3xl">
                     <template v-for="(part, index) in parts(step.currentItem.value)" :key="index">
-                        <mark v-if="part.toLowerCase() === (step.currentItem.value.payload?.target_word ?? '').toLowerCase()" class="rounded-xl bg-accent px-2">{{ part }}</mark>
+                        <mark v-if="part.toLowerCase() === (step.currentItem.value.payload?.target_word ?? '').toLowerCase()" class="rounded-xl bg-primary/8 px-2 text-primary">{{ part }}</mark>
                         <span v-else>{{ part }}</span>
                     </template>
                 </p>
             </div>
-            <div class="rounded-[24px] border border-border bg-surface p-4 shadow-lg shadow-primary/10">
-                <div class="grid gap-3 md:grid-cols-[220px_1fr] md:items-center">
+
+            <!-- Recording card -->
+            <div class="anim-card relative overflow-hidden rounded-[36px] border-[3px] border-primary/10 bg-white p-6 shadow-2xl shadow-primary/10 sm:p-7">
+                <div class="grid gap-4 md:grid-cols-[220px_1fr] md:items-center">
                     <AudioRecorder
                         :key="step.currentItem.value.id"
                         :reset-key="step.currentItem.value.id"
@@ -280,11 +297,12 @@ const handlePrimary = async () => {
                         </label>
                     </div>
                 </div>
-                <p v-if="uploadErrors[step.currentItem.value.id]" class="mt-4 rounded-2xl bg-warning/15 px-4 py-3 text-sm font-black text-warning">{{ uploadErrors[step.currentItem.value.id] }}</p>
-                <p v-if="firstFormError" class="mt-4 rounded-2xl bg-warning/15 px-4 py-3 text-sm font-black text-warning">{{ firstFormError }}</p>
-                <p v-if="step.feedback.value" class="mt-4 rounded-2xl bg-accent px-4 py-3 text-lg font-black text-text">{{ step.feedback.value }}</p>
+                <p v-if="uploadErrors[step.currentItem.value.id]" class="mt-4 rounded-[20px] bg-amber-50 px-4 py-3 text-[13px] font-semibold text-amber-700 ring-1 ring-amber-200/60">{{ uploadErrors[step.currentItem.value.id] }}</p>
+                <p v-if="firstFormError" class="mt-4 rounded-[20px] bg-amber-50 px-4 py-3 text-[13px] font-semibold text-amber-700 ring-1 ring-amber-200/60">{{ firstFormError }}</p>
+                <p v-if="step.feedback.value" class="mt-4 rounded-[20px] bg-amber-50 px-4 py-3 text-[13px] font-semibold text-amber-700 ring-1 ring-amber-200/60">{{ step.feedback.value }}</p>
             </div>
         </section>
+
         <BottomActionBar>
             <div class="flex w-full items-center justify-between gap-3">
                 <SecondaryButton v-if="canUseDeveloperJumpControls && !step.isFirst.value" @click="step.goBack">Developer QA: Back</SecondaryButton>
@@ -296,3 +314,20 @@ const handlePrimary = async () => {
         </BottomActionBar>
     </LearnerLayout>
 </template>
+
+<style scoped>
+.anim-card {
+    animation: cardSpring 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+@keyframes cardSpring {
+    from { opacity: 0; transform: scale(0.92) translateY(20px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.anim-fade-down {
+    animation: fadeDown 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-12px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+</style>

@@ -6,7 +6,6 @@ import AudioRecorder from '../../../Components/Learner/AudioRecorder.vue';
 import AgentSpeakerPanel from '../../../Components/Learner/AgentSpeakerPanel.vue';
 import PrimaryButton from '../../../Components/PrimaryButton.vue';
 import BottomActionBar from '../../../Components/BottomActionBar.vue';
-import StatusBadge from '../../../Components/StatusBadge.vue';
 import { appendAudioMetadata, normalizeAsrResponse } from '../../../utils/asrResponse';
 
 const props = defineProps({
@@ -152,46 +151,86 @@ const submit = () => {
                 message="This is your final reading check. Read the passage aloud and try your best."
             />
         </template>
-        <div class="mx-auto grid max-w-2xl gap-3">
-            <div class="flex items-center justify-between">
-                <StatusBadge status="50 words" />
-                <StatusBadge status="Max 60 seconds" variant="warning" />
-            </div>
-            <section class="max-h-[34vh] overflow-y-auto rounded-[28px] border border-border bg-surface p-5 shadow-xl shadow-primary/10 lg:max-h-[42vh]">
-                <p class="text-2xl font-black leading-relaxed text-text md:text-[28px]">{{ passage.prompt }}</p>
-            </section>
-            <div class="grid gap-3 rounded-[24px] border border-border bg-surface p-4 shadow-lg shadow-primary/10 md:grid-cols-[220px_1fr]">
-                <AudioRecorder
-                    compact
-                    :max-duration-seconds="60"
-                    prompt-type="passage"
-                    :require-review-before-submit="requireReviewBeforeSubmit"
-                    :auto-transcribe-on-stop="autoTranscribeOnStop"
-                    :submitting="uploading"
-                    :submitted="Boolean(form.audio_file_id) && !uploadError"
-                    label="Passage voice"
-                    @recorded="rememberAudio"
-                    @submit="uploadTranscript"
-                    @cleared="clearAudio"
-                />
-                <div class="grid gap-3">
-                    <label class="grid gap-2 text-lg font-black text-text">
-                        You said
-                        <div class="learner-transcript-box rounded-2xl border-2 border-border font-black text-text">
-                            <span v-if="transcript">{{ transcript }}</span>
-                            <span v-else class="text-muted">{{ uploading ? 'Checking your recording...' : 'Your words will appear here' }}</span>
-                        </div>
-                    </label>
-                    <label v-if="canUseManualFallback" class="grid content-center gap-2 text-lg font-black text-text">
-                        Developer QA: Incorrect Words Override
-                        <input v-model="form.incorrect_words" type="number" min="0" max="50" class="rounded-2xl border-2 border-border px-4 py-3 text-lg font-black focus:border-primary focus:outline-none">
-                    </label>
-                    <p v-if="uploadError" class="rounded-2xl bg-warning/15 px-4 py-3 text-sm font-black text-warning">{{ uploadError }}</p>
+
+        <section class="relative mx-auto grid w-full max-w-[960px] gap-4 sm:gap-5 xl:gap-6">
+            <span class="pointer-events-none absolute -left-14 top-12 hidden text-4xl font-black text-primary/5 xl:block" aria-hidden="true">✦</span>
+            <span class="pointer-events-none absolute -right-8 bottom-12 hidden text-3xl font-black text-primary/5 xl:block" aria-hidden="true">✦</span>
+            <div class="pointer-events-none absolute -left-20 top-0 h-40 w-40 rounded-full bg-primary/5 blur-3xl" aria-hidden="true" />
+            <div class="pointer-events-none absolute -right-16 bottom-0 h-40 w-40 rounded-full bg-blue-400/5 blur-3xl" aria-hidden="true" />
+
+            <!-- Progress header -->
+            <div class="anim-fade-down grid gap-3 px-1">
+                <div class="flex items-center justify-between">
+                    <span class="rounded-full bg-primary/5 px-3.5 py-1.5 text-[13px] font-black text-primary ring-1 ring-primary/10">
+                        📜 50 words
+                    </span>
+                    <span class="rounded-full bg-amber-50 px-3.5 py-1.5 text-[13px] font-black text-amber-600 ring-1 ring-amber-200/60">
+                        ⏱️ Max 60 seconds
+                    </span>
+                </div>
+                <div class="h-3.5 overflow-hidden rounded-full bg-slate-100 shadow-inner">
+                    <div class="h-full w-full rounded-full bg-gradient-to-r from-primary to-blue-500 shadow-sm shadow-primary/30" />
                 </div>
             </div>
-        </div>
+
+            <!-- Passage card -->
+            <section class="anim-card relative max-h-[34vh] overflow-y-auto overflow-hidden rounded-[36px] border-[3px] border-primary/10 bg-white p-6 shadow-2xl shadow-primary/10 sm:p-7 lg:max-h-[42vh]" aria-label="Reading passage">
+                <p class="text-2xl font-black leading-relaxed text-slate-800 md:text-[28px]">{{ passage.prompt }}</p>
+            </section>
+
+            <!-- Recording card -->
+            <div class="anim-card relative overflow-hidden rounded-[36px] border-[3px] border-primary/10 bg-white p-6 shadow-2xl shadow-primary/10 sm:p-7">
+                <div class="grid gap-4 md:grid-cols-[220px_1fr]">
+                    <AudioRecorder
+                        compact
+                        :max-duration-seconds="60"
+                        prompt-type="passage"
+                        :require-review-before-submit="requireReviewBeforeSubmit"
+                        :auto-transcribe-on-stop="autoTranscribeOnStop"
+                        :submitting="uploading"
+                        :submitted="Boolean(form.audio_file_id) && !uploadError"
+                        label="Passage voice"
+                        @recorded="rememberAudio"
+                        @submit="uploadTranscript"
+                        @cleared="clearAudio"
+                    />
+                    <div class="grid gap-3">
+                        <label class="grid gap-2 text-lg font-black text-text">
+                            You said
+                            <div class="learner-transcript-box rounded-2xl border-2 border-border font-black text-text">
+                                <span v-if="transcript">{{ transcript }}</span>
+                                <span v-else class="text-muted">{{ uploading ? 'Checking your recording...' : 'Your words will appear here' }}</span>
+                            </div>
+                        </label>
+                        <label v-if="canUseManualFallback" class="grid content-center gap-2 text-lg font-black text-text">
+                            Developer QA: Incorrect Words Override
+                            <input v-model="form.incorrect_words" type="number" min="0" max="50" class="rounded-2xl border-2 border-border px-4 py-3 text-lg font-black focus:border-primary focus:outline-none">
+                        </label>
+                        <p v-if="uploadError" class="rounded-[20px] bg-amber-50 px-4 py-3 text-[13px] font-semibold text-amber-700 ring-1 ring-amber-200/60">{{ uploadError }}</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <BottomActionBar>
             <PrimaryButton :disabled="form.processing || !canSubmit" @click="submit">Continue</PrimaryButton>
         </BottomActionBar>
     </LearnerLayout>
 </template>
+
+<style scoped>
+.anim-card {
+    animation: cardSpring 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+@keyframes cardSpring {
+    from { opacity: 0; transform: scale(0.92) translateY(20px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.anim-fade-down {
+    animation: fadeDown 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-12px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+</style>
