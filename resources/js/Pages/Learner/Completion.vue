@@ -1,63 +1,89 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { useForm } from '@inertiajs/vue3';
-import { CheckCircle2, Home, Trophy, Volume2, VolumeX } from 'lucide-vue-next';
-import LearnerLayout from '../../Layouts/LearnerLayout.vue';
-import CompletionCertificate from '../../Components/Learner/CompletionCertificate.vue';
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { useForm } from "@inertiajs/vue3";
+import { CheckCircle2, Home, Trophy, Volume2, VolumeX } from "lucide-vue-next";
+import LearnerLayout from "../../Layouts/LearnerLayout.vue";
+import CompletionCertificate from "../../Components/Learner/CompletionCertificate.vue";
 
 /* Agent asset base paths (dynamic so Vite does NOT try to resolve them as modules) */
 const AGENT_BASES = {
-    assessment:    '/assets/agents/assessment',
-    coach_feedback: '/assets/agents/coach_feedback',
-    evaluator:     '/assets/agents/evaluator',
+    assessment: "/assets/agents/assessment",
+    coach_feedback: "/assets/agents/coach_feedback",
+    evaluator: "/assets/agents/evaluator",
 };
-const agentSrc = (type, file) => `${AGENT_BASES[type] ?? '/assets/agents/assessment'}/${file}`;
+const agentSrc = (type, file) =>
+    `${AGENT_BASES[type] ?? "/assets/agents/assessment"}/${file}`;
 
 const props = defineProps({
     learner: { type: Object, default: null },
-    resultSummary: { type: Object, default: () => ({ cards: [], fallbackMessage: 'Your final reading check has been completed.' }) },
+    resultSummary: {
+        type: Object,
+        default: () => ({
+            cards: [],
+            fallbackMessage: "Your final reading check has been completed.",
+        }),
+    },
     agentMessages: { type: Array, default: () => [] },
-    thankYouUrl: { type: String, default: '/learner/completion/thank-you' },
-    homeUrl: { type: String, default: '/' },
+    thankYouUrl: { type: String, default: "/learner/completion/thank-you" },
+    homeUrl: { type: String, default: "/" },
 });
 
-const form          = useForm({});
-const activeAudio   = ref(null);
-const activeAgent   = ref(null);
-const voiceStatus   = ref('');
+const form = useForm({});
+const activeAudio = ref(null);
+const activeAgent = ref(null);
+const voiceStatus = ref("");
 const showCertificate = ref(false);
-const emojiContainer  = ref(null);
+const emojiContainer = ref(null);
 
-const firstName = computed(() => props.learner?.first_name ?? 'Friend');
-const lastName  = computed(() => props.learner?.last_name  ?? '');
-const cards     = computed(() => props.resultSummary?.cards ?? []);
-const hasAnyMetrics = computed(() => cards.value.some(c => (c.metrics ?? []).length > 0));
+const firstName = computed(() => props.learner?.first_name ?? "Friend");
+const lastName = computed(() => props.learner?.last_name ?? "");
+const cards = computed(() => props.resultSummary?.cards ?? []);
+const hasAnyMetrics = computed(() =>
+    cards.value.some((c) => (c.metrics ?? []).length > 0),
+);
 
 /* ── Certificate data helpers ─────────────────── */
 const certData = computed(() => {
-    const finalCard = cards.value.find(c => c.kind === 'final') ?? {};
+    const finalCard = cards.value.find((c) => c.kind === "final") ?? {};
     const metric = (card, label) =>
-        (card.metrics ?? []).find(m => m.label?.toLowerCase() === label.toLowerCase())?.value ?? '';
+        (card.metrics ?? []).find(
+            (m) => m.label?.toLowerCase() === label.toLowerCase(),
+        )?.value ?? "";
     return {
-        readingLevel:  metric(finalCard, 'reading level')  || metric(finalCard, 'reading classification'),
-        accuracyScore: metric(finalCard, 'reading accuracy'),
-        crlaLevel:     metric(finalCard, 'crla level')     || metric(finalCard, 'crla score'),
-        completedAt:   props.resultSummary?.completedAt ?? '',
+        readingLevel:
+            metric(finalCard, "reading level") ||
+            metric(finalCard, "reading classification"),
+        accuracyScore: metric(finalCard, "reading accuracy"),
+        crlaLevel:
+            metric(finalCard, "crla level") || metric(finalCard, "crla score"),
+        completedAt: props.resultSummary?.completedAt ?? "",
     };
 });
 
 /* ── Party emoji burst ────────────────────────── */
-const PARTY_EMOJIS = ['🎉', '🎊', '⭐', '🌟', '✨', '🏆', '🥳', '📚', '💫', '🎈'];
+const PARTY_EMOJIS = [
+    "🎉",
+    "🎊",
+    "⭐",
+    "🌟",
+    "✨",
+    "🏆",
+    "🥳",
+    "📚",
+    "💫",
+    "🎈",
+];
 
 const spawnEmoji = () => {
     const el = emojiContainer.value;
     if (!el) return;
-    const span = document.createElement('span');
-    span.textContent = PARTY_EMOJIS[Math.floor(Math.random() * PARTY_EMOJIS.length)];
+    const span = document.createElement("span");
+    span.textContent =
+        PARTY_EMOJIS[Math.floor(Math.random() * PARTY_EMOJIS.length)];
     const startX = Math.random() * 100;
-    const drift  = (Math.random() - 0.5) * 180;
-    const size   = Math.random() * 18 + 18;
-    const dur    = Math.random() * 2000 + 2500;
+    const drift = (Math.random() - 0.5) * 180;
+    const size = Math.random() * 18 + 18;
+    const dur = Math.random() * 2000 + 2500;
     span.style.cssText = `
         position: absolute;
         left: ${startX}%;
@@ -94,17 +120,28 @@ let animFrame = null;
 const startConfetti = () => {
     const canvas = confettiCanvas.value;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const resize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
-    window.addEventListener('resize', resize);
+    const ctx = canvas.getContext("2d");
+    const resize = () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    };
+    window.addEventListener("resize", resize);
     resize();
 
-    const COLORS = ['#00236f', '#fd761a', '#27c38a', '#b6c4ff', '#ffd700', '#ff6b6b', '#a78bfa'];
+    const COLORS = [
+        "#00236f",
+        "#fd761a",
+        "#27c38a",
+        "#b6c4ff",
+        "#ffd700",
+        "#ff6b6b",
+        "#a78bfa",
+    ];
     const particles = Array.from({ length: 55 }, () => {
         const o = {};
         const reset = (init = false) => {
             o.x = Math.random() * canvas.width;
-            o.y = init ? (Math.random() * canvas.height - canvas.height) : -16;
+            o.y = init ? Math.random() * canvas.height - canvas.height : -16;
             o.w = Math.random() * 9 + 4;
             o.h = Math.random() * 5 + 3;
             o.vy = Math.random() * 2.5 + 1.5;
@@ -121,13 +158,15 @@ const startConfetti = () => {
 
     const draw = () => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        particles.forEach(p => {
-            p.y += p.vy; p.x += p.vx; p.rot += p.rs;
+        particles.forEach((p) => {
+            p.y += p.vy;
+            p.x += p.vx;
+            p.rot += p.rs;
             if (p.y > canvas.height) p.reset();
             ctx.save();
             ctx.globalAlpha = p.opacity;
             ctx.translate(p.x, p.y);
-            ctx.rotate(p.rot * Math.PI / 180);
+            ctx.rotate((p.rot * Math.PI) / 180);
             ctx.fillStyle = p.color;
             ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
             ctx.restore();
@@ -138,59 +177,98 @@ const startConfetti = () => {
 };
 
 /* ── Voice ────────────────────────────────────── */
-const csrfToken = () => document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
+const csrfToken = () =>
+    document
+        .querySelector('meta[name="csrf-token"]')
+        ?.getAttribute("content") ?? "";
 
 const stopVoices = () => {
-    if (activeAudio.value) { activeAudio.value.pause(); activeAudio.value.currentTime = 0; activeAudio.value = null; }
-    if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('readirect:stop-agent-audio'));
-        window.dispatchEvent(new CustomEvent('readirect:stop-agent-speech'));
+    if (activeAudio.value) {
+        activeAudio.value.pause();
+        activeAudio.value.currentTime = 0;
+        activeAudio.value = null;
+    }
+    if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("readirect:stop-agent-audio"));
+        window.dispatchEvent(new CustomEvent("readirect:stop-agent-speech"));
     }
     activeAgent.value = null;
 };
 
 const playAgent = async (agent) => {
-    const message = [agent.resultMessage, agent.message].filter(Boolean).join(' ');
+    const message = [agent.resultMessage, agent.message]
+        .filter(Boolean)
+        .join(" ");
     const agentKey = agent.agentType;
     stopVoices();
     activeAgent.value = agentKey;
-    voiceStatus.value = '';
+    voiceStatus.value = "";
     try {
-        const res  = await fetch('/agent-voice/synthesize', {
-            method: 'POST', credentials: 'same-origin',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken() },
+        const res = await fetch("/agent-voice/synthesize", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+                "X-CSRF-TOKEN": csrfToken(),
+            },
             body: JSON.stringify({ agent: agent.agentType, text: message }),
         });
         const payload = res.ok ? await res.json() : {};
         if (payload.audio_url) {
             const audio = new Audio(payload.audio_url);
             activeAudio.value = audio;
-            audio.onended = () => { if (activeAgent.value === agentKey) activeAgent.value = null; activeAudio.value = null; };
-            audio.onerror = () => { if (activeAgent.value === agentKey) { voiceStatus.value = 'Voice unavailable — read each message here.'; activeAgent.value = null; } activeAudio.value = null; };
-            await audio.play(); return;
+            audio.onended = () => {
+                if (activeAgent.value === agentKey) activeAgent.value = null;
+                activeAudio.value = null;
+            };
+            audio.onerror = () => {
+                if (activeAgent.value === agentKey) {
+                    voiceStatus.value =
+                        "Voice unavailable — read each message here.";
+                    activeAgent.value = null;
+                }
+                activeAudio.value = null;
+            };
+            await audio.play();
+            return;
         }
-    } catch { /* silent */ }
-    voiceStatus.value = 'Voice unavailable — read each message here.';
+    } catch {
+        /* silent */
+    }
+    voiceStatus.value = "Voice unavailable — read each message here.";
     activeAgent.value = null;
 };
 
-const submitThankYou = () => { stopVoices(); form.post(props.thankYouUrl, { preserveScroll: false }); };
+const submitThankYou = () => {
+    stopVoices();
+    form.post(props.thankYouUrl, { preserveScroll: false });
+};
 
-onMounted(() => { startConfetti(); startParty(); });
-onBeforeUnmount(() => { stopVoices(); if (animFrame) cancelAnimationFrame(animFrame); if (emojiInterval) clearInterval(emojiInterval); });
+onMounted(() => {
+    startConfetti();
+    startParty();
+});
+onBeforeUnmount(() => {
+    stopVoices();
+    if (animFrame) cancelAnimationFrame(animFrame);
+    if (emojiInterval) clearInterval(emojiInterval);
+});
 </script>
 
 <template>
     <LearnerLayout :progress="100">
-
         <!-- Square confetti canvas (matches Image 1 scattered dots) -->
-        <canvas ref="confettiCanvas" class="confetti-canvas" aria-hidden="true" />
+        <canvas
+            ref="confettiCanvas"
+            class="confetti-canvas"
+            aria-hidden="true"
+        />
 
         <!-- Emoji burst container -->
         <div ref="emojiContainer" class="emoji-container" aria-hidden="true" />
 
         <section class="completion-shell mx-auto grid w-full gap-6">
-
             <!-- ════════════════════════════════════════
                  HERO CARD  (Stitch-AI / Image 1 style)
                  ════════════════════════════════════════ -->
@@ -199,7 +277,16 @@ onBeforeUnmount(() => { stopVoices(); if (animFrame) cancelAnimationFrame(animFr
                 <div class="hero-icon-wrap" aria-hidden="true">
                     <div class="hero-icon-ring" />
                     <div class="hero-icon">
-                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <svg
+                            width="40"
+                            height="40"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2.5"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        >
                             <polyline points="20 6 9 17 4 12" />
                         </svg>
                     </div>
@@ -225,8 +312,15 @@ onBeforeUnmount(() => { stopVoices(); if (animFrame) cancelAnimationFrame(animFr
                     </div>
                     <div class="stat-tile">
                         <span class="stat-label">Accuracy</span>
-                        <span class="stat-value" :class="certData.accuracyScore ? 'text-primary' : 'text-slate-400'">
-                            {{ certData.accuracyScore || '—' }}
+                        <span
+                            class="stat-value"
+                            :class="
+                                certData.accuracyScore
+                                    ? 'text-primary'
+                                    : 'text-slate-400'
+                            "
+                        >
+                            {{ certData.accuracyScore || "—" }}
                         </span>
                         <span class="stat-caption">Est. Reading Level</span>
                     </div>
@@ -235,21 +329,41 @@ onBeforeUnmount(() => { stopVoices(); if (animFrame) cancelAnimationFrame(animFr
                 <!-- Sync row -->
                 <div class="hero-sync" aria-live="polite">
                     <span class="sync-dot" aria-hidden="true" />
-                    <span>Results are being synced and encrypted for educator review.</span>
+                    <span
+                        >Results are being synced and encrypted for educator
+                        review.</span
+                    >
                 </div>
 
                 <!-- Agents celebrating row -->
-                <div class="hero-agents" aria-label="Your learning agents celebrating with you">
+                <div
+                    class="hero-agents"
+                    aria-label="Your learning agents celebrating with you"
+                >
                     <!-- Miss Vivian — has webm -->
                     <div class="hero-agent-bubble">
                         <div class="hero-agent-avatar">
                             <video
-                                class="h-full w-full object-contain object-bottom"
+                                class="h-full w-full object-contain"
                                 aria-label="Miss Vivian"
-                                autoplay loop muted playsinline
+                                autoplay
+                                loop
+                                muted
+                                playsinline
                             >
-                                <source :src="agentSrc('assessment','celebrating.webm')" type="video/webm">
-                                <source :src="agentSrc('assessment','idle.webm')" type="video/webm">
+                                <source
+                                    :src="
+                                        agentSrc(
+                                            'assessment',
+                                            'celebrating.webm',
+                                        )
+                                    "
+                                    type="video/webm"
+                                />
+                                <source
+                                    :src="agentSrc('assessment', 'idle.webm')"
+                                    type="video/webm"
+                                />
                             </video>
                         </div>
                         <span class="hero-agent-name">Miss Vivian</span>
@@ -258,10 +372,10 @@ onBeforeUnmount(() => { stopVoices(); if (animFrame) cancelAnimationFrame(animFr
                     <div class="hero-agent-bubble hero-agent-bubble--center">
                         <div class="hero-agent-avatar hero-agent-avatar--lg">
                             <img
-                                :src="agentSrc('coach_feedback','idle.png')"
+                                :src="agentSrc('coach_feedback', 'idle.png')"
                                 alt="Miss Ciel"
-                                class="h-full w-full object-contain object-bottom"
-                            >
+                                class="h-full w-full object-contain"
+                            />
                         </div>
                         <span class="hero-agent-name">Miss Ciel</span>
                     </div>
@@ -269,10 +383,10 @@ onBeforeUnmount(() => { stopVoices(); if (animFrame) cancelAnimationFrame(animFr
                     <div class="hero-agent-bubble">
                         <div class="hero-agent-avatar">
                             <img
-                                :src="agentSrc('evaluator','idle.png')"
+                                :src="agentSrc('evaluator', 'idle.png')"
                                 alt="Miss Estelle"
-                                class="h-full w-full object-contain object-bottom"
-                            >
+                                class="h-full w-full object-contain"
+                            />
                         </div>
                         <span class="hero-agent-name">Miss Estelle</span>
                     </div>
@@ -287,7 +401,17 @@ onBeforeUnmount(() => { stopVoices(); if (animFrame) cancelAnimationFrame(animFr
                     @click="submitThankYou"
                 >
                     Finish and Submit
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.5"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                    >
                         <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
                         <polyline points="22 4 12 14.01 9 11.01" />
                     </svg>
@@ -297,7 +421,10 @@ onBeforeUnmount(() => { stopVoices(); if (animFrame) cancelAnimationFrame(animFr
             <!-- ════════════════════════════════════════
                  DETAILED SCORE CARDS  (Image 2 content)
                  ════════════════════════════════════════ -->
-            <div v-if="hasAnyMetrics" class="anim-stagger grid gap-5 md:grid-cols-3">
+            <div
+                v-if="hasAnyMetrics"
+                class="anim-stagger grid gap-5 md:grid-cols-3"
+            >
                 <article
                     v-for="card in cards"
                     :key="card.title"
@@ -324,12 +451,22 @@ onBeforeUnmount(() => { stopVoices(); if (animFrame) cancelAnimationFrame(animFr
                             <p class="metric-label">{{ metric.label }}</p>
                             <p
                                 class="metric-value"
-                                :class="card.kind === 'progress' && String(metric.value).startsWith('+') ? 'text-emerald-600' : ''"
-                            >{{ metric.value }}</p>
+                                :class="
+                                    card.kind === 'progress' &&
+                                    String(metric.value).startsWith('+')
+                                        ? 'text-emerald-600'
+                                        : ''
+                                "
+                            >
+                                {{ metric.value }}
+                            </p>
                         </div>
                     </div>
 
-                    <p v-if="card.message" class="mt-3 text-[13px] font-black leading-snug text-emerald-600">
+                    <p
+                        v-if="card.message"
+                        class="mt-3 text-[13px] font-black leading-snug text-emerald-600"
+                    >
                         {{ card.message }}
                     </p>
                 </article>
@@ -357,10 +494,17 @@ onBeforeUnmount(() => { stopVoices(); if (animFrame) cancelAnimationFrame(animFr
                 <!-- Sync tile -->
                 <div class="bento-tile bento-tile--green">
                     <div class="flex items-center justify-center gap-2">
-                        <span class="sync-dot sync-dot--sm" aria-hidden="true" />
-                        <span class="bento-label text-emerald-600">Syncing</span>
+                        <span
+                            class="sync-dot sync-dot--sm"
+                            aria-hidden="true"
+                        />
+                        <span class="bento-label text-emerald-600"
+                            >Syncing</span
+                        >
                     </div>
-                    <span class="bento-caption text-slate-500 mt-1">Results encrypted for educator review</span>
+                    <span class="bento-caption text-slate-500 mt-1"
+                        >Results encrypted for educator review</span
+                    >
                 </div>
 
                 <!-- Certificate tile -->
@@ -375,8 +519,17 @@ onBeforeUnmount(() => { stopVoices(); if (animFrame) cancelAnimationFrame(animFr
                     @keydown.space.prevent="showCertificate = !showCertificate"
                 >
                     <span class="bento-label text-amber-600">Certificate</span>
-                    <span class="bento-value text-amber-700">{{ showCertificate ? 'Hide ↑' : 'View ✦' }}</span>
-                    <span class="bento-caption text-amber-600">Click to {{ showCertificate ? 'collapse' : 'see your certificate' }}</span>
+                    <span class="bento-value text-amber-700">{{
+                        showCertificate ? "Hide ↑" : "View ✦"
+                    }}</span>
+                    <span class="bento-caption text-amber-600"
+                        >Click to
+                        {{
+                            showCertificate
+                                ? "collapse"
+                                : "see your certificate"
+                        }}</span
+                    >
                 </div>
             </div>
 
@@ -386,7 +539,10 @@ onBeforeUnmount(() => { stopVoices(); if (animFrame) cancelAnimationFrame(animFr
             <Transition name="cert-fade">
                 <div v-if="showCertificate" class="cert-section">
                     <div class="cert-section-header">
-                        <Trophy class="size-5 text-amber-600" aria-hidden="true" />
+                        <Trophy
+                            class="size-5 text-amber-600"
+                            aria-hidden="true"
+                        />
                         <span>Your Certificate of Completion</span>
                     </div>
                     <CompletionCertificate
@@ -409,7 +565,9 @@ onBeforeUnmount(() => { stopVoices(); if (animFrame) cancelAnimationFrame(animFr
                 aria-label="Messages from your learning agents"
             >
                 <div class="flex items-center justify-between gap-3 mb-4">
-                    <h2 class="text-[16px] font-black text-slate-800">Your agents are proud of you 🌟</h2>
+                    <h2 class="text-[16px] font-black text-slate-800">
+                        Your agents are proud of you 🌟
+                    </h2>
                     <button
                         type="button"
                         class="grid size-10 place-items-center rounded-2xl bg-slate-50 text-slate-400 ring-1 ring-slate-200/60 transition hover:bg-gradient-to-br hover:from-primary hover:to-blue-600 hover:text-white hover:ring-0"
@@ -432,25 +590,46 @@ onBeforeUnmount(() => { stopVoices(); if (animFrame) cancelAnimationFrame(animFr
                                 <!-- assessment is the only agent with a .webm -->
                                 <video
                                     v-if="agent.agentType === 'assessment'"
-                                    class="h-full w-full object-contain object-bottom"
+                                    class="agent-face-media"
+                                    :class="`agent-face-media--${agent.agentType}`"
                                     :aria-label="agent.name"
-                                    autoplay loop muted playsinline
+                                    autoplay
+                                    loop
+                                    muted
+                                    playsinline
                                 >
-                                    <source :src="agentSrc('assessment','idle.webm')" type="video/webm">
+                                    <source
+                                        :src="
+                                            agentSrc('assessment', 'idle.webm')
+                                        "
+                                        type="video/webm"
+                                    />
                                 </video>
+
                                 <img
                                     v-else
                                     :src="agentSrc(agent.agentType, 'idle.png')"
                                     :alt="agent.name"
-                                    class="h-full w-full object-contain object-bottom"
-                                >
+                                    class="agent-face-media"
+                                    :class="`agent-face-media--${agent.agentType}`"
+                                />
                             </div>
                         </div>
 
-                        <div class="flex items-start justify-between gap-3 mb-3">
+                        <div
+                            class="flex items-start justify-between gap-3 mb-3"
+                        >
                             <div>
-                                <p class="text-[14px] font-black uppercase tracking-widest text-primary">{{ agent.name }}</p>
-                                <p class="text-[12px] font-semibold text-slate-400">{{ agent.role }}</p>
+                                <p
+                                    class="text-[14px] font-black uppercase tracking-widest text-primary"
+                                >
+                                    {{ agent.name }}
+                                </p>
+                                <p
+                                    class="text-[12px] font-semibold text-slate-400"
+                                >
+                                    {{ agent.role }}
+                                </p>
                             </div>
                             <button
                                 type="button"
@@ -460,15 +639,32 @@ onBeforeUnmount(() => { stopVoices(); if (animFrame) cancelAnimationFrame(animFr
                                 @click="playAgent(agent)"
                             >
                                 <Volume2 class="size-3.5" aria-hidden="true" />
-                                {{ activeAgent === agent.agentType ? 'Playing…' : 'Play' }}
+                                {{
+                                    activeAgent === agent.agentType
+                                        ? "Playing…"
+                                        : "Play"
+                                }}
                             </button>
                         </div>
-                        <p v-if="agent.resultMessage" class="text-[13px] font-black leading-snug text-slate-800 mb-1">{{ agent.resultMessage }}</p>
-                        <p class="text-[13px] font-semibold leading-snug text-slate-600">{{ agent.message }}</p>
+                        <p
+                            v-if="agent.resultMessage"
+                            class="text-[13px] font-black leading-snug text-slate-800 mb-1"
+                        >
+                            {{ agent.resultMessage }}
+                        </p>
+                        <p
+                            class="text-[13px] font-semibold leading-snug text-slate-600"
+                        >
+                            {{ agent.message }}
+                        </p>
                     </article>
                 </div>
 
-                <p v-if="voiceStatus" class="mt-4 rounded-[20px] bg-amber-50 px-4 py-3 text-[13px] font-semibold text-amber-700 ring-1 ring-amber-200/60" role="alert">
+                <p
+                    v-if="voiceStatus"
+                    class="mt-4 rounded-[20px] bg-amber-50 px-4 py-3 text-[13px] font-semibold text-amber-700 ring-1 ring-amber-200/60"
+                    role="alert"
+                >
                     {{ voiceStatus }}
                 </p>
             </section>
@@ -476,8 +672,12 @@ onBeforeUnmount(() => { stopVoices(); if (animFrame) cancelAnimationFrame(animFr
             <!-- ════════════════════════════════════════
                  FOOTER ACTION
                  ════════════════════════════════════════ -->
-            <footer class="anim-slide-up grid gap-3 rounded-[32px] border border-slate-200/80 bg-white p-5 text-center shadow-xl shadow-slate-200/30 sm:p-6">
-                <p class="text-[14px] font-semibold text-slate-400">You may now return to the home page.</p>
+            <footer
+                class="anim-slide-up grid gap-3 rounded-[32px] border border-slate-200/80 bg-white p-5 text-center shadow-xl shadow-slate-200/30 sm:p-6"
+            >
+                <p class="text-[14px] font-semibold text-slate-400">
+                    You may now return to the home page.
+                </p>
                 <button
                     id="btn-thank-you"
                     type="button"
@@ -489,7 +689,6 @@ onBeforeUnmount(() => { stopVoices(); if (animFrame) cancelAnimationFrame(animFr
                     Thank You
                 </button>
             </footer>
-
         </section>
     </LearnerLayout>
 </template>
@@ -521,9 +720,17 @@ onBeforeUnmount(() => { stopVoices(); if (animFrame) cancelAnimationFrame(animFr
 }
 
 @keyframes emojiFloat {
-    0%   { transform: translateY(0) translateX(0) rotate(0deg); opacity: 1; }
-    80%  { opacity: 0.9; }
-    100% { transform: translateY(-110vh) translateX(var(--drift)) rotate(360deg); opacity: 0; }
+    0% {
+        transform: translateY(0) translateX(0) rotate(0deg);
+        opacity: 1;
+    }
+    80% {
+        opacity: 0.9;
+    }
+    100% {
+        transform: translateY(-110vh) translateX(var(--drift)) rotate(360deg);
+        opacity: 0;
+    }
 }
 
 /* ═══ HERO CARD ══════════════════════════════════ */
@@ -532,7 +739,7 @@ onBeforeUnmount(() => { stopVoices(); if (animFrame) cancelAnimationFrame(animFr
     margin: 0 auto;
     width: 100%;
     background: #ffffff;
-    border: 1.5px solid rgba(0, 35, 111, 0.10);
+    border: 1.5px solid rgba(0, 35, 111, 0.1);
     border-radius: 28px;
     padding: 40px 36px 36px;
     display: flex;
@@ -550,17 +757,31 @@ onBeforeUnmount(() => { stopVoices(); if (animFrame) cancelAnimationFrame(animFr
 
 /* Subtle shimmer line at top */
 .hero-card::before {
-    content: '';
+    content: "";
     position: absolute;
-    top: 0; left: 0; right: 0;
+    top: 0;
+    left: 0;
+    right: 0;
     height: 3px;
-    background: linear-gradient(90deg, #00236f, #4059aa, #27c38a, #fd761a, #4059aa, #00236f);
+    background: linear-gradient(
+        90deg,
+        #00236f,
+        #4059aa,
+        #27c38a,
+        #fd761a,
+        #4059aa,
+        #00236f
+    );
     background-size: 200% 100%;
     animation: shimmer 3s linear infinite;
 }
 @keyframes shimmer {
-    0%   { background-position: 0% 0%; }
-    100% { background-position: 200% 0%; }
+    0% {
+        background-position: 0% 0%;
+    }
+    100% {
+        background-position: 200% 0%;
+    }
 }
 
 /* ── Hero icon ── */
@@ -579,8 +800,15 @@ onBeforeUnmount(() => { stopVoices(); if (animFrame) cancelAnimationFrame(animFr
     animation: ringPulse 2.5s ease-in-out infinite;
 }
 @keyframes ringPulse {
-    0%, 100% { transform: scale(1); opacity: 1; }
-    50%       { transform: scale(1.15); opacity: 0.5; }
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.15);
+        opacity: 0.5;
+    }
 }
 .hero-icon {
     width: 80px;
@@ -595,8 +823,14 @@ onBeforeUnmount(() => { stopVoices(); if (animFrame) cancelAnimationFrame(animFr
     animation: iconBounce 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.3s both;
 }
 @keyframes iconBounce {
-    from { transform: scale(0.4); opacity: 0; }
-    to   { transform: scale(1);   opacity: 1; }
+    from {
+        transform: scale(0.4);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
 }
 
 /* ── Hero text ── */
@@ -686,8 +920,15 @@ onBeforeUnmount(() => { stopVoices(); if (animFrame) cancelAnimationFrame(animFr
     height: 6px;
 }
 @keyframes pulse-sync {
-    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(39, 195, 138, 0.5); }
-    50%       { opacity: 0.7; box-shadow: 0 0 0 4px rgba(39, 195, 138, 0); }
+    0%,
+    100% {
+        opacity: 1;
+        box-shadow: 0 0 0 0 rgba(39, 195, 138, 0.5);
+    }
+    50% {
+        opacity: 0.7;
+        box-shadow: 0 0 0 4px rgba(39, 195, 138, 0);
+    }
 }
 
 /* ── CTA ── */
@@ -714,10 +955,18 @@ onBeforeUnmount(() => { stopVoices(); if (animFrame) cancelAnimationFrame(animFr
 }
 .hero-cta:hover {
     transform: translateY(-2px);
-    box-shadow: 0 12px 32px rgba(0, 35, 111, 0.38), 0 4px 12px rgba(0, 35, 111, 0.2);
+    box-shadow:
+        0 12px 32px rgba(0, 35, 111, 0.38),
+        0 4px 12px rgba(0, 35, 111, 0.2);
 }
-.hero-cta:active { transform: translateY(0); }
-.hero-cta:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+.hero-cta:active {
+    transform: translateY(0);
+}
+.hero-cta:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+}
 
 /* ═══ SCORE CARDS ════════════════════════════════ */
 .score-card {
@@ -856,39 +1105,76 @@ onBeforeUnmount(() => { stopVoices(); if (animFrame) cancelAnimationFrame(animFr
     animation: cardSpring 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
 @keyframes cardSpring {
-    from { opacity: 0; transform: scale(0.92) translateY(24px); }
-    to   { opacity: 1; transform: scale(1)   translateY(0); }
+    from {
+        opacity: 0;
+        transform: scale(0.92) translateY(24px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
 }
 .anim-pop {
     animation: contentPop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.2s both;
 }
 @keyframes contentPop {
-    from { opacity: 0; transform: scale(0.75); }
-    to   { opacity: 1; transform: scale(1); }
+    from {
+        opacity: 0;
+        transform: scale(0.75);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 .anim-slide-up {
     animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
 }
 @keyframes slideUp {
-    from { opacity: 0; transform: translateY(28px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(28px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 .anim-stagger > * {
     animation: staggerIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
-.anim-stagger > *:nth-child(1) { animation-delay:   0ms; }
-.anim-stagger > *:nth-child(2) { animation-delay: 140ms; }
-.anim-stagger > *:nth-child(3) { animation-delay: 280ms; }
+.anim-stagger > *:nth-child(1) {
+    animation-delay: 0ms;
+}
+.anim-stagger > *:nth-child(2) {
+    animation-delay: 140ms;
+}
+.anim-stagger > *:nth-child(3) {
+    animation-delay: 280ms;
+}
 @keyframes staggerIn {
-    from { opacity: 0; transform: translateY(22px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(22px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* ═══ MOBILE ═════════════════════════════════════ */
 @media (max-width: 480px) {
-    .hero-card { padding: 28px 20px 24px; }
-    .hero-stats { grid-template-columns: repeat(3, 1fr); gap: 8px; }
-    .stat-value { font-size: 16px; }
+    .hero-card {
+        padding: 28px 20px 24px;
+    }
+    .hero-stats {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+    }
+    .stat-value {
+        font-size: 16px;
+    }
 }
 
 /* ═══ HERO AGENTS CELEBRATING ROW ══════════════ */
@@ -908,13 +1194,25 @@ onBeforeUnmount(() => { stopVoices(); if (animFrame) cancelAnimationFrame(animFr
     gap: 8px;
     animation: agentPop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
 }
-.hero-agent-bubble:nth-child(1) { animation-delay: 0.35s; }
-.hero-agent-bubble:nth-child(2) { animation-delay: 0.50s; }
-.hero-agent-bubble:nth-child(3) { animation-delay: 0.65s; }
+.hero-agent-bubble:nth-child(1) {
+    animation-delay: 0.35s;
+}
+.hero-agent-bubble:nth-child(2) {
+    animation-delay: 0.5s;
+}
+.hero-agent-bubble:nth-child(3) {
+    animation-delay: 0.65s;
+}
 
 @keyframes agentPop {
-    from { opacity: 0; transform: scale(0.5) translateY(20px); }
-    to   { opacity: 1; transform: scale(1) translateY(0); }
+    from {
+        opacity: 0;
+        transform: scale(0.5) translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
 }
 
 .hero-agent-bubble--center {
@@ -922,27 +1220,28 @@ onBeforeUnmount(() => { stopVoices(); if (animFrame) cancelAnimationFrame(animFr
 }
 
 .hero-agent-avatar {
-    width: 130px;
-    height: 170px;
-    border-radius: 24px;
+    width: 9rem;
+    height: 9rem;
+    border-radius: 1.5rem;
     background: linear-gradient(160deg, #eef2ff 0%, #dbeafe 100%);
     border: 2.5px solid rgba(0, 35, 111, 0.12);
     overflow: hidden;
     display: flex;
-    align-items: flex-end;
+    align-items: center;
+    justify-content: center;
     box-shadow:
         0 8px 24px rgba(0, 35, 111, 0.14),
         0 2px 6px rgba(0, 35, 111, 0.07);
 }
 .hero-agent-avatar--lg {
-    width: 160px;
-    height: 210px;
-    border-radius: 28px;
+    width: 12rem;
+    height: 12rem;
+    border-radius: 2rem;
     background: linear-gradient(160deg, #f0f4ff 0%, #e0e7ff 100%);
     border: 2.5px solid rgba(0, 35, 111, 0.16);
     box-shadow:
-        0 12px 36px rgba(0, 35, 111, 0.20),
-        0 4px 12px rgba(0, 35, 111, 0.10);
+        0 12px 36px rgba(0, 35, 111, 0.2),
+        0 4px 12px rgba(0, 35, 111, 0.1);
 }
 
 .hero-agent-name {
@@ -960,14 +1259,34 @@ onBeforeUnmount(() => { stopVoices(); if (animFrame) cancelAnimationFrame(animFr
 }
 .agent-card-img-wrap {
     width: 100%;
-    height: 240px;
-    border-radius: 20px;
+    aspect-ratio: 1 / 1;
+    border-radius: 22px;
     background: linear-gradient(160deg, #eef2ff 0%, #dbeafe 100%);
-    border: 1.5px solid rgba(0, 35, 111, 0.10);
+    border: 1.5px solid rgba(0, 35, 111, 0.1);
     overflow: hidden;
     display: flex;
-    align-items: flex-end;
-    box-shadow: 0 4px 16px rgba(0, 35, 111, 0.10);
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 16px rgba(0, 35, 111, 0.1);
+}
+.agent-face-media {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 22%;
+    display: block;
 }
 
+/* Optional per-agent face positioning */
+.agent-face-media--assessment {
+    object-position: center 18%;
+}
+
+.agent-face-media--coach_feedback {
+    object-position: center 20%;
+}
+
+.agent-face-media--evaluator {
+    object-position: center 18%;
+}
 </style>
