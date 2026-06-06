@@ -5,10 +5,10 @@ on:
     branches:
       - main
       - master
-      - '*.x'
+      - "*.x"
   pull_request:
   schedule:
-    - cron: '0 0 * * *'
+    - cron: "0 0 * * *"
 
 permissions:
   contents: read
@@ -67,21 +67,22 @@ jobs:
         run: php artisan key:generate
 
       - name: Wait for PostgreSQL
-        run: php -r "
-          $maxAttempts = 30;
-          $attempt = 0;
-          do {
-              $attempt++;
-              $connection = @pg_connect('host=' . getenv('DB_HOST') . ' port=' . getenv('DB_PORT') . ' dbname=' . getenv('DB_DATABASE') . ' user=' . getenv('DB_USERNAME') . ' password=' . getenv('DB_PASSWORD'));
-              if ($connection) {
-                  pg_close($connection);
-                  exit(0);
-              }
-              sleep(1);
-          } while ($attempt < $maxAttempts);
-          fwrite(STDERR, 'PostgreSQL did not become ready in time.' . PHP_EOL);
-          exit(1);
-        "
+        run: |
+          php -r "
+            \$maxAttempts = 30;
+            \$attempt = 0;
+            do {
+                \$attempt++;
+                \$connection = @pg_connect('host=' . getenv('DB_HOST') . ' port=' . getenv('DB_PORT') . ' dbname=' . getenv('DB_DATABASE') . ' user=' . getenv('DB_USERNAME') . ' password=' . getenv('DB_PASSWORD'));
+                if (\$connection) {
+                    pg_close(\$connection);
+                    exit(0);
+                }
+                sleep(1);
+            } while (\$attempt < \$maxAttempts);
+            fwrite(STDERR, 'PostgreSQL did not become ready in time.' . PHP_EOL);
+            exit(1);
+          "
 
       - name: Execute tests
         run: php artisan test
