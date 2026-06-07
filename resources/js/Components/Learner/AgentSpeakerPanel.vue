@@ -74,6 +74,17 @@ const agent = computed(() => agents[props.agentType] ?? agents.assessment);
 const introStorageKey = computed(() => `readirect-agent-intro-seen-${props.agentType}`);
 const displayMessage = computed(() => showIntro.value ? agent.value.intro : props.message);
 const effectiveState = computed(() => (isSpeaking.value ? 'speaking' : (props.state || 'idle')));
+const mediaState = computed(() => {
+    const requestedState = props.state || 'idle';
+    const normalizedState = requestedState === 'speaking' ? 'idle' : requestedState;
+    const isCiel = props.agentType === 'coach_feedback';
+
+    if (isCiel && isSpeaking.value && normalizedState === 'idle') {
+        return 'talk';
+    }
+
+    return normalizedState;
+});
 const displayTitle = computed(() => props.title || agent.value.label);
 const displaySubtitle = computed(() => props.subtitle || agent.value.role);
 const naturalAudioUrl = computed(() => voicePayload.value?.audio_url ?? null);
@@ -241,7 +252,7 @@ watch(
             <div class="agent-media-box">
                 <AgentVideoPlayer
                     :agent="agentType"
-                    :action="state"
+                    :action="mediaState"
                     :alt="displayTitle"
                     :allow-congrats="allowCongrats"
                     class="agent-media-content"
@@ -308,7 +319,7 @@ watch(
             <div class="agent-media-box">
                 <AgentVideoPlayer
                     :agent="agentType"
-                    :action="state"
+                    :action="mediaState"
                     :alt="displayTitle"
                     :allow-congrats="allowCongrats"
                     class="agent-media-content"
@@ -389,7 +400,7 @@ watch(
             <div class="agent-media-box">
                 <AgentVideoPlayer
                     :agent="agentType"
-                    :action="state"
+                    :action="mediaState"
                     :alt="displayTitle"
                     :allow-congrats="allowCongrats"
                     class="agent-media-content"
@@ -453,7 +464,7 @@ watch(
             <div class="agent-media-box">
                 <AgentVideoPlayer
                     :agent="agentType"
-                    :action="state"
+                    :action="mediaState"
                     :alt="displayTitle"
                     :allow-congrats="allowCongrats"
                     class="agent-media-content"
@@ -529,7 +540,7 @@ watch(
             <div class="agent-media-box">
                 <AgentVideoPlayer
                     :agent="agentType"
-                    :action="state"
+                    :action="mediaState"
                     :alt="displayTitle"
                     :allow-congrats="allowCongrats"
                     class="agent-media-content"
@@ -609,7 +620,7 @@ watch(
             <div class="agent-media-box">
                 <AgentVideoPlayer
                     :agent="agentType"
-                    :action="state"
+                    :action="mediaState"
                     :alt="displayTitle"
                     :allow-congrats="allowCongrats"
                     class="agent-media-content"
@@ -647,7 +658,7 @@ watch(
             </div>
         </div>
     </section>
-    <section v-else class="agent-speaker-panel grid justify-items-center gap-2 rounded-[32px] border border-slate-200/80 shadow-xl shadow-slate-200/30 transition" :class="[agentType === 'assessment' ? 'bg-[#f7f6f7]' : 'bg-white', compact ? 'p-4 lg:p-5' : 'p-5 lg:p-6 xl:p-8', isSpeaking ? 'ring-2 ring-primary/20' : '']">
+    <section v-else class="agent-speaker-panel grid justify-items-center gap-2 rounded-[32px] border border-slate-200/80 bg-white shadow-xl shadow-slate-200/30 transition" :class="[compact ? 'p-4 lg:p-5' : 'p-5 lg:p-6 xl:p-8', isSpeaking ? 'ring-2 ring-primary/20' : '']">
         <AgentSpeakerTTS
             v-if="ttsEnabled && !voiceLoading"
             :key="ttsKey"
@@ -666,7 +677,7 @@ watch(
             <div class="agent-media-box">
                 <AgentVideoPlayer
                     :agent="agentType"
-                    :action="state"
+                    :action="mediaState"
                     :alt="displayTitle"
                     :allow-congrats="allowCongrats"
                     class="agent-media-content"
@@ -720,8 +731,8 @@ watch(
     position: relative;
     display: grid;
     place-items: end center;
-    width: 14rem;
-    height: 14rem;
+    width: 21rem;
+    height: 21rem;
     overflow: visible;
     border: 0;
     border-radius: 0;
@@ -738,8 +749,8 @@ watch(
 
 @media (max-width: 767px) {
     .agent-media-box {
-        width: 10.5rem;
-        height: 10.5rem;
+        width: 15.75rem;
+        height: 15.75rem;
     }
 }
 </style>

@@ -31,7 +31,7 @@ const contextAgents = Object.freeze({
 });
 
 const idleLabels = new Set([
-    '', 'idle', 'speaking', 'listening', 'neutral', 'none', 'ready',
+    '', 'idle', 'listening', 'neutral', 'none', 'ready',
     'recording', 'recorded', 'cleared', 'next', 'navigation',
 ]);
 const resultContexts = new Set([
@@ -40,6 +40,9 @@ const resultContexts = new Set([
 
 const actionMaps = Object.freeze({
     Ciel: Object.freeze({
+        talk: 'talk',
+        talking: 'talk',
+        speaking: 'talk',
         thinking: 'thinking',
         processing: 'thinking',
         uploading: 'thinking',

@@ -200,6 +200,7 @@ defineExpose({
             :src="interactionMedia.url"
             :aria-label="altText"
             preload="auto"
+            autoplay
             muted
             playsinline
             @loadeddata="handleInteractionReady"
