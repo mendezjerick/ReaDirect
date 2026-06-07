@@ -258,6 +258,7 @@ onBeforeUnmount(() => {
 
 <template>
     <LearnerLayout :progress="100">
+<<<<<<< Updated upstream
         <!-- Square confetti canvas (matches Image 1 scattered dots) -->
         <canvas
             ref="confettiCanvas"
@@ -389,13 +390,151 @@ onBeforeUnmount(() => {
                             />
                         </div>
                         <span class="hero-agent-name">Miss Estelle</span>
+=======
+        <div class="page-shell relative mx-auto flex w-full flex-col gap-4">
+
+            <!-- Ambient blobs -->
+            <div class="pointer-events-none absolute -left-24 -top-8 h-64 w-64 rounded-full bg-primary/5 blur-3xl" aria-hidden="true" />
+            <div class="pointer-events-none absolute -right-20 top-40 h-48 w-48 rounded-full bg-blue-400/5 blur-3xl" aria-hidden="true" />
+
+            <!-- HERO CARD -->
+            <header class="anim-hero relative overflow-hidden rounded-[32px] border-[2.5px] border-primary/10 bg-white px-7 py-5 shadow-xl shadow-primary/8">
+                <span class="pointer-events-none absolute left-5 top-4 text-3xl font-black text-primary/5 select-none" aria-hidden="true">✦</span>
+                <span class="pointer-events-none absolute bottom-3 right-24 text-2xl font-black text-primary/5 select-none" aria-hidden="true">✦</span>
+                <div class="pointer-events-none absolute right-5 top-4 hidden text-amber-400/50 md:block" aria-hidden="true">
+                    <Sparkles class="size-9" />
+                </div>
+                <div class="relative flex items-center gap-5">
+                    <div class="hidden h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-blue-600 text-white shadow-lg shadow-primary/25 md:flex">
+                        <Award class="size-7" />
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <div class="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-100 to-yellow-100 px-3 py-1.5 text-[12px] font-black text-amber-700 ring-1 ring-amber-200/60">
+                            <Trophy class="size-3.5 shrink-0" />
+                            Reading Journey Complete
+                        </div>
+                        <h1 class="anim-pop mt-2 bg-gradient-to-br from-slate-900 to-slate-600 bg-clip-text text-[clamp(1.6rem,3.5vw,2.4rem)] font-black leading-tight text-transparent">
+                            Congratulations, {{ firstName }}!
+                        </h1>
+                        <p class="mt-1 text-[14px] font-semibold text-slate-500">
+                            You worked hard from your first assessment to your final reading check. Great job!
+                        </p>
+>>>>>>> Stashed changes
                     </div>
                 </div>
 
+<<<<<<< Updated upstream
                 <!-- CTA -->
+=======
+            <!-- BODY GRID -->
+            <div class="page-body grid gap-4 lg:grid-cols-[1fr_minmax(0,340px)]">
+
+                <!-- LEFT: score cards -->
+                <section class="page-cards flex min-h-0 flex-col gap-3">
+                    <p v-if="!hasAnyMetrics" class="anim-up rounded-[24px] border border-slate-200/60 bg-white/80 px-5 py-4 text-center text-[14px] font-black text-primary shadow-sm">
+                        {{ resultSummary.fallbackMessage }}
+                    </p>
+                    <template v-else>
+                        <article
+                            v-for="card in cards"
+                            :key="card.title"
+                            class="anim-up shrink-0 rounded-[28px] p-4 shadow-lg ring-1 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl"
+                            :class="card.kind === 'progress'
+                                ? 'bg-gradient-to-br from-emerald-50/80 to-teal-50/50 ring-emerald-200/60 shadow-emerald-500/8'
+                                : 'bg-white ring-slate-200/60 shadow-slate-200/40'"
+                        >
+                            <div class="mb-3 flex items-center gap-2.5">
+                                <span
+                                    class="flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] text-white shadow-sm"
+                                    :class="card.kind === 'progress'
+                                        ? 'bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-emerald-400/30'
+                                        : 'bg-gradient-to-br from-primary to-blue-600 shadow-primary/20'"
+                                >
+                                    <CheckCircle2 class="size-3.5" />
+                                </span>
+                                <h2 class="text-[13px] font-black uppercase tracking-wide" :class="card.kind === 'progress' ? 'text-emerald-700' : 'text-slate-700'">
+                                    {{ card.title }}
+                                </h2>
+                                <span v-if="card.message" class="ml-auto text-[11px] font-black text-emerald-600">{{ card.message }}</span>
+                            </div>
+                            <div v-if="card.metrics?.length" class="grid grid-cols-3 gap-1.5">
+                                <div
+                                    v-for="metric in card.metrics"
+                                    :key="metric.label"
+                                    class="flex flex-col rounded-[14px] px-2.5 py-2 ring-1"
+                                    :class="card.kind === 'progress' ? 'bg-white/70 ring-emerald-100' : 'bg-slate-50/70 ring-slate-100'"
+                                >
+                                    <p class="truncate text-[9px] font-black uppercase tracking-widest" :class="card.kind === 'progress' ? 'text-emerald-500/70' : 'text-slate-400'">{{ metric.label }}</p>
+                                    <p
+                                        class="mt-0.5 text-[17px] font-black leading-none"
+                                        :class="card.kind === 'progress'
+                                            ? (String(metric.value).startsWith('+') ? 'text-emerald-600' : 'text-slate-700')
+                                            : 'text-primary'"
+                                    >{{ metric.value }}</p>
+                                </div>
+                            </div>
+                            <p v-else class="rounded-[14px] bg-slate-50/70 px-2.5 py-2 text-[13px] font-semibold text-slate-500 ring-1 ring-slate-100">
+                                {{ resultSummary.fallbackMessage }}
+                            </p>
+                        </article>
+                    </template>
+                </section>
+
+                <!-- RIGHT: agent messages -->
+                <section class="page-agents anim-up flex min-h-0 flex-col overflow-hidden rounded-[28px] border border-slate-200/60 bg-white shadow-xl shadow-slate-200/40">
+                    <div class="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 px-5 py-3.5">
+                        <div>
+                            <p class="text-[15px] font-black text-slate-800">Your agents are proud of you</p>
+                            <p class="text-[11px] font-semibold text-slate-400">Tap Play Voice to hear each message</p>
+                        </div>
+                        <button type="button" class="grid size-8 shrink-0 place-items-center rounded-xl bg-slate-50 text-slate-400 ring-1 ring-slate-200/60 transition hover:bg-red-50 hover:text-red-500 hover:ring-red-200/50" aria-label="Stop voice" @click="stopVoices">
+                            <VolumeX class="size-4" />
+                        </button>
+                    </div>
+                    <div class="agent-scroll flex-1 overflow-y-auto p-4">
+                        <div class="grid gap-3">
+                            <article
+                                v-for="agent in agentMessages"
+                                :key="agent.name"
+                                class="rounded-[20px] p-4 ring-1 transition-all"
+                                :class="activeAgent === agent.agentType
+                                    ? 'bg-primary/5 ring-primary/25'
+                                    : 'bg-gradient-to-br from-blue-50/60 to-slate-50/30 ring-slate-200/60 hover:ring-primary/20'"
+                            >
+                                <div class="flex items-start justify-between gap-2">
+                                    <div class="min-w-0">
+                                        <p class="text-[12px] font-black uppercase tracking-widest text-primary">{{ agent.name }}</p>
+                                        <p class="text-[11px] font-semibold text-slate-400">{{ agent.role }}</p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        class="inline-flex shrink-0 items-center gap-1.5 rounded-[12px] px-3 py-1.5 text-[11px] font-black shadow-sm transition-all active:scale-95"
+                                        :class="activeAgent === agent.agentType
+                                            ? 'bg-primary/10 text-primary cursor-default'
+                                            : 'bg-gradient-to-br from-primary to-blue-600 text-white shadow-primary/20 hover:-translate-y-0.5 hover:shadow-md'"
+                                        :disabled="activeAgent === agent.agentType"
+                                        @click="playAgent(agent)"
+                                    >
+                                        <Volume2 class="size-3 shrink-0" />
+                                        {{ activeAgent === agent.agentType ? 'Playing…' : 'Play Voice' }}
+                                    </button>
+                                </div>
+                                <p v-if="agent.resultMessage" class="mt-2.5 text-[13px] font-black leading-snug text-slate-800">{{ agent.resultMessage }}</p>
+                                <p class="mt-1 text-[13px] font-medium leading-relaxed text-slate-600">{{ agent.message }}</p>
+                            </article>
+                        </div>
+                        <p v-if="voiceStatus" class="mt-3 rounded-[16px] bg-amber-50 px-4 py-3 text-[12px] font-semibold text-amber-700 ring-1 ring-amber-200/60">{{ voiceStatus }}</p>
+                    </div>
+                </section>
+            </div>
+
+            <!-- FOOTER CTA -->
+            <footer class="anim-up shrink-0">
+>>>>>>> Stashed changes
                 <button
                     id="btn-thank-you-hero"
                     type="button"
+<<<<<<< Updated upstream
                     class="hero-cta"
                     :disabled="form.processing"
                     @click="submitThankYou"
@@ -687,13 +826,26 @@ onBeforeUnmount(() => {
                 >
                     <Home class="size-7 sm:size-8" aria-hidden="true" />
                     Thank You
+=======
+                    class="group w-full rounded-[22px] bg-gradient-to-r from-primary to-blue-600 px-6 py-3.5 text-[18px] font-black text-white shadow-xl shadow-primary/20 transition-all duration-200 hover:-translate-y-0.5 hover:scale-[1.01] hover:shadow-2xl hover:shadow-primary/30 focus:outline-none focus:ring-4 focus:ring-primary/20 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
+                    :disabled="form.processing"
+                    @click="submitThankYou"
+                >
+                    <span class="flex items-center justify-center gap-2.5">
+                        <Home class="size-5" />
+                        Finish — Thank You!
+                    </span>
+>>>>>>> Stashed changes
                 </button>
+                <p class="mt-2 text-center text-[12px] font-semibold text-slate-400">You may now return to the home page.</p>
             </footer>
-        </section>
+
+        </div>
     </LearnerLayout>
 </template>
 
 <style scoped>
+<<<<<<< Updated upstream
 /* ═══ Layout shell ════════════════════════════════ */
 .completion-shell {
     max-width: min(100%, 88rem);
@@ -1288,5 +1440,71 @@ onBeforeUnmount(() => {
 
 .agent-face-media--evaluator {
     object-position: center 18%;
+=======
+.page-shell {
+    max-width: min(100%, 86rem);
 }
+
+@media (min-width: 1024px) {
+    .page-shell {
+        height: calc(100svh - 8.5rem);
+        overflow: hidden;
+    }
+    .page-body {
+        min-height: 0;
+        flex: 1;
+        overflow: hidden;
+    }
+    .page-cards {
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: #e2e8f0 transparent;
+    }
+    .page-agents {
+        overflow: hidden;
+    }
+    .agent-scroll {
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: #e2e8f0 transparent;
+    }
+}
+
+.anim-hero {
+    animation: heroIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes heroIn {
+    from { opacity: 0; transform: translateY(-14px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.anim-pop {
+    animation: popIn 0.65s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+    animation-delay: 0.12s;
+    opacity: 0;
+}
+@keyframes popIn {
+    from { opacity: 0; transform: scale(0.82); }
+    to   { opacity: 1; transform: scale(1); }
+}
+
+.anim-up {
+    animation: upIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: 0.1s;
+    opacity: 0;
+}
+.page-agents.anim-up { animation-delay: 0.18s; }
+footer.anim-up        { animation-delay: 0.26s; }
+@keyframes upIn {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.page-cards > * {
+    animation: upIn 0.48s cubic-bezier(0.16, 1, 0.3, 1) both;
+>>>>>>> Stashed changes
+}
+.page-cards > *:nth-child(1) { animation-delay: 80ms; }
+.page-cards > *:nth-child(2) { animation-delay: 170ms; }
+.page-cards > *:nth-child(3) { animation-delay: 260ms; }
 </style>
