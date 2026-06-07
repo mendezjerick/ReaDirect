@@ -13,6 +13,7 @@ import StatusBadge from '../../../Components/StatusBadge.vue';
 import { useStepAssessment } from '../../../Composables/useStepAssessment';
 import { appendAudioMetadata, normalizeAsrResponse } from '../../../utils/asrResponse';
 import { highlightTargetsForModuleItem } from '../../../utils/modulePromptHighlight';
+import { getWordVisual } from '../../../utils/readingIllustrations';
 
 const props = defineProps({ module: Object, moduleAttemptId: Number, items: Array, assessmentMode: Object });
 const form = useForm({});
@@ -58,6 +59,25 @@ const progressLabel = computed(() => `Mastery ${step.currentIndex.value + 1} of 
 const isCurrentUploading = computed(() => Boolean(uploading[step.currentItem.value?.id]));
 const isCurrentChecking = computed(() => Boolean(checking[step.currentItem.value?.id]));
 const currentHighlightTargets = computed(() => highlightTargetsForModuleItem(step.currentItem.value));
+const currentWordVisual = computed(() => {
+    const payloadTarget = step.currentItem.value?.payload?.target_word;
+    if (payloadTarget) return getWordVisual(payloadTarget);
+    
+    const prompt = step.currentItem.value?.prompt ?? '';
+    if (prompt && !prompt.includes(' ')) {
+        const visual = getWordVisual(prompt);
+        if (visual) return visual;
+    }
+    
+    if (prompt) {
+        const words = prompt.replace(/[^\w\s]/g, '').split(/\s+/);
+        for (const w of words) {
+            const visual = getWordVisual(w);
+            if (visual) return visual;
+        }
+    }
+    return null;
+});
 const currentRetryState = computed(() => retryStates[step.currentItem.value?.id] ?? defaultRetryState());
 const currentAttemptSlots = computed(() => Array.from({ length: currentRetryState.value.max_attempts ?? 3 }, (_, index) => {
     const attemptNumber = index + 1;
@@ -296,7 +316,7 @@ const returnToDashboard = () => {
                 <StatusBadge :status="progressLabel" />
             </div>
             <ModuleProgressBar :value="step.progressPercent.value" />
-            <PromptCard label="Check" :prompt="step.currentItem.value.prompt" :highlight-targets="currentHighlightTargets" size="word" />
+            <PromptCard label="Check" :prompt="step.currentItem.value.prompt" :highlight-targets="currentHighlightTargets" size="word" :word-visual="currentWordVisual" />
             <div class="rounded-[24px] border border-border bg-surface p-4 shadow-lg shadow-primary/10">
                 <div class="grid gap-3 md:grid-cols-[220px_1fr] md:items-center">
                     <AudioRecorder

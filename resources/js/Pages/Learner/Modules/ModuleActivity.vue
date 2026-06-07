@@ -14,6 +14,7 @@ import { ArrowRight, ArrowLeft } from 'lucide-vue-next';
 import { useStepAssessment } from '../../../Composables/useStepAssessment';
 import { appendAudioMetadata, normalizeAsrResponse } from '../../../utils/asrResponse';
 import { highlightTargetsForModuleItem } from '../../../utils/modulePromptHighlight';
+import { getWordVisual } from '../../../utils/readingIllustrations';
 
 const props = defineProps({
     module: Object,
@@ -71,7 +72,33 @@ const coachState = ref('speaking');
 const returningToDashboard = ref(false);
 const isCurrentUploading = computed(() => Boolean(uploading[step.currentItem.value?.id]));
 const isCurrentChecking = computed(() => Boolean(checking[step.currentItem.value?.id]));
-const currentHighlightTargets = computed(() => highlightTargetsForModuleItem(step.currentItem.value));
+const currentHighlightTargets = computed(() => {
+    return highlightTargetsForModuleItem(step.currentItem.value);
+});
+
+const currentWordVisual = computed(() => {
+    // 1. Try explicit target word first
+    const payloadTarget = step.currentItem.value?.payload?.target_word;
+    if (payloadTarget) return getWordVisual(payloadTarget);
+    
+    // 2. Try the prompt if it's a single word (Module 2)
+    const prompt = step.currentItem.value?.prompt ?? '';
+    if (prompt && !prompt.includes(' ')) {
+        const visual = getWordVisual(prompt);
+        if (visual) return visual;
+    }
+    
+    // 3. For sentences (Module 3), find the first known visual word
+    if (prompt) {
+        const words = prompt.replace(/[^\w\s]/g, '').split(/\s+/);
+        for (const w of words) {
+            const visual = getWordVisual(w);
+            if (visual) return visual;
+        }
+    }
+    return null;
+});
+
 const currentRetryState = computed(() => retryStates[step.currentItem.value?.id] ?? defaultRetryState());
 const currentAttemptSlots = computed(() => Array.from({ length: currentRetryState.value.max_attempts ?? 3 }, (_, index) => {
     const attemptNumber = index + 1;
@@ -316,7 +343,7 @@ const returnToDashboard = () => {
                 <StatusBadge :status="progressLabel" />
             </div>
             <ModuleProgressBar :value="step.progressPercent.value" />
-            <PromptCard label="Practice" :prompt="step.currentItem.value.prompt" :highlight-targets="currentHighlightTargets" size="word" />
+            <PromptCard label="Practice" :prompt="step.currentItem.value.prompt" :highlight-targets="currentHighlightTargets" size="word" :word-visual="currentWordVisual" />
             <div class="rounded-[32px] border border-slate-200/80 bg-white p-5 shadow-xl shadow-slate-200/30 xl:p-7">
                 <div class="grid gap-5 md:grid-cols-[minmax(220px,1fr)_1.3fr] md:items-start xl:gap-6">
                     <AudioRecorder

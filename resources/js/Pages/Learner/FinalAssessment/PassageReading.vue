@@ -7,6 +7,7 @@ import AgentSpeakerPanel from '../../../Components/Learner/AgentSpeakerPanel.vue
 import PrimaryButton from '../../../Components/PrimaryButton.vue';
 import BottomActionBar from '../../../Components/BottomActionBar.vue';
 import { appendAudioMetadata, normalizeAsrResponse } from '../../../utils/asrResponse';
+import { getPassageImage } from '../../../utils/readingIllustrations';
 
 const props = defineProps({
     passage: Object,
@@ -15,6 +16,7 @@ const props = defineProps({
 });
 
 const savedPassageResponse = props.passage?.saved_response ?? {};
+const passageImage = computed(() => getPassageImage(props.passage));
 const form = useForm({
     assessment_attempt_id: props.assessmentAttemptId,
     incorrect_words: 0,
@@ -173,8 +175,22 @@ const submit = () => {
                 </div>
             </div>
 
+            <!-- Passage illustration -->
+            <div v-if="passageImage" class="anim-card relative overflow-hidden rounded-[28px] shadow-xl shadow-primary/10">
+                <img
+                    :src="passageImage"
+                    :alt="passage?.title ?? 'Story illustration'"
+                    class="h-48 w-full object-cover md:h-56"
+                />
+                <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/50 to-transparent px-5 pb-3 pt-6">
+                    <p class="text-[13px] font-black uppercase tracking-widest text-white/70">Final Reading Check</p>
+                    <p class="text-[17px] font-black leading-tight text-white drop-shadow">{{ passage?.title }}</p>
+                </div>
+            </div>
+
             <!-- Passage card -->
             <section class="anim-card relative max-h-[34vh] overflow-y-auto overflow-hidden rounded-[36px] border-[3px] border-primary/10 bg-white p-6 shadow-2xl shadow-primary/10 sm:p-7 lg:max-h-[42vh]" aria-label="Reading passage">
+                <p v-if="!passageImage && passage?.title" class="mb-3 text-[13px] font-black uppercase tracking-widest text-slate-400">{{ passage.title }}</p>
                 <p class="text-2xl font-black leading-relaxed text-slate-800 md:text-[28px]">{{ passage.prompt }}</p>
             </section>
 

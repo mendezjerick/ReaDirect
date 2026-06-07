@@ -6,6 +6,7 @@ const props = defineProps({
     prompt: { type: String, required: true },
     size: { type: String, default: 'letter' },
     highlightTargets: { type: Array, default: () => [] },
+    wordVisual: { type: Object, default: null },
 });
 
 const normalizeTarget = (target) => {
@@ -84,6 +85,17 @@ const promptSegments = computed(() => {
         <span class="pointer-events-none absolute right-8 top-8 text-3xl font-black text-primary/5" aria-hidden="true">✦</span>
 
         <p v-if="label" class="prompt-label relative text-[14px] font-black uppercase tracking-widest text-primary/50 md:text-[15px]">{{ label }}</p>
+        
+        <!-- Word visual emoji card -->
+        <div
+            v-if="wordVisual"
+            class="anim-pop mx-auto mb-2 mt-4 flex h-24 w-24 flex-col items-center justify-center rounded-[20px] bg-gradient-to-br shadow-lg shadow-primary/10 ring-1 ring-white/40"
+            :class="wordVisual.color"
+        >
+            <span class="text-4xl leading-none">{{ wordVisual.emoji }}</span>
+            <p class="mt-1.5 text-[10px] font-black uppercase tracking-widest text-slate-600/70">{{ wordVisual.label }}</p>
+        </div>
+
         <div
             :class="{
                 'text-7xl md:text-8xl xl:text-9xl': size === 'letter',

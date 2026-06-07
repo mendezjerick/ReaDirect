@@ -9,6 +9,7 @@ import SecondaryButton from '../../../Components/SecondaryButton.vue';
 import BottomActionBar from '../../../Components/BottomActionBar.vue';
 import { useStepAssessment } from '../../../Composables/useStepAssessment';
 import { appendAudioMetadata, normalizeAsrResponse } from '../../../utils/asrResponse';
+import { getWordVisual } from '../../../utils/readingIllustrations';
 
 const props = defineProps({
     items: Array,
@@ -228,6 +229,12 @@ const handlePrimary = async () => {
     if (step.isLast.value) return submit();
     step.goNext();
 };
+
+// Word visual for current item
+const currentWordVisual = computed(() => {
+    const word = step.currentItem.value?.payload?.target_word ?? '';
+    return getWordVisual(word);
+});
 </script>
 
 <template>
@@ -259,6 +266,15 @@ const handlePrimary = async () => {
 
             <!-- Sentence prompt card -->
             <div class="anim-card relative overflow-hidden rounded-[36px] border-[3px] border-primary/10 bg-white p-6 text-center shadow-2xl shadow-primary/10 sm:p-7">
+                <!-- Word visual emoji card -->
+                <div
+                    v-if="currentWordVisual"
+                    class="mx-auto mb-4 flex h-28 w-28 flex-col items-center justify-center rounded-[24px] bg-gradient-to-br shadow-lg shadow-primary/10 ring-1 ring-white/40"
+                    :class="currentWordVisual.color"
+                >
+                    <span class="text-4xl leading-none">{{ currentWordVisual.emoji }}</span>
+                    <p class="mt-1.5 text-[10px] font-black uppercase tracking-widest text-slate-600/70">{{ currentWordVisual.label }}</p>
+                </div>
                 <p class="text-base font-black text-slate-400">Read the highlighted word</p>
                 <p class="mt-3 text-2xl font-black leading-snug text-slate-800 md:text-3xl">
                     <template v-for="(part, index) in parts(step.currentItem.value)" :key="index">

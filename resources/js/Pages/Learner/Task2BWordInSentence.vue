@@ -12,6 +12,7 @@ import StatusBadge from '../../Components/StatusBadge.vue';
 import ModuleProgressBar from '../../Components/ModuleProgressBar.vue';
 import { useStepAssessment } from '../../Composables/useStepAssessment';
 import { appendAudioMetadata, normalizeAsrResponse } from '../../utils/asrResponse';
+import { getWordVisual } from '../../utils/readingIllustrations';
 
 const props = defineProps({
     items: Array,
@@ -245,6 +246,12 @@ const handlePrimary = async () => {
 
     step.goNext();
 };
+
+// Word visual for the current item
+const currentWordVisual = computed(() => {
+    const word = step.currentItem.value?.payload?.target_word ?? '';
+    return getWordVisual(word);
+});
 </script>
 
 <template>
@@ -291,9 +298,20 @@ const handlePrimary = async () => {
                 <span class="pointer-events-none absolute bottom-6 right-8 text-4xl font-black text-primary/5" aria-hidden="true">✦</span>
 
                 <div class="relative z-10">
-                    <span class="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-blue-600 text-white shadow-lg shadow-primary/20">
+                    <!-- Word visual card -->
+                    <div
+                        v-if="currentWordVisual"
+                        class="anim-pop mx-auto mb-5 flex h-32 w-32 flex-col items-center justify-center rounded-[28px] bg-gradient-to-br shadow-xl shadow-primary/10 ring-1 ring-white/40"
+                        :class="currentWordVisual.color"
+                    >
+                        <span class="text-5xl leading-none">{{ currentWordVisual.emoji }}</span>
+                        <p class="mt-2 text-[11px] font-black uppercase tracking-widest text-slate-600/70">{{ currentWordVisual.label }}</p>
+                    </div>
+                    <!-- Fallback icon when no visual -->
+                    <span v-else class="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-blue-600 text-white shadow-lg shadow-primary/20">
                         <BookOpen class="size-7" />
                     </span>
+
                     <p class="mt-4 text-[14px] font-black uppercase tracking-widest text-slate-400">Read the highlighted word</p>
                     <p class="anim-pop mt-5 text-5xl font-black leading-snug md:text-6xl">
                         <template v-for="(part, index) in parts(step.currentItem.value)" :key="index">
