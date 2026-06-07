@@ -3,16 +3,8 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useForm } from "@inertiajs/vue3";
 import { CheckCircle2, Home, Trophy, Volume2, VolumeX } from "lucide-vue-next";
 import LearnerLayout from "../../Layouts/LearnerLayout.vue";
+import AgentVideoPlayer from "../../Components/Agents/AgentVideoPlayer.vue";
 import CompletionCertificate from "../../Components/Learner/CompletionCertificate.vue";
-
-/* Agent asset base paths (dynamic so Vite does NOT try to resolve them as modules) */
-const AGENT_BASES = {
-    assessment: "/assets/agents/assessment",
-    coach_feedback: "/assets/agents/coach_feedback",
-    evaluator: "/assets/agents/evaluator",
-};
-const agentSrc = (type, file) =>
-    `${AGENT_BASES[type] ?? "/assets/agents/assessment"}/${file}`;
 
 const props = defineProps({
     learner: { type: Object, default: null },
@@ -340,51 +332,37 @@ onBeforeUnmount(() => {
                     class="hero-agents"
                     aria-label="Your learning agents celebrating with you"
                 >
-                    <!-- Miss Vivian — has webm -->
+                    <!-- Miss Vivian static portrait -->
                     <div class="hero-agent-bubble">
                         <div class="hero-agent-avatar">
-                            <video
+                            <AgentVideoPlayer
+                                agent="Vivian"
+                                action="congrats"
+                                allow-congrats
                                 class="h-full w-full object-contain"
-                                aria-label="Miss Vivian"
-                                autoplay
-                                loop
-                                muted
-                                playsinline
-                            >
-                                <source
-                                    :src="
-                                        agentSrc(
-                                            'assessment',
-                                            'celebrating.webm',
-                                        )
-                                    "
-                                    type="video/webm"
-                                />
-                                <source
-                                    :src="agentSrc('assessment', 'idle.webm')"
-                                    type="video/webm"
-                                />
-                            </video>
+                            />
                         </div>
                         <span class="hero-agent-name">Miss Vivian</span>
                     </div>
-                    <!-- Miss Ciel — png only -->
+                    <!-- Miss Ciel static portrait -->
                     <div class="hero-agent-bubble hero-agent-bubble--center">
                         <div class="hero-agent-avatar hero-agent-avatar--lg">
-                            <img
-                                :src="agentSrc('coach_feedback', 'idle.png')"
-                                alt="Miss Ciel"
+                            <AgentVideoPlayer
+                                agent="Ciel"
+                                action="congrats"
+                                allow-congrats
                                 class="h-full w-full object-contain"
                             />
                         </div>
                         <span class="hero-agent-name">Miss Ciel</span>
                     </div>
-                    <!-- Miss Estelle — png only -->
+                    <!-- Miss Estelle static portrait -->
                     <div class="hero-agent-bubble">
                         <div class="hero-agent-avatar">
-                            <img
-                                :src="agentSrc('evaluator', 'idle.png')"
-                                alt="Miss Estelle"
+                            <AgentVideoPlayer
+                                agent="Estelle"
+                                action="congrats"
+                                allow-congrats
                                 class="h-full w-full object-contain"
                             />
                         </div>
@@ -587,29 +565,11 @@ onBeforeUnmount(() => {
                         <!-- Agent face avatar -->
                         <div class="agent-card-avatar mb-3">
                             <div class="agent-card-img-wrap">
-                                <!-- assessment is the only agent with a .webm -->
-                                <video
-                                    v-if="agent.agentType === 'assessment'"
-                                    class="agent-face-media"
-                                    :class="`agent-face-media--${agent.agentType}`"
-                                    :aria-label="agent.name"
-                                    autoplay
-                                    loop
-                                    muted
-                                    playsinline
-                                >
-                                    <source
-                                        :src="
-                                            agentSrc('assessment', 'idle.webm')
-                                        "
-                                        type="video/webm"
-                                    />
-                                </video>
-
-                                <img
-                                    v-else
-                                    :src="agentSrc(agent.agentType, 'idle.png')"
+                                <AgentVideoPlayer
+                                    :agent="agent.agentType"
+                                    action="congrats"
                                     :alt="agent.name"
+                                    allow-congrats
                                     class="agent-face-media"
                                     :class="`agent-face-media--${agent.agentType}`"
                                 />

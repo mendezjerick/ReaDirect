@@ -141,7 +141,7 @@ const clearAudio = (item) => {
 const uploadAudio = async (item, file) => {
     uploading[item.id] = true;
     coachMessage.value = 'Checking your recording.';
-    coachState.value = 'speaking';
+    coachState.value = 'thinking';
 
     try {
         const payload = new FormData();

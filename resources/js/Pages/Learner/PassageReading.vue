@@ -331,7 +331,7 @@ const submit = () => {
             <AgentSpeakerPanel
                 compact
                 agent-type="assessment"
-                :state="uploading ? 'speaking' : 'listening'"
+                :state="uploading ? 'thinking' : 'listening'"
                 :message="uploading ? 'Checking your reading.' : 'Read the passage aloud. Try your best and speak clearly.'"
             />
         </template>

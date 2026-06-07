@@ -6,29 +6,58 @@ use PHPUnit\Framework\TestCase;
 
 class AgentSpeakerPanelStructureTest extends TestCase
 {
-    public function test_agent_assets_were_copied_to_public_paths(): void
+    public function test_agent_media_registry_uses_the_static_asset_base_url_and_exact_filenames(): void
     {
         $root = dirname(__DIR__, 2);
+        $registry = file_get_contents($root.'/resources/js/utils/agentMedia.js');
 
-        $this->assertFileExists($root.'/public/assets/agents/assessment/idle.png');
-        $this->assertFileExists($root.'/public/assets/agents/assessment/idle.webm');
-        $this->assertFileExists($root.'/public/assets/agents/coach_feedback/idle.png');
-        $this->assertFileExists($root.'/public/assets/agents/evaluator/idle.png');
+        $this->assertStringContainsString('VITE_REA_AGENT_ASSET_BASE_URL', $registry);
+        $this->assertStringContainsString("'/ia-assets'", $registry);
+        $this->assertStringContainsString('videos/Ciel/c-idle.mp4', $registry);
+        $this->assertStringContainsString('videos/Ciel/c-thinking-3.mp4', $registry);
+        $this->assertStringContainsString('videos/Ciel/c-happy.mp4', $registry);
+        $this->assertStringContainsString('videos/Ciel/c-confused.mp4', $registry);
+        $this->assertStringContainsString('videos/Ciel/c-advise.mp4', $registry);
+        $this->assertStringContainsString('videos/Ciel/c-clap.mp4', $registry);
+        $this->assertStringContainsString('videos/Ciel/c-congrats.mp4', $registry);
+        $this->assertStringContainsString('videos/Vivian/v-idle.mp4', $registry);
+        $this->assertStringContainsString('videos/Vivian/v-thinking-2.mp4', $registry);
+        $this->assertStringContainsString('videos/Vivian/v-congrats.mp4', $registry);
+        $this->assertStringContainsString('videos/Estelle/e-idle.mp4', $registry);
+        $this->assertStringContainsString('videos/Estelle/e-results-2.mp4', $registry);
+        $this->assertStringContainsString('videos/Estelle/e-congrats.mp4', $registry);
     }
 
-    public function test_agent_speaker_panel_supports_required_agents_and_fallbacks(): void
+    public function test_agent_video_player_is_non_interrupting_and_has_no_queue(): void
     {
-        $component = file_get_contents(dirname(__DIR__, 2).'/resources/js/Components/Learner/AgentSpeakerPanel.vue');
+        $root = dirname(__DIR__, 2);
+        $player = file_get_contents($root.'/resources/js/Components/Agents/AgentVideoPlayer.vue');
+        $component = file_get_contents($root.'/resources/js/Components/Learner/AgentSpeakerPanel.vue');
 
-        $this->assertStringContainsString('Miss Vivian', $component);
-        $this->assertStringContainsString('Miss Ciel', $component);
-        $this->assertStringContainsString('Miss Estelle', $component);
-        $this->assertStringContainsString('handleImageError', $component);
-        $this->assertStringContainsString('idle.webm', $component);
-        $this->assertStringContainsString('type="video/webm"', $component);
-        $this->assertStringContainsString("displayMode.value = 'idle'", $component);
-        $this->assertStringContainsString("displayMode.value = 'placeholder'", $component);
-        $this->assertStringContainsString('object-contain', $component);
+        $this->assertStringContainsString('if (isBusy.value)', $player);
+        $this->assertStringContainsString('return false', $player);
+        $this->assertStringContainsString(':loop="!isBusy"', $player);
+        $this->assertStringContainsString('@ended="handleVideoEnded"', $player);
+        $this->assertStringContainsString('showIdle(activeAgent.value)', $player);
+        $this->assertStringContainsString('getAgentFallbackMedia', $player);
+        $this->assertStringNotContainsString('pending', strtolower($player));
+        $this->assertStringNotContainsString('queue', strtolower($player));
+        $this->assertStringNotContainsString('setTimeout', $player);
+        $this->assertStringContainsString('AgentVideoPlayer', $component);
+    }
+
+    public function test_congrats_media_is_enabled_only_in_final_completion_views(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $summary = file_get_contents($root.'/resources/js/Pages/Learner/FinalAssessment/Summary.vue');
+        $completion = file_get_contents($root.'/resources/js/Pages/Learner/Completion.vue');
+        $activity = file_get_contents($root.'/resources/js/Pages/Learner/Modules/ModuleActivity.vue');
+
+        $this->assertStringContainsString("ref('results')", $summary);
+        $this->assertStringContainsString("agentAction.value = 'congrats'", $summary);
+        $this->assertStringContainsString('allow-congrats', $summary);
+        $this->assertStringContainsString('allow-congrats', $completion);
+        $this->assertStringNotContainsString('allow-congrats', $activity);
     }
 
     public function test_agent_speaker_panel_integrates_tts_controls(): void

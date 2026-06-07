@@ -72,7 +72,7 @@ const clearAudio = (item) => {
 const uploadAudio = async (item, file) => {
     uploading[item.id] = true;
     agentMessage.value = 'Checking your recording.';
-    agentState.value = 'speaking';
+    agentState.value = 'thinking';
 
     try {
         const payload = new FormData();

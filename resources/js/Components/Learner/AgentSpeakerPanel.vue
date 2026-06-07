@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { GraduationCap, RotateCcw, Volume2, VolumeX } from 'lucide-vue-next';
 import AgentSpeakerTTS from '../Agents/AgentSpeakerTTS.vue';
+import AgentVideoPlayer from '../Agents/AgentVideoPlayer.vue';
 
 const props = defineProps({
     agentType: { type: String, required: true },
@@ -17,40 +18,34 @@ const props = defineProps({
     rate: { type: Number, default: 1 },
     pitch: { type: Number, default: 1 },
     presentation: { type: String, default: 'default' },
+    allowCongrats: { type: Boolean, default: false },
 });
+
+const emit = defineEmits(['interaction-ended']);
 
 const agents = {
     assessment: {
         label: 'Miss Vivian',
         role: 'Assessment Guide',
-        initials: 'MV',
-        base: '/assets/agents/assessment',
         intro: 'Hello! I am Miss Vivian. I will guide you through your reading assessment. Try your best and answer one step at a time.',
     },
     coach_feedback: {
         label: 'Miss Ciel',
         role: 'Reading Coach',
-        initials: 'MC',
-        base: '/assets/agents/coach_feedback',
         intro: 'Hi! I am Miss Ciel. I will help you practice reading. Mistakes are okay. I am here to guide you.',
     },
     evaluator: {
         label: 'Miss Estelle',
         role: 'Results Guide',
-        initials: 'ME',
-        base: '/assets/agents/evaluator',
         intro: 'Hello! I am Miss Estelle. I will help explain your results so you know what to do next.',
     },
     evaluator_recommendation: {
         label: 'Miss Estelle',
         role: 'Results Guide',
-        initials: 'ME',
-        base: '/assets/agents/evaluator',
         intro: 'Hello! I am Miss Estelle. I will help explain your results so you know what to do next.',
     },
 };
 
-const displayMode = ref('requested');
 const isSpeaking = ref(false);
 const ttsError = ref('');
 const ttsKey = ref(0);
@@ -79,29 +74,6 @@ const agent = computed(() => agents[props.agentType] ?? agents.assessment);
 const introStorageKey = computed(() => `readirect-agent-intro-seen-${props.agentType}`);
 const displayMessage = computed(() => showIntro.value ? agent.value.intro : props.message);
 const effectiveState = computed(() => (isSpeaking.value ? 'speaking' : (props.state || 'idle')));
-const prefersAssessmentWebmIdle = computed(() => props.agentType === 'assessment');
-const requestedSrc = computed(() => {
-    if (prefersAssessmentWebmIdle.value && effectiveState.value === 'idle') {
-        return `${agent.value.base}/idle.webm`;
-    }
-
-    return `${agent.value.base}/${effectiveState.value}.png`;
-});
-const idleWebmSrc = computed(() => `${agent.value.base}/idle.webm`);
-const idleSrc = computed(() => `${agent.value.base}/idle.png`);
-const imageSrc = computed(() => {
-    if (displayMode.value === 'requested') {
-        return requestedSrc.value;
-    }
-
-    if (displayMode.value === 'idle_webm') {
-        return idleWebmSrc.value;
-    }
-
-    return idleSrc.value;
-});
-const showPlaceholder = computed(() => displayMode.value === 'placeholder');
-const isVideoAsset = computed(() => !showPlaceholder.value && imageSrc.value.endsWith('.webm'));
 const displayTitle = computed(() => props.title || agent.value.label);
 const displaySubtitle = computed(() => props.subtitle || agent.value.role);
 const naturalAudioUrl = computed(() => voicePayload.value?.audio_url ?? null);
@@ -121,10 +93,6 @@ const stateLabel = computed(() => {
 
     return labels[effectiveState.value] ?? 'Ready';
 });
-watch(() => [props.agentType, effectiveState.value], () => {
-    displayMode.value = 'requested';
-});
-
 watch(() => props.agentType, () => {
     showIntro.value = false;
     loadIntroState();
@@ -139,30 +107,6 @@ watch(isMuted, (value) => {
         window.localStorage.setItem('readirect-agent-tts-muted', String(value));
     }
 });
-
-const handleImageError = () => {
-    if (displayMode.value === 'requested' && prefersAssessmentWebmIdle.value && effectiveState.value !== 'idle') {
-        displayMode.value = 'idle_webm';
-        return;
-    }
-
-    if (displayMode.value === 'requested' && prefersAssessmentWebmIdle.value) {
-        displayMode.value = 'idle';
-        return;
-    }
-
-    if (displayMode.value === 'requested' && effectiveState.value !== 'idle') {
-        displayMode.value = 'idle';
-        return;
-    }
-
-    if (displayMode.value === 'idle_webm') {
-        displayMode.value = 'idle';
-        return;
-    }
-
-    displayMode.value = 'placeholder';
-};
 
 const toggleMute = () => {
     isMuted.value = !isMuted.value;
@@ -295,29 +239,14 @@ watch(
         
         <div class="relative grid justify-items-center">
             <div class="grid h-64 w-full max-w-64 place-items-end overflow-hidden rounded-3xl border-4 border-white bg-slate-50 shadow-lg shadow-slate-200/50 md:h-72 md:max-w-72 lg:h-[clamp(14rem,18vw,18rem)] lg:max-w-[clamp(14rem,18vw,18rem)]">
-                <video
-                    v-if="isVideoAsset"
-                    :key="imageSrc"
-                    class="h-full w-full object-contain"
-                    :aria-label="displayTitle"
-                    autoplay
-                    loop
-                    muted
-                    playsinline
-                    @error="handleImageError"
-                >
-                    <source :src="imageSrc" type="video/webm">
-                </video>
-                <img
-                    v-else-if="!showPlaceholder"
-                    :src="imageSrc"
+                <AgentVideoPlayer
+                    :agent="agentType"
+                    :action="state"
                     :alt="displayTitle"
+                    :allow-congrats="allowCongrats"
                     class="h-full w-full object-contain"
-                    @error="handleImageError"
-                >
-                <div v-else class="grid size-full place-items-center bg-gradient-to-br from-primary to-blue-600 text-5xl font-black text-white">
-                    {{ agent.initials }}
-                </div>
+                    @interaction-ended="emit('interaction-ended', $event)"
+                />
             </div>
             <p class="mt-6 text-center text-[16px] font-black uppercase tracking-widest text-primary">{{ displayTitle }}</p>
             <div class="mt-3 flex flex-wrap justify-center gap-2">
@@ -377,29 +306,14 @@ watch(
 
         <div class="grid justify-items-center">
             <div class="grid h-60 w-full max-w-72 place-items-end overflow-hidden rounded-[28px] border-[3px] border-white bg-slate-50 shadow-md shadow-slate-200/50 xl:h-72 xl:max-w-80">
-                <video
-                    v-if="isVideoAsset"
-                    :key="imageSrc"
-                    class="h-full w-full object-contain object-bottom"
-                    :aria-label="displayTitle"
-                    autoplay
-                    loop
-                    muted
-                    playsinline
-                    @error="handleImageError"
-                >
-                    <source :src="imageSrc" type="video/webm">
-                </video>
-                <img
-                    v-else-if="!showPlaceholder"
-                    :src="imageSrc"
+                <AgentVideoPlayer
+                    :agent="agentType"
+                    :action="state"
                     :alt="displayTitle"
+                    :allow-congrats="allowCongrats"
                     class="h-full w-full object-contain object-bottom"
-                    @error="handleImageError"
-                >
-                <div v-else class="grid size-full place-items-center bg-gradient-to-br from-primary to-blue-600 text-5xl font-black text-white">
-                    {{ agent.initials }}
-                </div>
+                    @interaction-ended="emit('interaction-ended', $event)"
+                />
             </div>
         </div>
         <div class="relative mt-6 rounded-[24px] border border-slate-200/60 bg-slate-50/80 p-5 shadow-sm xl:mt-8">
@@ -473,29 +387,14 @@ watch(
         
         <div class="relative grid justify-items-center">
             <div class="grid h-64 w-full max-w-64 place-items-end overflow-hidden rounded-3xl border-4 border-white bg-slate-50 shadow-lg shadow-slate-200/50 md:h-72 md:max-w-72 lg:h-[clamp(14rem,18vw,18rem)] lg:max-w-[clamp(14rem,18vw,18rem)]">
-                <video
-                    v-if="isVideoAsset"
-                    :key="imageSrc"
-                    class="h-full w-full object-contain"
-                    :aria-label="displayTitle"
-                    autoplay
-                    loop
-                    muted
-                    playsinline
-                    @error="handleImageError"
-                >
-                    <source :src="imageSrc" type="video/webm">
-                </video>
-                <img
-                    v-else-if="!showPlaceholder"
-                    :src="imageSrc"
+                <AgentVideoPlayer
+                    :agent="agentType"
+                    :action="state"
                     :alt="displayTitle"
+                    :allow-congrats="allowCongrats"
                     class="h-full w-full object-contain"
-                    @error="handleImageError"
-                >
-                <div v-else class="grid size-full place-items-center bg-gradient-to-br from-primary to-blue-600 text-5xl font-black text-white">
-                    {{ agent.initials }}
-                </div>
+                    @interaction-ended="emit('interaction-ended', $event)"
+                />
             </div>
             <p class="mt-6 text-center text-[16px] font-black uppercase tracking-widest text-primary">{{ displayTitle }}</p>
             <div class="mt-3 flex flex-wrap justify-center gap-2">
@@ -556,29 +455,14 @@ watch(
             <span class="absolute right-8 top-16 text-2xl font-black text-white" aria-hidden="true">*</span>
             <span class="absolute bottom-0 left-0 h-24 w-36 rounded-tr-full bg-white/80" aria-hidden="true" />
             <span class="absolute bottom-0 right-0 h-24 w-32 rounded-tl-full bg-blue-100/80" aria-hidden="true" />
-            <video
-                v-if="isVideoAsset"
-                :key="imageSrc"
-                class="relative z-10 h-56 w-full object-contain object-bottom sm:h-72 xl:h-80"
-                :aria-label="displayTitle"
-                autoplay
-                loop
-                muted
-                playsinline
-                @error="handleImageError"
-            >
-                <source :src="imageSrc" type="video/webm">
-            </video>
-            <img
-                v-else-if="!showPlaceholder"
-                :src="imageSrc"
+            <AgentVideoPlayer
+                :agent="agentType"
+                :action="state"
                 :alt="displayTitle"
+                :allow-congrats="allowCongrats"
                 class="relative z-10 h-56 w-full object-contain object-bottom sm:h-72 xl:h-80"
-                @error="handleImageError"
-            >
-            <div v-else class="relative z-10 grid size-56 place-items-center rounded-[24px] bg-primary text-5xl font-black text-white">
-                {{ agent.initials }}
-            </div>
+                @interaction-ended="emit('interaction-ended', $event)"
+            />
         </div>
         <div class="relative mt-4 rounded-[22px] border border-blue-200 bg-surface p-4 shadow-sm shadow-primary/10 sm:mt-5 sm:p-5 xl:rounded-[26px] xl:p-6">
             <span class="absolute left-1/2 top-0 size-8 -translate-x-1/2 -translate-y-1/2 rotate-45 border-l border-t border-blue-200 bg-surface" aria-hidden="true" />
@@ -646,29 +530,14 @@ watch(
         
         <div class="grid justify-items-center">
             <div class="grid h-64 w-full max-w-64 place-items-end overflow-hidden rounded-3xl border-4 border-white bg-slate-50 shadow-md shadow-slate-200/50 md:h-72 md:max-w-72 lg:h-[clamp(14rem,18vw,18rem)] lg:max-w-[clamp(14rem,18vw,18rem)]">
-                <video
-                    v-if="isVideoAsset"
-                    :key="imageSrc"
-                    class="h-full w-full object-contain"
-                    :aria-label="displayTitle"
-                    autoplay
-                    loop
-                    muted
-                    playsinline
-                    @error="handleImageError"
-                >
-                    <source :src="imageSrc" type="video/webm">
-                </video>
-                <img
-                    v-else-if="!showPlaceholder"
-                    :src="imageSrc"
+                <AgentVideoPlayer
+                    :agent="agentType"
+                    :action="state"
                     :alt="displayTitle"
+                    :allow-congrats="allowCongrats"
                     class="h-full w-full object-contain"
-                    @error="handleImageError"
-                >
-                <div v-else class="grid size-full place-items-center bg-gradient-to-br from-primary to-blue-600 text-5xl font-black text-white">
-                    {{ agent.initials }}
-                </div>
+                    @interaction-ended="emit('interaction-ended', $event)"
+                />
             </div>
         </div>
         <div class="relative mt-6 rounded-[24px] border border-slate-200/60 bg-slate-50/80 p-5 shadow-sm xl:mt-8">
@@ -741,29 +610,14 @@ watch(
         
         <div class="relative grid justify-items-center">
             <div class="grid h-48 w-48 place-items-end overflow-hidden rounded-3xl border-[3px] border-white bg-slate-50 shadow-md shadow-slate-200/50 md:h-52 md:w-52 lg:h-[clamp(11rem,22vh,14rem)] lg:w-[clamp(11rem,16vw,14rem)]">
-                <video
-                    v-if="isVideoAsset"
-                    :key="imageSrc"
-                    class="h-full w-full object-contain"
-                    :aria-label="displayTitle"
-                    autoplay
-                    loop
-                    muted
-                    playsinline
-                    @error="handleImageError"
-                >
-                    <source :src="imageSrc" type="video/webm">
-                </video>
-                <img
-                    v-else-if="!showPlaceholder"
-                    :src="imageSrc"
+                <AgentVideoPlayer
+                    :agent="agentType"
+                    :action="state"
                     :alt="displayTitle"
+                    :allow-congrats="allowCongrats"
                     class="h-full w-full object-contain"
-                    @error="handleImageError"
-                >
-                <div v-else class="grid size-full place-items-center bg-gradient-to-br from-primary to-blue-600 text-4xl font-black text-white">
-                    {{ agent.initials }}
-                </div>
+                    @interaction-ended="emit('interaction-ended', $event)"
+                />
             </div>
         </div>
         <div class="relative mt-4">
@@ -813,29 +667,14 @@ watch(
         />
         <div class="grid justify-items-center relative">
             <div class="grid place-items-end overflow-hidden rounded-3xl border-4 border-white bg-slate-50 shadow-md shadow-slate-200/50 transition relative z-10" :class="[compact ? 'size-24 md:size-28 lg:size-[clamp(11rem,22vh,15rem)]' : 'size-36 md:size-40 lg:size-[clamp(14rem,26vh,18rem)]']">
-                <video
-                    v-if="isVideoAsset"
-                    :key="imageSrc"
-                    class="h-full w-full object-contain"
-                    :aria-label="displayTitle"
-                    autoplay
-                    loop
-                    muted
-                    playsinline
-                    @error="handleImageError"
-                >
-                    <source :src="imageSrc" type="video/webm">
-                </video>
-                <img
-                    v-else-if="!showPlaceholder"
-                    :src="imageSrc"
+                <AgentVideoPlayer
+                    :agent="agentType"
+                    :action="state"
                     :alt="displayTitle"
+                    :allow-congrats="allowCongrats"
                     class="h-full w-full object-contain"
-                    @error="handleImageError"
-                >
-                <div v-else class="grid size-full place-items-center bg-gradient-to-br from-primary to-blue-600 font-black text-white" :class="compact ? 'text-3xl' : 'text-5xl'">
-                    {{ agent.initials }}
-                </div>
+                    @interaction-ended="emit('interaction-ended', $event)"
+                />
             </div>
             <!-- Decorative blobs behind avatar -->
             <div class="pointer-events-none absolute left-1/2 top-1/2 h-full w-full -translate-x-1/2 -translate-y-1/2 scale-150 rounded-full bg-blue-100/30 blur-2xl lg:bg-blue-100/40" />

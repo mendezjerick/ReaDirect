@@ -1,5 +1,6 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
+import { ref } from 'vue';
 import LearnerLayout from '../../../Layouts/LearnerLayout.vue';
 import AgentSpeakerPanel from '../../../Components/Learner/AgentSpeakerPanel.vue';
 import ScoreCard from '../../../Components/ScoreCard.vue';
@@ -8,6 +9,14 @@ import PrimaryButton from '../../../Components/PrimaryButton.vue';
 import BottomActionBar from '../../../Components/BottomActionBar.vue';
 
 defineProps({ attempt: Object, comparison: Object });
+
+const agentAction = ref('results');
+
+const handleAgentInteractionEnded = ({ action }) => {
+    if (action === 'results') {
+        agentAction.value = 'congrats';
+    }
+};
 
 const deltaLabel = (value) => {
     if (value === null || value === undefined) return '-';
@@ -18,7 +27,13 @@ const deltaLabel = (value) => {
 <template>
     <LearnerLayout :progress="100">
         <template #agent>
-            <AgentSpeakerPanel agent-type="evaluator" state="celebrating" message="Great job finishing your final assessment. Here is how your reading changed." />
+            <AgentSpeakerPanel
+                agent-type="evaluator"
+                :state="agentAction"
+                allow-congrats
+                message="Great job finishing your final assessment. Here is how your reading changed."
+                @interaction-ended="handleAgentInteractionEnded"
+            />
         </template>
 
         <section class="mx-auto grid max-w-4xl gap-5">
