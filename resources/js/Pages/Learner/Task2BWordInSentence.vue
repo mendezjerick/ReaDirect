@@ -12,6 +12,7 @@ import StatusBadge from '../../Components/StatusBadge.vue';
 import ModuleProgressBar from '../../Components/ModuleProgressBar.vue';
 import { useStepAssessment } from '../../Composables/useStepAssessment';
 import { appendAudioMetadata, normalizeAsrResponse } from '../../utils/asrResponse';
+import { getWordImage } from '../../utils/readingIllustrations';
 
 const props = defineProps({
     items: Array,
@@ -84,6 +85,7 @@ const isCurrentUploading = computed(() => Boolean(uploading[step.currentItem.val
 const currentHasUploadedAudio = computed(() => Boolean(uploadedAudioIds[step.currentItem.value?.id]));
 const firstFormError = computed(() => Object.values(form.errors ?? {})[0] ?? '');
 const currentTranscript = computed(() => String(generatedTranscripts[step.currentItem.value?.id] ?? '').trim());
+const currentWordImage = computed(() => getWordImage(step.currentItem.value?.payload?.target_word));
 
 const rememberAudio = (item, file) => {
     audioFiles[item.id] = file;
@@ -291,6 +293,10 @@ const handlePrimary = async () => {
                 <span class="pointer-events-none absolute bottom-6 right-8 text-4xl font-black text-primary/5" aria-hidden="true">✦</span>
 
                 <div class="relative z-10">
+                    <!-- Word illustration -->
+                    <div v-if="currentWordImage" class="anim-pop mx-auto mb-4 flex items-center justify-center">
+                        <img :src="currentWordImage" :alt="step.currentItem.value.payload?.target_word" class="h-[120px] w-[120px] rounded-[24px] object-contain drop-shadow-lg md:h-[140px] md:w-[140px]">
+                    </div>
                     <span class="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-blue-600 text-white shadow-lg shadow-primary/20">
                         <BookOpen class="size-7" />
                     </span>

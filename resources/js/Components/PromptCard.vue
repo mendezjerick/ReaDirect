@@ -6,6 +6,7 @@ const props = defineProps({
     prompt: { type: String, required: true },
     size: { type: String, default: 'letter' },
     highlightTargets: { type: Array, default: () => [] },
+    illustration: { type: String, default: '' },
 });
 
 const normalizeTarget = (target) => {
@@ -83,6 +84,16 @@ const promptSegments = computed(() => {
         <div class="pointer-events-none absolute -bottom-10 -right-10 h-36 w-36 rounded-full bg-blue-400/5 blur-3xl" />
         <span class="pointer-events-none absolute right-8 top-8 text-3xl font-black text-primary/5" aria-hidden="true">✦</span>
 
+        <!-- Illustration image (word or passage visual) -->
+        <div v-if="illustration" class="prompt-illustration relative mx-auto mb-3 flex items-center justify-center">
+            <div class="illustration-glow pointer-events-none absolute inset-0 rounded-[28px] bg-primary/5 blur-2xl" />
+            <img
+                :src="illustration"
+                :alt="`Illustration for ${prompt}`"
+                class="relative h-[140px] w-[140px] rounded-[28px] object-contain drop-shadow-lg md:h-[160px] md:w-[160px]"
+            >
+        </div>
+
         <p v-if="label" class="prompt-label relative text-[14px] font-black uppercase tracking-widest text-primary/50 md:text-[15px]">{{ label }}</p>
         <div
             :class="{
@@ -130,5 +141,23 @@ const promptSegments = computed(() => {
 @keyframes textPop {
     from { opacity: 0; transform: scale(0.8); }
     to { opacity: 1; transform: scale(1); }
+}
+
+.prompt-illustration {
+    animation: illustrationBounce 0.65s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    animation-delay: 0.1s;
+    opacity: 0;
+}
+@keyframes illustrationBounce {
+    from { opacity: 0; transform: scale(0.6) translateY(12px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.illustration-glow {
+    animation: glowPulse 3s ease-in-out infinite alternate;
+}
+@keyframes glowPulse {
+    from { opacity: 0.4; transform: scale(0.9); }
+    to { opacity: 0.8; transform: scale(1.05); }
 }
 </style>

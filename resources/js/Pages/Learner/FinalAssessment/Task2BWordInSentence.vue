@@ -9,6 +9,7 @@ import SecondaryButton from '../../../Components/SecondaryButton.vue';
 import BottomActionBar from '../../../Components/BottomActionBar.vue';
 import { useStepAssessment } from '../../../Composables/useStepAssessment';
 import { appendAudioMetadata, normalizeAsrResponse } from '../../../utils/asrResponse';
+import { getWordImage } from '../../../utils/readingIllustrations';
 
 const props = defineProps({
     items: Array,
@@ -78,6 +79,7 @@ const agentMessage = ref('Read the word in the sentence. Speak clearly when you 
 const agentState = ref('listening');
 const isCurrentUploading = computed(() => Boolean(uploading[step.currentItem.value?.id]));
 const currentHasUploadedAudio = computed(() => Boolean(uploadedAudioIds[step.currentItem.value?.id]));
+const currentWordImage = computed(() => getWordImage(step.currentItem.value?.payload?.target_word));
 const firstFormError = computed(() => Object.values(form.errors ?? {})[0] ?? '');
 
 const rememberAudio = (item, file) => {
@@ -259,6 +261,10 @@ const handlePrimary = async () => {
 
             <!-- Sentence prompt card -->
             <div class="anim-card relative overflow-hidden rounded-[36px] border-[3px] border-primary/10 bg-white p-6 text-center shadow-2xl shadow-primary/10 sm:p-7">
+                <!-- Word illustration -->
+                <div v-if="currentWordImage" class="anim-card mx-auto mb-3 flex items-center justify-center">
+                    <img :src="currentWordImage" :alt="step.currentItem.value.payload?.target_word" class="h-[110px] w-[110px] rounded-[22px] object-contain drop-shadow-lg md:h-[130px] md:w-[130px]">
+                </div>
                 <p class="text-base font-black text-slate-400">Read the highlighted word</p>
                 <p class="mt-3 text-2xl font-black leading-snug text-slate-800 md:text-3xl">
                     <template v-for="(part, index) in parts(step.currentItem.value)" :key="index">

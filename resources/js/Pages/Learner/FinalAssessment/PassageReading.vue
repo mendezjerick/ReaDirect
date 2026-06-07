@@ -7,6 +7,7 @@ import AgentSpeakerPanel from '../../../Components/Learner/AgentSpeakerPanel.vue
 import PrimaryButton from '../../../Components/PrimaryButton.vue';
 import BottomActionBar from '../../../Components/BottomActionBar.vue';
 import { appendAudioMetadata, normalizeAsrResponse } from '../../../utils/asrResponse';
+import { getPassageImage } from '../../../utils/readingIllustrations';
 
 const props = defineProps({
     passage: Object,
@@ -35,6 +36,7 @@ const canUseManualFallback = computed(() => props.assessmentMode?.canUseManualFa
 const isDeveloperQaMode = computed(() => props.assessmentMode?.isDeveloperQaMode === true);
 const autoTranscribeOnStop = computed(() => props.assessmentMode?.canAutoTranscribeOnStop === true);
 const requireReviewBeforeSubmit = computed(() => props.assessmentMode?.requireReviewBeforeSubmit !== false);
+const passageImage = computed(() => getPassageImage(props.passage?.source_csv_id));
 const hasIncorrectWords = () => form.incorrect_words !== '' && form.incorrect_words !== null && Number(form.incorrect_words) >= 0;
 const acceptedAlignmentStatuses = new Set([
     'correct',
@@ -178,7 +180,11 @@ const submit = () => {
             </div>
 
             <!-- Passage card -->
-            <section class="anim-card relative max-h-[34vh] overflow-y-auto overflow-hidden rounded-[36px] border-[3px] border-primary/10 bg-white p-6 shadow-2xl shadow-primary/10 sm:p-7 lg:max-h-[42vh]" aria-label="Reading passage">
+            <section class="anim-card relative rounded-[36px] border-[3px] border-primary/10 bg-white p-6 shadow-2xl shadow-primary/10 sm:p-7" aria-label="Reading passage">
+                <!-- Passage illustration -->
+                <div v-if="passageImage" class="anim-card mb-4 flex justify-center">
+                    <img :src="passageImage" :alt="passage.title" class="h-[300px] w-full rounded-[24px] object-cover drop-shadow-lg md:h-[360px]">
+                </div>
                 <p class="text-2xl font-black leading-relaxed text-slate-800 md:text-[28px]">{{ passage.prompt }}</p>
             </section>
 
