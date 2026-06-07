@@ -191,24 +191,24 @@ const handlePrimary = () => {
             />
         </template>
 
-        <section class="mx-auto grid w-full max-w-[1120px] gap-5">
+        <section class="max-w-[1000px] mx-auto p-6">
             <!-- Progress header -->
-            <div class="anim-fade-down grid gap-3">
-                <div class="flex flex-wrap items-center justify-between gap-3 px-1">
-                    <p class="inline-flex items-center gap-2.5 text-[15px] font-black text-slate-700">
-                        <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-blue-600 text-[12px] font-black text-white shadow-sm shadow-primary/20">
+            <div class="mb-8 grid gap-4 items-start">
+                <div class="flex flex-col items-start gap-2">
+                    <p class="flex items-center gap-3 text-sm font-medium">
+                        <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-blue-600 text-[12px] font-medium text-white shadow-sm shadow-primary/20">
                             {{ step.currentIndex.value + 1 }}
                         </span>
                         Letter {{ step.currentIndex.value + 1 }} of {{ items.length }}
                     </p>
-                    <p class="inline-flex items-center gap-2 rounded-full bg-primary/5 px-3.5 py-1.5 text-[13px] font-black text-primary ring-1 ring-primary/10">
+                    <p class="flex items-center gap-2 rounded-full bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary ring-1 ring-primary/10">
                         <Volume2 class="size-4" />
                         {{ isCurrentUploading ? 'Checking' : 'Voice check' }}
                     </p>
                 </div>
-                <div class="h-3.5 overflow-hidden rounded-full bg-slate-100 shadow-inner">
+                <div class="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
                     <div
-                        class="h-full rounded-full bg-gradient-to-r from-primary to-blue-500 shadow-sm shadow-primary/30 transition-all duration-500 ease-out"
+                        class="h-full bg-gradient-to-r from-primary to-blue-500 rounded-full transition-all duration-500 ease-out"
                         :style="{ width: `${step.progressPercent.value}%` }"
                     />
                 </div>
@@ -217,36 +217,33 @@ const handlePrimary = () => {
             <!-- Letter display card -->
             <section
                 :key="step.currentItem.value.id + '-card'"
-                class="anim-card relative overflow-hidden rounded-[36px] border-[3px] border-primary/10 bg-white px-6 py-8 text-center shadow-2xl shadow-primary/10 sm:px-10 sm:py-10"
+                class="mb-8 relative overflow-hidden rounded-xl border border-slate-200/80 bg-white p-6"
             >
-                <!-- Decorative blobs -->
-                <span class="pointer-events-none absolute -left-10 -top-10 h-40 w-40 rounded-full bg-primary/5 blur-3xl" aria-hidden="true" />
-                <span class="pointer-events-none absolute -bottom-10 -right-10 h-40 w-40 rounded-full bg-primary/5 blur-3xl" aria-hidden="true" />
-                <!-- Sparkle decorations -->
-                <span class="pointer-events-none absolute left-6 top-6 text-4xl font-black text-primary/5" aria-hidden="true">✦</span>
-                <span class="pointer-events-none absolute right-8 top-8 text-4xl font-black text-primary/5" aria-hidden="true">✦</span>
+                <!-- Decorative elements -->
+                <div class="pointer-events-none absolute -left-4 -top-4 h-6 w-6 rounded-full bg-primary/5 blur" aria-hidden="true" />
+                <div class="pointer-events-none absolute -bottom-4 -right-4 h-6 w-6 rounded-full bg-primary/5 blur" aria-hidden="true" />
 
-                <p class="relative text-[14px] font-black uppercase tracking-widest text-slate-400">
+                <p class="mb-2 text-xs font-medium uppercase tracking-widest text-slate-400">
                     Letter {{ step.currentItem.value.sequence }}
                 </p>
-                <p class="anim-pop relative mt-5 bg-gradient-to-br from-slate-900 to-slate-700 bg-clip-text text-[clamp(5.5rem,10vw,8.5rem)] font-black leading-none text-transparent">
+                <p class="text-5xl font-bold leading-none text-transparent bg-clip-text bg-gradient-to-br from-slate-900 to-slate-700">
                     {{ step.currentItem.value.prompt }}
                 </p>
             </section>
 
             <!-- Recording & transcript panel -->
-            <section class="anim-slide-up rounded-[32px] border border-slate-200/80 bg-white p-3 shadow-xl shadow-slate-200/30 sm:p-4 lg:p-5">
-                <div class="grid gap-4 lg:grid-cols-[300px_1fr] xl:grid-cols-[320px_1fr]">
+            <section class="mb-8 rounded-xl border border-slate-200/80 bg-white p-6">
+                <div class="space-y-6">
                     <!-- Mic / recorder panel -->
-                    <div class="rounded-[24px] border border-slate-200/60 bg-slate-50/50 p-4 shadow-sm">
+                    <div class="rounded-lg border border-slate-200/60 bg-slate-50/50 p-4">
                         <div class="mb-4 flex items-center justify-between gap-3">
                             <div class="flex items-center gap-3">
-                                <span class="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-blue-600 text-white shadow-lg shadow-primary/20">
-                                    <Mic2 class="size-6" />
-                                </span>
+                                <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-blue-600 text-white shadow-lg shadow-primary/20">
+                                    <Mic2 class="size-5" />
+                                </div>
                                 <div>
-                                    <p class="text-[16px] font-black text-slate-800">Letter voice</p>
-                                    <p class="text-[12px] font-semibold leading-snug text-slate-400">
+                                    <p class="text-sm font-medium text-slate-800">Letter voice</p>
+                                    <p class="text-xs font-semibold leading-snug text-slate-400">
                                         Tap Start Recording or press Space.
                                     </p>
                                 </div>
@@ -255,7 +252,7 @@ const handlePrimary = () => {
                                 :class="isCurrentUploading
                                     ? 'bg-amber-50 text-amber-600 ring-1 ring-amber-200/60'
                                     : 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200/60'"
-                                class="rounded-full px-3 py-1.5 text-[12px] font-black"
+                                class="rounded-full px-3 py-1.5 text-xs font-medium"
                             >
                                 {{ isCurrentUploading ? 'Checking' : 'Ready' }}
                             </span>
@@ -278,55 +275,56 @@ const handlePrimary = () => {
                     </div>
 
                     <!-- Transcript panel -->
-                    <div class="grid gap-4 rounded-[24px] border border-slate-200/60 bg-slate-50/50 p-5 shadow-sm">
-                        <label class="grid gap-3 text-[16px] font-black text-slate-800">
-                            <span class="inline-flex items-center gap-3">
-                                <span class="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-md shadow-violet-500/20">
-                                    <MessageCircle class="size-5" />
+                    <div class="rounded-lg border border-slate-200/60 bg-slate-50/50 p-5">
+                        <label class="grid gap-3 text-sm font-medium text-slate-800">
+                            <span class="flex items-center gap-2">
+                                <span class="flex h-8 w-8 items-center justify-center rounded-md bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-sm shadow-violet-500/20">
+                                    <MessageCircle class="size-4" />
                                 </span>
                                 You said
                             </span>
                             <textarea
                                 :value="generatedTranscripts[step.currentItem.value.id] ?? ''"
-                                class="min-h-44 resize-none rounded-[20px] border-2 border-slate-200/80 bg-white p-5 text-xl font-black text-slate-800 transition-all placeholder:text-slate-300 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
+                                class="min-h-[80px] resize-none rounded-lg border border-slate-200/80 bg-white p-4 text-base font-medium text-slate-800 transition-all placeholder:text-slate-300 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
                                 readonly
                                 :placeholder="isCurrentUploading ? 'Checking your recording...' : 'Your words will appear here'"
                             />
                         </label>
-                        <label v-if="canUseManualFallback" class="grid gap-2 text-sm font-black text-slate-400">
+                        <label v-if="canUseManualFallback" class="grid gap-2 text-xs font-medium text-slate-400">
                             Developer QA: Manual Transcript Override
                             <input
                                 :value="step.answers[step.currentItem.value.id]"
-                                class="rounded-[20px] border-2 border-slate-200/80 bg-white px-4 py-3 text-base font-black text-slate-800 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
+                                class="rounded-lg border border-slate-200/80 bg-white px-4 py-3 text-base font-medium text-slate-800 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
                                 placeholder="Optional QA fallback text"
                                 @input="setAnswer(step.currentItem.value, $event.target.value)"
                             >
                         </label>
                     </div>
+
+                    <!-- Error / feedback messages -->
+                    <p v-if="uploadErrors[step.currentItem.value.id]" class="mt-4 rounded-lg bg-rose-50 px-4 py-3 text-sm font-medium text-rose-600 ring-1 ring-rose-200/60">
+                        {{ uploadErrors[step.currentItem.value.id] }}
+                    </p>
+                    <p v-if="firstFormError" class="mt-4 rounded-lg bg-rose-50 px-4 py-3 text-sm font-medium text-rose-600 ring-1 ring-rose-200/60">{{ firstFormError }}</p>
+                    <p v-if="step.feedback.value" class="mt-4 rounded-lg bg-amber-50 px-4 py-3 text-base font-medium text-amber-700 ring-1 ring-amber-200/60">{{ step.feedback.value }}</p>
                 </div>
-
-                <!-- Error / feedback messages -->
-                <p v-if="uploadErrors[step.currentItem.value.id]" class="mt-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-black text-rose-600 ring-1 ring-rose-200/60">
-                    {{ uploadErrors[step.currentItem.value.id] }}
-                </p>
-                <p v-if="firstFormError" class="mt-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-black text-rose-600 ring-1 ring-rose-200/60">{{ firstFormError }}</p>
-                <p v-if="step.feedback.value" class="mt-4 rounded-2xl bg-amber-50 px-4 py-3 text-lg font-black text-amber-700 ring-1 ring-amber-200/60">{{ step.feedback.value }}</p>
             </section>
-        </section>
 
-        <BottomActionBar>
-            <div class="flex w-full items-center justify-between gap-3">
-                <SecondaryButton v-if="canUseDeveloperJumpControls && !step.isFirst.value" @click="step.goBack">Developer QA: Back</SecondaryButton>
-                <span v-else />
-                <PrimaryButton :disabled="form.processing || isCurrentUploading" :class="{ 'opacity-70': !step.isCurrentAnswered.value || isCurrentUploading }" @click="handlePrimary">
-                    {{ step.isLast.value ? 'Check Answer' : 'Next' }}
-                </PrimaryButton>
-            </div>
-        </BottomActionBar>
+            <BottomActionBar>
+                <div class="flex w-full items-center justify-between gap-3">
+                    <SecondaryButton v-if="canUseDeveloperJumpControls && !step.isFirst.value" @click="step.goBack">Developer QA: Back</SecondaryButton>
+                    <span v-else />
+                    <PrimaryButton :disabled="form.processing || isCurrentUploading" :class="{ 'opacity-70': !step.isCurrentAnswered.value || isCurrentUploading }" @click="handlePrimary">
+                        {{ step.isLast.value ? 'Check Answer' : 'Next' }}
+                    </PrimaryButton>
+                </div>
+            </BottomActionBar>
+        </section>
     </LearnerLayout>
 </template>
 
 <style scoped>
+/* Lovable-inspired animations */
 .anim-card {
     animation: cardSpring 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
@@ -361,5 +359,90 @@ const handlePrimary = () => {
 @keyframes slideUp {
     from { opacity: 0; transform: translateY(24px); }
     to { opacity: 1; transform: translateY(0); }
+}
+
+/* Lovable-specific styling overrides */
+.rounded-xl { border-radius: 12px; }
+.rounded-lg { border-radius: 8px; }
+.rounded-md { border-radius: 6px; }
+.rounded-sm { border-radius: 4px; }
+
+/* Focus styling */
+:focus-visible {
+    outline: 2px solid rgba(59, 130, 246, 0.5);
+    outline-offset: 2px;
+}
+
+/* Button styling enhancements */
+.btn-primary {
+    @apply bg-charcoal text-off-white;
+    box-shadow: var(--button-inset);
+}
+.btn-primary:hover {
+    opacity: 0.9;
+}
+.btn-primary:focus-visible {
+    box-shadow: var(--button-inset), var(--focus-shadow);
+}
+
+.btn-secondary {
+    @apply bg-transparent text-charcoal border border-charcoal-40;
+}
+.btn-secondary:hover {
+    @apply bg-charcoal-4;
+}
+.btn-secondary:focus-visible {
+    outline: 2px solid rgba(59, 130, 246, 0.5);
+    outline-offset: 2px;
+    box-shadow: var(--focus-shadow);
+}
+
+.btn-tertiary {
+    @apply bg-cream text-charcoal;
+}
+.btn-tertiary:hover {
+    @apply bg-charcoal-4;
+}
+
+/* Input styling */
+input, textarea {
+    @apply bg-cream text-charcoal border border-slate-200/80 rounded-md;
+}
+input:focus, textarea:focus {
+    @outline-none;
+    @apply border-blue-500/50 ring-4 ring-blue-500/20;
+}
+input::placeholder, textarea::placeholder {
+    @apply text-slate-400;
+}
+
+/* Feedback styling */
+.feedback-success {
+    @apply bg-success-bg text-success-text border border-success-border;
+}
+.feedback-attention {
+    @apply bg-attention-bg text-attention-text border border-attention-border;
+}
+.feedback-neutral {
+    @apply bg-neutral-bg text-neutral-text border border-neutral-border;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+    section.p-6 {
+        @apply p-4;
+    }
+
+    .text-5xl {
+        @apply text-4xl;
+    }
+
+    .text-sm {
+        @apply text-xs;
+    }
+
+    .text-base {
+        @apply text-sm;
+    }
 }
 </style>
