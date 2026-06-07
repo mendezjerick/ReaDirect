@@ -53,6 +53,9 @@ Agent selection and action aliases are context-aware:
 
 - Miss Vivian owns diagnostic and final-assessment task flow. Uploading,
   processing, and retry encouragement use Vivian thinking.
+- Vivian uses `videos/Vivian/v-talk.mp4` while her assessment dialogue TTS is
+  actively speaking. Processing and retry cues continue to use
+  `videos/Vivian/v-think.mp4`.
 - Miss Ciel owns module practice and mastery tutoring. Thinking is used for
   processing, talk while tutor TTS is actively speaking, happy for correct
   answers, confused for learner-facing errors or unclear/invalid results,

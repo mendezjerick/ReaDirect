@@ -80,6 +80,9 @@ const actionMaps = Object.freeze({
         celebrating: 'congrats',
     }),
     Vivian: Object.freeze({
+        talk: 'talk',
+        talking: 'talk',
+        speaking: 'talk',
         thinking: 'thinking',
         processing: 'thinking',
         uploading: 'thinking',
