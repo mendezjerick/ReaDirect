@@ -3,7 +3,6 @@ name: Tests
 on:
   push:
     branches:
-      - main
       - master
       - '*.x'
   pull_request:
@@ -48,7 +47,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
