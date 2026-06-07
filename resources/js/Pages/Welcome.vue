@@ -1,9 +1,11 @@
 <script setup>
-import { Link, usePage } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { Link, router, usePage } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
 import { BookOpen, Mic, Trophy } from 'lucide-vue-next';
 import AppLayout from '../Layouts/AppLayout.vue';
 import RewardBadge from '../Components/RewardBadge.vue';
+import ReaDirectBookLoader from '../Components/Loading/ReaDirectBookLoader.vue';
+import { preloadAgentMedia } from '../utils/agentMediaPreloader';
 
 const page = usePage();
 const roles = computed(() => page.props.auth?.roles ?? []);
@@ -19,10 +21,25 @@ const dashboardLink = computed(() => {
 
     return { href: '/learner/dashboard', label: 'Learner dashboard' };
 });
+const preparingAgents = ref(false);
+
+const wait = (milliseconds) => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+const enterApp = async (event, href) => {
+    event?.preventDefault();
+    if (preparingAgents.value) return;
+
+    preparingAgents.value = true;
+    await Promise.allSettled([
+        preloadAgentMedia(),
+        wait(2000),
+    ]);
+    router.visit(href);
+};
 </script>
 
 <template>
     <AppLayout>
+        <ReaDirectBookLoader v-if="preparingAgents" />
         <template #nav>
             <div class="flex items-center gap-2">
                 <Link
@@ -36,6 +53,7 @@ const dashboardLink = computed(() => {
                     <Link
                         :href="dashboardLink.href"
                         class="rounded-xl border border-primary px-4 py-2 text-sm font-black text-primary hover:bg-primary-light"
+                        @click="enterApp($event, dashboardLink.href)"
                     >
                         {{ dashboardLink.label }}
                     </Link>
@@ -59,13 +77,13 @@ const dashboardLink = computed(() => {
                     Friendly oral reading assessment and guided practice for young readers.
                 </p>
                 <div class="mt-8 flex flex-col gap-3 sm:flex-row">
-                    <Link href="/learner/access" class="inline-flex min-h-14 items-center justify-center rounded-2xl bg-primary px-6 text-lg font-black text-white shadow-lg shadow-primary/20 hover:bg-primary-dark">
+                    <Link href="/learner/access" class="inline-flex min-h-14 items-center justify-center rounded-2xl bg-primary px-6 text-lg font-black text-white shadow-lg shadow-primary/20 hover:bg-primary-dark" @click="enterApp($event, '/learner/access')">
                         Start reading
                     </Link>
                     <Link v-if="!isLoggedIn" href="/login" class="inline-flex min-h-14 items-center justify-center rounded-2xl border-2 border-primary bg-surface px-6 text-lg font-black text-primary hover:bg-primary-light">
                         Login
                     </Link>
-                    <Link v-else :href="dashboardLink.href" class="inline-flex min-h-14 items-center justify-center rounded-2xl border-2 border-primary bg-surface px-6 text-lg font-black text-primary hover:bg-primary-light">
+                    <Link v-else :href="dashboardLink.href" class="inline-flex min-h-14 items-center justify-center rounded-2xl border-2 border-primary bg-surface px-6 text-lg font-black text-primary hover:bg-primary-light" @click="enterApp($event, dashboardLink.href)">
                         {{ dashboardLink.label }}
                     </Link>
                 </div>

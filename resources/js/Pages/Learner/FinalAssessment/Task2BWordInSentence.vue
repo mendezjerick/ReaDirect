@@ -149,11 +149,11 @@ const uploadAudio = async (item, file) => {
 
         uploadErrors[item.id] = asr.message;
         agentMessage.value = uploadErrors[item.id];
-        agentState.value = 'speaking';
+        agentState.value = 'retry';
     } catch (error) {
         uploadErrors[item.id] = error.message || 'We had trouble checking your answer. Please try again.';
         agentMessage.value = uploadErrors[item.id];
-        agentState.value = 'speaking';
+        agentState.value = 'retry';
     } finally {
         uploading[item.id] = false;
     }
@@ -183,7 +183,7 @@ const submit = () => {
             const firstError = Object.values(errors ?? {})[0] ?? 'We could not check these words yet. Please review them and try again.';
             step.feedback.value = Array.isArray(firstError) ? firstError[0] : firstError;
             agentMessage.value = step.feedback.value;
-            agentState.value = 'speaking';
+            agentState.value = 'retry';
         },
     });
 };

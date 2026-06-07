@@ -52,7 +52,7 @@ seedRetryStates(props.items);
 const hasAnswerOrAudio = (item, answer) => answerFor(item, answer).length > 0 || Boolean(uploadedAudioIds[item?.id]) || Boolean(audioFiles[item?.id]) || Boolean(retryStates[item?.id]?.is_resolved);
 const step = useStepAssessment(props.items, { emptyMessage: 'Try this one before moving on.', isAnswered: hasAnswerOrAudio });
 const agentMessage = ref('This is your mini mastery check. Do your best one item at a time.');
-const agentState = ref('encouraging');
+const agentState = ref('speaking');
 const returningToDashboard = ref(false);
 const progressLabel = computed(() => `Mastery ${step.currentIndex.value + 1} of ${props.items.length}`);
 const isCurrentUploading = computed(() => Boolean(uploading[step.currentItem.value?.id]));
@@ -91,7 +91,7 @@ watch(
         Object.keys(recorderResetKeys).forEach((key) => delete recorderResetKeys[key]);
         seedRetryStates(props.items);
         agentMessage.value = 'This is your mini mastery check. Do your best one item at a time.';
-        agentState.value = 'encouraging';
+        agentState.value = 'speaking';
         form.clearErrors();
     }
 );
@@ -107,7 +107,7 @@ const rememberAudio = (item, file) => {
     agentState.value = 'speaking';
 };
 
-const clearAudio = (item) => {
+const clearAudio = (item, resetAgent = true) => {
     delete audioFiles[item.id];
     delete audioDurations[item.id];
     delete uploadedAudioIds[item.id];
@@ -116,6 +116,14 @@ const clearAudio = (item) => {
     delete uploadErrors[item.id];
     delete uploading[item.id];
     recorderResetKeys[item.id] = (recorderResetKeys[item.id] ?? 0) + 1;
+    if (resetAgent) {
+        agentState.value = 'speaking';
+    }
+};
+
+const handleRecorderError = (message) => {
+    agentMessage.value = message || 'We could not use that recording. Please try again.';
+    agentState.value = 'error';
 };
 
 const uploadAudio = async (item, file) => {
@@ -165,10 +173,12 @@ const uploadAudio = async (item, file) => {
 
         uploadErrors[item.id] = asr.message;
         agentMessage.value = uploadErrors[item.id];
+        agentState.value = 'unclear';
         return false;
     } catch (error) {
         uploadErrors[item.id] = error.message || 'We had trouble checking your answer. Please try again.';
         agentMessage.value = uploadErrors[item.id];
+        agentState.value = 'error';
         return false;
     } finally {
         uploading[item.id] = false;
@@ -196,6 +206,8 @@ const checkCurrent = async () => {
 
     checking[item.id] = true;
     step.feedback.value = '';
+    agentMessage.value = 'Checking your answer.';
+    agentState.value = 'checking';
 
     try {
         const response = await fetch(`/learner/modules/${props.module.key}/mastery-check/check`, {
@@ -226,11 +238,13 @@ const checkCurrent = async () => {
 
         if (retryStates[item.id].is_correct) {
             agentMessage.value = 'That is correct. Go to the next one.';
-            agentState.value = 'happy';
+            agentState.value = step.isLast.value ? 'section_complete' : 'correct';
         } else if (retryStates[item.id].can_retry) {
             agentMessage.value = 'Try this same item again.';
-            agentState.value = 'encouraging';
-            clearAudio(item);
+            agentState.value = Number(retryStates[item.id].attempt_count ?? 1) <= 1
+                ? 'incorrect'
+                : 'retry';
+            clearAudio(item, false);
             if (canUseManualFallback.value) {
                 step.answers[item.id] = '';
             }
@@ -243,7 +257,7 @@ const checkCurrent = async () => {
     } catch (error) {
         step.feedback.value = error.message || 'We could not check this item yet.';
         agentMessage.value = step.feedback.value;
-        agentState.value = 'speaking';
+        agentState.value = 'error';
         return false;
     } finally {
         checking[item.id] = false;
@@ -267,7 +281,7 @@ const handlePrimary = async () => {
 
     step.goNext();
     agentMessage.value = 'This is your mini mastery check. Do your best one item at a time.';
-    agentState.value = 'encouraging';
+    agentState.value = 'speaking';
 };
 
 const returnToDashboard = () => {
@@ -313,6 +327,7 @@ const returnToDashboard = () => {
                         @recorded="(file) => rememberAudio(step.currentItem.value, file)"
                         @submit="(file) => uploadAudio(step.currentItem.value, file)"
                         @cleared="() => clearAudio(step.currentItem.value)"
+                        @error="handleRecorderError"
                     />
                     <div class="grid gap-3">
                         <div class="flex flex-wrap gap-2">

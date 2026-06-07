@@ -28,6 +28,10 @@ const transcript = ref(String(savedPassageResponse.displayed_transcript ?? saved
 const wordAlignment = ref(Array.isArray(savedPassageResponse.word_alignment) ? savedPassageResponse.word_alignment : []);
 const uploadError = ref('');
 const uploading = ref(false);
+const agentState = computed(() => uploading.value ? 'thinking' : (uploadError.value ? 'retry' : 'listening'));
+const agentMessage = computed(() => uploadError.value || (uploading.value
+    ? 'Checking your reading.'
+    : 'Read the passage aloud. Try your best and speak clearly.'));
 const canUseManualFallback = computed(() => props.assessmentMode?.canUseManualFallback === true);
 const isDeveloperQaMode = computed(() => props.assessmentMode?.isDeveloperQaMode === true);
 const autoTranscribeOnStop = computed(() => props.assessmentMode?.canAutoTranscribeOnStop === true);
@@ -331,8 +335,8 @@ const submit = () => {
             <AgentSpeakerPanel
                 compact
                 agent-type="assessment"
-                :state="uploading ? 'thinking' : 'listening'"
-                :message="uploading ? 'Checking your reading.' : 'Read the passage aloud. Try your best and speak clearly.'"
+                :state="agentState"
+                :message="agentMessage"
             />
         </template>
 

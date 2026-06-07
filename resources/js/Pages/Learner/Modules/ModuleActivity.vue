@@ -127,7 +127,7 @@ const rememberAudio = (item, file) => {
     coachState.value = 'speaking';
 };
 
-const clearAudio = (item) => {
+const clearAudio = (item, resetAgent = true) => {
     delete audioFiles[item.id];
     delete audioDurations[item.id];
     delete uploadedAudioIds[item.id];
@@ -136,6 +136,14 @@ const clearAudio = (item) => {
     delete uploadErrors[item.id];
     delete uploading[item.id];
     recorderResetKeys[item.id] = (recorderResetKeys[item.id] ?? 0) + 1;
+    if (resetAgent) {
+        coachState.value = 'speaking';
+    }
+};
+
+const handleRecorderError = (message) => {
+    coachMessage.value = message || 'We could not use that recording. Please try again.';
+    coachState.value = 'error';
 };
 
 const uploadAudio = async (item, file) => {
@@ -185,10 +193,12 @@ const uploadAudio = async (item, file) => {
 
         uploadErrors[item.id] = asr.message;
         coachMessage.value = uploadErrors[item.id];
+        coachState.value = 'unclear';
         return false;
     } catch (error) {
         uploadErrors[item.id] = error.message || 'We had trouble checking your answer. Please try again.';
         coachMessage.value = uploadErrors[item.id];
+        coachState.value = 'error';
         return false;
     } finally {
         uploading[item.id] = false;
@@ -216,6 +226,8 @@ const checkCurrent = async () => {
 
     checking[item.id] = true;
     step.feedback.value = '';
+    coachMessage.value = 'Checking your answer.';
+    coachState.value = 'checking';
 
     try {
         const response = await fetch(`/learner/modules/${props.module.key}/activity/${props.activityType}/check`, {
@@ -246,11 +258,13 @@ const checkCurrent = async () => {
 
         if (retryStates[item.id].is_correct) {
             coachMessage.value = 'That is correct. Go to the next one.';
-            coachState.value = 'happy';
+            coachState.value = step.isLast.value ? 'section_complete' : 'correct';
         } else if (retryStates[item.id].can_retry) {
             coachMessage.value = 'Try this same item again.';
-            coachState.value = 'encouraging';
-            clearAudio(item);
+            coachState.value = Number(retryStates[item.id].attempt_count ?? 1) <= 1
+                ? 'incorrect'
+                : 'retry';
+            clearAudio(item, false);
             if (canUseManualFallback.value) {
                 step.answers[item.id] = '';
             }
@@ -263,7 +277,7 @@ const checkCurrent = async () => {
     } catch (error) {
         step.feedback.value = error.message || 'We could not check this item yet.';
         coachMessage.value = step.feedback.value;
-        coachState.value = 'speaking';
+        coachState.value = 'error';
         return false;
     } finally {
         checking[item.id] = false;
@@ -333,6 +347,7 @@ const returnToDashboard = () => {
                         @recorded="(file) => rememberAudio(step.currentItem.value, file)"
                         @submit="(file) => uploadAudio(step.currentItem.value, file)"
                         @cleared="() => clearAudio(step.currentItem.value)"
+                        @error="handleRecorderError"
                     />
                     <div class="grid gap-4">
                         <div class="flex flex-wrap gap-2">

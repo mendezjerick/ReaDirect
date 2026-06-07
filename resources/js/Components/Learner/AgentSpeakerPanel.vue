@@ -238,13 +238,13 @@ watch(
         <div class="pointer-events-none absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-blue-400/5 blur-3xl" />
         
         <div class="relative grid justify-items-center">
-            <div class="grid h-64 w-full max-w-64 place-items-end overflow-hidden rounded-3xl border-4 border-white bg-slate-50 shadow-lg shadow-slate-200/50 md:h-72 md:max-w-72 lg:h-[clamp(14rem,18vw,18rem)] lg:max-w-[clamp(14rem,18vw,18rem)]">
+            <div class="agent-media-box">
                 <AgentVideoPlayer
                     :agent="agentType"
                     :action="state"
                     :alt="displayTitle"
                     :allow-congrats="allowCongrats"
-                    class="h-full w-full object-contain"
+                    class="agent-media-content"
                     @interaction-ended="emit('interaction-ended', $event)"
                 />
             </div>
@@ -305,13 +305,13 @@ watch(
         <div class="pointer-events-none absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-blue-400/5 blur-3xl" />
 
         <div class="grid justify-items-center">
-            <div class="grid h-60 w-full max-w-72 place-items-end overflow-hidden rounded-[28px] border-[3px] border-white bg-slate-50 shadow-md shadow-slate-200/50 xl:h-72 xl:max-w-80">
+            <div class="agent-media-box">
                 <AgentVideoPlayer
                     :agent="agentType"
                     :action="state"
                     :alt="displayTitle"
                     :allow-congrats="allowCongrats"
-                    class="h-full w-full object-contain object-bottom"
+                    class="agent-media-content"
                     @interaction-ended="emit('interaction-ended', $event)"
                 />
             </div>
@@ -386,13 +386,13 @@ watch(
         <div class="pointer-events-none absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-blue-400/5 blur-3xl" />
         
         <div class="relative grid justify-items-center">
-            <div class="grid h-64 w-full max-w-64 place-items-end overflow-hidden rounded-3xl border-4 border-white bg-slate-50 shadow-lg shadow-slate-200/50 md:h-72 md:max-w-72 lg:h-[clamp(14rem,18vw,18rem)] lg:max-w-[clamp(14rem,18vw,18rem)]">
+            <div class="agent-media-box">
                 <AgentVideoPlayer
                     :agent="agentType"
                     :action="state"
                     :alt="displayTitle"
                     :allow-congrats="allowCongrats"
-                    class="h-full w-full object-contain"
+                    class="agent-media-content"
                     @interaction-ended="emit('interaction-ended', $event)"
                 />
             </div>
@@ -449,20 +449,17 @@ watch(
             @speaking-end="handleSpeakingEnd"
             @error="handleTtsError"
         />
-        <div class="relative grid min-h-56 place-items-end overflow-hidden rounded-[24px] border border-blue-100 bg-blue-50 px-4 pt-4 sm:min-h-72 sm:pt-5 xl:rounded-[28px]">
-            <span class="absolute left-9 top-12 size-3 rounded-full bg-white" aria-hidden="true" />
-            <span class="absolute left-20 top-24 text-3xl font-black text-blue-200" aria-hidden="true">*</span>
-            <span class="absolute right-8 top-16 text-2xl font-black text-white" aria-hidden="true">*</span>
-            <span class="absolute bottom-0 left-0 h-24 w-36 rounded-tr-full bg-white/80" aria-hidden="true" />
-            <span class="absolute bottom-0 right-0 h-24 w-32 rounded-tl-full bg-blue-100/80" aria-hidden="true" />
-            <AgentVideoPlayer
-                :agent="agentType"
-                :action="state"
-                :alt="displayTitle"
-                :allow-congrats="allowCongrats"
-                class="relative z-10 h-56 w-full object-contain object-bottom sm:h-72 xl:h-80"
-                @interaction-ended="emit('interaction-ended', $event)"
-            />
+        <div class="grid justify-items-center">
+            <div class="agent-media-box">
+                <AgentVideoPlayer
+                    :agent="agentType"
+                    :action="state"
+                    :alt="displayTitle"
+                    :allow-congrats="allowCongrats"
+                    class="agent-media-content"
+                    @interaction-ended="emit('interaction-ended', $event)"
+                />
+            </div>
         </div>
         <div class="relative mt-4 rounded-[22px] border border-blue-200 bg-surface p-4 shadow-sm shadow-primary/10 sm:mt-5 sm:p-5 xl:rounded-[26px] xl:p-6">
             <span class="absolute left-1/2 top-0 size-8 -translate-x-1/2 -translate-y-1/2 rotate-45 border-l border-t border-blue-200 bg-surface" aria-hidden="true" />
@@ -529,13 +526,13 @@ watch(
         <div class="pointer-events-none absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-blue-400/5 blur-3xl" />
         
         <div class="grid justify-items-center">
-            <div class="grid h-64 w-full max-w-64 place-items-end overflow-hidden rounded-3xl border-4 border-white bg-slate-50 shadow-md shadow-slate-200/50 md:h-72 md:max-w-72 lg:h-[clamp(14rem,18vw,18rem)] lg:max-w-[clamp(14rem,18vw,18rem)]">
+            <div class="agent-media-box">
                 <AgentVideoPlayer
                     :agent="agentType"
                     :action="state"
                     :alt="displayTitle"
                     :allow-congrats="allowCongrats"
-                    class="h-full w-full object-contain"
+                    class="agent-media-content"
                     @interaction-ended="emit('interaction-ended', $event)"
                 />
             </div>
@@ -609,13 +606,13 @@ watch(
         <div class="pointer-events-none absolute -left-10 -top-10 h-40 w-40 rounded-full bg-primary/5 blur-3xl" />
         
         <div class="relative grid justify-items-center">
-            <div class="grid h-48 w-48 place-items-end overflow-hidden rounded-3xl border-[3px] border-white bg-slate-50 shadow-md shadow-slate-200/50 md:h-52 md:w-52 lg:h-[clamp(11rem,22vh,14rem)] lg:w-[clamp(11rem,16vw,14rem)]">
+            <div class="agent-media-box">
                 <AgentVideoPlayer
                     :agent="agentType"
                     :action="state"
                     :alt="displayTitle"
                     :allow-congrats="allowCongrats"
-                    class="h-full w-full object-contain"
+                    class="agent-media-content"
                     @interaction-ended="emit('interaction-ended', $event)"
                 />
             </div>
@@ -650,7 +647,7 @@ watch(
             </div>
         </div>
     </section>
-    <section v-else class="agent-speaker-panel grid gap-4 rounded-[32px] border border-slate-200/80 bg-white shadow-xl shadow-slate-200/30 transition md:items-center" :class="[compact ? 'p-3 md:grid-cols-[100px_1fr] lg:grid-cols-1 lg:p-5' : 'p-5 md:grid-cols-[160px_1fr] lg:grid-cols-1 lg:p-6 xl:p-8', isSpeaking ? 'ring-2 ring-primary/20' : '']">
+    <section v-else class="agent-speaker-panel grid justify-items-center gap-2 rounded-[32px] border border-slate-200/80 shadow-xl shadow-slate-200/30 transition" :class="[agentType === 'assessment' ? 'bg-[#f7f6f7]' : 'bg-white', compact ? 'p-4 lg:p-5' : 'p-5 lg:p-6 xl:p-8', isSpeaking ? 'ring-2 ring-primary/20' : '']">
         <AgentSpeakerTTS
             v-if="ttsEnabled && !voiceLoading"
             :key="ttsKey"
@@ -665,22 +662,20 @@ watch(
             @speaking-end="handleSpeakingEnd"
             @error="handleTtsError"
         />
-        <div class="grid justify-items-center relative">
-            <div class="grid place-items-end overflow-hidden rounded-3xl border-4 border-white bg-slate-50 shadow-md shadow-slate-200/50 transition relative z-10" :class="[compact ? 'size-24 md:size-28 lg:size-[clamp(11rem,22vh,15rem)]' : 'size-36 md:size-40 lg:size-[clamp(14rem,26vh,18rem)]']">
+        <div class="grid w-full justify-items-center">
+            <div class="agent-media-box">
                 <AgentVideoPlayer
                     :agent="agentType"
                     :action="state"
                     :alt="displayTitle"
                     :allow-congrats="allowCongrats"
-                    class="h-full w-full object-contain"
+                    class="agent-media-content"
                     @interaction-ended="emit('interaction-ended', $event)"
                 />
             </div>
-            <!-- Decorative blobs behind avatar -->
-            <div class="pointer-events-none absolute left-1/2 top-1/2 h-full w-full -translate-x-1/2 -translate-y-1/2 scale-150 rounded-full bg-blue-100/30 blur-2xl lg:bg-blue-100/40" />
         </div>
-        <div class="relative rounded-[24px] border border-slate-200/60 bg-slate-50/80 p-5 shadow-sm xl:p-6" :class="compact ? 'p-4' : 'p-5 xl:p-6'">
-            <span class="absolute left-1/2 top-0 size-5 -translate-x-1/2 -translate-y-1/2 rotate-45 border-l border-t border-slate-200/60 bg-slate-50 md:left-0 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 lg:left-1/2 lg:top-0 lg:-translate-x-1/2 lg:-translate-y-1/2" aria-hidden="true" />
+        <div class="relative w-full rounded-[24px] border border-slate-200/60 bg-slate-50/80 p-5 shadow-sm xl:p-6" :class="compact ? 'p-4' : 'p-5 xl:p-6'">
+            <span class="absolute left-1/2 top-0 size-5 -translate-x-1/2 -translate-y-1/2 rotate-45 border-l border-t border-slate-200/60 bg-slate-50" aria-hidden="true" />
             <div class="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200/60 pb-3 xl:pb-4">
                 <div>
                     <p class="font-black uppercase tracking-widest text-primary" :class="compact ? 'text-[11px]' : 'text-[13px] xl:text-sm'">{{ displayTitle }}</p>
@@ -719,3 +714,32 @@ watch(
         </div>
     </section>
 </template>
+
+<style scoped>
+.agent-media-box {
+    position: relative;
+    display: grid;
+    place-items: end center;
+    width: 14rem;
+    height: 14rem;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    outline: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+}
+
+.agent-media-content {
+    width: 100%;
+    height: 100%;
+}
+
+@media (max-width: 767px) {
+    .agent-media-box {
+        width: 10.5rem;
+        height: 10.5rem;
+    }
+}
+</style>

@@ -1,102 +1,169 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import {
     getAgentActionMedia,
-    getAgentActionName,
     getAgentAlt,
     getAgentFallbackMedia,
     getAgentIdleMedia,
-    getAgentName,
 } from '../../utils/agentMedia';
+import { resolveAgentInteraction } from '../../utils/agentInteraction';
 
 const props = defineProps({
     agent: { type: String, default: 'Ciel' },
+    agentType: { type: String, default: '' },
     action: { type: String, default: 'idle' },
+    context: { type: String, default: '' },
+    route: { type: String, default: '' },
     alt: { type: String, default: '' },
     allowCongrats: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['interaction-ended']);
 
-const activeAgent = ref(getAgentName(props.agent));
+const initialCue = resolveAgentInteraction({
+    agent: props.agent,
+    agentType: props.agentType,
+    action: 'idle',
+    context: props.context,
+    route: props.route,
+});
+const activeAgent = ref(initialCue.agent);
 const activeAction = ref('idle');
-const currentMedia = ref(getAgentIdleMedia(activeAgent.value));
+const idleMedia = ref(getAgentIdleMedia(activeAgent.value));
+const idleFallback = ref(false);
+const interactionMedia = ref(null);
+const interactionReady = ref(false);
+const interactionVideo = ref(null);
 const isBusy = ref(false);
-const idleVideoFailed = ref(false);
+let readyTimer = null;
 
 const altText = computed(() => props.alt || getAgentAlt(activeAgent.value));
-const isVideo = computed(() => currentMedia.value.type === 'video');
+const visibleIdleMedia = computed(() => idleFallback.value
+    ? getAgentFallbackMedia(activeAgent.value)
+    : idleMedia.value);
 
-const showIdle = (agent = activeAgent.value) => {
-    activeAgent.value = getAgentName(agent);
-    activeAction.value = 'idle';
-    isBusy.value = false;
-    idleVideoFailed.value = false;
-    currentMedia.value = getAgentIdleMedia(activeAgent.value);
+const clearReadyTimer = () => {
+    if (readyTimer !== null) {
+        window.clearTimeout(readyTimer);
+        readyTimer = null;
+    }
 };
 
-const requestAction = (agent, action) => {
-    if (isBusy.value) {
-        return false;
-    }
+const resetInteraction = () => {
+    clearReadyTimer();
+    interactionMedia.value = null;
+    interactionReady.value = false;
+    interactionVideo.value = null;
+    activeAction.value = 'idle';
+    isBusy.value = false;
+};
 
-    const nextAgent = getAgentName(agent);
-    const actionName = getAgentActionName(nextAgent, action, props.allowCongrats);
+const showIdle = (agent = activeAgent.value) => {
+    activeAgent.value = agent;
+    idleMedia.value = getAgentIdleMedia(agent);
+    idleFallback.value = false;
+    resetInteraction();
+};
 
-    activeAgent.value = nextAgent;
-    idleVideoFailed.value = false;
+const requestAction = (agent, action, options = {}) => {
+    if (isBusy.value) return false;
 
-    if (actionName === 'idle') {
-        activeAction.value = 'idle';
-        currentMedia.value = getAgentIdleMedia(nextAgent);
-        return true;
-    }
-
-    const media = getAgentActionMedia(nextAgent, actionName, {
-        allowCongrats: props.allowCongrats,
+    const cue = resolveAgentInteraction({
+        agent,
+        agentType: options.agentType ?? props.agentType,
+        action,
+        context: options.context ?? props.context,
+        route: options.route ?? props.route,
+        congratsAllowed: options.allowCongrats ?? props.allowCongrats,
     });
 
-    if (media.path === getAgentIdleMedia(nextAgent).path) {
-        activeAction.value = 'idle';
-        currentMedia.value = media;
+    if (cue.agent !== activeAgent.value) {
+        showIdle(cue.agent);
+    }
+
+    if (!cue.shouldInteract) {
+        showIdle(cue.agent);
         return true;
     }
 
-    activeAction.value = actionName;
+    const media = getAgentActionMedia(cue.agent, cue.action, {
+        allowCongrats: cue.congratsAllowed,
+    });
+
+    if (media.type !== 'video' || media.path === getAgentIdleMedia(cue.agent).path) {
+        showIdle(cue.agent);
+        return true;
+    }
+
+    activeAgent.value = cue.agent;
+    activeAction.value = cue.action;
+    interactionMedia.value = media;
+    interactionReady.value = false;
     isBusy.value = true;
-    currentMedia.value = media;
+
+    clearReadyTimer();
+    readyTimer = window.setTimeout(() => {
+        if (isBusy.value && !interactionReady.value) {
+            resetInteraction();
+        }
+    }, 5000);
+
     return true;
 };
 
-const handleVideoEnded = () => {
-    if (isBusy.value) {
-        const completed = {
-            agent: activeAgent.value,
-            action: activeAction.value,
-        };
-        showIdle(activeAgent.value);
-        emit('interaction-ended', completed);
+const handleInteractionReady = async () => {
+    if (!isBusy.value || !interactionMedia.value || interactionReady.value) return;
+
+    clearReadyTimer();
+    interactionReady.value = true;
+
+    try {
+        await interactionVideo.value?.play();
+    } catch {
+        resetInteraction();
     }
 };
 
-const handleMediaError = () => {
-    if (isBusy.value) {
-        showIdle(activeAgent.value);
-        return;
-    }
+const handleVideoEnded = () => {
+    if (!isBusy.value) return;
 
-    if (!idleVideoFailed.value) {
-        idleVideoFailed.value = true;
-        currentMedia.value = getAgentFallbackMedia(activeAgent.value);
-    }
+    const completed = {
+        agent: activeAgent.value,
+        action: activeAction.value,
+    };
+    resetInteraction();
+    emit('interaction-ended', completed);
+};
+
+const handleInteractionError = () => {
+    resetInteraction();
+};
+
+const handleIdleError = () => {
+    idleFallback.value = true;
 };
 
 watch(
-    () => [props.agent, props.action, props.allowCongrats],
-    ([agent, action]) => requestAction(agent, action),
+    () => [
+        props.agent,
+        props.agentType,
+        props.action,
+        props.context,
+        props.route,
+        props.allowCongrats,
+    ],
+    ([agent, agentType, action, context, route, allowCongrats]) => {
+        requestAction(agent, action, {
+            agentType,
+            context,
+            route,
+            allowCongrats,
+        });
+    },
 );
 
 onMounted(() => requestAction(props.agent, props.action));
+onBeforeUnmount(clearReadyTimer);
 
 defineExpose({
     isBusy,
@@ -105,21 +172,69 @@ defineExpose({
 </script>
 
 <template>
-    <video
-        v-if="isVideo"
-        :key="currentMedia.url"
-        :src="currentMedia.url"
-        :aria-label="altText"
-        :loop="!isBusy"
-        autoplay
-        muted
-        playsinline
-        @ended="handleVideoEnded"
-        @error="handleMediaError"
-    />
-    <img
-        v-else
-        :src="currentMedia.url"
-        :alt="altText"
-    >
+    <span class="agent-media-player">
+        <video
+            v-if="visibleIdleMedia.type === 'video'"
+            :key="visibleIdleMedia.url"
+            class="agent-media-layer"
+            :src="visibleIdleMedia.url"
+            :aria-label="altText"
+            preload="auto"
+            autoplay
+            loop
+            muted
+            playsinline
+            @error="handleIdleError"
+        />
+        <img
+            v-else
+            class="agent-media-layer"
+            :src="visibleIdleMedia.url"
+            :alt="altText"
+        >
+        <video
+            v-if="interactionMedia"
+            ref="interactionVideo"
+            class="agent-media-layer agent-media-interaction"
+            :class="{ 'agent-media-interaction--ready': interactionReady }"
+            :src="interactionMedia.url"
+            :aria-label="altText"
+            preload="auto"
+            muted
+            playsinline
+            @loadeddata="handleInteractionReady"
+            @canplay="handleInteractionReady"
+            @ended="handleVideoEnded"
+            @error="handleInteractionError"
+        />
+    </span>
 </template>
+
+<style scoped>
+.agent-media-player {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.agent-media-layer {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center bottom;
+    image-rendering: auto;
+}
+
+.agent-media-interaction {
+    z-index: 1;
+    visibility: hidden;
+}
+
+.agent-media-interaction--ready {
+    visibility: visible;
+}
+</style>

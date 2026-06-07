@@ -1180,28 +1180,24 @@ onBeforeUnmount(() => {
 }
 
 .hero-agent-avatar {
-    width: 9rem;
-    height: 9rem;
+    width: 12rem;
+    height: 12rem;
     border-radius: 1.5rem;
-    background: linear-gradient(160deg, #eef2ff 0%, #dbeafe 100%);
-    border: 2.5px solid rgba(0, 35, 111, 0.12);
+    background: #f8fafc;
+    border: 4px solid #fff;
     overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow:
-        0 8px 24px rgba(0, 35, 111, 0.14),
-        0 2px 6px rgba(0, 35, 111, 0.07);
+    box-shadow: 0 10px 15px -3px rgb(148 163 184 / 0.2);
 }
 .hero-agent-avatar--lg {
     width: 12rem;
     height: 12rem;
-    border-radius: 2rem;
-    background: linear-gradient(160deg, #f0f4ff 0%, #e0e7ff 100%);
-    border: 2.5px solid rgba(0, 35, 111, 0.16);
-    box-shadow:
-        0 12px 36px rgba(0, 35, 111, 0.2),
-        0 4px 12px rgba(0, 35, 111, 0.1);
+    border-radius: 1.5rem;
+    background: #f8fafc;
+    border: 4px solid #fff;
+    box-shadow: 0 10px 15px -3px rgb(148 163 184 / 0.2);
 }
 
 .hero-agent-name {
@@ -1218,16 +1214,18 @@ onBeforeUnmount(() => {
     justify-content: center;
 }
 .agent-card-img-wrap {
-    width: 100%;
+    width: 12rem;
+    height: 12rem;
+    max-width: 100%;
     aspect-ratio: 1 / 1;
-    border-radius: 22px;
-    background: linear-gradient(160deg, #eef2ff 0%, #dbeafe 100%);
-    border: 1.5px solid rgba(0, 35, 111, 0.1);
+    border-radius: 1.5rem;
+    background: #f8fafc;
+    border: 4px solid #fff;
     overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 16px rgba(0, 35, 111, 0.1);
+    box-shadow: 0 10px 15px -3px rgb(148 163 184 / 0.2);
 }
 .agent-face-media {
     width: 100%;

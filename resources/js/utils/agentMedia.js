@@ -1,9 +1,10 @@
 const configuredBaseUrl = import.meta.env?.VITE_REA_AGENT_ASSET_BASE_URL || '/ia-assets';
+const mediaRevision = 'phase5-20260607-1';
 
 export const agentAssetBaseUrl = configuredBaseUrl.replace(/\/+$/, '');
 
 export const buildAgentMediaUrl = (relativePath) =>
-    `${agentAssetBaseUrl}/${String(relativePath).replace(/^\/+/, '')}`;
+    `${agentAssetBaseUrl}/${String(relativePath).replace(/^\/+/, '')}?v=${mediaRevision}`;
 
 const video = (path) => Object.freeze({ type: 'video', path });
 const image = (path) => Object.freeze({ type: 'image', path });
@@ -150,3 +151,19 @@ export const getAgentActionMedia = (
 };
 
 export const getAgentImage = (agent) => getAgentFallbackMedia(agent).url;
+
+export const getAllAgentMediaUrls = () => {
+    const urls = new Set();
+
+    Object.values(agentMedia).forEach((registry) => {
+        [registry.idle, registry.fallback]
+            .filter(Boolean)
+            .forEach((media) => urls.add(buildAgentMediaUrl(media.path)));
+
+        Object.values(registry.actions).forEach((variants) => {
+            variants.forEach((media) => urls.add(buildAgentMediaUrl(media.path)));
+        });
+    });
+
+    return [...urls];
+};
