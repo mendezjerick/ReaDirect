@@ -13,17 +13,17 @@ class AgentSpeakerPanelStructureTest extends TestCase
 
         $this->assertStringContainsString('VITE_REA_AGENT_ASSET_BASE_URL', $registry);
         $this->assertStringContainsString("'/ia-assets'", $registry);
-        $this->assertStringContainsString('videos/Ciel/c-idle.mp4', $registry);
+        $this->assertStringContainsString("idle: image('images/Ciel/Ciel.png')", $registry);
         $this->assertStringContainsString('videos/Ciel/c-thinking-3.mp4', $registry);
         $this->assertStringContainsString('videos/Ciel/c-happy.mp4', $registry);
         $this->assertStringContainsString('videos/Ciel/c-confused.mp4', $registry);
         $this->assertStringContainsString('videos/Ciel/c-advise.mp4', $registry);
         $this->assertStringContainsString('videos/Ciel/c-clap.mp4', $registry);
         $this->assertStringContainsString('videos/Ciel/c-congrats.mp4', $registry);
-        $this->assertStringContainsString('videos/Vivian/v-idle.mp4', $registry);
+        $this->assertStringContainsString("idle: image('images/Vivian/Vivian.png')", $registry);
         $this->assertStringContainsString('videos/Vivian/v-thinking-2.mp4', $registry);
         $this->assertStringContainsString('videos/Vivian/v-congrats.mp4', $registry);
-        $this->assertStringContainsString('videos/Estelle/e-idle.mp4', $registry);
+        $this->assertStringContainsString("idle: image('images/Estelle/Estelle.png')", $registry);
         $this->assertStringContainsString('videos/Estelle/e-results-2.mp4', $registry);
         $this->assertStringContainsString('videos/Estelle/e-congrats.mp4', $registry);
     }
@@ -36,13 +36,21 @@ class AgentSpeakerPanelStructureTest extends TestCase
 
         $this->assertStringContainsString('if (isBusy.value)', $player);
         $this->assertStringContainsString('return false', $player);
-        $this->assertStringContainsString(':loop="!isBusy"', $player);
+        $this->assertStringContainsString(':src="idleMedia.url"', $player);
+        $this->assertStringContainsString('videoReady ? \'opacity-100\'', $player);
+        $this->assertStringContainsString('@loadeddata="handleVideoReady"', $player);
+        $this->assertStringContainsString('@canplay="handleVideoReady"', $player);
+        $this->assertStringContainsString('5_000', $player);
         $this->assertStringContainsString('@ended="handleVideoEnded"', $player);
         $this->assertStringContainsString('showIdle(activeAgent.value)', $player);
-        $this->assertStringContainsString('getAgentFallbackMedia', $player);
+        $this->assertStringContainsString("activeAgent.value !== 'Ciel'", $player);
+        $this->assertStringContainsString("getAgentIdleMedia('Ciel')", $player);
+        $this->assertStringContainsString('autoplay', $player);
+        $this->assertStringContainsString('muted', $player);
+        $this->assertStringContainsString('playsinline', $player);
         $this->assertStringNotContainsString('pending', strtolower($player));
         $this->assertStringNotContainsString('queue', strtolower($player));
-        $this->assertStringNotContainsString('setTimeout', $player);
+        $this->assertStringNotContainsString('loop', $player);
         $this->assertStringContainsString('AgentVideoPlayer', $component);
     }
 

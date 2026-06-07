@@ -10,8 +10,7 @@ const image = (path) => Object.freeze({ type: 'image', path });
 
 export const agentMedia = Object.freeze({
     Ciel: Object.freeze({
-        idle: video('videos/Ciel/c-idle.mp4'),
-        fallback: image('images/Ciel/Ciel.png'),
+        idle: image('images/Ciel/Ciel.png'),
         actions: Object.freeze({
             thinking: Object.freeze([
                 video('videos/Ciel/c-thinking-1.mp4'),
@@ -26,8 +25,7 @@ export const agentMedia = Object.freeze({
         }),
     }),
     Vivian: Object.freeze({
-        idle: video('videos/Vivian/v-idle.mp4'),
-        fallback: image('images/Vivian/Vivian.png'),
+        idle: image('images/Vivian/Vivian.png'),
         actions: Object.freeze({
             thinking: Object.freeze([
                 video('videos/Vivian/v-thinking-1.mp4'),
@@ -37,8 +35,7 @@ export const agentMedia = Object.freeze({
         }),
     }),
     Estelle: Object.freeze({
-        idle: video('videos/Estelle/e-idle.mp4'),
-        fallback: image('images/Estelle/Estelle.png'),
+        idle: image('images/Estelle/Estelle.png'),
         actions: Object.freeze({
             results: Object.freeze([
                 video('videos/Estelle/e-results-1.mp4'),
@@ -109,13 +106,12 @@ export const getAgentName = (agent) => agentAliases[normalizeKey(agent)] ?? 'Cie
 
 export const getAgentAlt = (agent) => `Miss ${getAgentName(agent)}`;
 
-export const getAgentFallbackMedia = (agent) =>
-    withUrl(agentMedia[getAgentName(agent)].fallback);
+export const getAgentIdleMedia = (agent) =>
+    withUrl(agentMedia[getAgentName(agent)].idle);
 
-export const getAgentIdleMedia = (agent) => {
-    const registry = agentMedia[getAgentName(agent)];
-    return withUrl(registry.idle ?? registry.fallback);
-};
+export const getAgentIdleImage = (agent) => getAgentIdleMedia(agent).url;
+
+export const getAgentFallbackMedia = (agent) => getAgentIdleMedia(agent);
 
 export const getAgentActionName = (agent, action, allowCongrats = false) => {
     const agentName = getAgentName(agent);
@@ -150,3 +146,24 @@ export const getAgentActionMedia = (
 };
 
 export const getAgentImage = (agent) => getAgentFallbackMedia(agent).url;
+
+export const getAllAgentMedia = () => {
+    const mediaByUrl = new Map();
+
+    Object.values(agentMedia).forEach((registry) => {
+        [
+            registry.idle,
+            ...Object.values(registry.actions).flat(),
+        ]
+            .filter(Boolean)
+            .forEach((media) => {
+                const resolved = withUrl(media);
+                mediaByUrl.set(resolved.url, resolved);
+            });
+    });
+
+    return [...mediaByUrl.values()];
+};
+
+export const getAllAgentMediaUrls = () =>
+    getAllAgentMedia().map((media) => media.url);

@@ -38,18 +38,53 @@ Publish or mount `ReaDirect-IA/assets` at `/ia-assets`, or set
 building the frontend. Keep the files local to the deployment environment;
 internet access is not required.
 
-Only idle videos loop. Interaction videos play once, ignore new cues while
-busy, and return to idle when they end. Current idle files are approximately
-five seconds long. They can later be replaced by one-second minimal-motion
-loops without code changes because playback does not depend on duration.
+Idle now uses the static PNG for each agent. The idle videos were intentionally
+removed from ReaDirect-IA to reduce runtime and repository weight.
 
-The actual Vivian idle filename is `videos/Vivian/v-idle.mp4`. Estelle has
-`videos/Estelle/e-idle.mp4`; static PNGs remain error fallbacks for every
-agent.
+The runtime flow is:
+
+```text
+idle PNG -> interaction video -> idle PNG
+```
+
+Interaction videos play once, ignore new cues while loading or playing, and
+return to the same agent PNG when they end. No action queue is maintained.
+The PNG remains visible while an interaction video prepares, preventing an
+empty media box. A failed or slow interaction stays on the idle PNG.
 
 ## Application Boundaries
 
 Laravel continues to own learner content, attempts, dialogue/content banks,
 ASR results, scoring, module placement, and final-assessment decisions. Phase
-2 centralizes only frontend media paths and playback behavior. It does not
-change ASR, TTS, scoring, database schema, or content-bank storage.
+4 changes only frontend media paths, playback readiness, and preloading. It
+does not change ASR, TTS, scoring, database schema, or content-bank storage.
+
+## Phase 4 Preloading
+
+The homepage does not preload agent media during its initial render. Preload
+starts only after the user clicks:
+
+- Start Reading
+- Admin Dashboard, when available for the signed-in role
+- Teacher Dashboard, when available for the signed-in role
+
+The click shows a lightweight CSS/vector flipping-book screen, preloads all
+known agent images and interaction videos, and then continues through the
+existing Inertia route. The loader remains visible for at least 2000
+milliseconds.
+Individual failures are tolerated, and a global timeout prevents preloading
+from blocking navigation indefinitely.
+
+The preload service derives all URLs from the centralized media registry and
+uses `VITE_REA_AGENT_ASSET_BASE_URL`. It caches completed URLs and shares one
+batch promise so repeated or rapid clicks do not start duplicate downloads.
+
+Current video filenames:
+
+- Ciel: `c-thinking-1.mp4`, `c-thinking-2.mp4`, `c-thinking-3.mp4`,
+  `c-happy.mp4`, `c-confused.mp4`, `c-advise.mp4`, `c-clap.mp4`,
+  `c-congrats.mp4`
+- Vivian: `v-thinking-1.mp4`, `v-thinking-2.mp4`, `v-congrats.mp4`
+- Estelle: `e-results-1.mp4`, `e-results-2.mp4`, `e-congrats.mp4`
+
+Deleted idle-video filenames must not be restored or referenced.

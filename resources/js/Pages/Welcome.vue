@@ -1,13 +1,21 @@
 <script setup>
-import { Link, usePage } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { Link, router, usePage } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
 import { BookOpen, Mic, Trophy } from 'lucide-vue-next';
 import AppLayout from '../Layouts/AppLayout.vue';
+import ReaDirectBookLoader from '../Components/Loading/ReaDirectBookLoader.vue';
 import RewardBadge from '../Components/RewardBadge.vue';
+import { preloadAgentMedia } from '../agents/agentMediaPreloader';
 
 const page = usePage();
 const roles = computed(() => page.props.auth?.roles ?? []);
 const isLoggedIn = computed(() => Boolean(page.props.auth?.user));
+const isPreparing = ref(false);
+const dashboardPreloadsAgents = computed(() => (
+    roles.value.includes('system_admin')
+    || roles.value.includes('school_admin')
+    || roles.value.includes('teacher')
+));
 const dashboardLink = computed(() => {
     if (roles.value.includes('system_admin') || roles.value.includes('school_admin')) {
         return { href: '/admin/dashboard', label: 'Admin dashboard' };
@@ -19,10 +27,33 @@ const dashboardLink = computed(() => {
 
     return { href: '/learner/dashboard', label: 'Learner dashboard' };
 });
+
+const wait = (milliseconds) => new Promise((resolve) => {
+    window.setTimeout(resolve, milliseconds);
+});
+
+const prepareAndNavigate = async (href) => {
+    if (isPreparing.value) {
+        return;
+    }
+
+    isPreparing.value = true;
+
+    await Promise.allSettled([
+        preloadAgentMedia(),
+        wait(2_000),
+    ]);
+
+    router.visit(href, {
+        onFinish: () => {
+            isPreparing.value = false;
+        },
+    });
+};
 </script>
 
 <template>
-    <AppLayout>
+    <AppLayout :aria-busy="isPreparing">
         <template #nav>
             <div class="flex items-center gap-2">
                 <Link
@@ -33,7 +64,16 @@ const dashboardLink = computed(() => {
                     Login
                 </Link>
                 <template v-else>
+                    <a
+                        v-if="dashboardPreloadsAgents"
+                        :href="dashboardLink.href"
+                        class="rounded-xl border border-primary px-4 py-2 text-sm font-black text-primary hover:bg-primary-light"
+                        @click.prevent="prepareAndNavigate(dashboardLink.href)"
+                    >
+                        {{ dashboardLink.label }}
+                    </a>
                     <Link
+                        v-else
                         :href="dashboardLink.href"
                         class="rounded-xl border border-primary px-4 py-2 text-sm font-black text-primary hover:bg-primary-light"
                     >
@@ -59,13 +99,29 @@ const dashboardLink = computed(() => {
                     Friendly oral reading assessment and guided practice for young readers.
                 </p>
                 <div class="mt-8 flex flex-col gap-3 sm:flex-row">
-                    <Link href="/learner/access" class="inline-flex min-h-14 items-center justify-center rounded-2xl bg-primary px-6 text-lg font-black text-white shadow-lg shadow-primary/20 hover:bg-primary-dark">
+                    <a
+                        href="/learner/access"
+                        class="inline-flex min-h-14 items-center justify-center rounded-2xl bg-primary px-6 text-lg font-black text-white shadow-lg shadow-primary/20 hover:bg-primary-dark"
+                        @click.prevent="prepareAndNavigate('/learner/access')"
+                    >
                         Start reading
-                    </Link>
+                    </a>
                     <Link v-if="!isLoggedIn" href="/login" class="inline-flex min-h-14 items-center justify-center rounded-2xl border-2 border-primary bg-surface px-6 text-lg font-black text-primary hover:bg-primary-light">
                         Login
                     </Link>
-                    <Link v-else :href="dashboardLink.href" class="inline-flex min-h-14 items-center justify-center rounded-2xl border-2 border-primary bg-surface px-6 text-lg font-black text-primary hover:bg-primary-light">
+                    <a
+                        v-else-if="dashboardPreloadsAgents"
+                        :href="dashboardLink.href"
+                        class="inline-flex min-h-14 items-center justify-center rounded-2xl border-2 border-primary bg-surface px-6 text-lg font-black text-primary hover:bg-primary-light"
+                        @click.prevent="prepareAndNavigate(dashboardLink.href)"
+                    >
+                        {{ dashboardLink.label }}
+                    </a>
+                    <Link
+                        v-else
+                        :href="dashboardLink.href"
+                        class="inline-flex min-h-14 items-center justify-center rounded-2xl border-2 border-primary bg-surface px-6 text-lg font-black text-primary hover:bg-primary-light"
+                    >
                         {{ dashboardLink.label }}
                     </Link>
                 </div>
@@ -88,4 +144,5 @@ const dashboardLink = computed(() => {
             </div>
         </section>
     </AppLayout>
+    <ReaDirectBookLoader v-if="isPreparing" message="Loading learning agents..." />
 </template>

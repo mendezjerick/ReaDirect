@@ -1,13 +1,16 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import {
     getAgentActionMedia,
     getAgentActionName,
     getAgentAlt,
-    getAgentFallbackMedia,
     getAgentIdleMedia,
     getAgentName,
 } from '../../utils/agentMedia';
+
+defineOptions({
+    inheritAttrs: false,
+});
 
 const props = defineProps({
     agent: { type: String, default: 'Ciel' },
@@ -20,19 +23,38 @@ const emit = defineEmits(['interaction-ended']);
 
 const activeAgent = ref(getAgentName(props.agent));
 const activeAction = ref('idle');
-const currentMedia = ref(getAgentIdleMedia(activeAgent.value));
+const idleMedia = ref(getAgentIdleMedia(activeAgent.value));
+const interactionMedia = ref(null);
 const isBusy = ref(false);
-const idleVideoFailed = ref(false);
+const videoReady = ref(false);
+const videoElement = ref(null);
+const idleImageFallbackApplied = ref(false);
+let videoReadyTimeoutId = null;
 
 const altText = computed(() => props.alt || getAgentAlt(activeAgent.value));
-const isVideo = computed(() => currentMedia.value.type === 'video');
+
+const clearVideoReadyTimeout = () => {
+    if (videoReadyTimeoutId !== null) {
+        window.clearTimeout(videoReadyTimeoutId);
+        videoReadyTimeoutId = null;
+    }
+};
+
+const logVideoFailure = (message) => {
+    if (import.meta.env?.DEV) {
+        console.warn(message);
+    }
+};
 
 const showIdle = (agent = activeAgent.value) => {
+    clearVideoReadyTimeout();
     activeAgent.value = getAgentName(agent);
     activeAction.value = 'idle';
+    idleMedia.value = getAgentIdleMedia(activeAgent.value);
+    idleImageFallbackApplied.value = false;
+    interactionMedia.value = null;
+    videoReady.value = false;
     isBusy.value = false;
-    idleVideoFailed.value = false;
-    currentMedia.value = getAgentIdleMedia(activeAgent.value);
 };
 
 const requestAction = (agent, action) => {
@@ -44,11 +66,11 @@ const requestAction = (agent, action) => {
     const actionName = getAgentActionName(nextAgent, action, props.allowCongrats);
 
     activeAgent.value = nextAgent;
-    idleVideoFailed.value = false;
+    idleMedia.value = getAgentIdleMedia(nextAgent);
+    idleImageFallbackApplied.value = false;
 
     if (actionName === 'idle') {
-        activeAction.value = 'idle';
-        currentMedia.value = getAgentIdleMedia(nextAgent);
+        showIdle(nextAgent);
         return true;
     }
 
@@ -56,16 +78,44 @@ const requestAction = (agent, action) => {
         allowCongrats: props.allowCongrats,
     });
 
-    if (media.path === getAgentIdleMedia(nextAgent).path) {
-        activeAction.value = 'idle';
-        currentMedia.value = media;
+    if (media.type !== 'video') {
+        showIdle(nextAgent);
         return true;
     }
 
     activeAction.value = actionName;
     isBusy.value = true;
-    currentMedia.value = media;
+    videoReady.value = false;
+    interactionMedia.value = media;
+    clearVideoReadyTimeout();
+    videoReadyTimeoutId = window.setTimeout(() => {
+        logVideoFailure(`Agent interaction video was not ready in time: ${media.url}`);
+        showIdle(nextAgent);
+    }, 5_000);
+
     return true;
+};
+
+const handleVideoReady = async () => {
+    if (!isBusy.value || videoReady.value || !interactionMedia.value) {
+        return;
+    }
+
+    clearVideoReadyTimeout();
+    videoReady.value = true;
+    await nextTick();
+
+    if (!videoElement.value || !isBusy.value) {
+        return;
+    }
+
+    try {
+        videoElement.value.currentTime = 0;
+        await videoElement.value.play();
+    } catch {
+        logVideoFailure(`Agent interaction video could not start: ${interactionMedia.value.url}`);
+        showIdle(activeAgent.value);
+    }
 };
 
 const handleVideoEnded = () => {
@@ -79,15 +129,16 @@ const handleVideoEnded = () => {
     }
 };
 
-const handleMediaError = () => {
-    if (isBusy.value) {
-        showIdle(activeAgent.value);
-        return;
-    }
+const handleVideoError = () => {
+    const failedUrl = interactionMedia.value?.url;
+    logVideoFailure(`Agent interaction video failed to load: ${failedUrl ?? 'unknown video'}`);
+    showIdle(activeAgent.value);
+};
 
-    if (!idleVideoFailed.value) {
-        idleVideoFailed.value = true;
-        currentMedia.value = getAgentFallbackMedia(activeAgent.value);
+const handleIdleImageError = () => {
+    if (!idleImageFallbackApplied.value && activeAgent.value !== 'Ciel') {
+        idleImageFallbackApplied.value = true;
+        idleMedia.value = getAgentIdleMedia('Ciel');
     }
 };
 
@@ -97,6 +148,7 @@ watch(
 );
 
 onMounted(() => requestAction(props.agent, props.action));
+onBeforeUnmount(clearVideoReadyTimeout);
 
 defineExpose({
     isBusy,
@@ -105,21 +157,44 @@ defineExpose({
 </script>
 
 <template>
-    <video
-        v-if="isVideo"
-        :key="currentMedia.url"
-        :src="currentMedia.url"
-        :aria-label="altText"
-        :loop="!isBusy"
-        autoplay
-        muted
-        playsinline
-        @ended="handleVideoEnded"
-        @error="handleMediaError"
-    />
-    <img
-        v-else
-        :src="currentMedia.url"
-        :alt="altText"
+    <div
+        v-bind="$attrs"
+        class="relative overflow-hidden"
     >
+        <img
+            :src="idleMedia.url"
+            :alt="altText"
+            :aria-hidden="videoReady"
+            class="agent-media__idle size-full"
+            @error="handleIdleImageError"
+        >
+        <video
+            v-if="interactionMedia"
+            ref="videoElement"
+            :key="interactionMedia.url"
+            :src="interactionMedia.url"
+            :aria-label="altText"
+            :class="[
+                'agent-media__video absolute inset-0 size-full transition-opacity duration-100',
+                videoReady ? 'opacity-100' : 'pointer-events-none opacity-0',
+            ]"
+            preload="auto"
+            autoplay
+            muted
+            playsinline
+            @loadeddata="handleVideoReady"
+            @canplay="handleVideoReady"
+            @canplaythrough="handleVideoReady"
+            @ended="handleVideoEnded"
+            @error="handleVideoError"
+        />
+    </div>
 </template>
+
+<style scoped>
+.agent-media__idle,
+.agent-media__video {
+    object-fit: inherit;
+    object-position: inherit;
+}
+</style>
