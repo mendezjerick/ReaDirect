@@ -97,6 +97,9 @@ const actionMaps = Object.freeze({
         celebrating: 'congrats',
     }),
     Estelle: Object.freeze({
+        talk: 'talk',
+        talking: 'talk',
+        speaking: 'talk',
         results: 'results',
         pointing: 'results',
         presenting: 'results',

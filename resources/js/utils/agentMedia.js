@@ -1,5 +1,5 @@
 const configuredBaseUrl = import.meta.env?.VITE_REA_AGENT_ASSET_BASE_URL || '/ia-assets';
-const mediaRevision = 'phase5-20260607-3';
+const mediaRevision = 'phase5-20260607-4';
 
 export const agentAssetBaseUrl = configuredBaseUrl.replace(/\/+$/, '');
 
@@ -40,6 +40,7 @@ export const agentMedia = Object.freeze({
         idle: video('videos/Estelle/e-idle.mp4'),
         fallback: image('images/Estelle/Estelle.png'),
         actions: Object.freeze({
+            talk: Object.freeze([video('videos/Estelle/e-talk.mp4')]),
             results: Object.freeze([
                 video('videos/Estelle/e-results-1.mp4'),
                 video('videos/Estelle/e-results-2.mp4'),
@@ -98,6 +99,9 @@ const actionAliases = Object.freeze({
         celebrating: 'congrats',
     }),
     Estelle: Object.freeze({
+        talk: 'talk',
+        talking: 'talk',
+        speaking: 'talk',
         results: 'results',
         pointing: 'results',
         presenting: 'results',

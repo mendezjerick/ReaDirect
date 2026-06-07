@@ -76,7 +76,12 @@ const displayMessage = computed(() => showIntro.value ? agent.value.intro : prop
 const effectiveState = computed(() => (isSpeaking.value ? 'speaking' : (props.state || 'idle')));
 const mediaState = computed(() => {
     const requestedState = props.state || 'idle';
-    const hasTalkVideo = ['coach_feedback', 'assessment'].includes(props.agentType);
+    const hasTalkVideo = [
+        'coach_feedback',
+        'assessment',
+        'evaluator',
+        'evaluator_recommendation',
+    ].includes(props.agentType);
     const passiveStates = ['idle', 'listening', 'speaking', 'neutral', 'none', 'ready'];
 
     if (hasTalkVideo && isSpeaking.value && passiveStates.includes(requestedState)) {

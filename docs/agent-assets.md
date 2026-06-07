@@ -56,6 +56,9 @@ Agent selection and action aliases are context-aware:
 - Vivian uses `videos/Vivian/v-talk.mp4` while her assessment dialogue TTS is
   actively speaking. Processing and retry cues continue to use
   `videos/Vivian/v-think.mp4`.
+- Estelle uses `videos/Estelle/e-talk.mp4` for general spoken dialogue.
+  Explicit results, summary, routing, placement, and recommendation cues keep
+  using Estelle's results videos with higher priority.
 - Miss Ciel owns module practice and mastery tutoring. Thinking is used for
   processing, talk while tutor TTS is actively speaking, happy for correct
   answers, confused for learner-facing errors or unclear/invalid results,
