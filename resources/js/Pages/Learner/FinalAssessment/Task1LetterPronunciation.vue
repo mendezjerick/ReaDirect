@@ -204,7 +204,7 @@ const handlePrimary = () => {
 
             <!-- Recording card -->
             <div class="anim-card relative overflow-hidden rounded-[36px] border-[3px] border-primary/10 bg-white p-6 shadow-2xl shadow-primary/10 sm:p-7">
-                <div class="grid gap-4 md:grid-cols-[220px_1fr] md:items-center">
+                <div class="grid gap-4 lg:grid-cols-[220px_1fr] lg:items-center">
                     <AudioRecorder
                         :key="step.currentItem.value.id"
                         :reset-key="step.currentItem.value.id"
@@ -265,3 +265,4 @@ const handlePrimary = () => {
     to   { opacity: 1; transform: translateY(0); }
 }
 </style>
+

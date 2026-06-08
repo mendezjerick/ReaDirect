@@ -323,7 +323,7 @@ const returnToDashboard = () => {
 </script>
 
 <template>
-    <LearnerLayout :progress="90">
+    <LearnerLayout :progress="90" backUrl="/learner/dashboard" backLabel="Back to Learner Dashboard">
         <CielFocusMode
             :visible="focusModeVisible"
             :mode="cielFocusEvent?.mode ?? 'teaching'"
@@ -338,7 +338,7 @@ const returnToDashboard = () => {
             <AgentSpeakerPanel compact agent-type="coach_feedback" :state="agentState" :message="agentMessage" :tts-enabled="!focusModeVisible" />
         </template>
 
-        <section class="mx-auto grid max-w-xl gap-3">
+        <section class="mx-auto grid max-w-xl gap-3 px-0.5">
             <div class="flex items-center justify-between">
                 <StatusBadge status="Mini Mastery Check" variant="primary" />
                 <StatusBadge :status="progressLabel" />
@@ -346,7 +346,7 @@ const returnToDashboard = () => {
             <ModuleProgressBar :value="step.progressPercent.value" />
             <PromptCard label="Check" :prompt="step.currentItem.value.prompt" :highlight-targets="currentHighlightTargets" :illustration="currentWordImage" size="word" />
             <div class="rounded-[24px] border border-border bg-surface p-4 shadow-lg shadow-primary/10">
-                <div class="grid gap-3 md:grid-cols-[220px_1fr] md:items-center">
+                <div class="grid gap-3 lg:grid-cols-[220px_1fr] lg:items-center">
                     <AudioRecorder
                         :key="step.currentItem.value.id"
                         :reset-key="`${step.currentItem.value.id}-${recorderResetKeys[step.currentItem.value.id] ?? 0}`"
@@ -394,8 +394,7 @@ const returnToDashboard = () => {
         </section>
 
         <BottomActionBar>
-            <div class="flex w-full items-center justify-between gap-3">
-                <SecondaryButton :disabled="returningToDashboard || form.processing || isCurrentUploading || isCurrentChecking || focusModeVisible" @click="returnToDashboard">Back to Learner Dashboard</SecondaryButton>
+            <div class="flex w-full items-center justify-end gap-3">
                 <PrimaryButton :disabled="primaryDisabled" :class="{ 'opacity-70': primaryDisabled }" @click="handlePrimary">
                     {{ primaryLabel }}
                 </PrimaryButton>
@@ -403,3 +402,4 @@ const returnToDashboard = () => {
         </BottomActionBar>
     </LearnerLayout>
 </template>
+

@@ -28,14 +28,14 @@ const rewards = computed(() => [
         subtitle="Milestones from your reading journey"
         active="rewards"
     >
-        <div class="anim-fade-down rounded-[36px] border border-slate-200/60 bg-white/80 p-6 shadow-xl shadow-slate-200/40 backdrop-blur-md md:p-8">
+        <div class="anim-fade-down rounded-[36px] border border-slate-200/60 bg-white/80 p-6 shadow-xl shadow-slate-200/40 backdrop-blur-md lg:p-8">
             <div class="flex items-center gap-4">
                 <span class="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg shadow-amber-500/30">
                     <Sparkles class="size-8" />
                 </span>
                 <div>
                     <p class="text-[13px] font-black uppercase tracking-widest text-amber-500">Reward Path</p>
-                    <h2 class="text-2xl font-black text-slate-800 md:text-3xl">Your badges</h2>
+                    <h2 class="text-2xl font-black text-slate-800 lg:text-3xl">Your badges</h2>
                 </div>
             </div>
 
@@ -99,3 +99,4 @@ const rewards = computed(() => [
     to { opacity: 1; transform: translateY(0); }
 }
 </style>
+

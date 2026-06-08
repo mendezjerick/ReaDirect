@@ -43,6 +43,12 @@ const canSpeak = ref(false);
 const hasPendingRecording = computed(() => Boolean(currentFile.value));
 const hasSubmittedRecording = computed(() => props.submitted && !hasPendingRecording.value);
 
+const isMobile = ref(false);
+const checkMobile = () => {
+    isMobile.value = window.innerWidth < 1024;
+};
+
+
 const statusLabel = computed(() => {
     const labels = {
         ready: 'Ready',
@@ -496,6 +502,8 @@ const handleSpacebar = (event) => {
 
 onMounted(() => {
     window.addEventListener('keydown', handleSpacebar);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
 });
 
 watch(
@@ -516,6 +524,7 @@ watch(
 
 onBeforeUnmount(() => {
     window.removeEventListener('keydown', handleSpacebar);
+    window.removeEventListener('resize', checkMobile);
     clearTimer();
     stopTracks();
     if (audioUrl.value) {
@@ -608,10 +617,10 @@ onBeforeUnmount(() => {
             </p>
         </div>
 
-        <Teleport defer to="#teleport-audio-review">
+        <Teleport defer to="#teleport-audio-review" :disabled="isMobile">
             <div
                 v-if="audioUrl && shouldShowReviewSubmit"
-                class="learner-audio-review-card rounded-[28px] border border-slate-200/80 bg-white p-4 shadow-lg shadow-slate-200/30 xl:p-5"
+                :class="isMobile ? 'learner-audio-review-card mt-6 border-t border-slate-100 pt-5' : 'learner-audio-review-card rounded-[28px] border border-slate-200/80 bg-white p-4 shadow-lg shadow-slate-200/30 xl:p-5'"
                 aria-live="polite"
             >
                 <div class="flex flex-wrap items-center justify-between gap-2">
@@ -633,7 +642,7 @@ onBeforeUnmount(() => {
                 </button>
             </div>
         </Teleport>
-        <Teleport defer to="#teleport-audio-review">
+        <Teleport defer to="#teleport-audio-review" :disabled="isMobile">
             <LearnerAudioPlayer v-if="!shouldShowReviewSubmit && audioUrl" class="mt-4" :src="audioUrl" @play="stopAgentAudioForPlayback" />
         </Teleport>
         <p v-if="required && !audioUrl" class="mt-3 text-xs font-bold text-slate-500">Please record your answer before continuing.</p>

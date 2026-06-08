@@ -1,6 +1,6 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
-import { Award, BookOpen, Brain, Flag, Map, Target } from 'lucide-vue-next';
+import { Award, BookOpen, Brain, Flag, Map, Target, ArrowRightIcon } from 'lucide-vue-next';
 import LearnerLayout from '../../Layouts/LearnerLayout.vue';
 import AgentSpeakerPanel from '../../Components/Learner/AgentSpeakerPanel.vue';
 import PrimaryButton from '../../Components/PrimaryButton.vue';
@@ -38,7 +38,7 @@ defineProps({ attempt: Object });
             </div>
 
             <!-- Metric cards grid -->
-            <div class="anim-stagger grid gap-4 md:grid-cols-2">
+            <div class="anim-stagger grid gap-4 lg:grid-cols-2">
                 <!-- Incorrect Words -->
                 <article class="anim-card flex min-h-28 items-center gap-4 rounded-[28px] border border-slate-200/80 bg-white px-5 py-5 shadow-xl shadow-slate-200/30 xl:min-h-32 xl:gap-5 xl:px-6 xl:py-6">
                     <span class="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-400 to-blue-600 text-white shadow-lg shadow-blue-500/20 ring-1 ring-white/20 xl:size-16">
@@ -127,10 +127,10 @@ defineProps({ attempt: Object });
         </div>
 
         <BottomActionBar>
-            <Link href="/learner/diagnostic/module-placement">
-                <PrimaryButton class="gap-4 rounded-[22px] px-10 shadow-xl shadow-primary/25">
-                    <Map class="size-7" />
+            <Link href="/learner/diagnostic/module-placement" class="w-full sm:w-auto">
+                <PrimaryButton class="w-full gap-3 rounded-full px-6 py-3.5 text-lg shadow-xl shadow-primary/25 sm:w-auto sm:px-10 sm:py-4 sm:text-xl">
                     See my path
+                    <ArrowRightIcon class="size-5 sm:size-6" />
                 </PrimaryButton>
             </Link>
         </BottomActionBar>
@@ -180,3 +180,4 @@ defineProps({ attempt: Object });
     to { opacity: 1; transform: translateY(0); }
 }
 </style>
+

@@ -197,7 +197,7 @@ const handlePrimary = () => {
             <!-- Rhyme prompt card -->
             <div class="anim-card relative overflow-hidden rounded-[36px] border-[3px] border-primary/10 bg-white p-6 text-center shadow-2xl shadow-primary/10 sm:p-7">
                 <p class="text-base font-black text-slate-400">Read the second word</p>
-                <div class="mt-3 flex items-center justify-center gap-3 text-4xl font-black leading-snug text-slate-800 md:text-5xl">
+                <div class="mt-3 flex items-center justify-center gap-3 text-4xl font-black leading-snug text-slate-800 lg:text-5xl">
                     <span>{{ step.currentItem.value.prompt }}</span>
                     <span class="text-slate-300">-</span>
                     <mark class="rounded-2xl bg-primary/8 px-3 py-1 text-primary">{{ targetWordFor(step.currentItem.value) }}</mark>
@@ -206,7 +206,7 @@ const handlePrimary = () => {
 
             <!-- Recording card -->
             <div class="anim-card relative overflow-hidden rounded-[36px] border-[3px] border-primary/10 bg-white p-6 shadow-2xl shadow-primary/10 sm:p-7">
-                <div class="grid gap-4 md:grid-cols-[220px_1fr] md:items-center">
+                <div class="grid gap-4 lg:grid-cols-[220px_1fr] lg:items-center">
                     <AudioRecorder
                         :key="step.currentItem.value.id"
                         :reset-key="step.currentItem.value.id"
@@ -267,3 +267,4 @@ const handlePrimary = () => {
     to   { opacity: 1; transform: translateY(0); }
 }
 </style>
+

@@ -401,7 +401,7 @@ onBeforeUnmount(() => {
                  ════════════════════════════════════════ -->
             <div
                 v-if="hasAnyMetrics"
-                class="anim-stagger grid gap-5 md:grid-cols-3"
+                class="anim-stagger grid gap-5 lg:grid-cols-3"
             >
                 <article
                     v-for="card in cards"
@@ -556,7 +556,7 @@ onBeforeUnmount(() => {
                     </button>
                 </div>
 
-                <div class="grid gap-3 md:grid-cols-3">
+                <div class="grid gap-3 lg:grid-cols-3">
                     <article
                         v-for="agent in agentMessages"
                         :key="agent.name"
@@ -1248,3 +1248,4 @@ onBeforeUnmount(() => {
     object-position: center 18%;
 }
 </style>
+

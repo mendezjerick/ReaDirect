@@ -5,14 +5,14 @@
         <Transition name="overlay">
             <div
                 v-if="sidebarOpen"
-                class="fixed inset-0 z-20 bg-black/20 backdrop-blur-[2px] md:hidden"
+                class="fixed inset-0 z-20 bg-black/20 backdrop-blur-[2px] lg:hidden"
                 @click="sidebarOpen = false"
             />
         </Transition>
 
         <!-- ── Sidebar ─────────────────────────────────────── -->
         <aside
-            class="fixed inset-y-0 left-0 z-30 flex w-[260px] flex-col bg-surface transition-transform duration-300 ease-in-out md:translate-x-0"
+            class="fixed inset-y-0 left-0 z-30 flex w-[260px] flex-col bg-surface transition-transform duration-300 ease-in-out lg:translate-x-0"
             :class="sidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'"
         >
             <!-- Brand header -->
@@ -34,7 +34,7 @@
                 <div class="mb-1">
                     <p class="mb-2 px-3 pt-3 text-[10px] font-bold uppercase tracking-[0.15em] text-muted">Main Menu</p>
                     <div class="space-y-0.5">
-                        <a
+                        <Link
                             v-for="item in mainNav"
                             :key="item.href"
                             :href="item.href"
@@ -51,7 +51,7 @@
                                 :class="isActive(item.href) ? 'text-primary' : 'text-slate-400'"
                             />
                             <span>{{ item.label }}</span>
-                        </a>
+                        </Link>
                     </div>
                 </div>
 
@@ -59,7 +59,7 @@
                 <div class="mb-1">
                     <p class="mb-2 px-3 pt-4 text-[10px] font-bold uppercase tracking-[0.15em] text-muted">Admin Tools</p>
                     <div class="space-y-0.5">
-                        <a
+                        <Link
                             v-for="item in adminNav"
                             :key="item.href"
                             :href="item.href"
@@ -76,7 +76,7 @@
                                 :class="isActive(item.href) ? 'text-primary' : 'text-slate-400'"
                             />
                             <span>{{ item.label }}</span>
-                        </a>
+                        </Link>
                     </div>
                 </div>
 
@@ -84,20 +84,20 @@
                 <div>
                     <p class="mb-2 px-3 pt-4 text-[10px] font-bold uppercase tracking-[0.15em] text-muted">General</p>
                     <div class="space-y-0.5">
-                        <a
+                        <Link
                             href="/"
                             class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-semibold text-slate-500 hover:bg-slate-50 hover:text-text transition-all duration-150"
                         >
                             <Home :size="18" class="shrink-0 text-slate-400" />
                             <span>Home</span>
-                        </a>
-                        <a
+                        </Link>
+                        <Link
                             href="/teacher/dashboard"
                             class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-semibold text-slate-500 hover:bg-slate-50 hover:text-text transition-all duration-150"
                         >
                             <Monitor :size="18" class="shrink-0 text-slate-400" />
                             <span>Teacher Dashboard</span>
-                        </a>
+                        </Link>
                         <Link
                             href="/logout"
                             method="post"
@@ -130,22 +130,22 @@
         </aside>
 
         <!-- ── Main content area ───────────────────────────── -->
-        <div class="flex min-h-screen flex-col md:pl-[260px]">
+        <div class="flex min-h-screen flex-col lg:pl-[260px]">
 
             <!-- Top bar -->
-            <header class="sticky top-0 z-10 flex h-[64px] shrink-0 items-center justify-between bg-surface/80 backdrop-blur-md px-5 md:px-8 border-b border-border/60">
+            <header class="sticky top-0 z-10 flex h-[64px] shrink-0 items-center justify-between bg-surface/80 backdrop-blur-md px-5 lg:px-8 border-b border-border/60">
                 <!-- Left: hamburger (mobile) + search -->
                 <div class="flex items-center gap-3">
                     <button
                         @click="sidebarOpen = !sidebarOpen"
-                        class="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-text md:hidden"
+                        class="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-text lg:hidden"
                         :aria-label="sidebarOpen ? 'Close menu' : 'Open menu'"
                         aria-controls="admin-sidebar"
                     >
                         <X v-if="sidebarOpen" :size="20" />
                         <Menu v-else :size="20" />
                     </button>
-                    <div class="hidden md:flex items-center gap-2 rounded-xl bg-background px-4 py-2">
+                    <div class="hidden lg:flex items-center gap-2 rounded-xl bg-background px-4 py-2">
                         <Search :size="15" class="text-muted" />
                         <span class="text-[13px] text-muted font-medium">Search...</span>
                     </div>
@@ -184,14 +184,14 @@
 
                                 <!-- Links -->
                                 <div class="space-y-0.5">
-                                    <a
+                                    <Link
                                         href="/admin/profile"
                                         class="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13px] font-semibold text-slate-500 hover:bg-primary-light hover:text-primary transition-colors"
                                         @click="profileOpen = false"
                                     >
                                         <UserCircle :size="16" class="shrink-0" />
                                         Account Settings
-                                    </a>
+                                    </Link>
                                     <Link
                                         href="/logout"
                                         method="post"
@@ -209,7 +209,7 @@
             </header>
 
             <!-- Page content -->
-            <main class="flex-1 px-5 py-6 md:px-8 md:py-7">
+            <main class="flex-1 px-5 py-6 lg:px-8 lg:py-7">
 
                 <!-- Flash: success -->
                 <Transition name="flash">

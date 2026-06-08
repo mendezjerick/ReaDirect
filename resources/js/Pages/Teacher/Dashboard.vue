@@ -52,7 +52,7 @@ defineProps({ dashboard: Object });
                 </div>
                 <div class="space-y-2">
                     <div v-for="(count, label) in dashboard.finalReadingDistribution" :key="label" class="flex items-center justify-between rounded-xl bg-background px-4 py-3 text-sm transition-colors hover:bg-orange-50/60 border border-border/40">
-                        <span class="font-semibold text-text">{{ label }}</span>
+                        <span class="font-semibold text-text truncate min-w-0 flex-1">{{ label }}</span>
                         <StatusBadge :status="String(count)" variant="warning" />
                     </div>
                     <EmptyState v-if="Object.keys(dashboard.finalReadingDistribution ?? {}).length === 0" title="No final reassessment data yet" />
@@ -70,7 +70,7 @@ defineProps({ dashboard: Object });
                 </div>
                 <div class="space-y-2">
                     <div v-for="(count, label) in dashboard.moduleDistribution" :key="label" class="flex items-center justify-between rounded-xl bg-background px-4 py-3 text-sm transition-colors hover:bg-blue-50/60 border border-border/40">
-                        <span class="font-semibold text-text">{{ label }}</span>
+                        <span class="font-semibold text-text truncate min-w-0 flex-1">{{ label }}</span>
                         <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-[11px] font-bold text-blue-700">{{ count }}</span>
                     </div>
                 </div>
@@ -84,7 +84,7 @@ defineProps({ dashboard: Object });
                 </div>
                 <div class="space-y-2">
                     <div v-for="(count, label) in dashboard.crlaDistribution" :key="label" class="flex items-center justify-between rounded-xl bg-background px-4 py-3 text-sm transition-colors hover:bg-emerald-50/60 border border-border/40">
-                        <span class="font-semibold text-text">{{ label }}</span>
+                        <span class="font-semibold text-text truncate min-w-0 flex-1">{{ label }}</span>
                         <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-[11px] font-bold text-emerald-700">{{ count }}</span>
                     </div>
                     <EmptyState v-if="Object.keys(dashboard.crlaDistribution).length === 0" title="No diagnostic data yet" />
@@ -99,7 +99,7 @@ defineProps({ dashboard: Object });
                 </div>
                 <div class="space-y-2">
                     <div v-for="(count, label) in dashboard.readingDistribution" :key="label" class="flex items-center justify-between rounded-xl bg-background px-4 py-3 text-sm transition-colors hover:bg-violet-50/60 border border-border/40">
-                        <span class="font-semibold text-text">{{ label }}</span>
+                        <span class="font-semibold text-text truncate min-w-0 flex-1">{{ label }}</span>
                         <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-violet-100 text-[11px] font-bold text-violet-700">{{ count }}</span>
                     </div>
                     <EmptyState v-if="Object.keys(dashboard.readingDistribution).length === 0" title="No reading data yet" />

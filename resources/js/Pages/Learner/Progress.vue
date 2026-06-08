@@ -35,11 +35,11 @@ const progressItems = computed(() => [
     >
         <section class="grid gap-6 lg:grid-cols-[1fr_22rem] lg:items-start">
             <!-- Main Progress Area -->
-            <div class="anim-fade-down rounded-[36px] border border-slate-200/60 bg-white/80 p-6 shadow-xl shadow-slate-200/40 backdrop-blur-md md:p-8">
+            <div class="anim-fade-down rounded-[36px] border border-slate-200/60 bg-white/80 p-6 shadow-xl shadow-slate-200/40 backdrop-blur-md lg:p-8">
                 <div class="flex flex-wrap items-center justify-between gap-4">
                     <div>
                         <p class="text-[13px] font-black uppercase tracking-widest text-primary">Latest Progress</p>
-                        <h2 class="mt-1 text-2xl font-black text-slate-800 md:text-3xl">Reading skills overview</h2>
+                        <h2 class="mt-1 text-2xl font-black text-slate-800 lg:text-3xl">Reading skills overview</h2>
                     </div>
                 </div>
 
@@ -64,7 +64,7 @@ const progressItems = computed(() => [
             </div>
 
             <!-- Current Step Aside -->
-            <aside class="anim-slide-up rounded-[36px] border border-emerald-100 bg-gradient-to-br from-emerald-50 to-teal-50/50 p-6 shadow-xl shadow-emerald-500/10 md:p-8">
+            <aside class="anim-slide-up rounded-[36px] border border-emerald-100 bg-gradient-to-br from-emerald-50 to-teal-50/50 p-6 shadow-xl shadow-emerald-500/10 lg:p-8">
                 <span class="flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-500 text-white shadow-lg shadow-emerald-500/30">
                     <CheckCircle2 class="size-8" />
                 </span>
@@ -112,3 +112,4 @@ const progressItems = computed(() => [
 .anim-stagger > *:nth-child(3) { animation-delay: 300ms; }
 .anim-stagger > *:nth-child(4) { animation-delay: 400ms; }
 </style>
+
