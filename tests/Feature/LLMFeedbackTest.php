@@ -118,17 +118,13 @@ class LLMFeedbackTest extends TestCase
         $this->assertSame('unsafe_language', LlmInteraction::firstOrFail()->safety_status);
     }
 
-    public function test_module_activity_submission_stays_rule_based_while_feedback_is_generated(): void
+    public function test_module_activity_submission_uses_deterministic_ciel_without_llm_runtime(): void
     {
         $this->seedPromptTemplate();
         config()->set('readirect.ollama.enabled', true);
         config()->set('readirect.agent_feedback.miss_ciel_ollama_enabled', true);
 
-        Http::fake([
-            '127.0.0.1:11434/api/generate' => Http::response([
-                'response' => 'Nice reading! Keep going.',
-            ]),
-        ]);
+        Http::fake();
 
         [$learner, $module] = $this->moduleContext();
         $learner->update(['current_module_id' => $module->id, 'current_stage' => 'module_practice_in_progress']);
@@ -153,8 +149,10 @@ class LLMFeedbackTest extends TestCase
 
         $this->assertTrue($response->is_correct);
         $this->assertSame(1.0, (float) $response->score);
-        $this->assertSame('Nice reading! Keep going.', $response->feedback_text);
-        $this->assertDatabaseCount('llm_interactions', 5);
+        $this->assertSame('ciel_deterministic_policy', $response->agent_commentary_source);
+        $this->assertNotEmpty($response->feedback_text);
+        $this->assertDatabaseCount('llm_interactions', 0);
+        Http::assertNothingSent();
     }
 
     private function seedPromptTemplate(): AgentProfile

@@ -9,11 +9,13 @@ const props = defineProps({
     rate: { type: Number, default: 1 },
     pitch: { type: Number, default: 1 },
     audioUrl: { type: String, default: null },
+    browserFallback: { type: Boolean, default: true },
 });
 
 const emit = defineEmits(['speakingStart', 'speakingEnd', 'error']);
 
 const activeAudio = ref(null);
+const activeUtterance = ref(null);
 
 const cleanMessage = () => (props.message || '').replace(/\s+/g, ' ').trim();
 
@@ -30,7 +32,42 @@ const stopSpeaking = () => {
         activeAudio.value = null;
     }
 
+    if (activeUtterance.value && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        activeUtterance.value = null;
+    }
+
     emit('speakingEnd');
+};
+
+const speakWithBrowserFallback = () => {
+    const text = cleanMessage();
+
+    if (!props.browserFallback || !text || typeof window === 'undefined' || !('speechSynthesis' in window)) {
+        emit('error', 'Kokoro voice is unavailable right now.');
+        emit('speakingEnd');
+        return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.volume = clamp(props.volume, 0, 1);
+    utterance.rate = clamp(props.rate, 0.5, 1.6);
+    utterance.pitch = clamp(props.pitch, 0.5, 1.6);
+    activeUtterance.value = utterance;
+
+    utterance.onstart = () => emit('speakingStart');
+    utterance.onend = () => {
+        activeUtterance.value = null;
+        emit('speakingEnd');
+    };
+    utterance.onerror = () => {
+        activeUtterance.value = null;
+        emit('error', 'Voice is unavailable right now.');
+        emit('speakingEnd');
+    };
+
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
 };
 
 const speakWithAudio = async () => {
@@ -46,16 +83,14 @@ const speakWithAudio = async () => {
     };
     audio.onerror = () => {
         activeAudio.value = null;
-        emit('error', 'Kokoro voice is unavailable right now.');
-        emit('speakingEnd');
+        speakWithBrowserFallback();
     };
 
     try {
         await audio.play();
     } catch {
         activeAudio.value = null;
-        emit('error', 'Kokoro voice could not autoplay.');
-        emit('speakingEnd');
+        speakWithBrowserFallback();
     }
 };
 
@@ -72,8 +107,7 @@ const speak = async () => {
         return;
     }
 
-    emit('error', 'Kokoro voice is unavailable right now.');
-    emit('speakingEnd');
+    speakWithBrowserFallback();
 };
 
 watch(

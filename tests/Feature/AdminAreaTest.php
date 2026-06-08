@@ -17,9 +17,9 @@ use App\Models\SchoolClass;
 use App\Models\User;
 use App\Support\LearnerStage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Http\UploadedFile;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -48,10 +48,6 @@ class AdminAreaTest extends TestCase
             'readirect_ai.base_url' => 'http://ai.test',
             'readirect_ai.endpoints.health' => '/health',
             'readirect_ai.endpoints.version' => '/version',
-            'readirect.ollama.enabled' => true,
-            'readirect.agent_feedback.miss_ciel_ollama_enabled' => true,
-            'readirect.ollama.base_url' => 'http://ollama.test',
-            'readirect.ollama.model' => 'qwen3:4b',
         ]);
         Http::fake([
             'http://ai.test/health' => Http::response([
@@ -64,9 +60,6 @@ class AdminAreaTest extends TestCase
                 'wav2vec2_asr_model_name' => 'models/wav2vec2-readirect-asr-letters-v2',
             ]),
             'http://ai.test/version' => Http::response(['ok' => true]),
-            'http://ollama.test/api/tags' => Http::response([
-                'models' => [['name' => 'qwen3:4b']],
-            ]),
         ]);
 
         $this->actingAs($this->userWithRole('system_admin'))
@@ -80,9 +73,9 @@ class AdminAreaTest extends TestCase
                 ->where('aiService.model_size', 'models/wav2vec2-readirect-asr-letters-v2')
                 ->where('aiService.model_version', 'letters-v2')
                 ->where('aiService.base_model', 'models/wav2vec2-readirect-asr')
-                ->where('aiService.llm.connected', true)
-                ->where('aiService.llm.label', 'LLM Connected')
-                ->where('aiService.llm.model', 'qwen3:4b')
+                ->where('aiService.agent_decision.status', 'deterministic')
+                ->where('aiService.agent_decision.label', 'Deterministic Agent Decisions')
+                ->where('aiService.agent_decision.mode', 'deterministic')
             );
     }
 

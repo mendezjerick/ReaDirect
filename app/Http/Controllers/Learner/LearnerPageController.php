@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Learner;
 
 use App\Http\Controllers\Controller;
+use App\Services\CielFocusModeService;
 use App\Services\LearnerFlowService;
 use App\Support\CurrentLearner;
 use Illuminate\Http\RedirectResponse;
@@ -50,6 +51,8 @@ class LearnerPageController extends Controller
                 'final_reading_score',
             ]);
 
+        $focusMode = app(CielFocusModeService::class);
+
         return Inertia::render($page, [
             'learner' => $learner->only('public_id', 'first_name', 'learner_code', 'current_stage'),
             'latestAttempt' => $latestAttempt?->only(
@@ -62,6 +65,9 @@ class LearnerPageController extends Controller
                 'final_reading_score',
             ),
             'flowState' => $this->safeFlowState($flow->state($learner)),
+            'rewards' => [
+                'stars' => $focusMode->starTotal($learner->id),
+            ],
         ]);
     }
 

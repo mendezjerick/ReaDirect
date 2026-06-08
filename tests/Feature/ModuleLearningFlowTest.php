@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Learner;
+use App\Models\LearnerReward;
 use App\Models\LearningContent;
 use App\Models\Module;
 use App\Models\ModuleActivity;
@@ -168,7 +169,11 @@ class ModuleLearningFlowTest extends TestCase
             ->assertJsonPath('retry_state.attempt_count', 1)
             ->assertJsonPath('retry_state.can_retry', true)
             ->assertJsonPath('retry_state.is_resolved', false)
-            ->assertJsonPath('retry_state.attempts.0.status', 'incorrect');
+            ->assertJsonPath('retry_state.attempts.0.status', 'incorrect')
+            ->assertJsonPath('agent_cue.agent', 'ciel')
+            ->assertJsonPath('agent_cue.action', 'advise')
+            ->assertJsonPath('agent_cue.dialogue_key', 'ciel.module.close_retry.generic')
+            ->assertJsonPath('agent_cue.official_progression_changed', false);
 
         $this->assertNull($item->refresh()->answered_at);
 
@@ -186,7 +191,11 @@ class ModuleLearningFlowTest extends TestCase
             ->assertJsonPath('retry_state.attempt_count', 2)
             ->assertJsonPath('retry_state.is_correct', true)
             ->assertJsonPath('retry_state.is_resolved', true)
-            ->assertJsonPath('retry_state.attempts.1.status', 'correct');
+            ->assertJsonPath('retry_state.attempts.1.status', 'correct')
+            ->assertJsonPath('agent_cue.agent', 'ciel')
+            ->assertJsonPath('agent_cue.action', 'clap')
+            ->assertJsonPath('agent_cue.dialogue_key', 'ciel.module.section_complete')
+            ->assertJsonPath('agent_cue.official_progression_changed', false);
 
         $this->assertNotNull($item->refresh()->answered_at);
         $this->assertSame(2, ModuleActivityResponse::firstOrFail()->retry_count);
@@ -194,6 +203,136 @@ class ModuleLearningFlowTest extends TestCase
         $this->withSession(['learner_id' => $learner->id, 'module_attempt_id' => $attempt->id])
             ->post(route('learner.modules.activity.store', [$module, 'read_word']))
             ->assertRedirect(route('learner.modules.mastery-check', $module));
+    }
+
+    public function test_two_wrong_attempts_on_same_module_item_triggers_ciel_teaching_focus_mode(): void
+    {
+        [$learner, $module] = $this->moduleContext('module_2');
+        $learner->update(['current_module_id' => $module->id, 'current_stage' => 'module_practice_in_progress']);
+        $this->seedModuleActivities($module, 'read_word', 1, false);
+        $this->seedRule($module, 'read_word', 1, 0);
+        $service = app(ModuleActivitySelectionService::class);
+        $attempt = $service->startOrResumeModuleAttempt($learner, $module);
+        $attempt->update(['is_sandbox' => true, 'status' => 'practice_started']);
+        $item = $service->selectPracticeItemsForAttempt($attempt, 'read_word', 1)->first();
+
+        $this->withSession(['learner_id' => $learner->id, 'module_attempt_id' => $attempt->id, 'admin_testing_mode' => true])
+            ->postJson(route('learner.modules.activity.check', [$module, 'read_word']), [
+                'module_attempt_item_id' => $item->id,
+                'answer' => 'dog',
+                'transcript_source' => 'manual',
+            ])
+            ->assertOk()
+            ->assertJsonPath('retry_state.attempt_count', 1)
+            ->assertJsonPath('ciel_focus_event', null);
+
+        $this->withSession(['learner_id' => $learner->id, 'module_attempt_id' => $attempt->id, 'admin_testing_mode' => true])
+            ->postJson(route('learner.modules.activity.check', [$module, 'read_word']), [
+                'module_attempt_item_id' => $item->id,
+                'answer' => 'dog',
+                'transcript_source' => 'manual',
+            ])
+            ->assertOk()
+            ->assertJsonPath('retry_state.attempt_count', 2)
+            ->assertJsonPath('retry_state.is_resolved', false)
+            ->assertJsonPath('ciel_focus_event.enabled', true)
+            ->assertJsonPath('ciel_focus_event.mode', 'teaching')
+            ->assertJsonPath('ciel_focus_event.target_type', 'word')
+            ->assertJsonPath('ciel_focus_event.target_text', 'cat')
+            ->assertJsonPath('ciel_focus_event.reason', 'two_wrong_attempts')
+            ->assertJsonPath('ciel_focus_event.reward', null)
+            ->assertJsonPath('ciel_focus_event.dialogue_steps.0.action', 'talk');
+
+        $this->assertNull($item->refresh()->answered_at);
+        $response = ModuleActivityResponse::firstOrFail();
+        $this->assertFalse($response->is_correct);
+        $this->assertSame(0.0, $response->score);
+    }
+
+    public function test_three_correct_module_items_triggers_star_reward_focus_mode_and_dashboard_total(): void
+    {
+        [$learner, $module] = $this->moduleContext('module_2');
+        $learner->update(['current_module_id' => $module->id, 'current_stage' => 'module_practice_in_progress']);
+        $this->seedModuleActivities($module, 'read_word', 3, false);
+        $this->seedRule($module, 'read_word', 3, 0);
+        $service = app(ModuleActivitySelectionService::class);
+        $attempt = $service->startOrResumeModuleAttempt($learner, $module);
+        $attempt->update(['is_sandbox' => true, 'status' => 'practice_started']);
+        $items = $service->selectPracticeItemsForAttempt($attempt, 'read_word', 3)->values();
+
+        foreach ($items as $index => $item) {
+            $response = $this->withSession(['learner_id' => $learner->id, 'module_attempt_id' => $attempt->id, 'admin_testing_mode' => true])
+                ->postJson(route('learner.modules.activity.check', [$module, 'read_word']), [
+                    'module_attempt_item_id' => $item->id,
+                    'answer' => 'cat',
+                    'transcript_source' => 'manual',
+                ])
+                ->assertOk()
+                ->assertJsonPath('retry_state.is_correct', true);
+
+            if ($index < 2) {
+                $response->assertJsonPath('ciel_focus_event', null);
+            } else {
+                $response
+                    ->assertJsonPath('ciel_focus_event.enabled', true)
+                    ->assertJsonPath('ciel_focus_event.mode', 'reward')
+                    ->assertJsonPath('ciel_focus_event.reason', 'three_correct_streak')
+                    ->assertJsonPath('ciel_focus_event.reward.type', 'star')
+                    ->assertJsonPath('ciel_focus_event.reward.amount', 1)
+                    ->assertJsonPath('ciel_focus_event.dialogue_steps.1.action', 'clap');
+            }
+        }
+
+        $this->assertSame(1, LearnerReward::where('learner_id', $learner->id)->where('reward_type', 'star')->sum('amount'));
+
+        $duplicateReward = app(\App\Services\CielFocusModeService::class)->eventForModuleCheck(
+            $attempt,
+            $items[2],
+            $module,
+            'read_word',
+            'cat',
+            true,
+            1,
+            3,
+        );
+
+        $this->assertNull($duplicateReward);
+
+        $this->assertSame(1, LearnerReward::where('learner_id', $learner->id)->where('reward_type', 'star')->sum('amount'));
+
+        $this->withSession(['learner_id' => $learner->id])
+            ->get(route('learner.dashboard'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('rewards.stars', 1)
+            );
+    }
+
+    public function test_correct_streak_six_grants_a_second_star_reward(): void
+    {
+        [$learner, $module] = $this->moduleContext('module_2');
+        $learner->update(['current_module_id' => $module->id, 'current_stage' => 'module_practice_in_progress']);
+        $this->seedModuleActivities($module, 'read_word', 6, false);
+        $this->seedRule($module, 'read_word', 6, 0);
+        $service = app(ModuleActivitySelectionService::class);
+        $attempt = $service->startOrResumeModuleAttempt($learner, $module);
+        $attempt->update(['is_sandbox' => true, 'status' => 'practice_started']);
+        $items = $service->selectPracticeItemsForAttempt($attempt, 'read_word', 6)->values();
+
+        foreach ($items as $index => $item) {
+            $response = $this->withSession(['learner_id' => $learner->id, 'module_attempt_id' => $attempt->id, 'admin_testing_mode' => true])
+                ->postJson(route('learner.modules.activity.check', [$module, 'read_word']), [
+                    'module_attempt_item_id' => $item->id,
+                    'answer' => 'cat',
+                    'transcript_source' => 'manual',
+                ])
+                ->assertOk();
+
+            if ($index === 2 || $index === 5) {
+                $response->assertJsonPath('ciel_focus_event.mode', 'reward');
+            }
+        }
+
+        $this->assertSame(2, LearnerReward::where('learner_id', $learner->id)->where('reward_type', 'star')->sum('amount'));
     }
 
     public function test_module_mastery_submission_with_missing_answer_is_rejected(): void

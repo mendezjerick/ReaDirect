@@ -4,6 +4,7 @@ import { useForm } from '@inertiajs/vue3';
 import LearnerLayout from '../../../Layouts/LearnerLayout.vue';
 import AgentSpeakerPanel from '../../../Components/Learner/AgentSpeakerPanel.vue';
 import AudioRecorder from '../../../Components/Learner/AudioRecorder.vue';
+import CielFocusMode from '../../../Components/Learner/CielFocusMode.vue';
 import PrimaryButton from '../../../Components/PrimaryButton.vue';
 import SecondaryButton from '../../../Components/SecondaryButton.vue';
 import BottomActionBar from '../../../Components/BottomActionBar.vue';
@@ -70,6 +71,8 @@ const step = useStepAssessment(props.items, { emptyMessage: 'Try this one before
 const coachMessage = ref('Read the prompt, then record your voice. I will help you practice.');
 const coachState = ref('speaking');
 const returningToDashboard = ref(false);
+const cielFocusEvent = ref(null);
+const focusModeVisible = computed(() => cielFocusEvent.value?.enabled === true);
 const isCurrentUploading = computed(() => Boolean(uploading[step.currentItem.value?.id]));
 const isCurrentChecking = computed(() => Boolean(checking[step.currentItem.value?.id]));
 const currentHighlightTargets = computed(() => highlightTargetsForModuleItem(step.currentItem.value));
@@ -99,7 +102,7 @@ const primaryLabel = computed(() => {
 
     return 'Next';
 });
-const primaryDisabled = computed(() => form.processing || isCurrentUploading.value || isCurrentChecking.value);
+const primaryDisabled = computed(() => form.processing || isCurrentUploading.value || isCurrentChecking.value || focusModeVisible.value);
 
 const progressLabel = computed(() => `Activity ${step.currentIndex.value + 1} of ${props.items.length}`);
 
@@ -119,9 +122,14 @@ watch(
         seedRetryStates(props.items);
         coachMessage.value = 'Read the prompt, then record your voice. I will help you practice.';
         coachState.value = 'speaking';
+        cielFocusEvent.value = null;
         form.clearErrors();
     }
 );
+
+const closeCielFocusMode = () => {
+    cielFocusEvent.value = null;
+};
 
 const rememberAudio = (item, file) => {
     audioFiles[item.id] = file;
@@ -215,7 +223,7 @@ const uploadAudio = async (item, file) => {
 const checkCurrent = async () => {
     const item = step.currentItem.value;
 
-    if (!item || isCurrentResolved.value || isCurrentChecking.value) return false;
+    if (!item || isCurrentResolved.value || isCurrentChecking.value || focusModeVisible.value) return false;
 
     const manualAnswer = manualAnswerFor(item);
 
@@ -262,22 +270,29 @@ const checkCurrent = async () => {
 
         retryStates[item.id] = result.retry_state ?? defaultRetryState();
         step.feedback.value = result.message ?? retryStates[item.id].feedback ?? '';
+        const agentCue = result.agent_cue?.agent === 'ciel' ? result.agent_cue : null;
 
         if (retryStates[item.id].is_correct) {
-            coachMessage.value = 'That is correct. Go to the next one.';
-            coachState.value = step.isLast.value ? 'section_complete' : 'correct';
+            coachMessage.value = agentCue?.message ?? 'That is correct. Go to the next one.';
+            coachState.value = agentCue?.action ?? (step.isLast.value ? 'section_complete' : 'correct');
         } else if (retryStates[item.id].can_retry) {
-            coachMessage.value = 'Try this same item again.';
-            coachState.value = Number(retryStates[item.id].attempt_count ?? 1) <= 1
-                ? 'incorrect'
-                : 'retry';
+            coachMessage.value = agentCue?.message ?? 'Try this same item again.';
+            coachState.value = agentCue?.action ?? (
+                Number(retryStates[item.id].attempt_count ?? 1) <= 1
+                    ? 'incorrect'
+                    : 'retry'
+            );
             clearAudio(item, false);
             if (canUseManualFallback.value) {
                 step.answers[item.id] = '';
             }
         } else {
-            coachMessage.value = 'Good try. Go to the next one.';
-            coachState.value = 'speaking';
+            coachMessage.value = agentCue?.message ?? 'Good try. Go to the next one.';
+            coachState.value = agentCue?.action ?? 'speaking';
+        }
+
+        if (result.ciel_focus_event?.enabled) {
+            cielFocusEvent.value = result.ciel_focus_event;
         }
 
         return retryStates[item.id].is_resolved;
@@ -296,6 +311,8 @@ const submit = () => {
 };
 
 const handlePrimary = async () => {
+    if (focusModeVisible.value) return;
+
     if (!isCurrentResolved.value) {
         await checkCurrent();
         return;
@@ -312,7 +329,7 @@ const handlePrimary = async () => {
 };
 
 const returnToDashboard = () => {
-    if (returningToDashboard.value) return;
+    if (returningToDashboard.value || focusModeVisible.value) return;
     returningToDashboard.value = true;
     if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('readirect:stop-agent-speech'));
@@ -327,8 +344,18 @@ const returnToDashboard = () => {
 
 <template>
     <LearnerLayout :progress="82">
+        <CielFocusMode
+            :visible="focusModeVisible"
+            :mode="cielFocusEvent?.mode ?? 'teaching'"
+            :target-type="cielFocusEvent?.target_type"
+            :target-text="cielFocusEvent?.target_text"
+            :dialogue-steps="cielFocusEvent?.dialogue_steps ?? []"
+            :reward="cielFocusEvent?.reward"
+            @closed="closeCielFocusMode"
+        />
+
         <template #agent>
-            <AgentSpeakerPanel compact agent-type="coach_feedback" :state="coachState" :message="coachMessage" />
+            <AgentSpeakerPanel compact agent-type="coach_feedback" :state="coachState" :message="coachMessage" :tts-enabled="!focusModeVisible" />
         </template>
 
         <section class="mx-auto grid max-w-2xl gap-4 xl:gap-5">
@@ -348,7 +375,7 @@ const returnToDashboard = () => {
                         :prompt-type="recorderPromptType"
                         :require-review-before-submit="requireReviewBeforeSubmit"
                         :auto-transcribe-on-stop="autoTranscribeOnStop"
-                        :submitting="isCurrentUploading || isCurrentChecking"
+                        :submitting="isCurrentUploading || isCurrentChecking || focusModeVisible"
                         :submitted="Boolean(uploadedAudioIds[step.currentItem.value.id]) && !uploadErrors[step.currentItem.value.id]"
                         label="Practice voice"
                         @recorded="(file) => rememberAudio(step.currentItem.value, file)"
@@ -391,7 +418,7 @@ const returnToDashboard = () => {
                 <button
                     type="button"
                     class="group inline-flex w-full items-center justify-center gap-2 rounded-[22px] border-2 border-slate-200/80 bg-white px-6 py-3.5 text-base font-bold text-slate-600 transition-all hover:border-slate-300 hover:bg-slate-50 sm:w-auto xl:px-8 xl:text-lg"
-                    :disabled="returningToDashboard || form.processing || isCurrentUploading || isCurrentChecking"
+                    :disabled="returningToDashboard || form.processing || isCurrentUploading || isCurrentChecking || focusModeVisible"
                     @click="returnToDashboard"
                 >
                     <ArrowLeft class="size-5 stroke-[2.5] transition-transform group-hover:-translate-x-1" />

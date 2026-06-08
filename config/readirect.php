@@ -1,6 +1,11 @@
 <?php
 
 return [
+    'ciel' => [
+        'decision_mode' => 'deterministic',
+        'spec_path' => env('REA_CIEL_SPEC_PATH', base_path('../ReaDirect-IA')),
+    ],
+
     'speech_to_text' => [
         'provider' => env('STT_PROVIDER', env('READIRECT_STT_PROVIDER', 'mock')),
         'timeout_seconds' => (int) env('STT_TIMEOUT_SECONDS', env('READIRECT_STT_TIMEOUT', 30)),
@@ -26,20 +31,6 @@ return [
         'show_ai_debug' => filter_var(env('READIRECT_QA_SHOW_AI_DEBUG', false), FILTER_VALIDATE_BOOLEAN),
         'force_learner_stage' => filter_var(env('READIRECT_QA_FORCE_LEARNER_STAGE', false), FILTER_VALIDATE_BOOLEAN),
         'reset_learner_flow' => filter_var(env('READIRECT_QA_RESET_LEARNER_FLOW', false), FILTER_VALIDATE_BOOLEAN),
-    ],
-
-    'ollama' => [
-        'enabled' => filter_var(env('OLLAMA_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
-        'base_url' => env('OLLAMA_BASE_URL', 'http://127.0.0.1:11434'),
-        'model' => env('OLLAMA_MODEL', 'qwen3:4b'),
-        'fallback_model' => env('OLLAMA_FALLBACK_MODEL', 'phi4-mini'),
-        'timeout_seconds' => (int) env('OLLAMA_TIMEOUT_SECONDS', 10),
-        'fallback_to_scripted' => filter_var(env('OLLAMA_FALLBACK_TO_SCRIPTED', true), FILTER_VALIDATE_BOOLEAN),
-        'debug' => filter_var(env('OLLAMA_DEBUG', false), FILTER_VALIDATE_BOOLEAN),
-    ],
-
-    'agent_feedback' => [
-        'miss_ciel_ollama_enabled' => filter_var(env('MISS_CIEL_OLLAMA_ENABLED', env('OLLAMA_ENABLED', false)), FILTER_VALIDATE_BOOLEAN),
     ],
 
     'tts' => [

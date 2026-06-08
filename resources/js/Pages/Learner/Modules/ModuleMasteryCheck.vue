@@ -4,6 +4,7 @@ import { useForm } from '@inertiajs/vue3';
 import LearnerLayout from '../../../Layouts/LearnerLayout.vue';
 import AgentSpeakerPanel from '../../../Components/Learner/AgentSpeakerPanel.vue';
 import AudioRecorder from '../../../Components/Learner/AudioRecorder.vue';
+import CielFocusMode from '../../../Components/Learner/CielFocusMode.vue';
 import PrimaryButton from '../../../Components/PrimaryButton.vue';
 import SecondaryButton from '../../../Components/SecondaryButton.vue';
 import BottomActionBar from '../../../Components/BottomActionBar.vue';
@@ -55,6 +56,8 @@ const step = useStepAssessment(props.items, { emptyMessage: 'Try this one before
 const agentMessage = ref('This is your mini mastery check. Do your best one item at a time.');
 const agentState = ref('speaking');
 const returningToDashboard = ref(false);
+const cielFocusEvent = ref(null);
+const focusModeVisible = computed(() => cielFocusEvent.value?.enabled === true);
 const progressLabel = computed(() => `Mastery ${step.currentIndex.value + 1} of ${props.items.length}`);
 const isCurrentUploading = computed(() => Boolean(uploading[step.currentItem.value?.id]));
 const isCurrentChecking = computed(() => Boolean(checking[step.currentItem.value?.id]));
@@ -81,7 +84,7 @@ const primaryLabel = computed(() => {
 
     return step.isLast.value ? 'Finish check' : 'Next';
 });
-const primaryDisabled = computed(() => form.processing || isCurrentUploading.value || isCurrentChecking.value);
+const primaryDisabled = computed(() => form.processing || isCurrentUploading.value || isCurrentChecking.value || focusModeVisible.value);
 
 watch(
     () => props.items.map((item) => item.id).join('|'),
@@ -99,9 +102,14 @@ watch(
         seedRetryStates(props.items);
         agentMessage.value = 'This is your mini mastery check. Do your best one item at a time.';
         agentState.value = 'speaking';
+        cielFocusEvent.value = null;
         form.clearErrors();
     }
 );
+
+const closeCielFocusMode = () => {
+    cielFocusEvent.value = null;
+};
 
 const rememberAudio = (item, file) => {
     audioFiles[item.id] = file;
@@ -195,7 +203,7 @@ const uploadAudio = async (item, file) => {
 const checkCurrent = async () => {
     const item = step.currentItem.value;
 
-    if (!item || isCurrentResolved.value || isCurrentChecking.value) return false;
+    if (!item || isCurrentResolved.value || isCurrentChecking.value || focusModeVisible.value) return false;
 
     const manualAnswer = manualAnswerFor(item);
 
@@ -242,22 +250,29 @@ const checkCurrent = async () => {
 
         retryStates[item.id] = result.retry_state ?? defaultRetryState();
         step.feedback.value = result.message ?? retryStates[item.id].feedback ?? '';
+        const agentCue = result.agent_cue?.agent === 'ciel' ? result.agent_cue : null;
 
         if (retryStates[item.id].is_correct) {
-            agentMessage.value = 'That is correct. Go to the next one.';
-            agentState.value = step.isLast.value ? 'section_complete' : 'correct';
+            agentMessage.value = agentCue?.message ?? 'That is correct. Go to the next one.';
+            agentState.value = agentCue?.action ?? (step.isLast.value ? 'section_complete' : 'correct');
         } else if (retryStates[item.id].can_retry) {
-            agentMessage.value = 'Try this same item again.';
-            agentState.value = Number(retryStates[item.id].attempt_count ?? 1) <= 1
-                ? 'incorrect'
-                : 'retry';
+            agentMessage.value = agentCue?.message ?? 'Try this same item again.';
+            agentState.value = agentCue?.action ?? (
+                Number(retryStates[item.id].attempt_count ?? 1) <= 1
+                    ? 'incorrect'
+                    : 'retry'
+            );
             clearAudio(item, false);
             if (canUseManualFallback.value) {
                 step.answers[item.id] = '';
             }
         } else {
-            agentMessage.value = 'Good try. Go to the next one.';
-            agentState.value = 'speaking';
+            agentMessage.value = agentCue?.message ?? 'Good try. Go to the next one.';
+            agentState.value = agentCue?.action ?? 'speaking';
+        }
+
+        if (result.ciel_focus_event?.enabled) {
+            cielFocusEvent.value = result.ciel_focus_event;
         }
 
         return retryStates[item.id].is_resolved;
@@ -276,6 +291,8 @@ const submit = () => {
 };
 
 const handlePrimary = async () => {
+    if (focusModeVisible.value) return;
+
     if (!isCurrentResolved.value) {
         await checkCurrent();
         return;
@@ -292,7 +309,7 @@ const handlePrimary = async () => {
 };
 
 const returnToDashboard = () => {
-    if (returningToDashboard.value) return;
+    if (returningToDashboard.value || focusModeVisible.value) return;
     returningToDashboard.value = true;
     if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('readirect:stop-agent-speech'));
@@ -307,8 +324,18 @@ const returnToDashboard = () => {
 
 <template>
     <LearnerLayout :progress="90">
+        <CielFocusMode
+            :visible="focusModeVisible"
+            :mode="cielFocusEvent?.mode ?? 'teaching'"
+            :target-type="cielFocusEvent?.target_type"
+            :target-text="cielFocusEvent?.target_text"
+            :dialogue-steps="cielFocusEvent?.dialogue_steps ?? []"
+            :reward="cielFocusEvent?.reward"
+            @closed="closeCielFocusMode"
+        />
+
         <template #agent>
-            <AgentSpeakerPanel compact agent-type="coach_feedback" :state="agentState" :message="agentMessage" />
+            <AgentSpeakerPanel compact agent-type="coach_feedback" :state="agentState" :message="agentMessage" :tts-enabled="!focusModeVisible" />
         </template>
 
         <section class="mx-auto grid max-w-xl gap-3">
@@ -328,7 +355,7 @@ const returnToDashboard = () => {
                         :prompt-type="recorderPromptType"
                         :require-review-before-submit="requireReviewBeforeSubmit"
                         :auto-transcribe-on-stop="autoTranscribeOnStop"
-                        :submitting="isCurrentUploading || isCurrentChecking"
+                        :submitting="isCurrentUploading || isCurrentChecking || focusModeVisible"
                         :submitted="Boolean(uploadedAudioIds[step.currentItem.value.id]) && !uploadErrors[step.currentItem.value.id]"
                         label="Check voice"
                         @recorded="(file) => rememberAudio(step.currentItem.value, file)"
@@ -368,7 +395,7 @@ const returnToDashboard = () => {
 
         <BottomActionBar>
             <div class="flex w-full items-center justify-between gap-3">
-                <SecondaryButton :disabled="returningToDashboard || form.processing || isCurrentUploading || isCurrentChecking" @click="returnToDashboard">Back to Learner Dashboard</SecondaryButton>
+                <SecondaryButton :disabled="returningToDashboard || form.processing || isCurrentUploading || isCurrentChecking || focusModeVisible" @click="returnToDashboard">Back to Learner Dashboard</SecondaryButton>
                 <PrimaryButton :disabled="primaryDisabled" :class="{ 'opacity-70': primaryDisabled }" @click="handlePrimary">
                     {{ primaryLabel }}
                 </PrimaryButton>

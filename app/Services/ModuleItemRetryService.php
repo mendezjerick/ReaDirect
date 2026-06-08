@@ -2,13 +2,14 @@
 
 namespace App\Services;
 
+use App\Agents\Ciel\CielCoachDecisionService;
 use App\Models\AudioFile;
 use App\Models\Module;
 use App\Models\ModuleActivityResponse;
 use App\Models\ModuleAttempt;
 use App\Models\ModuleAttemptItem;
-use App\Services\Agents\AgentCommentaryService;
 use App\Services\AI\AIAnalysisResolver;
+use App\Services\AI\LearnerHistoryPayloadBuilder;
 use Illuminate\Validation\ValidationException;
 
 class ModuleItemRetryService
@@ -20,9 +21,10 @@ class ModuleItemRetryService
         private readonly ModuleFeedbackService $feedback,
         private readonly AudioStorageService $audioStorage,
         private readonly AIAnalysisResolver $analysis,
-        private readonly AgentCommentaryService $commentary,
-    ) {
-    }
+        private readonly LearnerHistoryPayloadBuilder $learnerHistory,
+        private readonly CielCoachDecisionService $ciel,
+        private readonly CielFocusModeService $focusMode,
+    ) {}
 
     public function check(
         ModuleAttempt $attempt,
@@ -97,9 +99,13 @@ class ModuleItemRetryService
         }
 
         $attemptNumber = count($history) + 1;
+        $isCorrect = (bool) $score['is_correct'];
+        $correctStreak = $this->correctStreak($attempt, $isCorrect);
+        $incorrectStreak = $this->incorrectStreak($attempt, $isCorrect);
+        $focusCorrectStreak = $this->moduleAttemptCorrectStreak($attempt, $isCorrect);
         $history[] = [
             'attempt' => $attemptNumber,
-            'is_correct' => (bool) $score['is_correct'],
+            'is_correct' => $isCorrect,
             'score' => (float) $score['score'],
             'possible_score' => (float) $score['possible_score'],
             'answer' => $displayedAnswer,
@@ -110,31 +116,36 @@ class ModuleItemRetryService
             'checked_at' => now()->toDateTimeString(),
         ];
 
-        $isResolved = (bool) $score['is_correct'] || $attemptNumber >= self::MAX_ATTEMPTS;
+        $isResolved = $isCorrect || $attemptNumber >= self::MAX_ATTEMPTS;
         $template = $score['is_correct']
             ? $this->feedback->feedbackForCorrect($module->key, $activityType)
             : $this->feedback->feedbackForIncorrect($module->key, $activityType, $score['error_type'] ?? 'incorrect_general');
         $templateFeedback = $score['is_correct'] ? $template['success_text'] : $template['feedback_text'];
-        $commentary = $this->commentary->generateCommentary([
-            'mode' => 'module_coaching',
-            'agent_type' => 'coach_feedback',
+        $aiResponse = is_array($resolved['ai_response'] ?? null) ? $resolved['ai_response'] : [];
+        $agentCue = $this->ciel->decide([
+            'source_type' => 'module',
+            'context' => $isMastery ? 'mastery_practice' : 'module_practice',
             'learner_id' => $attempt->learner_id,
-            'source_type' => 'module_activity_response',
-            'source_id' => $existing?->id,
-            'module_key' => $module->key,
             'activity_type' => $activityType,
-            'expected_answer' => $score['expected_answer'],
-            'learner_answer' => $displayedAnswer,
-            'is_correct' => $score['is_correct'],
-            'score' => $score['score'],
-            'max_score' => $score['possible_score'],
+            'target_text' => $score['expected_answer'],
+            'attempt_number' => $attemptNumber,
+            'remaining_attempts' => max(0, self::MAX_ATTEMPTS - $attemptNumber),
+            'is_correct' => $isCorrect,
+            'transcript' => $displayedAnswer,
             'error_type' => $score['error_type'] ?? null,
-            'recommended_action' => $score['is_correct'] || $isResolved ? 'continue' : 'try_again',
-            'template_feedback' => $templateFeedback,
-            'retry_instruction' => $template['retry_instruction'] ?? '',
-            'is_module' => true,
-            'can_give_hint' => ! $isMastery,
+            'similarity_label' => $aiResponse['similarity_label'] ?? null,
+            'asr_confidence' => $resolved['confidence'] ?? null,
+            'uncertain' => $aiResponse['uncertain'] ?? null,
+            'retry_required' => $aiResponse['retry_required'] ?? null,
+            'correct_streak' => $correctStreak,
+            'incorrect_streak' => $incorrectStreak,
+            'weak_skill' => $aiResponse['recommended_practice_focus'] ?? null,
+            'skill_signal' => $aiResponse['skill_signal'] ?? null,
+            'section_completed' => $isCorrect && $this->isLastSectionItem($attempt, $item, $activityType, $isMastery),
+            'final_completion' => false,
+            'congrats_allowed' => false,
         ]);
+        $feedbackMessage = $agentCue['message'] ?? $templateFeedback;
 
         $metadata = array_merge($existing?->metadata_json ?? [], [
             'prompt_snapshot' => $item->prompt_snapshot,
@@ -154,12 +165,12 @@ class ModuleItemRetryService
                 'learner_answer' => $displayedAnswer,
                 'learner_transcript' => $answer,
                 'expected_answer' => $score['expected_answer'],
-                'is_correct' => (bool) $score['is_correct'],
+                'is_correct' => $isCorrect,
                 'score' => (float) $score['score'],
-                'feedback_text' => $commentary['message'] ?? $templateFeedback,
-                'agent_commentary_text' => $commentary['message'] ?? null,
-                'agent_commentary_source' => $commentary['source'] ?? null,
-                'agent_type' => $commentary['agent_type'] ?? 'coach_feedback',
+                'feedback_text' => $feedbackMessage,
+                'agent_commentary_text' => $agentCue['message'] ?? null,
+                'agent_commentary_source' => $agentCue ? 'ciel_deterministic_policy' : null,
+                'agent_type' => $agentCue ? 'coach_feedback' : null,
                 'retry_count' => $attemptNumber,
                 'is_mastery_item' => $isMastery,
                 'error_type' => $score['error_type'],
@@ -176,10 +187,23 @@ class ModuleItemRetryService
             $item->update(['answered_at' => $item->answered_at ?? now()]);
         }
 
+        $focusEvent = $this->focusMode->eventForModuleCheck(
+            $attempt,
+            $item,
+            $module,
+            $activityType,
+            $score['expected_answer'] ?? $expectedAnswer,
+            $isCorrect,
+            $attemptNumber,
+            $focusCorrectStreak,
+        );
+
         return [
             'retry_state' => $this->stateFromHistory($history, $response),
             'response' => $response,
             'message' => $response->feedback_text,
+            'agent_cue' => $agentCue,
+            'ciel_focus_event' => $focusEvent,
         ];
     }
 
@@ -273,6 +297,72 @@ class ModuleItemRetryService
         $payload = $item->prompt_snapshot['payload'] ?? [];
 
         return $payload['expected_answer'] ?? $payload['target_word'] ?? $item->prompt_snapshot['prompt'] ?? null;
+    }
+
+    private function correctStreak(ModuleAttempt $attempt, bool $currentCorrect): int
+    {
+        if (! $currentCorrect) {
+            return 0;
+        }
+
+        $streak = 1;
+        foreach ($this->learnerHistory->recentForLearner($attempt->learner, 10) as $entry) {
+            if (($entry['is_correct'] ?? null) !== true) {
+                break;
+            }
+            $streak++;
+        }
+
+        return $streak;
+    }
+
+    private function incorrectStreak(ModuleAttempt $attempt, bool $currentCorrect): int
+    {
+        if ($currentCorrect) {
+            return 0;
+        }
+
+        $streak = 1;
+        foreach ($this->learnerHistory->recentForLearner($attempt->learner, 10) as $entry) {
+            if (($entry['is_correct'] ?? null) !== false) {
+                break;
+            }
+            $streak++;
+        }
+
+        return $streak;
+    }
+
+    private function moduleAttemptCorrectStreak(ModuleAttempt $attempt, bool $currentCorrect): int
+    {
+        if (! $currentCorrect) {
+            return 0;
+        }
+
+        $streak = 1;
+        $responses = $attempt->responses()
+            ->latest('id')
+            ->get(['is_correct']);
+
+        foreach ($responses as $response) {
+            if ($response->is_correct !== true) {
+                break;
+            }
+
+            $streak++;
+        }
+
+        return $streak;
+    }
+
+    private function isLastSectionItem(ModuleAttempt $attempt, ModuleAttemptItem $item, string $activityType, bool $isMastery): bool
+    {
+        $lastSequence = $attempt->items()
+            ->where('is_mastery_item', $isMastery)
+            ->when(! $isMastery, fn ($query) => $query->where('activity_type', $activityType))
+            ->max('sequence');
+
+        return $lastSequence !== null && (int) $item->sequence >= (int) $lastSequence;
     }
 
     private function analysisContext(ModuleAttempt $attempt, ModuleAttemptItem $item, Module $module, string $activityType, bool $isMastery, ?string $expectedAnswer, array $acceptedAnswers): array

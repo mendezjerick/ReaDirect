@@ -24,8 +24,8 @@ class AgentIdentity
                 'id' => self::MISS_CIEL,
                 'display_name' => 'Miss Ciel',
                 'role' => 'Reading Coach',
-                'behavior' => 'scripted_fallback_optional_ollama',
-                'llm_enabled' => (bool) (config('readirect.ollama.enabled') && config('readirect.agent_feedback.miss_ciel_ollama_enabled')),
+                'behavior' => 'deterministic_policy_and_approved_dialogue',
+                'llm_enabled' => false,
             ],
             self::MISS_ESTELLE => [
                 'id' => self::MISS_ESTELLE,

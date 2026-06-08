@@ -20,12 +20,16 @@ class AgentSpeakerPanelStructureTest extends TestCase
         $this->assertStringContainsString('videos/Ciel/c-advise.mp4', $registry);
         $this->assertStringContainsString('videos/Ciel/c-clap.mp4', $registry);
         $this->assertStringContainsString('videos/Ciel/c-congrats.mp4', $registry);
+        $this->assertStringContainsString('videos/Ciel/c-talk.mp4', $registry);
         $this->assertStringContainsString('videos/Vivian/v-idle.mp4', $registry);
-        $this->assertStringContainsString('videos/Vivian/v-thinking-2.mp4', $registry);
+        $this->assertStringContainsString('videos/Vivian/v-talk.mp4', $registry);
+        $this->assertStringContainsString('videos/Vivian/v-think.mp4', $registry);
         $this->assertStringContainsString('videos/Vivian/v-congrats.mp4', $registry);
         $this->assertStringContainsString('videos/Estelle/e-idle.mp4', $registry);
+        $this->assertStringContainsString('videos/Estelle/e-talk.mp4', $registry);
         $this->assertStringContainsString('videos/Estelle/e-results-2.mp4', $registry);
         $this->assertStringContainsString('videos/Estelle/e-congrats.mp4', $registry);
+        $this->assertStringNotContainsString('videos/Vivian/v-thinking-2.mp4', $registry);
     }
 
     public function test_agent_video_player_is_non_interrupting_and_has_no_queue(): void
@@ -36,13 +40,13 @@ class AgentSpeakerPanelStructureTest extends TestCase
 
         $this->assertStringContainsString('if (isBusy.value)', $player);
         $this->assertStringContainsString('return false', $player);
-        $this->assertStringContainsString(':loop="!isBusy"', $player);
+        $this->assertStringContainsString('interactionReady', $player);
+        $this->assertStringContainsString('agent-media-interaction--ready', $player);
         $this->assertStringContainsString('@ended="handleVideoEnded"', $player);
-        $this->assertStringContainsString('showIdle(activeAgent.value)', $player);
+        $this->assertStringContainsString('resetInteraction()', $player);
         $this->assertStringContainsString('getAgentFallbackMedia', $player);
         $this->assertStringNotContainsString('pending', strtolower($player));
         $this->assertStringNotContainsString('queue', strtolower($player));
-        $this->assertStringNotContainsString('setTimeout', $player);
         $this->assertStringContainsString('AgentVideoPlayer', $component);
     }
 

@@ -16,6 +16,7 @@ const props = defineProps({
     route: { type: String, default: '' },
     alt: { type: String, default: '' },
     allowCongrats: { type: Boolean, default: false },
+    loopInteraction: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['interaction-ended']);
@@ -66,8 +67,6 @@ const showIdle = (agent = activeAgent.value) => {
 };
 
 const requestAction = (agent, action, options = {}) => {
-    if (isBusy.value) return false;
-
     const cue = resolveAgentInteraction({
         agent,
         agentType: options.agentType ?? props.agentType,
@@ -76,6 +75,15 @@ const requestAction = (agent, action, options = {}) => {
         route: options.route ?? props.route,
         congratsAllowed: options.allowCongrats ?? props.allowCongrats,
     });
+
+    if (isBusy.value) {
+        if (props.loopInteraction && !cue.shouldInteract) {
+            showIdle(cue.agent);
+            return true;
+        }
+
+        return false;
+    }
 
     if (cue.agent !== activeAgent.value) {
         showIdle(cue.agent);
@@ -149,8 +157,9 @@ watch(
         props.agentType,
         props.action,
         props.context,
-        props.route,
-        props.allowCongrats,
+            props.route,
+            props.allowCongrats,
+            props.loopInteraction,
     ],
     ([agent, agentType, action, context, route, allowCongrats]) => {
         requestAction(agent, action, {
@@ -203,6 +212,7 @@ defineExpose({
             autoplay
             muted
             playsinline
+            :loop="loopInteraction"
             @loadeddata="handleInteractionReady"
             @canplay="handleInteractionReady"
             @ended="handleVideoEnded"

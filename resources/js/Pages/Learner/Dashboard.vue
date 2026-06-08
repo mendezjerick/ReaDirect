@@ -32,6 +32,7 @@ const props = defineProps({
     latestAttempt:      { type: Object, default: null },
     latestFinalAttempt: { type: Object, default: null },
     flowState:          { type: Object, default: null },
+    rewards:            { type: Object, default: () => ({ stars: 0 }) },
 });
 
 /* ── Mobile drawer state ─────────────────────── */
@@ -63,6 +64,7 @@ const isDone = computed(() => props.flowState?.diagnostic?.is_completed === true
 const primaryActionLabel = computed(() => props.flowState?.primary_action_label ?? 'Start Diagnostic');
 const primaryActionRoute = computed(() => props.flowState?.primary_action_route ?? '/learner/diagnostic/start');
 const primaryMessage = computed(() => props.flowState?.message ?? 'Begin with your diagnostic reading check.');
+const totalStars = computed(() => Number(props.rewards?.stars ?? 0));
 
 const assignedKey = computed(() => props.learner?.current_module?.key ?? null);
 const assignedTitle = computed(() => {
@@ -341,6 +343,14 @@ const lockedModuleMessage = computed(() => {
                                 <p class="text-[10px] font-black uppercase tracking-widest text-white/80 xl:text-[11px]">Assigned Module</p>
                                 <p class="mt-2 truncate text-base font-black leading-tight xl:text-lg">{{ assignedTitle }}</p>
                                 <p class="mt-2 text-[12px] font-bold text-white/90">Your current learning path</p>
+                            </div>
+                            <div class="rounded-[24px] bg-white/15 p-4 ring-1 ring-white/30 backdrop-blur-md lg:min-w-32 xl:p-5">
+                                <p class="text-[10px] font-black uppercase tracking-widest text-white/80 xl:text-[11px]">Stars</p>
+                                <p class="mt-2 flex items-center gap-2 text-3xl font-black leading-none xl:text-4xl">
+                                    <Star :size="28" class="fill-yellow-300 text-yellow-300" />
+                                    {{ totalStars }}
+                                </p>
+                                <p class="mt-2 text-[12px] font-bold text-white/90">Earned rewards</p>
                             </div>
                         </div>
                     </div>

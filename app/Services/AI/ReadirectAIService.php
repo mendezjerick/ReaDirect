@@ -14,7 +14,6 @@ use Throwable;
 class ReadirectAIService
 {
     public function __construct(
-        private readonly OllamaClient $ollama,
         private readonly AgentTtsService $tts,
     ) {}
 
@@ -77,7 +76,7 @@ class ReadirectAIService
                     'Start the FastAPI service from ReaDirect-AI-ASR.',
                     'Confirm READIRECT_AI_BASE_URL points to the FastAPI host and port.',
                 ],
-                'llm' => $this->ollama->dashboardStatus(),
+                'agent_decision' => $this->agentDecisionStatus(),
                 'tts' => $this->tts->dashboardStatus(),
             ];
         }
@@ -163,8 +162,19 @@ class ReadirectAIService
                 'If token auth is enabled, match READIRECT_AI_API_TOKEN in both repositories.',
                 'Verify the AI repo model path and ASR provider settings before production use.',
             ],
-            'llm' => $this->ollama->dashboardStatus(),
+            'agent_decision' => $this->agentDecisionStatus(),
             'tts' => $this->tts->dashboardStatus(),
+        ];
+    }
+
+    private function agentDecisionStatus(): array
+    {
+        return [
+            'status' => 'deterministic',
+            'label' => 'Deterministic Agent Decisions',
+            'message' => 'Miss Ciel uses approved rules and dialogue templates. No LLM service is required.',
+            'provider' => 'ReaDirect Laravel policy service',
+            'mode' => (string) config('readirect.ciel.decision_mode', 'deterministic'),
         ];
     }
 

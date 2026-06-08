@@ -15,6 +15,7 @@ use App\Services\ModuleItemRetryService;
 use App\Support\CurrentLearner;
 use App\Support\LearnerStage;
 use App\Support\SubmittedItemSet;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -77,7 +78,7 @@ class ModuleActivityController extends Controller
         AssessmentModeService $mode,
         LearnerFlowService $flow,
         ModuleItemRetryService $retry,
-    ): \Illuminate\Http\JsonResponse {
+    ): JsonResponse {
         $learner = $this->learner($request);
         if ($redirect = $this->guardModuleAccess($learner, $module, $flow)) {
             abort(403, 'That module is locked right now. Continue from your dashboard.');
@@ -110,6 +111,8 @@ class ModuleActivityController extends Controller
         return response()->json([
             'retry_state' => $result['retry_state'],
             'message' => $result['message'],
+            'agent_cue' => $result['agent_cue'] ?? null,
+            'ciel_focus_event' => $result['ciel_focus_event'] ?? null,
         ]);
     }
 

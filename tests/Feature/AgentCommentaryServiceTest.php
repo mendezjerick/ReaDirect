@@ -43,7 +43,7 @@ class AgentCommentaryServiceTest extends TestCase
         Http::assertNothingSent();
     }
 
-    public function test_module_coaching_uses_similarity_label_with_fallback_when_disabled(): void
+    public function test_module_coaching_uses_similarity_label_with_deterministic_script(): void
     {
         $this->seedAgentsAndTemplate();
         config()->set('readirect.ollama.enabled', false);
@@ -58,35 +58,37 @@ class AgentCommentaryServiceTest extends TestCase
         ]);
 
         $this->assertSame('very_close', $commentary['similarity_label']);
-        $this->assertStringContainsString('very close', strtolower($commentary['message']));
-        $this->assertTrue($commentary['fallback_used']);
+        $this->assertNotEmpty($commentary['message']);
+        $this->assertSame('deterministic_script', $commentary['source']);
+        $this->assertFalse($commentary['fallback_used']);
     }
 
-    public function test_module_coaching_uses_safe_llm_output(): void
+    public function test_module_coaching_ignores_llm_configuration_and_stays_deterministic(): void
     {
         $this->seedAgentsAndTemplate();
         config()->set('readirect.ollama.enabled', true);
         config()->set('readirect.agent_feedback.miss_ciel_ollama_enabled', true);
-
-        Http::fake(['127.0.0.1:11434/api/generate' => Http::response(['response' => 'Good try! That was close.'])]);
+        Http::fake();
 
         $safe = app(AgentCommentaryService::class)->generateCommentary($this->moduleContext());
 
-        $this->assertSame('Good try! That was close.', $safe['message']);
+        $this->assertSame('deterministic_script', $safe['source']);
         $this->assertFalse($safe['fallback_used']);
+        Http::assertNothingSent();
     }
 
-    public function test_module_coaching_rejects_unsafe_output(): void
+    public function test_module_coaching_never_accepts_external_generated_output(): void
     {
         $this->seedAgentsAndTemplate();
         config()->set('readirect.ollama.enabled', true);
         config()->set('readirect.agent_feedback.miss_ciel_ollama_enabled', true);
-        Http::fake(['*' => Http::response(['response' => 'That was wrong and bad.'])]);
+        Http::fake();
 
-        $unsafe = app(AgentCommentaryService::class)->generateCommentary($this->moduleContext());
+        $commentary = app(AgentCommentaryService::class)->generateCommentary($this->moduleContext());
 
-        $this->assertTrue($unsafe['fallback_used']);
-        $this->assertSame('blocked_term', $unsafe['safety_status']);
+        $this->assertSame('deterministic_script', $commentary['source']);
+        $this->assertStringNotContainsString('wrong and bad', strtolower($commentary['message']));
+        Http::assertNothingSent();
     }
 
     public function test_evaluator_summary_explains_next_step_without_changing_decision(): void

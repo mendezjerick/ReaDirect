@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Learner;
 use App\Http\Controllers\Controller;
 use App\Models\Learner;
 use App\Models\Module;
+use App\Services\CielFocusModeService;
 use App\Services\LearnerFlowService;
 use App\Support\CurrentLearner;
 use Illuminate\Http\RedirectResponse;
@@ -13,7 +14,7 @@ use Inertia\Response;
 
 class LearnerDashboardController extends Controller
 {
-    public function __invoke(LearnerFlowService $flow): Response|RedirectResponse
+    public function __invoke(LearnerFlowService $flow, CielFocusModeService $focusMode): Response|RedirectResponse
     {
         $learner = CurrentLearner::resolve(request(), true);
 
@@ -83,6 +84,9 @@ class LearnerDashboardController extends Controller
                 'completed_at',
             ),
             'flowState' => $this->safeFlowState($flowState),
+            'rewards' => [
+                'stars' => $focusMode->starTotal($learner->id),
+            ],
         ]);
     }
 

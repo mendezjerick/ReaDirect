@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Models\AudioFile;
 use App\Models\AsrSupervisedReinforcementCase;
+use App\Models\AudioFile;
 use App\Models\Learner;
 use App\Models\School;
 use App\Models\User;
@@ -713,7 +713,6 @@ class ReadirectAIIntegrationTest extends TestCase
             'readirect.ollama.enabled' => true,
             'readirect.agent_feedback.miss_ciel_ollama_enabled' => true,
             'readirect.ollama.base_url' => 'http://ollama.test',
-            'readirect.ollama.model' => 'qwen3:4b',
         ]);
 
         Http::fake([
@@ -747,9 +746,6 @@ class ReadirectAIIntegrationTest extends TestCase
                 'version' => '0.1.0',
                 'config' => ['asr' => ['architecture' => 'wav2vec2_only', 'provider' => 'wav2vec2']],
             ]),
-            'http://ollama.test/api/tags' => Http::response([
-                'models' => [['name' => 'qwen3:4b']],
-            ]),
         ]);
 
         $status = app(ReadirectAIService::class)->dashboardStatus();
@@ -766,9 +762,9 @@ class ReadirectAIIntegrationTest extends TestCase
         $this->assertTrue($status['audio_quality_validation_enabled']);
         $this->assertTrue($status['pause_detection_enabled']);
         $this->assertTrue($status['uncertainty_decision_enabled']);
-        $this->assertTrue($status['llm']['connected']);
-        $this->assertSame('LLM Connected', $status['llm']['label']);
-        $this->assertSame('qwen3:4b', $status['llm']['model']);
+        $this->assertSame('deterministic', $status['agent_decision']['status']);
+        $this->assertSame('Deterministic Agent Decisions', $status['agent_decision']['label']);
+        $this->assertSame('deterministic', $status['agent_decision']['mode']);
         $this->assertSame(
             'corrected_transcript -> transcript -> raw_transcript',
             $status['laravel_response_contract']['scoring_transcript']
