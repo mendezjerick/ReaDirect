@@ -5,14 +5,14 @@
         <Transition name="overlay">
             <div
                 v-if="sidebarOpen"
-                class="fixed inset-0 z-20 bg-black/20 backdrop-blur-[2px] md:hidden"
+                class="fixed inset-0 z-20 bg-black/20 backdrop-blur-[2px] lg:hidden"
                 @click="sidebarOpen = false"
             />
         </Transition>
 
         <!-- ── Sidebar ─────────────────────────────────────── -->
         <aside
-            class="fixed inset-y-0 left-0 z-30 flex w-[260px] flex-col bg-surface transition-transform duration-300 ease-in-out md:translate-x-0"
+            class="fixed inset-y-0 left-0 z-30 flex w-[260px] flex-col bg-surface transition-transform duration-300 ease-in-out lg:translate-x-0"
             :class="sidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'"
         >
             <!-- Brand header -->
@@ -106,21 +106,21 @@
         </aside>
 
         <!-- ── Main content area ───────────────────────────── -->
-        <div class="flex min-h-screen flex-col md:pl-[260px]">
+        <div class="flex min-h-screen flex-col lg:pl-[260px]">
 
             <!-- Top bar -->
-            <header class="sticky top-0 z-10 flex h-[64px] shrink-0 items-center justify-between bg-surface/80 backdrop-blur-md px-5 md:px-8 border-b border-border/60">
+            <header class="sticky top-0 z-10 flex h-[64px] shrink-0 items-center justify-between bg-surface/80 backdrop-blur-md px-5 lg:px-8 border-b border-border/60">
                 <!-- Left: hamburger (mobile) + search -->
                 <div class="flex items-center gap-3">
                     <button
                         @click="sidebarOpen = !sidebarOpen"
-                        class="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-text md:hidden"
+                        class="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-text lg:hidden"
                         :aria-label="sidebarOpen ? 'Close menu' : 'Open menu'"
                     >
                         <X v-if="sidebarOpen" :size="20" />
                         <Menu v-else :size="20" />
                     </button>
-                    <div class="hidden md:flex items-center gap-2 rounded-xl bg-background px-4 py-2">
+                    <div class="hidden lg:flex items-center gap-2 rounded-xl bg-background px-4 py-2">
                         <Search :size="15" class="text-muted" />
                         <span class="text-[13px] text-muted font-medium">Search...</span>
                     </div>
@@ -159,14 +159,14 @@
 
                                 <!-- Links -->
                                 <div class="space-y-0.5">
-                                    <a
+                                    <Link
                                         href="/teacher/profile"
                                         class="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13px] font-semibold text-slate-500 hover:bg-orange-50 hover:text-orange-600 transition-colors"
                                         @click="profileOpen = false"
                                     >
                                         <UserCircle :size="16" class="shrink-0" />
                                         Account Settings
-                                    </a>
+                                    </Link>
                                     <Link
                                         href="/logout"
                                         method="post"
@@ -184,7 +184,7 @@
             </header>
 
             <!-- Flash messages -->
-            <div class="px-5 md:px-8">
+            <div class="px-5 lg:px-8">
                 <Transition name="flash">
                     <div
                         v-if="$page.props.flash?.success"
@@ -206,7 +206,7 @@
             </div>
 
             <!-- Page content -->
-            <main class="flex-1 px-5 py-6 md:px-8 md:py-7">
+            <main class="flex-1 px-5 py-6 lg:px-8 lg:py-7">
                 <slot />
             </main>
         </div>

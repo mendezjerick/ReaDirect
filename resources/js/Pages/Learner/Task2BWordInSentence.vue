@@ -261,7 +261,7 @@ const handlePrimary = async () => {
             />
         </template>
 
-        <section class="anim-main mx-auto grid max-w-6xl gap-5 rounded-[32px] border border-slate-200/80 bg-white p-7 shadow-xl shadow-slate-200/30">
+        <section class="anim-main mx-auto grid max-w-6xl gap-5 rounded-[32px] border border-slate-200/80 bg-white p-4 sm:p-6 lg:p-7 shadow-xl shadow-slate-200/30">
             <!-- Progress header -->
             <div class="anim-fade-down flex items-center justify-between">
                 <StatusBadge :status="`Sentence ${step.currentIndex.value + 1} of ${items.length}`" />
@@ -282,7 +282,7 @@ const handlePrimary = async () => {
             <!-- Sentence card -->
             <div
                 :key="step.currentItem.value.id"
-                class="anim-card relative overflow-hidden rounded-[36px] border-[3px] border-primary/10 bg-white p-8 text-center shadow-2xl shadow-primary/10"
+                class="anim-card relative overflow-hidden rounded-[36px] border-[3px] border-primary/10 bg-white p-5 sm:p-7 lg:p-8 text-center shadow-2xl shadow-primary/10"
             >
                 <!-- Decorative blur blobs -->
                 <span class="pointer-events-none absolute -left-10 -top-10 h-40 w-40 rounded-full bg-primary/5 blur-3xl" aria-hidden="true" />
@@ -295,13 +295,13 @@ const handlePrimary = async () => {
                 <div class="relative z-10">
                     <!-- Word illustration -->
                     <div v-if="currentWordImage" class="anim-pop mx-auto mb-4 flex items-center justify-center">
-                        <img :src="currentWordImage" :alt="step.currentItem.value.payload?.target_word" class="h-[120px] w-[120px] rounded-[24px] object-contain drop-shadow-lg md:h-[140px] md:w-[140px]">
+                        <img :src="currentWordImage" :alt="step.currentItem.value.payload?.target_word" class="h-[120px] w-[120px] rounded-[24px] object-contain drop-shadow-lg lg:h-[140px] lg:w-[140px]">
                     </div>
                     <span class="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-blue-600 text-white shadow-lg shadow-primary/20">
                         <BookOpen class="size-7" />
                     </span>
                     <p class="mt-4 text-[14px] font-black uppercase tracking-widest text-slate-400">Read the highlighted word</p>
-                    <p class="anim-pop mt-5 text-5xl font-black leading-snug md:text-6xl">
+                    <p class="anim-pop mt-5 text-5xl font-black leading-snug lg:text-6xl">
                         <template v-for="(part, index) in parts(step.currentItem.value)" :key="index">
                             <mark
                                 v-if="part.toLowerCase() === (step.currentItem.value.payload?.target_word ?? '').toLowerCase()"
@@ -314,7 +314,7 @@ const handlePrimary = async () => {
             </div>
 
             <!-- Recording + Transcript panels -->
-            <div class="anim-slide-up grid gap-5 lg:grid-cols-[340px_1fr]">
+            <div class="anim-slide-up grid gap-5 lg:grid-cols-[260px_1fr] lg:grid-cols-[340px_1fr]">
                 <!-- Recording panel -->
                 <div class="rounded-[24px] border border-slate-200/60 bg-slate-50/50 p-4 shadow-sm">
                     <div class="mb-4 flex items-center justify-between gap-3">
@@ -362,7 +362,7 @@ const handlePrimary = async () => {
                             You said
                         </span>
                     </label>
-                    <div class="grid min-h-72 rounded-[20px] border-2 border-slate-200/80 bg-white p-8 text-2xl font-black leading-snug text-slate-800">
+                    <div class="grid min-h-40 lg:min-h-72 rounded-[20px] border-2 border-slate-200/80 bg-white p-8 text-2xl font-black leading-snug text-slate-800">
                         <p v-if="isCurrentUploading" class="place-self-center text-center text-[15px] font-semibold text-slate-400">Checking your recording…</p>
                         <p v-else-if="currentTranscript">{{ currentTranscript }}</p>
                         <div v-else class="grid place-items-center gap-3 text-center">
@@ -456,3 +456,4 @@ const handlePrimary = async () => {
     to   { opacity: 1; transform: translateY(0); }
 }
 </style>
+

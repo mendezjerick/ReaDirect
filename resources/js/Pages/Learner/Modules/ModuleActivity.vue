@@ -343,7 +343,7 @@ const returnToDashboard = () => {
 </script>
 
 <template>
-    <LearnerLayout :progress="82">
+    <LearnerLayout :progress="85" backUrl="/learner/dashboard" backLabel="Back to Learner Dashboard">
         <CielFocusMode
             :visible="focusModeVisible"
             :mode="cielFocusEvent?.mode ?? 'teaching'"
@@ -365,8 +365,8 @@ const returnToDashboard = () => {
             </div>
             <ModuleProgressBar :value="step.progressPercent.value" />
             <PromptCard label="Practice" :prompt="step.currentItem.value.prompt" :highlight-targets="currentHighlightTargets" :illustration="currentWordImage" size="word" />
-            <div class="rounded-[32px] border border-slate-200/80 bg-white p-5 shadow-xl shadow-slate-200/30 xl:p-7">
-                <div class="grid gap-5 md:grid-cols-[minmax(220px,1fr)_1.3fr] md:items-start xl:gap-6">
+            <div class="rounded-[32px] border border-slate-200/80 bg-white p-4 sm:p-5 shadow-xl shadow-slate-200/30 xl:p-7">
+                <div class="grid gap-5 lg:grid-cols-[minmax(220px,1fr)_1.3fr] lg:items-start xl:gap-6">
                     <AudioRecorder
                         :key="step.currentItem.value.id"
                         :reset-key="`${step.currentItem.value.id}-${recorderResetKeys[step.currentItem.value.id] ?? 0}`"
@@ -414,16 +414,7 @@ const returnToDashboard = () => {
         </section>
 
         <BottomActionBar>
-            <div class="flex w-full flex-col-reverse items-center justify-between gap-4 sm:flex-row">
-                <button
-                    type="button"
-                    class="group inline-flex w-full items-center justify-center gap-2 rounded-[22px] border-2 border-slate-200/80 bg-white px-6 py-3.5 text-base font-bold text-slate-600 transition-all hover:border-slate-300 hover:bg-slate-50 sm:w-auto xl:px-8 xl:text-lg"
-                    :disabled="returningToDashboard || form.processing || isCurrentUploading || isCurrentChecking || focusModeVisible"
-                    @click="returnToDashboard"
-                >
-                    <ArrowLeft class="size-5 stroke-[2.5] transition-transform group-hover:-translate-x-1" />
-                    <span>Back to Learner Dashboard</span>
-                </button>
+            <div class="flex w-full flex-col-reverse items-center justify-end gap-4 sm:flex-row">
                 <PrimaryButton
                     class="group w-full gap-3 rounded-[22px] px-8 py-3.5 text-base shadow-xl shadow-primary/25 transition-all duration-200 hover:-translate-y-0.5 hover:scale-[1.02] active:scale-[0.98] sm:w-auto xl:text-lg"
                     :disabled="primaryDisabled"
@@ -437,3 +428,4 @@ const returnToDashboard = () => {
         </BottomActionBar>
     </LearnerLayout>
 </template>
+

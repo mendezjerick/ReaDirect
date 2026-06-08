@@ -342,7 +342,7 @@ const submit = () => {
             />
         </template>
 
-        <div class="mx-auto grid max-w-2xl gap-4">
+        <div class="mx-auto grid max-w-2xl gap-4 px-0.5">
             <!-- Header badges & progress -->
             <div class="anim-fade-down grid gap-3 px-1">
                 <div class="flex items-center justify-between">
@@ -372,10 +372,10 @@ const submit = () => {
 
                 <!-- Passage illustration -->
                 <div v-if="passageImage" class="anim-pop relative mb-4 flex justify-center">
-                    <img :src="passageImage" :alt="passage.title" class="h-[300px] w-full rounded-[24px] object-cover drop-shadow-lg md:h-[360px]">
+                    <img :src="passageImage" :alt="passage.title" class="h-[200px] w-full rounded-[24px] object-cover drop-shadow-lg sm:h-[260px] lg:h-[320px]">
                 </div>
 
-                <p class="relative text-2xl font-black leading-relaxed text-slate-800 md:text-[28px]">
+                <p class="relative text-2xl font-black leading-relaxed text-slate-800 lg:text-[28px]">
                     <template v-for="(token, index) in highlightedPassageTokens" :key="index">
                         <span
                             :class="{
@@ -388,7 +388,7 @@ const submit = () => {
             </section>
 
             <!-- Recording & transcript panel -->
-            <div class="anim-slide-up grid gap-4 rounded-[24px] border border-slate-200/60 bg-slate-50/50 p-4 shadow-sm md:grid-cols-[220px_1fr]">
+            <div class="anim-slide-up grid gap-4 rounded-[24px] border border-slate-200/60 bg-slate-50/50 p-4 shadow-sm lg:grid-cols-[220px_1fr]">
                 <!-- Recorder header -->
                 <div class="flex flex-col gap-3">
                     <div class="mb-2 flex items-center gap-3">
@@ -523,3 +523,4 @@ const submit = () => {
     to { opacity: 1; transform: translateY(0); }
 }
 </style>
+

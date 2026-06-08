@@ -55,14 +55,14 @@ const infoCards = [
                 <span class="flex size-20 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-400 to-blue-600 text-white shadow-xl shadow-blue-500/20 ring-1 ring-white/20">
                     <PartyPopper class="size-11" />
                 </span>
-                <h1 class="bg-gradient-to-br from-slate-900 to-slate-700 bg-clip-text text-center text-4xl font-black text-transparent md:text-5xl">
+                <h1 class="bg-gradient-to-br from-slate-900 to-slate-700 bg-clip-text text-center text-4xl font-black text-transparent lg:text-5xl">
                     Task 1 routing complete.
                 </h1>
                 <Sparkles class="size-8 text-primary/30" />
             </div>
 
             <!-- Metric cards -->
-            <div class="grid gap-5 md:grid-cols-2">
+            <div class="grid gap-5 lg:grid-cols-2">
                 <article
                     v-for="(card, idx) in metricCards"
                     :key="card.label"
@@ -174,3 +174,4 @@ const infoCards = [
     to { opacity: 1; transform: translateY(0); }
 }
 </style>
+

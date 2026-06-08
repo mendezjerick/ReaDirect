@@ -144,7 +144,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <LearnerLayout :progress="76">
+    <LearnerLayout :progress="76" backUrl="/learner/dashboard" backLabel="Back to Learner Dashboard">
         <template #agent>
             <AgentSpeakerPanel agent-type="coach_feedback" :state="guideState" :message="guideMessage" />
         </template>
@@ -190,18 +190,9 @@ onBeforeUnmount(() => {
         </section>
 
         <BottomActionBar>
-            <div class="flex w-full flex-col-reverse items-center justify-between gap-4 sm:flex-row">
-                <button
-                    type="button"
-                    class="group inline-flex w-full items-center justify-center gap-2 rounded-[22px] border-2 border-slate-200/80 bg-white px-6 py-3.5 text-base font-bold text-slate-600 transition-all hover:border-slate-300 hover:bg-slate-50 sm:w-auto xl:px-8 xl:text-lg"
-                    :disabled="returning"
-                    @click="returnToDashboard"
-                >
-                    <ArrowLeft class="size-5 stroke-[2.5] transition-transform group-hover:-translate-x-1" />
-                    <span>Back to Learner Dashboard</span>
-                </button>
+            <div class="flex w-full flex-col-reverse items-center justify-end gap-4 sm:flex-row">
                 <Link v-if="resumeRoute || firstActivityType" :href="resumeRoute ?? `/learner/modules/${module.key}/activity/${firstActivityType}`" class="w-full sm:w-auto">
-                    <PrimaryButton class="group w-full gap-3 rounded-[22px] px-8 py-3.5 text-base shadow-xl shadow-primary/25 hover:-translate-y-0.5 hover:scale-[1.02] active:scale-[0.98] sm:w-auto xl:text-lg">
+                    <PrimaryButton class="group w-full gap-3 rounded-[22px] px-5 py-3.5 text-base shadow-xl shadow-primary/25 hover:-translate-y-0.5 hover:scale-[1.02] active:scale-[0.98] sm:w-auto sm:px-8 xl:text-lg">
                         {{ actionLabel ?? 'Start Module' }}
                         <ArrowRight class="size-5 stroke-[3] sm:size-6 transition-transform group-hover:translate-x-1" />
                     </PrimaryButton>

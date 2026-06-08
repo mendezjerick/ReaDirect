@@ -224,7 +224,7 @@ const handlePrimary = () => {
                 <span class="pointer-events-none absolute right-8 top-8 text-4xl font-black text-primary/5" aria-hidden="true">✦</span>
 
                 <p class="relative text-[14px] font-black uppercase tracking-widest text-slate-400">Read the second word</p>
-                <div class="anim-pop relative mt-4 flex items-center justify-center gap-3 text-4xl font-black leading-snug md:text-5xl">
+                <div class="anim-pop relative mt-4 flex items-center justify-center gap-3 text-3xl font-black leading-snug sm:text-4xl lg:text-5xl">
                     <span class="bg-gradient-to-br from-slate-900 to-slate-700 bg-clip-text text-transparent">{{ step.currentItem.value.prompt }}</span>
                     <span class="text-slate-300">–</span>
                     <mark class="rounded-2xl bg-gradient-to-r from-amber-100 to-yellow-100 px-4 py-1.5 text-slate-800 ring-1 ring-amber-200/50">{{ targetWordFor(step.currentItem.value) }}</mark>
@@ -233,7 +233,7 @@ const handlePrimary = () => {
 
             <!-- Recording & transcript panel -->
             <div class="anim-slide-up rounded-[32px] border border-slate-200/80 bg-white p-3 shadow-xl shadow-slate-200/30 sm:p-4">
-                <div class="grid gap-4 md:grid-cols-[240px_1fr] md:items-start">
+                <div class="grid gap-4 lg:grid-cols-[220px_1fr] lg:items-start">
                     <!-- Mic / recorder panel -->
                     <div class="rounded-[24px] border border-slate-200/60 bg-slate-50/50 p-4 shadow-sm">
                         <div class="mb-4 flex items-center justify-between gap-3">
@@ -358,3 +358,4 @@ const handlePrimary = () => {
     to { opacity: 1; transform: translateY(0); }
 }
 </style>
+

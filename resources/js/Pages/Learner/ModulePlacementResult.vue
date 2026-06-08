@@ -78,7 +78,7 @@ const bottomColors = [
             </article>
 
             <!-- Top metrics row -->
-            <div class="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+            <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <article
                     v-for="(metric, i) in metrics.slice(0, 4)"
                     :key="metric.label"
@@ -118,7 +118,7 @@ const bottomColors = [
             </div>
 
             <!-- Classification cards -->
-            <div class="grid gap-3 md:grid-cols-2">
+            <div class="grid gap-3 lg:grid-cols-2">
                 <article class="rounded-[24px] border border-slate-200/60 bg-white p-5 shadow-md shadow-slate-200/20">
                     <div class="flex items-center gap-2.5">
                         <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-blue-600 text-white shadow-sm">
@@ -192,3 +192,4 @@ const bottomColors = [
     to { opacity: 1; transform: scale(1) translateY(0); }
 }
 </style>
+

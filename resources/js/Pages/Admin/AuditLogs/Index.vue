@@ -30,7 +30,9 @@ const filter = (event) => router.get('/admin/audit-logs', Object.fromEntries(new
         </DashboardCard>
         <DashboardCard class="mt-4">
             <div v-if="logs.data.length === 0" class="py-10 text-center font-bold text-muted">No records found for the selected filters.</div>
-            <table v-else class="w-full text-left text-xs"><thead><tr class="bg-primary-light text-primary"><th class="p-3">Date</th><th class="p-3">User</th><th class="p-3">Action</th><th class="p-3">Entity</th><th class="p-3">IP</th></tr></thead><tbody><tr v-for="log in logs.data" :key="log.id" class="border-t"><td class="p-3">{{ log.created_at }}</td><td class="p-3">{{ log.user?.email ?? '-' }}</td><td class="p-3 font-bold">{{ log.action }}</td><td class="p-3">{{ log.auditable_type }} #{{ log.auditable_id }}</td><td class="p-3">{{ log.ip_address }}</td></tr></tbody></table>
+            <div v-else class="overflow-x-auto rounded-xl border border-border/60">
+                <table class="w-full text-left text-xs"><thead><tr class="bg-primary-light text-primary"><th class="p-3">Date</th><th class="p-3">User</th><th class="p-3">Action</th><th class="p-3">Entity</th><th class="p-3">IP</th></tr></thead><tbody><tr v-for="log in logs.data" :key="log.id" class="border-t border-border/60"><td class="p-3 whitespace-nowrap">{{ log.created_at }}</td><td class="p-3">{{ log.user?.email ?? '-' }}</td><td class="p-3 font-bold">{{ log.action }}</td><td class="p-3 whitespace-nowrap">{{ log.auditable_type }} #{{ log.auditable_id }}</td><td class="p-3">{{ log.ip_address }}</td></tr></tbody></table>
+            </div>
         </DashboardCard>
     </AdminLayout>
 </template>

@@ -1,4 +1,4 @@
-const configuredBaseUrl = import.meta.env?.VITE_REA_AGENT_ASSET_BASE_URL || '/ia-assets';
+const configuredBaseUrl = import.meta.env?.VITE_REA_AGENT_ASSET_BASE_URL || '/';
 const mediaRevision = 'phase5-20260607-4';
 
 export const agentAssetBaseUrl = configuredBaseUrl.replace(/\/+$/, '');

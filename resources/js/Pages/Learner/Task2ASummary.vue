@@ -43,7 +43,7 @@ defineProps({
             </div>
 
             <!-- Score cards -->
-            <div class="grid gap-4 md:grid-cols-2">
+            <div class="grid gap-4 lg:grid-cols-2">
                 <ScoreCard label="Task 1 letters" :value="attempt.task_1_score" />
                 <ScoreCard label="Task 2A rhymes" :value="attempt.task_2a_score" />
             </div>
@@ -119,3 +119,4 @@ defineProps({
     to { opacity: 1; transform: translateY(0); }
 }
 </style>
+
