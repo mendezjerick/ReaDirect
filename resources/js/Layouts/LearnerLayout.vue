@@ -78,9 +78,9 @@ const visibleSteps = computed(() => props.steps.length ? props.steps : (props.di
         </header>
         <main class="learner-frame learner-stage">
             <div v-if="$slots.agent" class="learner-stage-grid">
-                <aside class="flex flex-col gap-4 pb-4 lg:sticky lg:top-20 lg:z-10 lg:max-h-[calc(100vh-140px)] lg:overflow-y-auto lg:px-2 lg:-mx-2 lg:pb-8">
+                <aside class="learner-stage-sidebar flex flex-col gap-4 pb-4 lg:sticky lg:top-20 lg:z-10 lg:max-h-[calc(100vh-140px)] lg:overflow-y-auto lg:px-2 lg:-mx-2 lg:pb-8">
                     <slot name="agent" />
-                    <div id="teleport-audio-review" class="empty:hidden"></div>
+                    <div id="teleport-audio-review" class="learner-stage-review empty:hidden"></div>
                 </aside>
                 <div class="learner-content min-w-0">
                     <slot />
@@ -100,5 +100,17 @@ const visibleSteps = computed(() => props.steps.length ? props.steps : (props.di
 @keyframes headerFade {
     from { opacity: 0; transform: translateY(-8px); }
     to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 1023px) {
+    .learner-stage-sidebar {
+        display: contents;
+    }
+    .learner-content {
+        order: 1;
+    }
+    .learner-stage-review {
+        order: 2;
+    }
 }
 </style>
