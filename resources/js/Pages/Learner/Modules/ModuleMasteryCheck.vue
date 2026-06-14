@@ -251,13 +251,14 @@ const checkCurrent = async () => {
         retryStates[item.id] = result.retry_state ?? defaultRetryState();
         step.feedback.value = result.message ?? retryStates[item.id].feedback ?? '';
         const agentCue = result.agent_cue?.agent === 'ciel' ? result.agent_cue : null;
+        const cielAgent = result.ciel_agent?.agent === 'ciel' ? result.ciel_agent : null;
 
         if (retryStates[item.id].is_correct) {
-            agentMessage.value = agentCue?.message ?? 'That is correct. Go to the next one.';
-            agentState.value = agentCue?.action ?? (step.isLast.value ? 'section_complete' : 'correct');
+            agentMessage.value = cielAgent?.message ?? agentCue?.message ?? 'That is correct. Go to the next one.';
+            agentState.value = cielAgent?.animation ?? agentCue?.action ?? (step.isLast.value ? 'section_complete' : 'correct');
         } else if (retryStates[item.id].can_retry) {
-            agentMessage.value = agentCue?.message ?? 'Try this same item again.';
-            agentState.value = agentCue?.action ?? (
+            agentMessage.value = cielAgent?.message ?? agentCue?.message ?? 'Try this same item again.';
+            agentState.value = cielAgent?.animation ?? agentCue?.action ?? (
                 Number(retryStates[item.id].attempt_count ?? 1) <= 1
                     ? 'incorrect'
                     : 'retry'
@@ -267,11 +268,26 @@ const checkCurrent = async () => {
                 step.answers[item.id] = '';
             }
         } else {
-            agentMessage.value = agentCue?.message ?? 'Good try. Go to the next one.';
-            agentState.value = agentCue?.action ?? 'speaking';
+            agentMessage.value = cielAgent?.message ?? agentCue?.message ?? 'Good try. Go to the next one.';
+            agentState.value = cielAgent?.animation ?? agentCue?.action ?? 'speaking';
         }
 
-        if (result.ciel_focus_event?.enabled) {
+        if (cielAgent?.focus_mode?.enabled) {
+            cielFocusEvent.value = {
+                enabled: true,
+                mode: 'teaching',
+                target_type: props.module?.key === 'module_1' ? 'letter' : 'word',
+                target_text: cielAgent.display_target,
+                reason: cielAgent.teaching_focus ?? 'agent_focus_teach',
+                reward: null,
+                dialogue_steps: [
+                    {
+                        text: cielAgent.message,
+                        action: cielAgent.animation,
+                    },
+                ],
+            };
+        } else if (result.ciel_focus_event?.enabled) {
             cielFocusEvent.value = result.ciel_focus_event;
         }
 
@@ -402,4 +418,3 @@ const returnToDashboard = () => {
         </BottomActionBar>
     </LearnerLayout>
 </template>
-

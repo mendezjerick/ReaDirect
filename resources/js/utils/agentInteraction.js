@@ -32,7 +32,7 @@ const contextAgents = Object.freeze({
 
 const idleLabels = new Set([
     '', 'idle', 'listening', 'neutral', 'none', 'ready',
-    'recording', 'recorded', 'cleared', 'next', 'navigation',
+    'recording', 'recorded', 'cleared', 'next', 'navigation', 'c_idle',
 ]);
 const resultContexts = new Set([
     'results', 'routing', 'summary', 'recommendation', 'placement',
@@ -40,19 +40,25 @@ const resultContexts = new Set([
 
 const actionMaps = Object.freeze({
     Ciel: Object.freeze({
+        c_talk: 'talk',
         talk: 'talk',
         talking: 'talk',
         speaking: 'talk',
+        c_thinking_1: 'thinking_1',
+        c_thinking_2: 'thinking_2',
+        c_thinking_3: 'thinking_3',
         thinking: 'thinking',
         processing: 'thinking',
         uploading: 'thinking',
         checking: 'thinking',
         evaluating: 'thinking',
+        c_happy: 'happy',
         happy: 'happy',
         correct: 'happy',
         success: 'happy',
         good: 'happy',
         passed: 'happy',
+        c_confused: 'confused',
         confused: 'confused',
         incorrect: 'confused',
         unclear: 'confused',
@@ -64,6 +70,7 @@ const actionMaps = Object.freeze({
         validation_failed: 'confused',
         upload_error: 'confused',
         asr_error: 'confused',
+        c_advise: 'advise',
         advise: 'advise',
         encouraging: 'advise',
         retry: 'advise',
@@ -71,11 +78,13 @@ const actionMaps = Object.freeze({
         hint: 'advise',
         missing_answer: 'advise',
         guidance: 'advise',
+        c_clap: 'clap',
         clap: 'clap',
         praise: 'clap',
         strong_answer: 'clap',
         streak: 'clap',
         section_complete: 'clap',
+        c_congrats: 'congrats',
         congrats: 'congrats',
         celebrating: 'congrats',
     }),

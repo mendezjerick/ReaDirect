@@ -173,7 +173,11 @@ class ModuleLearningFlowTest extends TestCase
             ->assertJsonPath('agent_cue.agent', 'ciel')
             ->assertJsonPath('agent_cue.action', 'advise')
             ->assertJsonPath('agent_cue.dialogue_key', 'ciel.module.close_retry.generic')
-            ->assertJsonPath('agent_cue.official_progression_changed', false);
+            ->assertJsonPath('agent_cue.official_progression_changed', false)
+            ->assertJsonPath('ciel_agent.agent', 'ciel')
+            ->assertJsonPath('ciel_agent.mode', 'soft_retry')
+            ->assertJsonPath('ciel_agent.animation', 'c-confused')
+            ->assertJsonPath('ciel_agent.official_progression_changed', false);
 
         $this->assertNull($item->refresh()->answered_at);
 
@@ -195,7 +199,9 @@ class ModuleLearningFlowTest extends TestCase
             ->assertJsonPath('agent_cue.agent', 'ciel')
             ->assertJsonPath('agent_cue.action', 'clap')
             ->assertJsonPath('agent_cue.dialogue_key', 'ciel.module.section_complete')
-            ->assertJsonPath('agent_cue.official_progression_changed', false);
+            ->assertJsonPath('agent_cue.official_progression_changed', false)
+            ->assertJsonPath('ciel_agent.mode', 'correct_praise')
+            ->assertJsonPath('ciel_agent.animation', 'c-clap');
 
         $this->assertNotNull($item->refresh()->answered_at);
         $this->assertSame(2, ModuleActivityResponse::firstOrFail()->retry_count);
@@ -235,6 +241,13 @@ class ModuleLearningFlowTest extends TestCase
             ->assertOk()
             ->assertJsonPath('retry_state.attempt_count', 2)
             ->assertJsonPath('retry_state.is_resolved', false)
+            ->assertJsonPath('ciel_agent.mode', 'focus_teach')
+            ->assertJsonPath('ciel_agent.animation', 'c-advise')
+            ->assertJsonPath('ciel_agent.focus_mode.enabled', true)
+            ->assertJsonPath('ciel_agent.focus_mode.layout', 'blank_screen')
+            ->assertJsonPath('ciel_agent.focus_mode.target_position', 'center')
+            ->assertJsonPath('ciel_agent.focus_mode.agent_position', 'bottom')
+            ->assertJsonPath('ciel_agent.focus_mode.target_size', 'large')
             ->assertJsonPath('ciel_focus_event.enabled', true)
             ->assertJsonPath('ciel_focus_event.mode', 'teaching')
             ->assertJsonPath('ciel_focus_event.target_type', 'word')

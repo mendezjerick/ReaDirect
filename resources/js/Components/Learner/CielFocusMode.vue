@@ -27,7 +27,7 @@ const steps = computed(() => props.dialogueSteps?.length
     ? props.dialogueSteps
     : [{ text: 'Let us practice together.', action: 'talk' }]);
 const currentStep = computed(() => steps.value[Math.min(currentIndex.value, steps.value.length - 1)] ?? steps.value[0]);
-const mediaAction = computed(() => focusComplete.value ? 'idle' : 'talk');
+const mediaAction = computed(() => focusComplete.value ? 'c-idle' : (currentStep.value?.action ?? 'c-talk'));
 const targetLabel = computed(() => props.targetText ? String(props.targetText) : '');
 const progressLabel = computed(() => `${currentIndex.value + 1} / ${steps.value.length}`);
 const naturalAudioUrl = computed(() => audioPayload.value?.audio_url ?? null);
