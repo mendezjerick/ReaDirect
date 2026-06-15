@@ -200,3 +200,12 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function (): v
         Route::get('/llm/{interaction}/debug', [AdminTestingController::class, 'llmDebug'])->name('llm.debug');
     });
 });
+
+Route::get('/ia-graphics/{filename}', function ($filename) {
+    $path = 'C:\\Users\\balli\\Desktop\\Holder-ReaDirect\\ReaDirect-IA\\assets\\graphics\\' . $filename;
+    if (!file_exists($path)) {
+        abort(404);
+    }
+    return response()->file($path);
+})->where('filename', '.*');
+
