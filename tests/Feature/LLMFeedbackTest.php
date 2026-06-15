@@ -149,7 +149,7 @@ class LLMFeedbackTest extends TestCase
 
         $this->assertTrue($response->is_correct);
         $this->assertSame(1.0, (float) $response->score);
-        $this->assertSame('ciel_deterministic_policy', $response->agent_commentary_source);
+        $this->assertSame('laravel_deterministic_fallback', $response->agent_commentary_source);
         $this->assertNotEmpty($response->feedback_text);
         $this->assertDatabaseCount('llm_interactions', 0);
         Http::assertNothingSent();
