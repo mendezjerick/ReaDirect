@@ -19,7 +19,7 @@ const steps = [
 </script>
 
 <template>
-    <LearnerLayout :progress="72">
+    <LearnerLayout :progress="72" backUrl="/learner/dashboard" backLabel="Back to Learner Dashboard">
         <template #agent>
             <AgentSpeakerPanel compact agent-type="coach_feedback" state="speaking" message="Your practice path is ready. We will work one step at a time." />
         </template>
@@ -38,7 +38,7 @@ const steps = [
                 :description="module.description"
                 active
             />
-            <div v-else class="rounded-[32px] border border-slate-200/80 bg-white p-8 shadow-xl shadow-slate-200/30 text-center xl:p-10">
+            <div v-else class="rounded-[32px] border border-slate-200/80 bg-white p-8 text-center shadow-xl shadow-slate-200/30 xl:p-10">
                 <p class="text-2xl font-black text-slate-800">No module is needed right now.</p>
                 <p class="mt-2 text-lg font-semibold text-slate-500">{{ flowState?.message ?? 'Your diagnostic result shows grade-level readiness.' }}</p>
             </div>
@@ -65,8 +65,8 @@ const steps = [
                                 'bg-slate-100 text-slate-400': step.status === 'locked',
                             }"
                         >
-                            <CheckCircle2 v-if="step.status === 'completed'" class="size-6 xl:size-7" stroke-width="2.5" />
-                            <component :is="step.icon" v-else class="size-5 xl:size-6" stroke-width="2.5" />
+                            <CheckCircle2 v-if="step.status === 'completed'" class="size-6 stroke-[2.5] xl:size-7" />
+                            <component :is="step.icon" v-else class="size-5 stroke-[2.5] xl:size-6" />
                         </div>
 
                         <!-- Step Label -->
@@ -74,16 +74,16 @@ const steps = [
                             <p
                                 class="text-sm font-black uppercase tracking-widest xl:text-base"
                                 :class="{
-                                    'text-emerald-700': step.status === 'completed',
-                                    'text-blue-700': step.status === 'current',
+                                    'text-emerald-600': step.status === 'completed',
+                                    'text-blue-600': step.status === 'current',
                                     'text-slate-400': step.status === 'locked',
                                 }"
                             >{{ step.label }}</p>
                             <p
-                                class="mt-1 text-xs font-semibold xl:text-sm"
+                                class="mt-1 text-[13px] font-semibold leading-tight xl:text-[14px]"
                                 :class="{
-                                    'text-emerald-600/70': step.status === 'completed',
-                                    'text-blue-600/70': step.status === 'current',
+                                    'text-emerald-600/80': step.status === 'completed',
+                                    'text-slate-500': step.status === 'current',
                                     'text-slate-400/80': step.status === 'locked',
                                 }"
                             >{{ step.description }}</p>
@@ -101,16 +101,7 @@ const steps = [
         </section>
 
         <BottomActionBar>
-            <div class="flex w-full flex-col-reverse items-center justify-between gap-4 sm:flex-row">
-                <Link href="/learner/dashboard" class="w-full sm:w-auto">
-                    <button
-                        type="button"
-                        class="group inline-flex w-full items-center justify-center gap-2 rounded-[22px] border-2 border-slate-200/80 bg-white px-6 py-3.5 text-base font-bold text-slate-600 transition-all hover:border-slate-300 hover:bg-slate-50 sm:w-auto xl:px-8 xl:text-lg"
-                    >
-                        <ArrowLeft class="size-5 stroke-[2.5] transition-transform group-hover:-translate-x-1" />
-                        <span>Back to Learner Dashboard</span>
-                    </button>
-                </Link>
+            <div class="flex w-full flex-col-reverse items-center justify-end gap-4 sm:flex-row">
                 <Link v-if="module" :href="`/learner/modules/${module.key}/start`" class="w-full sm:w-auto">
                     <PrimaryButton class="group w-full gap-3 rounded-[22px] px-8 py-3.5 text-base shadow-xl shadow-primary/25 transition-all duration-200 hover:-translate-y-0.5 hover:scale-[1.02] active:scale-[0.98] sm:w-auto xl:text-lg">
                         Continue

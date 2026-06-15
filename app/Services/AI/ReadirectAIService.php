@@ -109,6 +109,26 @@ class ReadirectAIService
             'asr_architecture' => $health['asr_architecture'] ?? data_get($version, 'config.asr.architecture') ?? null,
             'active_asr_model' => $health['active_asr_model'] ?? data_get($version, 'config.asr.active_model') ?? null,
             'active_asr_model_path' => $health['active_asr_model_path'] ?? data_get($version, 'config.asr.active_asr_model_path') ?? null,
+            'asr_model_name' => $health['asr_model_name'] ?? data_get($version, 'config.asr.model_name') ?? null,
+            'asr_model_path' => $health['asr_model_path'] ?? $health['active_asr_model_path'] ?? null,
+            'asr_model_exists' => $health['asr_model_exists'] ?? null,
+            'asr_model_loaded' => $health['asr_model_loaded'] ?? null,
+            'processor_loaded' => $health['processor_loaded'] ?? null,
+            'device' => $health['device'] ?? null,
+            'decode_mode' => $health['decode_mode'] ?? data_get($version, 'config.asr.decode_mode') ?? null,
+            'beam_search_enabled' => $health['beam_search_enabled'] ?? null,
+            'language_model_enabled' => $health['language_model_enabled'] ?? null,
+            'language_model_loaded' => $health['language_model_loaded'] ?? null,
+            'language_model_path' => $health['language_model_path'] ?? data_get($version, 'config.asr.lm_path') ?? null,
+            'decoder_backend' => $health['decoder_backend'] ?? null,
+            'beam_width' => $health['beam_width'] ?? data_get($version, 'config.asr.beam_width') ?? null,
+            'alpha' => $health['alpha'] ?? data_get($version, 'config.asr.alpha') ?? null,
+            'beta' => $health['beta'] ?? data_get($version, 'config.asr.beta') ?? null,
+            'hotwords' => $health['hotwords'] ?? data_get($version, 'config.asr.hotwords') ?? [],
+            'hotword_weight' => $health['hotword_weight'] ?? data_get($version, 'config.asr.hotword_weight') ?? null,
+            'ffmpeg_available' => $health['ffmpeg_available'] ?? null,
+            'torchcodec_available' => $health['torchcodec_available'] ?? null,
+            'service_started_at' => $health['service_started_at'] ?? null,
             'asr_provider' => $health['model_family'] ?? $health['asr_provider'] ?? data_get($version, 'config.asr.provider') ?? null,
             'model_size' => $health['wav2vec2_asr_model_name'] ?? $health['active_asr_model_path'] ?? $health['active_asr_model'] ?? data_get($version, 'config.asr.model_size'),
             'model_family' => $health['model_family'] ?? null,
@@ -155,7 +175,15 @@ class ReadirectAIService
             'content_index_loaded' => $health['content_index_loaded'] ?? null,
             'cmudict_loaded' => $health['cmudict_loaded'] ?? null,
             'error' => $health['error'] ?? null,
-            'warnings' => $health['warnings'] ?? [],
+            'warnings' => array_values(array_filter([
+                ...($health['warnings'] ?? []),
+                ($health['decode_mode'] ?? null) === 'beam_no_lm'
+                    ? 'ASR is running in explicit no-LM fallback mode.'
+                    : null,
+                ($health['language_model_enabled'] ?? false) && ! ($health['language_model_loaded'] ?? false)
+                    ? 'The configured ASR language model is not loaded.'
+                    : null,
+            ])),
             'troubleshooting_steps' => [
                 'Start FastAPI: run the AI repo service on the configured port, usually 8001.',
                 'Check READIRECT_AI_BASE_URL in Laravel and the FastAPI host/port in ReaDirect-AI-ASR.',

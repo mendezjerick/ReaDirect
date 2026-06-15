@@ -26,7 +26,7 @@ import BottomActionBar from '../../Components/BottomActionBar.vue';
             <span class="pointer-events-none absolute -right-8 bottom-8 hidden text-3xl font-black text-primary/5 xl:block" aria-hidden="true">✦</span>
 
             <!-- Hero card -->
-            <section class="anim-hero relative overflow-hidden rounded-[36px] border-[3px] border-primary/10 bg-white px-6 py-10 text-center shadow-2xl shadow-primary/10 sm:px-10 sm:py-12">
+            <section class="anim-hero relative overflow-hidden rounded-[36px] border-[3px] border-primary/10 bg-white px-6 py-6 text-center shadow-2xl shadow-primary/10 sm:px-10 sm:py-12">
                 <!-- Decorative blur blobs -->
                 <span class="pointer-events-none absolute -left-10 -top-10 h-40 w-40 rounded-full bg-primary/5 blur-3xl" aria-hidden="true" />
                 <span class="pointer-events-none absolute -bottom-10 -right-10 h-40 w-40 rounded-full bg-blue-400/5 blur-3xl" aria-hidden="true" />

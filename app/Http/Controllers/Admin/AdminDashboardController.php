@@ -7,6 +7,7 @@ use App\Services\AI\ReadirectAIService;
 use App\Services\Admin\AdminAccessService;
 use App\Services\Admin\AdminDashboardService;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -20,5 +21,12 @@ class AdminDashboardController extends Controller
             'dashboard' => $dashboard->summary(),
             'aiService' => $ai->dashboardStatus(),
         ]);
+    }
+
+    public function aiStatus(Request $request, AdminAccessService $access, ReadirectAIService $ai): JsonResponse
+    {
+        $access->ensureAdmin($request->user());
+
+        return response()->json($ai->dashboardStatus());
     }
 }

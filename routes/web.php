@@ -142,6 +142,7 @@ Route::middleware('auth')->prefix('teacher')->name('teacher.')->group(function (
 
 Route::middleware('auth')->prefix('admin')->name('admin.')->group(function (): void {
     Route::get('/dashboard', AdminDashboardController::class)->name('dashboard');
+    Route::get('/ai-status', [AdminDashboardController::class, 'aiStatus'])->name('ai-status');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit')->defaults('layout', 'admin');
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');

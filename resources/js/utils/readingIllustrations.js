@@ -8,7 +8,7 @@
  * corresponding ReaDirect-IA directory.  No code changes are needed.
  */
 
-const WORD_IMAGE_BASE = '/ia-assets/images/reading/words';
+const WORD_IMAGE_BASE = '/images/reading/words';
 const PASSAGE_IMAGE_BASE = '/ia-graphics';
 
 /** Words that have a placeholder illustration. */

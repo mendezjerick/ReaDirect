@@ -180,17 +180,17 @@ const submit = () => {
             </div>
 
             <!-- Passage card -->
-            <section class="anim-card relative rounded-[36px] border-[3px] border-primary/10 bg-white p-6 shadow-2xl shadow-primary/10 sm:p-7" aria-label="Reading passage">
+            <section class="anim-card relative rounded-[36px] border-[3px] border-primary/10 bg-white p-4 sm:p-6 lg:p-7 shadow-2xl shadow-primary/10" aria-label="Reading passage">
                 <!-- Passage illustration -->
                 <div v-if="passageImage" class="anim-card mb-4 flex justify-center">
-                    <img :src="passageImage" :alt="passage.title" class="h-[300px] w-full rounded-[24px] object-cover drop-shadow-lg md:h-[360px]">
+                    <img :src="passageImage" :alt="passage.title" class="h-[200px] w-full rounded-[24px] object-cover drop-shadow-lg sm:h-[260px] lg:h-[320px]">
                 </div>
-                <p class="text-2xl font-black leading-relaxed text-slate-800 md:text-[28px]">{{ passage.prompt }}</p>
+                <p class="text-2xl font-black leading-relaxed text-slate-800 lg:text-[28px]">{{ passage.prompt }}</p>
             </section>
 
             <!-- Recording card -->
-            <div class="anim-card relative overflow-hidden rounded-[36px] border-[3px] border-primary/10 bg-white p-6 shadow-2xl shadow-primary/10 sm:p-7">
-                <div class="grid gap-4 md:grid-cols-[220px_1fr]">
+            <div class="anim-card relative overflow-hidden rounded-[36px] border-[3px] border-primary/10 bg-white p-4 sm:p-6 lg:p-7 shadow-2xl shadow-primary/10">
+                <div class="grid gap-4 lg:grid-cols-[220px_1fr]">
                     <AudioRecorder
                         compact
                         :max-duration-seconds="60"
@@ -244,3 +244,4 @@ const submit = () => {
     to   { opacity: 1; transform: translateY(0); }
 }
 </style>
+

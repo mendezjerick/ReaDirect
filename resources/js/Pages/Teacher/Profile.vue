@@ -58,17 +58,17 @@ const updatePassword = () => {
 
             <!-- Avatar preview -->
             <div class="mb-6 flex items-center gap-4">
-                <div class="flex h-[72px] w-[72px] items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-amber-600 text-white text-3xl font-extrabold shadow-lg shadow-orange-500/20 ring-4 ring-orange-500/5">
-                    {{ (profileForm.name ?? 'U').charAt(0).toUpperCase() }}
+                <div class="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-amber-600 text-white text-3xl font-extrabold shadow-lg shadow-orange-500/20 ring-4 ring-orange-500/5">
+                    {{ (profileForm.name ?? 'T').charAt(0).toUpperCase() }}
                 </div>
-                <div>
-                    <p class="text-base font-bold text-text">{{ profileForm.name }}</p>
-                    <p class="text-[13px] font-medium text-muted mt-0.5">{{ profileForm.email }}</p>
-                    <div class="mt-2 flex gap-1.5">
+                <div class="min-w-0">
+                    <p class="text-base font-bold text-text truncate">{{ profileForm.name }}</p>
+                    <p class="text-[13px] font-medium text-muted mt-0.5 truncate">{{ profileForm.email }}</p>
+                    <div class="mt-2 flex flex-wrap gap-1.5">
                         <span
                             v-for="role in roles"
                             :key="role"
-                            class="inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-2.5 py-1 text-[11px] font-bold capitalize tracking-wide text-orange-500 ring-1 ring-orange-500/20"
+                            class="inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-2.5 py-1 text-[11px] font-bold capitalize tracking-wide text-orange-500 ring-1 ring-orange-500/20 whitespace-nowrap"
                         >
                             <Shield class="size-3" />
                             {{ role.replace('_', ' ') }}

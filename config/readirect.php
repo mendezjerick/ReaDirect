@@ -4,6 +4,12 @@ return [
     'ciel' => [
         'decision_mode' => 'deterministic',
         'spec_path' => env('REA_CIEL_SPEC_PATH', base_path('../ReaDirect-IA')),
+        'service_enabled' => filter_var(env('CIEL_AGENT_ENABLED', true), FILTER_VALIDATE_BOOLEAN),
+        'base_url' => env('CIEL_AGENT_BASE_URL', 'http://127.0.0.1:8003'),
+        'decide_endpoint' => env('CIEL_AGENT_DECIDE_ENDPOINT', '/ia/ciel/decide'),
+        'status_endpoint' => env('CIEL_AGENT_STATUS_ENDPOINT', '/ia/ciel/status'),
+        'connect_timeout_seconds' => (int) env('CIEL_AGENT_CONNECT_TIMEOUT_SECONDS', 1),
+        'timeout_seconds' => (int) env('CIEL_AGENT_TIMEOUT_SECONDS', 3),
     ],
 
     'speech_to_text' => [

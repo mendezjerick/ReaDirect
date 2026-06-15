@@ -10,6 +10,7 @@ use App\Models\ModuleAttempt;
 use App\Models\ModuleAttemptItem;
 use App\Services\AI\AIAnalysisResolver;
 use App\Services\AI\LearnerHistoryPayloadBuilder;
+use App\Services\Ciel\CielTutorAgentClient;
 use Illuminate\Validation\ValidationException;
 
 class ModuleItemRetryService
@@ -23,6 +24,7 @@ class ModuleItemRetryService
         private readonly AIAnalysisResolver $analysis,
         private readonly LearnerHistoryPayloadBuilder $learnerHistory,
         private readonly CielCoachDecisionService $ciel,
+        private readonly CielTutorAgentClient $cielTutorAgent,
         private readonly CielFocusModeService $focusMode,
     ) {}
 
@@ -122,35 +124,48 @@ class ModuleItemRetryService
             : $this->feedback->feedbackForIncorrect($module->key, $activityType, $score['error_type'] ?? 'incorrect_general');
         $templateFeedback = $score['is_correct'] ? $template['success_text'] : $template['feedback_text'];
         $aiResponse = is_array($resolved['ai_response'] ?? null) ? $resolved['ai_response'] : [];
-        $agentCue = $this->ciel->decide([
+        $cielEvent = [
             'source_type' => 'module',
             'context' => $isMastery ? 'mastery_practice' : 'module_practice',
             'learner_id' => $attempt->learner_id,
+            'session_id' => 'module-attempt-'.($attempt->public_id ?: $attempt->id),
+            'module_type' => $module->key,
             'activity_type' => $activityType,
             'target_text' => $score['expected_answer'],
+            'expected' => $score['expected_answer'],
             'attempt_number' => $attemptNumber,
+            'attempt' => $attemptNumber,
             'remaining_attempts' => max(0, self::MAX_ATTEMPTS - $attemptNumber),
             'is_correct' => $isCorrect,
             'transcript' => $displayedAnswer,
             'error_type' => $score['error_type'] ?? null,
             'similarity_label' => $aiResponse['similarity_label'] ?? null,
             'asr_confidence' => $resolved['confidence'] ?? null,
+            'gop_score' => $aiResponse['gop_score'] ?? $aiResponse['overall_gop_score'] ?? null,
+            'phoneme_errors' => $aiResponse['phoneme_errors'] ?? [],
             'uncertain' => $aiResponse['uncertain'] ?? null,
             'retry_required' => $aiResponse['retry_required'] ?? null,
+            'audio_duration_seconds' => isset($submitted['duration_seconds']) ? (float) $submitted['duration_seconds'] : null,
             'correct_streak' => $correctStreak,
             'incorrect_streak' => $incorrectStreak,
             'weak_skill' => $aiResponse['recommended_practice_focus'] ?? null,
             'skill_signal' => $aiResponse['skill_signal'] ?? null,
+            'activity_id' => $item->id,
             'section_completed' => $isCorrect && $this->isLastSectionItem($attempt, $item, $activityType, $isMastery),
             'final_completion' => false,
             'congrats_allowed' => false,
-        ]);
-        $feedbackMessage = $agentCue['message'] ?? $templateFeedback;
+            'is_final_assessment_completion' => false,
+            'ai_response' => $aiResponse,
+        ];
+        $agentCue = $this->ciel->decide($cielEvent);
+        $cielAgent = $this->cielTutorAgent->decide($cielEvent);
+        $feedbackMessage = $cielAgent['message'] ?? $agentCue['message'] ?? $templateFeedback;
 
         $metadata = array_merge($existing?->metadata_json ?? [], [
             'prompt_snapshot' => $item->prompt_snapshot,
             'attempt_history' => $history,
             'max_attempts' => self::MAX_ATTEMPTS,
+            'ciel_agent' => $cielAgent,
             'asr_scoring_debug' => $this->asrScoringDebug($attempt, $item, $module, $activityType, $isMastery, $score['expected_answer'], $answer, $displayedAnswer, $score['score'], $audioFile, $resolved),
         ]);
 
@@ -168,9 +183,9 @@ class ModuleItemRetryService
                 'is_correct' => $isCorrect,
                 'score' => (float) $score['score'],
                 'feedback_text' => $feedbackMessage,
-                'agent_commentary_text' => $agentCue['message'] ?? null,
-                'agent_commentary_source' => $agentCue ? 'ciel_deterministic_policy' : null,
-                'agent_type' => $agentCue ? 'coach_feedback' : null,
+                'agent_commentary_text' => $cielAgent['message'] ?? $agentCue['message'] ?? null,
+                'agent_commentary_source' => $cielAgent['decision_source'] ?? ($agentCue ? 'ciel_deterministic_policy' : null),
+                'agent_type' => ($cielAgent || $agentCue) ? 'coach_feedback' : null,
                 'retry_count' => $attemptNumber,
                 'is_mastery_item' => $isMastery,
                 'error_type' => $score['error_type'],
@@ -203,6 +218,7 @@ class ModuleItemRetryService
             'response' => $response,
             'message' => $response->feedback_text,
             'agent_cue' => $agentCue,
+            'ciel_agent' => $cielAgent,
             'ciel_focus_event' => $focusEvent,
         ];
     }

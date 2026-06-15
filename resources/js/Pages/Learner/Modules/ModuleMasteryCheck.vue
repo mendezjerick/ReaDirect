@@ -251,13 +251,14 @@ const checkCurrent = async () => {
         retryStates[item.id] = result.retry_state ?? defaultRetryState();
         step.feedback.value = result.message ?? retryStates[item.id].feedback ?? '';
         const agentCue = result.agent_cue?.agent === 'ciel' ? result.agent_cue : null;
+        const cielAgent = result.ciel_agent?.agent === 'ciel' ? result.ciel_agent : null;
 
         if (retryStates[item.id].is_correct) {
-            agentMessage.value = agentCue?.message ?? 'That is correct. Go to the next one.';
-            agentState.value = agentCue?.action ?? (step.isLast.value ? 'section_complete' : 'correct');
+            agentMessage.value = cielAgent?.message ?? agentCue?.message ?? 'That is correct. Go to the next one.';
+            agentState.value = cielAgent?.animation ?? agentCue?.action ?? (step.isLast.value ? 'section_complete' : 'correct');
         } else if (retryStates[item.id].can_retry) {
-            agentMessage.value = agentCue?.message ?? 'Try this same item again.';
-            agentState.value = agentCue?.action ?? (
+            agentMessage.value = cielAgent?.message ?? agentCue?.message ?? 'Try this same item again.';
+            agentState.value = cielAgent?.animation ?? agentCue?.action ?? (
                 Number(retryStates[item.id].attempt_count ?? 1) <= 1
                     ? 'incorrect'
                     : 'retry'
@@ -267,11 +268,26 @@ const checkCurrent = async () => {
                 step.answers[item.id] = '';
             }
         } else {
-            agentMessage.value = agentCue?.message ?? 'Good try. Go to the next one.';
-            agentState.value = agentCue?.action ?? 'speaking';
+            agentMessage.value = cielAgent?.message ?? agentCue?.message ?? 'Good try. Go to the next one.';
+            agentState.value = cielAgent?.animation ?? agentCue?.action ?? 'speaking';
         }
 
-        if (result.ciel_focus_event?.enabled) {
+        if (cielAgent?.focus_mode?.enabled) {
+            cielFocusEvent.value = {
+                enabled: true,
+                mode: 'teaching',
+                target_type: props.module?.key === 'module_1' ? 'letter' : 'word',
+                target_text: cielAgent.display_target,
+                reason: cielAgent.teaching_focus ?? 'agent_focus_teach',
+                reward: null,
+                dialogue_steps: [
+                    {
+                        text: cielAgent.message,
+                        action: cielAgent.animation,
+                    },
+                ],
+            };
+        } else if (result.ciel_focus_event?.enabled) {
             cielFocusEvent.value = result.ciel_focus_event;
         }
 
@@ -323,7 +339,7 @@ const returnToDashboard = () => {
 </script>
 
 <template>
-    <LearnerLayout :progress="90">
+    <LearnerLayout :progress="90" backUrl="/learner/dashboard" backLabel="Back to Learner Dashboard">
         <CielFocusMode
             :visible="focusModeVisible"
             :mode="cielFocusEvent?.mode ?? 'teaching'"
@@ -338,7 +354,7 @@ const returnToDashboard = () => {
             <AgentSpeakerPanel compact agent-type="coach_feedback" :state="agentState" :message="agentMessage" :tts-enabled="!focusModeVisible" />
         </template>
 
-        <section class="mx-auto grid max-w-xl gap-3">
+        <section class="mx-auto grid max-w-xl gap-3 px-0.5">
             <div class="flex items-center justify-between">
                 <StatusBadge status="Mini Mastery Check" variant="primary" />
                 <StatusBadge :status="progressLabel" />
@@ -346,7 +362,7 @@ const returnToDashboard = () => {
             <ModuleProgressBar :value="step.progressPercent.value" />
             <PromptCard label="Check" :prompt="step.currentItem.value.prompt" :highlight-targets="currentHighlightTargets" :illustration="currentWordImage" size="word" />
             <div class="rounded-[24px] border border-border bg-surface p-4 shadow-lg shadow-primary/10">
-                <div class="grid gap-3 md:grid-cols-[220px_1fr] md:items-center">
+                <div class="grid gap-3 lg:grid-cols-[220px_1fr] lg:items-center">
                     <AudioRecorder
                         :key="step.currentItem.value.id"
                         :reset-key="`${step.currentItem.value.id}-${recorderResetKeys[step.currentItem.value.id] ?? 0}`"
@@ -394,8 +410,7 @@ const returnToDashboard = () => {
         </section>
 
         <BottomActionBar>
-            <div class="flex w-full items-center justify-between gap-3">
-                <SecondaryButton :disabled="returningToDashboard || form.processing || isCurrentUploading || isCurrentChecking || focusModeVisible" @click="returnToDashboard">Back to Learner Dashboard</SecondaryButton>
+            <div class="flex w-full items-center justify-end gap-3">
                 <PrimaryButton :disabled="primaryDisabled" :class="{ 'opacity-70': primaryDisabled }" @click="handlePrimary">
                     {{ primaryLabel }}
                 </PrimaryButton>

@@ -217,7 +217,7 @@ const handlePrimary = () => {
             <!-- Letter display card -->
             <section
                 :key="step.currentItem.value.id + '-card'"
-                class="anim-card relative overflow-hidden rounded-[36px] border-[3px] border-primary/10 bg-white px-6 py-8 text-center shadow-2xl shadow-primary/10 sm:px-10 sm:py-10"
+                class="anim-card relative overflow-hidden rounded-[36px] border-[3px] border-primary/10 bg-white px-4 py-6 text-center shadow-2xl shadow-primary/10 sm:px-8 sm:py-8"
             >
                 <!-- Decorative blobs -->
                 <span class="pointer-events-none absolute -left-10 -top-10 h-40 w-40 rounded-full bg-primary/5 blur-3xl" aria-hidden="true" />
@@ -229,14 +229,14 @@ const handlePrimary = () => {
                 <p class="relative text-[14px] font-black uppercase tracking-widest text-slate-400">
                     Letter {{ step.currentItem.value.sequence }}
                 </p>
-                <p class="anim-pop relative mt-5 bg-gradient-to-br from-slate-900 to-slate-700 bg-clip-text text-[clamp(5.5rem,10vw,8.5rem)] font-black leading-none text-transparent">
+                <p class="anim-pop relative mt-5 bg-gradient-to-br from-slate-900 to-slate-700 bg-clip-text text-[30vw] sm:text-[22vw] font-black leading-none text-transparent">
                     {{ step.currentItem.value.prompt }}
                 </p>
             </section>
 
             <!-- Recording & transcript panel -->
             <section class="anim-slide-up rounded-[32px] border border-slate-200/80 bg-white p-3 shadow-xl shadow-slate-200/30 sm:p-4 lg:p-5">
-                <div class="grid gap-4 lg:grid-cols-[300px_1fr] xl:grid-cols-[320px_1fr]">
+                <div class="grid gap-4 lg:grid-cols-[240px_1fr] lg:grid-cols-[300px_1fr] xl:grid-cols-[320px_1fr]">
                     <!-- Mic / recorder panel -->
                     <div class="rounded-[24px] border border-slate-200/60 bg-slate-50/50 p-4 shadow-sm">
                         <div class="mb-4 flex items-center justify-between gap-3">
@@ -363,3 +363,4 @@ const handlePrimary = () => {
     to { opacity: 1; transform: translateY(0); }
 }
 </style>
+

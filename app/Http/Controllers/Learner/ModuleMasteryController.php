@@ -103,6 +103,7 @@ class ModuleMasteryController extends Controller
             'retry_state' => $result['retry_state'],
             'message' => $result['message'],
             'agent_cue' => $result['agent_cue'] ?? null,
+            'ciel_agent' => $result['ciel_agent'] ?? null,
             'ciel_focus_event' => $result['ciel_focus_event'] ?? null,
         ]);
     }

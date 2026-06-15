@@ -25,7 +25,7 @@ const deltaLabel = (value) => {
 </script>
 
 <template>
-    <LearnerLayout :progress="100">
+    <LearnerLayout :progress="100" backUrl="/learner/dashboard" backLabel="Back to dashboard">
         <template #agent>
             <AgentSpeakerPanel
                 agent-type="evaluator"
@@ -38,7 +38,7 @@ const deltaLabel = (value) => {
 
         <section class="mx-auto grid max-w-4xl gap-5">
             <h1 class="text-center text-4xl font-black text-text">Final check complete.</h1>
-            <div class="grid gap-4 md:grid-cols-4">
+            <div class="grid gap-4 lg:grid-cols-4">
                 <ScoreCard label="Final CRLA" :value="attempt.crla_total_score ?? '-'" />
                 <ScoreCard label="CRLA Growth" :value="deltaLabel(comparison.deltas?.crla_total_score)" />
                 <ScoreCard label="Final Reading" :value="attempt.final_reading_score ?? '-'" />
@@ -48,7 +48,7 @@ const deltaLabel = (value) => {
             <DashboardCard>
                 <h2 class="text-xl font-black text-text">Your progress</h2>
                 <p class="mt-2 text-muted">{{ comparison.summary }}</p>
-                <div class="mt-4 grid gap-3 md:grid-cols-3">
+                <div class="mt-4 grid gap-3 lg:grid-cols-3">
                     <div class="rounded-2xl bg-background p-4">
                         <p class="text-sm font-black text-muted">Task 1 Change</p>
                         <p class="text-3xl font-black text-primary">{{ deltaLabel(comparison.deltas?.task_1_score) }}</p>
@@ -65,8 +65,6 @@ const deltaLabel = (value) => {
             </DashboardCard>
         </section>
 
-        <BottomActionBar>
-            <Link href="/learner/dashboard"><PrimaryButton>Back to dashboard</PrimaryButton></Link>
-        </BottomActionBar>
     </LearnerLayout>
 </template>
+

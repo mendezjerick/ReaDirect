@@ -63,6 +63,10 @@ const activeModelLabel = computed(() => {
     const version = String(props.status?.model_version ?? '').trim();
     const path = String(modelPath.value ?? '').trim();
 
+    if (String(props.status?.asr_model_name ?? '').toLowerCase() === 'epsilon' || path.includes('models/asr/epsilon')) {
+        return 'Epsilon';
+    }
+
     if (version === 'letters-v2' || path.includes('wav2vec2-readirect-asr-letters-v2')) {
         return 'Fine-tuned Wav2Vec2 letters-v2';
     }
@@ -122,12 +126,30 @@ const modelRows = computed(() => [
     ['Active ASR Architecture', architectureLabel.value],
     ['Active ASR Model', activeModelLabel.value],
     ['Model Path', reported(modelPath.value)],
+    ['Model Loaded', reported(props.status?.asr_model_loaded)],
+    ['Processor Loaded', reported(props.status?.processor_loaded)],
+    ['Device', reported(props.status?.device)],
+    ['Decode Mode', reported(props.status?.decode_mode)],
+    ['Beam Search', reported(props.status?.beam_search_enabled)],
+    ['Language Model', props.status?.language_model_loaded === true ? 'Loaded' : (props.status?.language_model_enabled ? 'Missing' : 'Disabled')],
+    ['Language Model Path', reported(props.status?.language_model_path)],
+    ['Decoder Backend', reported(props.status?.decoder_backend)],
+    ['Beam Width', reported(props.status?.beam_width)],
+    ['Alpha', reported(props.status?.alpha)],
+    ['Beta', reported(props.status?.beta)],
+    ['Hotwords', reported(props.status?.hotwords)],
+    ['Hotword Weight', reported(props.status?.hotword_weight)],
     ['Base Model', reported(props.status?.base_model)],
     ['Phoneme Support', phonemeSupportLabel.value],
     ['Phoneme Model Path', reported(props.status?.wav2vec2_phoneme_model_name)],
     ['Whisper Runtime', whisperRuntimeLabel.value],
     ['Supported Prompt Types', reported(props.status?.supported_prompt_types)],
 ]);
+
+const decoderWarning = computed(() => (
+    props.status?.decode_mode === 'beam_no_lm'
+    || (props.status?.language_model_enabled === true && props.status?.language_model_loaded !== true)
+));
 
 const correctionRows = computed(() => [
     ['Correction Layer', reported(props.status?.correction_layer_enabled)],
@@ -227,7 +249,11 @@ const reinforcementSummary = computed(() => {
                     <p class="text-sm font-extrabold">{{ status?.label ?? 'AI service status unavailable' }}</p>
                     <p class="mt-0.5 text-xs leading-relaxed opacity-90">{{ status?.message }}</p>
                     <p v-if="isConnected" class="mt-2 text-xs font-extrabold">
-                        Active ASR Architecture: Wav2Vec2-only ASR runtime
+                        Active ASR: {{ activeModelLabel }} · {{ reported(status?.decode_mode) }} ·
+                        LM {{ status?.language_model_loaded ? 'loaded' : 'not loaded' }}
+                    </p>
+                    <p v-if="decoderWarning" class="mt-2 rounded-md bg-amber-100 px-2 py-1 text-xs font-extrabold text-amber-900">
+                        Decoder warning: {{ reported(status?.warnings) }}
                     </p>
                     <a
                         v-if="guideHref"
@@ -387,3 +413,6 @@ const reinforcementSummary = computed(() => {
         </details>
     </section>
 </template>
+    if (String(props.status?.asr_model_name ?? '').toLowerCase() === 'epsilon' || path.includes('models/asr/epsilon')) {
+        return 'Epsilon';
+    }

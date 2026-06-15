@@ -663,7 +663,7 @@ watch(
             </div>
         </div>
     </section>
-    <section v-else class="agent-speaker-panel grid justify-items-center gap-2 rounded-[32px] border border-slate-200/80 bg-white shadow-xl shadow-slate-200/30 transition" :class="[compact ? 'p-4 lg:p-5' : 'p-5 lg:p-6 xl:p-8', isSpeaking ? 'ring-2 ring-primary/20' : '']">
+    <section v-else class="agent-speaker-panel grid justify-items-center gap-2 rounded-[32px] border border-slate-200/80 bg-white shadow-xl shadow-slate-200/30 transition" :class="[compact ? 'p-4 lg:p-5' : 'p-4 sm:p-5 lg:p-6 xl:p-8', isSpeaking ? 'ring-2 ring-primary/20' : '']">
         <AgentSpeakerTTS
             v-if="ttsEnabled && !voiceLoading"
             :key="ttsKey"
@@ -736,6 +736,7 @@ watch(
     position: relative;
     display: grid;
     place-items: end center;
+    max-width: min(100%, 21rem);
     width: 21rem;
     height: 21rem;
     overflow: visible;
@@ -754,8 +755,8 @@ watch(
 
 @media (max-width: 767px) {
     .agent-media-box {
-        width: 15.75rem;
-        height: 15.75rem;
+        width: 11rem;
+        height: 11rem;
     }
 }
 </style>
