@@ -9,7 +9,7 @@
  */
 
 const WORD_IMAGE_BASE = '/ia-assets/images/reading/words';
-const PASSAGE_IMAGE_BASE = '/ia-assets/images/reading/passages';
+const PASSAGE_IMAGE_BASE = '/ia-assets/images';
 
 /** Words that have a placeholder illustration. */
 const ILLUSTRATED_WORDS = new Set([
