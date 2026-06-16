@@ -31,7 +31,7 @@ const enterApp = async (event, href) => {
     preparingAgents.value = true;
     await Promise.allSettled([
         preloadAgentMedia(),
-        wait(2000),
+        wait(10000),
     ]);
     router.visit(href);
 };
@@ -50,13 +50,13 @@ const enterApp = async (event, href) => {
                     Login
                 </Link>
                 <template v-else>
-                    <Link
+                    <a
                         :href="dashboardLink.href"
                         class="rounded-xl border border-primary px-4 py-2 text-sm font-black text-primary hover:bg-primary-light"
                         @click="enterApp($event, dashboardLink.href)"
                     >
                         {{ dashboardLink.label }}
-                    </Link>
+                    </a>
                     <Link
                         href="/logout"
                         method="post"
@@ -77,15 +77,15 @@ const enterApp = async (event, href) => {
                     Friendly oral reading assessment and guided practice for young readers.
                 </p>
                 <div class="mt-8 flex flex-col gap-3 sm:flex-row">
-                    <Link href="/learner/access" class="inline-flex min-h-14 items-center justify-center rounded-2xl bg-primary px-6 text-lg font-black text-white shadow-lg shadow-primary/20 hover:bg-primary-dark" @click="enterApp($event, '/learner/access')">
+                    <a href="/learner/access" class="inline-flex min-h-14 items-center justify-center rounded-2xl bg-primary px-6 text-lg font-black text-white shadow-lg shadow-primary/20 hover:bg-primary-dark" @click="enterApp($event, '/learner/access')">
                         Start reading
-                    </Link>
+                    </a>
                     <Link v-if="!isLoggedIn" href="/login" class="inline-flex min-h-14 items-center justify-center rounded-2xl border-2 border-primary bg-surface px-6 text-lg font-black text-primary hover:bg-primary-light">
                         Login
                     </Link>
-                    <Link v-else :href="dashboardLink.href" class="inline-flex min-h-14 items-center justify-center rounded-2xl border-2 border-primary bg-surface px-6 text-lg font-black text-primary hover:bg-primary-light" @click="enterApp($event, dashboardLink.href)">
+                    <a v-else :href="dashboardLink.href" class="inline-flex min-h-14 items-center justify-center rounded-2xl border-2 border-primary bg-surface px-6 text-lg font-black text-primary hover:bg-primary-light" @click="enterApp($event, dashboardLink.href)">
                         {{ dashboardLink.label }}
-                    </Link>
+                    </a>
                 </div>
             </div>
             <div class="rounded-[36px] border border-border bg-surface p-6 shadow-2xl shadow-primary/10">
