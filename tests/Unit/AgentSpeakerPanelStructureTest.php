@@ -147,4 +147,23 @@ class AgentSpeakerPanelStructureTest extends TestCase
             $this->assertStringContainsString("window.location.href = '/learner/dashboard'", $component);
         }
     }
+
+    public function test_automatic_ciel_listening_is_scoped_to_supported_module_pages(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $dashboard = file_get_contents($root.'/resources/js/Pages/Learner/Dashboard.vue');
+        $activity = file_get_contents($root.'/resources/js/Pages/Learner/Modules/ModuleActivity.vue');
+        $mastery = file_get_contents($root.'/resources/js/Pages/Learner/Modules/ModuleMasteryCheck.vue');
+        $composable = file_get_contents($root.'/resources/js/Composables/useAutomaticCielListeningSession.js');
+
+        $this->assertStringContainsString('/learner/listening-mode', $dashboard);
+        $this->assertStringContainsString('Automatic Ciel Listening Mode', $dashboard);
+        $this->assertStringContainsString('AutomaticCielListeningPanel', $activity);
+        $this->assertStringContainsString('v-if="isAutomaticListeningMode"', $activity);
+        $this->assertStringContainsString('AutomaticCielListeningPanel', $mastery);
+        $this->assertStringContainsString('v-if="isAutomaticListeningMode"', $mastery);
+        $this->assertStringContainsString('getUserMedia', $composable);
+        $this->assertStringContainsString('MediaRecorder', $composable);
+        $this->assertStringContainsString('silenceDurationBeforeSubmitMs', $composable);
+    }
 }

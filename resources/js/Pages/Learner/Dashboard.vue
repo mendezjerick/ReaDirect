@@ -1,6 +1,6 @@
 <script setup>
-import { computed, ref } from 'vue';
-import { Link } from '@inertiajs/vue3';
+import { computed, ref, watch } from 'vue';
+import { Link, useForm } from '@inertiajs/vue3';
 import {
     Home,
     BookOpen,
@@ -24,6 +24,8 @@ import {
     Rocket,
     Smile,
     Sprout,
+    Mic,
+    Radio,
 } from 'lucide-vue-next';
 
 const props = defineProps({
@@ -32,6 +34,7 @@ const props = defineProps({
     latestAttempt:      { type: Object, default: null },
     latestFinalAttempt: { type: Object, default: null },
     flowState:          { type: Object, default: null },
+    listeningMode:      { type: Object, default: () => ({ current: 'manual', default: 'manual', allowed: ['manual'], automatic_mode_available: false }) },
     rewards:            { type: Object, default: () => ({ stars: 0 }) },
 });
 
@@ -65,6 +68,26 @@ const primaryActionLabel = computed(() => props.flowState?.primary_action_label 
 const primaryActionRoute = computed(() => props.flowState?.primary_action_route ?? '/learner/diagnostic/start');
 const primaryMessage = computed(() => props.flowState?.message ?? 'Begin with your diagnostic reading check.');
 const totalStars = computed(() => Number(props.rewards?.stars ?? 0));
+const currentListeningMode = computed(() => props.listeningMode?.current ?? 'manual');
+const listeningModeForm = useForm({
+    listening_mode: currentListeningMode.value,
+});
+const listeningModeOptions = computed(() => [
+    {
+        value: 'manual',
+        title: 'Manual Recording Mode',
+        badge: 'Stable default',
+        description: 'Record, listen, and submit when you are ready.',
+        icon: Mic,
+    },
+    {
+        value: 'automatic_ciel',
+        title: 'Automatic Ciel Listening Mode',
+        badge: 'Optional',
+        description: 'Ciel listens only during supported reading activities after you click Start.',
+        icon: Radio,
+    },
+]);
 
 const assignedKey = computed(() => props.learner?.current_module?.key ?? null);
 const assignedTitle = computed(() => {
@@ -169,6 +192,22 @@ const lockedModuleMessage = computed(() => {
     if (currentStage.value === 'completed') return 'Journey complete';
     return 'Complete your current module first';
 });
+
+watch(currentListeningMode, (mode) => {
+    listeningModeForm.listening_mode = mode;
+});
+
+const saveListeningMode = (mode) => {
+    if (listeningModeForm.processing || mode === currentListeningMode.value) return;
+
+    listeningModeForm.listening_mode = mode;
+    listeningModeForm.patch('/learner/listening-mode', {
+        preserveScroll: true,
+        onError: () => {
+            listeningModeForm.listening_mode = currentListeningMode.value;
+        },
+    });
+};
 </script>
 
 <template>
@@ -357,6 +396,60 @@ const lockedModuleMessage = computed(() => {
                 </section>
 
                 <!-- ──── DIAGNOSTIC RESULTS ──── -->
+                <section class="shrink-0 rounded-[32px] border border-slate-200/80 bg-white p-6 shadow-xl shadow-slate-200/30 xl:p-8">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <h2 class="flex items-center gap-2 text-base font-black text-slate-800 sm:text-lg xl:text-xl">
+                                <Mic :size="24" class="text-primary" />
+                                Recording Mode
+                            </h2>
+                            <p class="mt-1 max-w-3xl text-xs font-semibold leading-snug text-slate-500 sm:text-sm xl:text-base">
+                                Automatic Ciel Listening only uses the microphone inside supported reading activities after you click Start Reading with Ciel.
+                            </p>
+                        </div>
+                        <span class="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-600">
+                            Current: {{ currentListeningMode === 'automatic_ciel' ? 'Automatic Ciel' : 'Manual' }}
+                        </span>
+                    </div>
+
+                    <div class="mt-5 grid gap-3 sm:grid-cols-2 xl:gap-4">
+                        <button
+                            v-for="option in listeningModeOptions"
+                            :key="option.value"
+                            type="button"
+                            class="group min-h-[132px] rounded-[24px] border-2 p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-70 xl:p-5"
+                            :class="currentListeningMode === option.value ? 'border-primary bg-blue-50/70 shadow-md shadow-blue-100/50' : 'border-slate-200 bg-slate-50/40'"
+                            :aria-pressed="currentListeningMode === option.value"
+                            :disabled="listeningModeForm.processing"
+                            @click="saveListeningMode(option.value)"
+                        >
+                            <div class="flex items-start justify-between gap-3">
+                                <span
+                                    class="grid size-11 shrink-0 place-items-center rounded-[16px]"
+                                    :class="currentListeningMode === option.value ? 'bg-primary text-white' : 'bg-white text-slate-500 ring-1 ring-slate-200'"
+                                >
+                                    <component :is="option.icon" :size="22" />
+                                </span>
+                                <span
+                                    class="rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-wider"
+                                    :class="option.value === 'manual' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'"
+                                >
+                                    {{ option.badge }}
+                                </span>
+                            </div>
+                            <p class="mt-4 text-base font-black text-slate-800 xl:text-lg">{{ option.title }}</p>
+                            <p class="mt-1 text-sm font-semibold leading-snug text-slate-500">{{ option.description }}</p>
+                        </button>
+                    </div>
+
+                    <p v-if="listeningModeForm.recentlySuccessful" class="mt-4 rounded-[18px] bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-700 ring-1 ring-emerald-200">
+                        Recording mode saved.
+                    </p>
+                    <p v-if="listeningModeForm.errors.listening_mode" class="mt-4 rounded-[18px] bg-rose-50 px-4 py-3 text-sm font-black text-rose-700 ring-1 ring-rose-200">
+                        {{ listeningModeForm.errors.listening_mode }}
+                    </p>
+                </section>
+
                 <section class="shrink-0 rounded-[32px] border border-slate-200/80 bg-white p-6 shadow-xl shadow-slate-200/30 xl:p-8">
                     <div class="flex flex-wrap items-center justify-between gap-3">
                         <h2 class="flex items-center gap-2 text-base font-black text-slate-800 sm:text-lg xl:text-xl">

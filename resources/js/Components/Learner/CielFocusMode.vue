@@ -13,7 +13,7 @@ const props = defineProps({
     reward: { type: Object, default: null },
 });
 
-const emit = defineEmits(['closed']);
+const emit = defineEmits(['closed', 'speaking-start', 'speaking-end']);
 
 const currentIndex = ref(0);
 const audioPayload = ref(null);
@@ -176,11 +176,13 @@ watch(
 const handleSpeakingStart = () => {
     voiceError.value = '';
     clearStepTimer();
+    emit('speaking-start');
 };
 
 const handleSpeakingEnd = () => {
     if (focusComplete.value) return;
 
+    emit('speaking-end');
     scheduleNext(750);
 };
 
@@ -188,6 +190,7 @@ const handleVoiceError = () => {
     if (focusComplete.value) return;
 
     voiceError.value = 'Voice is unavailable. Read the message here.';
+    emit('speaking-end');
     scheduleNext();
 };
 

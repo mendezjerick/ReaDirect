@@ -107,4 +107,47 @@ class CielTutorAgentClientTest extends TestCase
         $this->assertSame('c-clap', $decision['animation']);
         $this->assertNotSame('c-congrats', $decision['animation']);
     }
+
+    public function test_it_forwards_optional_automatic_listening_context_to_ia(): void
+    {
+        config()->set('readirect.ciel.service_enabled', true);
+        config()->set('readirect.ciel.base_url', 'http://127.0.0.1:8003');
+
+        Http::fake([
+            'http://127.0.0.1:8003/ia/ciel/decide' => Http::response([
+                'ciel_agent' => [
+                    'agent' => 'ciel',
+                    'mode' => 'soft_retry',
+                    'animation' => 'c-confused',
+                    'emotion' => 'encouraging_retry',
+                    'message' => 'Try again.',
+                    'display_target' => 'CAT',
+                    'next_action' => 'retry',
+                    'focus_mode' => ['enabled' => false],
+                ],
+            ]),
+        ]);
+
+        app(CielTutorAgentClient::class)->decide([
+            'learner_id' => 1,
+            'session_id' => 'session-1',
+            'expected' => 'cat',
+            'transcript' => 'cap',
+            'is_correct' => false,
+            'attempt' => 1,
+            'listening_mode' => 'automatic_ciel',
+            'session_mode' => 'automatic_ciel',
+            'automatic_session_id' => 'auto-session-1',
+            'current_agent_state' => 'processing',
+            'silence_timeout' => false,
+            'chunk_id' => 'chunk-1',
+        ]);
+
+        Http::assertSent(fn ($request): bool => $request['listening_mode'] === 'automatic_ciel'
+            && $request['session_mode'] === 'automatic_ciel'
+            && $request['automatic_session_id'] === 'auto-session-1'
+            && $request['current_agent_state'] === 'processing'
+            && $request['silence_timeout'] === false
+            && $request['chunk_id'] === 'chunk-1');
+    }
 }

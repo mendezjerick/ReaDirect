@@ -1,9 +1,10 @@
 <script setup>
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import LearnerLayout from '../../../Layouts/LearnerLayout.vue';
 import AgentSpeakerPanel from '../../../Components/Learner/AgentSpeakerPanel.vue';
 import AudioRecorder from '../../../Components/Learner/AudioRecorder.vue';
+import AutomaticCielListeningPanel from '../../../Components/Learner/AutomaticCielListeningPanel.vue';
 import CielFocusMode from '../../../Components/Learner/CielFocusMode.vue';
 import PrimaryButton from '../../../Components/PrimaryButton.vue';
 import SecondaryButton from '../../../Components/SecondaryButton.vue';
@@ -13,10 +14,11 @@ import PromptCard from '../../../Components/PromptCard.vue';
 import StatusBadge from '../../../Components/StatusBadge.vue';
 import { useStepAssessment } from '../../../Composables/useStepAssessment';
 import { appendAudioMetadata, normalizeAsrResponse } from '../../../utils/asrResponse';
+import { AUTOMATIC_CIEL_LISTENING_MODE, AUTOMATIC_CIEL_LISTENING_STATES } from '../../../Composables/useAutomaticCielListeningSession';
 import { highlightTargetsForModuleItem } from '../../../utils/modulePromptHighlight';
 import { getWordImage } from '../../../utils/readingIllustrations';
 
-const props = defineProps({ module: Object, moduleAttemptId: Number, items: Array, assessmentMode: Object });
+const props = defineProps({ module: Object, moduleAttemptId: Number, items: Array, assessmentMode: Object, listeningMode: Object });
 const form = useForm({});
 const audioFiles = reactive({});
 const audioDurations = reactive({});
@@ -28,10 +30,18 @@ const uploading = reactive({});
 const checking = reactive({});
 const retryStates = reactive({});
 const recorderResetKeys = reactive({});
+const automaticListeningPanel = ref(null);
+const manualRecorderOverride = ref(false);
+const agentSpeaking = ref(false);
 const canUseManualFallback = computed(() => props.assessmentMode?.canUseManualFallback === true);
 const isDeveloperQaMode = computed(() => props.assessmentMode?.isDeveloperQaMode === true);
 const autoTranscribeOnStop = computed(() => props.assessmentMode?.canAutoTranscribeOnStop === true);
 const requireReviewBeforeSubmit = computed(() => props.assessmentMode?.requireReviewBeforeSubmit !== false);
+const isAutomaticListeningMode = computed(() => (
+    props.listeningMode?.current === AUTOMATIC_CIEL_LISTENING_MODE
+    && props.listeningMode?.automatic_mode_available === true
+    && manualRecorderOverride.value !== true
+));
 const recorderPromptType = computed(() => {
     if (props.module?.key === 'module_1') return 'letter';
     if (props.module?.key === 'module_3') return 'sentence';
@@ -79,6 +89,15 @@ const currentAttemptSlots = computed(() => Array.from({ length: currentRetryStat
     };
 }));
 const isCurrentResolved = computed(() => currentRetryState.value.is_resolved === true);
+const automaticListeningDisabled = computed(() => (
+    form.processing
+    || isCurrentUploading.value
+    || isCurrentChecking.value
+    || focusModeVisible.value
+    || agentSpeaking.value
+    || isCurrentResolved.value
+    || returningToDashboard.value
+));
 const primaryLabel = computed(() => {
     if (!isCurrentResolved.value) return 'Check';
 
@@ -100,6 +119,8 @@ watch(
         Object.keys(checking).forEach((key) => delete checking[key]);
         Object.keys(recorderResetKeys).forEach((key) => delete recorderResetKeys[key]);
         seedRetryStates(props.items);
+        manualRecorderOverride.value = false;
+        automaticListeningPanel.value?.stopSession?.();
         agentMessage.value = 'This is your mini mastery check. Do your best one item at a time.';
         agentState.value = 'speaking';
         cielFocusEvent.value = null;
@@ -107,8 +128,42 @@ watch(
     }
 );
 
+watch(
+    () => props.listeningMode?.current,
+    () => {
+        manualRecorderOverride.value = false;
+    },
+);
+
+watch(
+    () => step.currentItem.value?.id,
+    () => {
+        if (isAutomaticListeningMode.value && automaticListeningPanel.value?.isActive?.value && !isCurrentResolved.value) {
+            window.setTimeout(() => automaticListeningPanel.value?.resumeAfterCiel?.(), 250);
+        }
+    },
+);
+
+watch(focusModeVisible, (visible) => {
+    if (!isAutomaticListeningMode.value) return;
+
+    if (visible) {
+        automaticListeningPanel.value?.pauseForTeaching?.();
+        return;
+    }
+
+    window.setTimeout(() => {
+        if (!isCurrentResolved.value) {
+            automaticListeningPanel.value?.resumeAfterCiel?.();
+        }
+    }, 300);
+});
+
 const closeCielFocusMode = () => {
     cielFocusEvent.value = null;
+    if (isAutomaticListeningMode.value && !isCurrentResolved.value) {
+        window.setTimeout(() => automaticListeningPanel.value?.resumeAfterCiel?.(), 300);
+    }
 };
 
 const rememberAudio = (item, file) => {
@@ -200,7 +255,7 @@ const uploadAudio = async (item, file) => {
     }
 };
 
-const checkCurrent = async () => {
+const checkCurrent = async (automaticContext = null) => {
     const item = step.currentItem.value;
 
     if (!item || isCurrentResolved.value || isCurrentChecking.value || focusModeVisible.value) return false;
@@ -239,6 +294,14 @@ const checkCurrent = async () => {
                 transcript_source: sourceFor(item),
                 audio_file_id: uploadedAudioIds[item.id] ?? null,
                 duration_seconds: audioDurations[item.id] ?? null,
+                ...(automaticContext ? {
+                    listening_mode: AUTOMATIC_CIEL_LISTENING_MODE,
+                    automatic_session_id: automaticContext.automatic_session_id,
+                    chunk_id: automaticContext.chunk_id,
+                    session_mode: automaticContext.session_mode ?? AUTOMATIC_CIEL_LISTENING_MODE,
+                    current_agent_state: automaticContext.current_agent_state ?? null,
+                    silence_timeout: automaticContext.silence_timeout ?? false,
+                } : {}),
             }),
         });
         const result = await response.json();
@@ -302,6 +365,73 @@ const checkCurrent = async () => {
     }
 };
 
+const submitAutomaticChunk = async (context) => {
+    const item = step.currentItem.value;
+
+    if (!item || isCurrentResolved.value || focusModeVisible.value) {
+        return { retry: true, message: 'Wait for Ciel, then read this item again.' };
+    }
+
+    const file = context.file;
+    audioFiles[item.id] = file;
+    audioDurations[item.id] = context.duration_seconds ?? file.durationSeconds ?? null;
+    uploadErrors[item.id] = '';
+    delete uploadedAudioIds[item.id];
+    delete transcriptSources[item.id];
+    delete generatedTranscripts[item.id];
+
+    const uploaded = await uploadAudio(item, file);
+    if (!uploaded) {
+        return {
+            retry: true,
+            message: uploadErrors[item.id] || 'Try reading that again in a clear voice.',
+        };
+    }
+
+    await checkCurrent(context);
+
+    return {
+        pause: true,
+        state: focusModeVisible.value
+            ? AUTOMATIC_CIEL_LISTENING_STATES.TEACHING_MODE
+            : AUTOMATIC_CIEL_LISTENING_STATES.CIEL_SPEAKING,
+    };
+};
+
+const handleAutomaticError = (message) => {
+    const item = step.currentItem.value;
+    if (item) {
+        uploadErrors[item.id] = message;
+    }
+    agentMessage.value = message || 'Ciel stopped listening safely. You can use Manual Recording Mode.';
+    agentState.value = 'error';
+};
+
+const fallbackToManualRecorder = () => {
+    automaticListeningPanel.value?.stopSession?.();
+    manualRecorderOverride.value = true;
+    agentMessage.value = 'Manual Recording Mode is ready.';
+    agentState.value = 'speaking';
+};
+
+const resumeAutomaticListeningIfReady = () => {
+    if (!isAutomaticListeningMode.value || focusModeVisible.value || agentSpeaking.value || isCurrentResolved.value || isCurrentChecking.value || isCurrentUploading.value) {
+        return;
+    }
+
+    automaticListeningPanel.value?.resumeAfterCiel?.();
+};
+
+const handleAgentSpeakingStart = () => {
+    agentSpeaking.value = true;
+    automaticListeningPanel.value?.pauseForCiel?.();
+};
+
+const handleAgentSpeakingEnd = () => {
+    agentSpeaking.value = false;
+    window.setTimeout(resumeAutomaticListeningIfReady, 300);
+};
+
 const submit = () => {
     form.post(`/learner/modules/${props.module.key}/mastery-check`, { forceFormData: true });
 };
@@ -315,6 +445,7 @@ const handlePrimary = async () => {
     }
 
     if (step.isLast.value) {
+        automaticListeningPanel.value?.stopSession?.();
         submit();
         return;
     }
@@ -322,11 +453,13 @@ const handlePrimary = async () => {
     step.goNext();
     agentMessage.value = 'This is your mini mastery check. Do your best one item at a time.';
     agentState.value = 'speaking';
+    window.setTimeout(resumeAutomaticListeningIfReady, 300);
 };
 
 const returnToDashboard = () => {
     if (returningToDashboard.value || focusModeVisible.value) return;
     returningToDashboard.value = true;
+    automaticListeningPanel.value?.stopSession?.();
     if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('readirect:stop-agent-speech'));
     }
@@ -336,6 +469,10 @@ const returnToDashboard = () => {
         window.location.href = '/learner/dashboard';
     }, 1200);
 };
+
+onBeforeUnmount(() => {
+    automaticListeningPanel.value?.stopSession?.();
+});
 </script>
 
 <template>
@@ -347,11 +484,21 @@ const returnToDashboard = () => {
             :target-text="cielFocusEvent?.target_text"
             :dialogue-steps="cielFocusEvent?.dialogue_steps ?? []"
             :reward="cielFocusEvent?.reward"
+            @speaking-start="handleAgentSpeakingStart"
+            @speaking-end="handleAgentSpeakingEnd"
             @closed="closeCielFocusMode"
         />
 
         <template #agent>
-            <AgentSpeakerPanel compact agent-type="coach_feedback" :state="agentState" :message="agentMessage" :tts-enabled="!focusModeVisible" />
+            <AgentSpeakerPanel
+                compact
+                agent-type="coach_feedback"
+                :state="agentState"
+                :message="agentMessage"
+                :tts-enabled="!focusModeVisible"
+                @speaking-start="handleAgentSpeakingStart"
+                @speaking-end="handleAgentSpeakingEnd"
+            />
         </template>
 
         <section class="mx-auto grid max-w-xl gap-3 px-0.5">
@@ -363,7 +510,17 @@ const returnToDashboard = () => {
             <PromptCard label="Check" :prompt="step.currentItem.value.prompt" :highlight-targets="currentHighlightTargets" :illustration="currentWordImage" size="word" />
             <div class="rounded-[24px] border border-border bg-surface p-4 shadow-lg shadow-primary/10">
                 <div class="grid gap-3 lg:grid-cols-[220px_1fr] lg:items-center">
+                    <AutomaticCielListeningPanel
+                        v-if="isAutomaticListeningMode"
+                        ref="automaticListeningPanel"
+                        :active-item="step.currentItem.value"
+                        :disabled="automaticListeningDisabled"
+                        :submit-chunk="submitAutomaticChunk"
+                        @error="handleAutomaticError"
+                        @fallback-manual="fallbackToManualRecorder"
+                    />
                     <AudioRecorder
+                        v-else
                         :key="step.currentItem.value.id"
                         :reset-key="`${step.currentItem.value.id}-${recorderResetKeys[step.currentItem.value.id] ?? 0}`"
                         compact

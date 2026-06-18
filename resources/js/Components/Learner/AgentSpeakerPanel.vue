@@ -21,7 +21,7 @@ const props = defineProps({
     allowCongrats: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(['interaction-ended']);
+const emit = defineEmits(['interaction-ended', 'speaking-start', 'speaking-end']);
 
 const agents = {
     assessment: {
@@ -186,10 +186,12 @@ const loadNaturalVoice = async () => {
 const handleSpeakingStart = () => {
     ttsError.value = '';
     isSpeaking.value = true;
+    emit('speaking-start');
 };
 
 const handleSpeakingEnd = () => {
     isSpeaking.value = false;
+    emit('speaking-end');
 };
 
 const handleTtsError = (message) => {
@@ -201,11 +203,13 @@ const handleTtsError = (message) => {
     if (message.toLowerCase().includes('autoplay')) {
         ttsError.value = '';
         isSpeaking.value = false;
+        emit('speaking-end');
         return;
     }
 
     ttsError.value = 'Voice is unavailable, but you can read the message here.';
     isSpeaking.value = false;
+    emit('speaking-end');
 };
 
 const loadIntroState = () => {

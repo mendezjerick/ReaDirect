@@ -8,8 +8,10 @@ use App\Models\Module;
 use App\Models\ModuleAttempt;
 use App\Models\ModuleAttemptItem;
 use App\Services\AssessmentModeService;
+use App\Services\AutomaticListeningChunkGuard;
 use App\Services\AudioStorageService;
 use App\Services\LearnerFlowService;
+use App\Services\LearnerListeningModeService;
 use App\Services\ModuleActivitySelectionService;
 use App\Services\ModuleExperienceService;
 use App\Services\ModuleItemRetryService;
@@ -22,13 +24,22 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ModuleMasteryController extends Controller
 {
-    public function show(Request $request, Module $module, ModuleActivitySelectionService $selection, LearnerFlowService $flow, AssessmentModeService $mode, ModuleItemRetryService $retry): Response|RedirectResponse
+    public function show(
+        Request $request,
+        Module $module,
+        ModuleActivitySelectionService $selection,
+        LearnerFlowService $flow,
+        AssessmentModeService $mode,
+        ModuleItemRetryService $retry,
+        LearnerListeningModeService $listeningMode,
+    ): Response|RedirectResponse
     {
         $learner = $this->learner($request);
         if ($redirect = $this->guardModuleAccess($learner, $module, $flow)) {
@@ -54,6 +65,7 @@ class ModuleMasteryController extends Controller
             'moduleAttemptId' => $attempt->id,
             'items' => $this->itemsForForm($items, $retry),
             'assessmentMode' => $mode->props($request, $attempt, $learner),
+            'listeningMode' => $listeningMode->props($learner),
         ]);
     }
 
@@ -64,6 +76,8 @@ class ModuleMasteryController extends Controller
         AssessmentModeService $mode,
         LearnerFlowService $flow,
         ModuleItemRetryService $retry,
+        LearnerListeningModeService $listeningMode,
+        AutomaticListeningChunkGuard $chunkGuard,
     ): JsonResponse {
         $learner = $this->learner($request);
         if ($redirect = $this->guardModuleAccess($learner, $module, $flow)) {
@@ -81,6 +95,20 @@ class ModuleMasteryController extends Controller
         }
 
         $validated = $request->validate($this->singleResponseRules(), $this->friendlyValidationMessages());
+
+        if (($validated['listening_mode'] ?? null) === LearnerListeningModeService::AUTOMATIC_CIEL) {
+            if ($listeningMode->forLearner($learner) !== LearnerListeningModeService::AUTOMATIC_CIEL) {
+                abort(403, 'Automatic Ciel Listening Mode is not enabled for this learner.');
+            }
+
+            if (! $chunkGuard->claim($learner->id, $validated['automatic_session_id'], $validated['chunk_id'])) {
+                return response()->json([
+                    'message' => 'We already checked that recording. Keep reading with Ciel.',
+                    'duplicate_chunk' => true,
+                ], 409);
+            }
+        }
+
         $item = $selection->getLockedItemsForAttempt($attempt)
             ->where('is_mastery_item', true)
             ->firstWhere('id', (int) $validated['module_attempt_item_id']);
@@ -284,6 +312,19 @@ class ModuleMasteryController extends Controller
             'audio_file_id' => ['nullable', 'integer', 'exists:audio_files,id'],
             'audio' => AudioStorageService::validationRules(),
             'duration_seconds' => AudioStorageService::durationValidationRules(),
+            ...$this->automaticListeningRules(),
+        ];
+    }
+
+    private function automaticListeningRules(): array
+    {
+        return [
+            'listening_mode' => ['nullable', 'string', Rule::in(LearnerListeningModeService::ALLOWED)],
+            'automatic_session_id' => ['nullable', 'string', 'max:120', 'required_if:listening_mode,'.LearnerListeningModeService::AUTOMATIC_CIEL],
+            'chunk_id' => ['nullable', 'string', 'max:160', 'required_if:listening_mode,'.LearnerListeningModeService::AUTOMATIC_CIEL],
+            'session_mode' => ['nullable', 'string', 'max:80'],
+            'current_agent_state' => ['nullable', 'string', 'max:80'],
+            'silence_timeout' => ['nullable', 'boolean'],
         ];
     }
 

@@ -72,6 +72,7 @@ class ModuleItemRetryService
                     'module_attempt_item_id' => $item->id,
                     'activity_type' => $activityType,
                     'attempt_number' => count($history) + 1,
+                    'automatic_listening' => $this->automaticListeningMetadata($submitted),
                 ],
             );
         }
@@ -146,6 +147,12 @@ class ModuleItemRetryService
             'uncertain' => $aiResponse['uncertain'] ?? null,
             'retry_required' => $aiResponse['retry_required'] ?? null,
             'audio_duration_seconds' => isset($submitted['duration_seconds']) ? (float) $submitted['duration_seconds'] : null,
+            'listening_mode' => $submitted['listening_mode'] ?? null,
+            'session_mode' => $submitted['session_mode'] ?? null,
+            'automatic_session_id' => $submitted['automatic_session_id'] ?? null,
+            'current_agent_state' => $submitted['current_agent_state'] ?? null,
+            'silence_timeout' => $submitted['silence_timeout'] ?? null,
+            'chunk_id' => $submitted['chunk_id'] ?? null,
             'correct_streak' => $correctStreak,
             'incorrect_streak' => $incorrectStreak,
             'weak_skill' => $aiResponse['recommended_practice_focus'] ?? null,
@@ -166,6 +173,7 @@ class ModuleItemRetryService
             'attempt_history' => $history,
             'max_attempts' => self::MAX_ATTEMPTS,
             'ciel_agent' => $cielAgent,
+            'automatic_listening' => $this->automaticListeningMetadata($submitted),
             'asr_scoring_debug' => $this->asrScoringDebug($attempt, $item, $module, $activityType, $isMastery, $score['expected_answer'], $answer, $displayedAnswer, $score['score'], $audioFile, $resolved),
         ]);
 
@@ -306,6 +314,22 @@ class ModuleItemRetryService
                 ->where('module_attempt_id', $attempt->id)
                 ->find($submitted['audio_file_id'])
             : null;
+    }
+
+    private function automaticListeningMetadata(array $submitted): ?array
+    {
+        if (($submitted['listening_mode'] ?? null) !== LearnerListeningModeService::AUTOMATIC_CIEL) {
+            return null;
+        }
+
+        return [
+            'listening_mode' => $submitted['listening_mode'],
+            'session_mode' => $submitted['session_mode'] ?? null,
+            'automatic_session_id' => $submitted['automatic_session_id'] ?? null,
+            'current_agent_state' => $submitted['current_agent_state'] ?? null,
+            'silence_timeout' => $submitted['silence_timeout'] ?? null,
+            'chunk_id' => $submitted['chunk_id'] ?? null,
+        ];
     }
 
     private function expectedAnswer(ModuleAttemptItem $item): ?string

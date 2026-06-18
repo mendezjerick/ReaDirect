@@ -24,6 +24,7 @@ use App\Http\Controllers\Learner\DiagnosticAssessmentController;
 use App\Http\Controllers\Learner\LearnerAccessController;
 use App\Http\Controllers\Learner\LearnerCompletionController;
 use App\Http\Controllers\Learner\LearnerDashboardController;
+use App\Http\Controllers\Learner\LearnerListeningModeController;
 use App\Http\Controllers\Learner\LearnerPageController;
 use App\Http\Controllers\Learner\ModuleActivityController;
 use App\Http\Controllers\Learner\ModuleController;
@@ -59,6 +60,9 @@ Route::post('/agent-voice/synthesize', [AgentVoiceController::class, 'synthesize
 Route::get('/learner/access', [LearnerAccessController::class, 'create'])->name('learner.access');
 Route::post('/learner/access', [LearnerAccessController::class, 'store'])->middleware('throttle:learner-access')->name('learner.access.store');
 Route::get('/learner/dashboard', LearnerDashboardController::class)->name('learner.dashboard');
+Route::patch('/learner/listening-mode', [LearnerListeningModeController::class, 'update'])
+    ->middleware('throttle:assessment-submit')
+    ->name('learner.listening-mode.update');
 Route::get('/learner/progress', [LearnerPageController::class, 'progress'])->name('learner.progress');
 Route::get('/learner/rewards', [LearnerPageController::class, 'rewards'])->name('learner.rewards');
 Route::get('/learner/help', [LearnerPageController::class, 'help'])->name('learner.help');
@@ -209,4 +213,3 @@ Route::get('/ia-graphics/{filename}', function ($filename) {
     }
     return response()->file($path);
 })->where('filename', '.*');
-

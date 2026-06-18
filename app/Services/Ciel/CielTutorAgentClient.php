@@ -53,7 +53,7 @@ class CielTutorAgentClient
     {
         $ai = is_array($event['ai_response'] ?? null) ? $event['ai_response'] : [];
 
-        return [
+        $payload = [
             'learner_id' => $event['learner_id'] ?? 0,
             'session_id' => (string) ($event['session_id'] ?? 'module-session'),
             'module_type' => (string) ($event['module_type'] ?? $event['context'] ?? 'module_practice'),
@@ -73,6 +73,21 @@ class CielTutorAgentClient
             'retry_required' => (bool) ($event['retry_required'] ?? $ai['retry_required'] ?? false),
             'uncertain' => (bool) ($event['uncertain'] ?? $ai['uncertain'] ?? false),
         ];
+
+        foreach ([
+            'listening_mode',
+            'session_mode',
+            'automatic_session_id',
+            'current_agent_state',
+            'silence_timeout',
+            'chunk_id',
+        ] as $key) {
+            if (array_key_exists($key, $event) && $event[$key] !== null && $event[$key] !== '') {
+                $payload[$key] = $key === 'silence_timeout' ? (bool) $event[$key] : $event[$key];
+            }
+        }
+
+        return $payload;
     }
 
     private function validDecision(array $decision): bool

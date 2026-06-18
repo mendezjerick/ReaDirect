@@ -6,6 +6,7 @@ use App\Models\Concerns\HasPublicId;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Learner extends Model
 {
@@ -65,6 +66,11 @@ class Learner extends Model
     public function rewards(): HasMany
     {
         return $this->hasMany(LearnerReward::class);
+    }
+
+    public function preference(): HasOne
+    {
+        return $this->hasOne(LearnerPreference::class);
     }
 
     public function getRouteKeyName(): string
