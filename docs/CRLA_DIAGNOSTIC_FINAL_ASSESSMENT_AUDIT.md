@@ -79,7 +79,7 @@ Passage reading and comprehension:
 
 - Passage route uses one `reading_passage` selected item.
 - Passage reading stores `incorrect_words` and `reading_accuracy`.
-- Comprehension stores five `comprehension_question` responses and computes final reading score.
+- Comprehension stores four multiple-choice `comprehension_question` responses and computes final reading score.
 - Passage reading still uses audio/STT when not in developer/manual fallback mode.
 
 ## Existing Scoring Services

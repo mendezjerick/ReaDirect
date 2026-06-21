@@ -14,15 +14,34 @@ class TaskTwoAContentBankTest extends TestCase
         $this->assertCount(10, $rows);
         $this->assertSame(6, count(array_filter($rows, fn (array $row): bool => strtolower($row['is_rhyme']) === 'true')));
         $this->assertSame(4, count(array_filter($rows, fn (array $row): bool => strtolower($row['is_rhyme']) === 'false')));
+        $this->assertSame([
+            ['cat', 'hat', 'yes'],
+            ['sun', 'run', 'yes'],
+            ['dog', 'log', 'yes'],
+            ['cup', 'pup', 'yes'],
+            ['bed', 'red', 'yes'],
+            ['hop', 'top', 'yes'],
+            ['map', 'sit', 'no'],
+            ['pen', 'bug', 'no'],
+            ['bat', 'lip', 'no'],
+            ['hen', 'tap', 'no'],
+        ], array_map(fn (array $row): array => [$row['word_1'], $row['word_2'], $row['correct_answer']], $rows));
+
+        $words = [];
 
         foreach ($rows as $row) {
             $this->assertSame('rhyme_decision', $row['item_type']);
             $this->assertSame('task_2a', $row['assessment_part']);
             $this->assertContains($row['correct_answer'], ['yes', 'no']);
+            $this->assertSame(strtolower($row['is_rhyme']) === 'true' ? 'yes' : 'no', $row['correct_answer']);
             $this->assertNotSame('', trim($row['word_1']));
             $this->assertNotSame('', trim($row['word_2']));
             $this->assertNotSame('', trim($row['audio_script']));
+            $words[] = $row['word_1'];
+            $words[] = $row['word_2'];
         }
+
+        $this->assertCount(20, array_unique($words));
     }
 
     private function readCsv(string $path): array

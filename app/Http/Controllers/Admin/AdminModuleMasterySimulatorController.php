@@ -25,7 +25,7 @@ class AdminModuleMasterySimulatorController extends Controller
                 'task_2_score' => 10,
                 'task_3_score' => 10,
                 'incorrect_words' => 0,
-                'comprehension_correct_count' => 5,
+                'comprehension_correct_count' => 4,
             ],
             'routes' => [
                 'simulate' => route('admin.testing.module-mastery-simulator.store'),
@@ -81,7 +81,7 @@ class AdminModuleMasterySimulatorController extends Controller
             'task_2_score' => ['required', 'integer', 'min:0', 'max:10'],
             'task_3_score' => ['required', 'integer', 'min:0', 'max:10'],
             'incorrect_words' => ['required', 'integer', 'min:0', 'max:50'],
-            'comprehension_correct_count' => ['required', 'integer', 'min:0', 'max:5'],
+            'comprehension_correct_count' => ['required', 'integer', 'min:0', 'max:4'],
         ];
     }
 }

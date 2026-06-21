@@ -175,6 +175,38 @@ class AssessmentItemSelectionServiceTest extends TestCase
         $this->assertSame($passage->id, $locked->first()->id);
     }
 
+    public function test_it_lists_active_stories_and_locks_selected_reading_passage(): void
+    {
+        $attempt = $this->assessmentAttempt();
+
+        foreach ([1 => true, 2 => true, 3 => false] as $sequence => $active) {
+            LearningContent::create([
+                'content_type' => 'reading_passage',
+                'title' => 'Story '.$sequence,
+                'prompt' => 'A short sample passage for testing only.',
+                'payload' => [
+                    'source_csv_id' => sprintf('PASS-%03d', $sequence),
+                    'story_number' => $sequence,
+                    'word_count' => 50,
+                ],
+                'difficulty' => 'easy',
+                'is_active' => $active,
+            ]);
+        }
+
+        $service = app(AssessmentItemSelectionService::class);
+
+        $this->assertSame(['PASS-001', 'PASS-002'], $service->availableReadingPassages()->map(
+            fn (LearningContent $content): string => $content->payload['source_csv_id']
+        )->all());
+
+        $selected = $service->selectReadingPassageBySourceCsvIdForAttempt($attempt, 'PASS-002');
+        $selectedAgain = $service->selectedReadingPassageForAttempt($attempt);
+
+        $this->assertSame('PASS-002', $selected->source_csv_id);
+        $this->assertSame($selected->id, $selectedAgain?->id);
+    }
+
     private function assessmentAttempt(): AssessmentAttempt
     {
         $school = School::create(['name' => 'Selection Test School']);

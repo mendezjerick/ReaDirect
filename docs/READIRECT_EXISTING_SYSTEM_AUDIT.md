@@ -103,8 +103,8 @@ Current sequence:
 3. Task 2A rhyming words: 10 selected rhyme prompts are scored when required.
 4. Task 2B word in sentence: 10 selected sentence/target-word prompts are analyzed with sentence reading metrics and summarized into `task_2b_score`.
 5. CRLA summary: total CRLA score and classification are shown before the reading passage.
-6. Passage reading: one reading passage is selected. Audio is uploaded, ASR can be used, incorrect word count is computed from transcript/word alignment or fallback text comparison, and `reading_accuracy` is stored.
-7. Comprehension: five responses are exact-matched against accepted answers. Comprehension percent and final reading score are computed and stored.
+6. Story selection and passage reading: eligible learners choose one active story. Audio is uploaded, ASR can be used, incorrect word count is computed from transcript/word alignment or fallback text comparison, and `reading_accuracy` is stored.
+7. Comprehension: four multiple-choice responses are scored against the selected story. Comprehension percent and final reading score are computed and stored.
 8. Module placement: `DiagnosticPlacementService` assigns module placement or grade-ready state and completes the diagnostic attempt.
 
 `LearnerFlowService` enforces resume routes based on missing scores: Task 1, Task 2A if needed, Task 2B, passage, comprehension, then module placement.

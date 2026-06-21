@@ -6,8 +6,8 @@ use App\Http\Controllers\Admin\AdminAssessmentContentController;
 use App\Http\Controllers\Admin\AdminAuditLogController;
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AdminLearnerController;
-use App\Http\Controllers\Admin\AdminModuleMasterySimulatorController;
 use App\Http\Controllers\Admin\AdminModuleContentController;
+use App\Http\Controllers\Admin\AdminModuleMasterySimulatorController;
 use App\Http\Controllers\Admin\AdminPromptTemplateController;
 use App\Http\Controllers\Admin\AdminRuleController;
 use App\Http\Controllers\Admin\AdminSchoolController;
@@ -88,6 +88,8 @@ Route::prefix('learner/diagnostic')->name('learner.diagnostic.')->group(function
     Route::post('/task-2b', [DiagnosticAssessmentController::class, 'storeTaskTwoB'])->middleware('throttle:assessment-submit')->name('task-2b.store');
     Route::get('/crla-summary', [DiagnosticAssessmentController::class, 'crlaSummary'])->name('crla-summary');
     Route::get('/reading-intro', [DiagnosticAssessmentController::class, 'readingIntro'])->name('reading-intro');
+    Route::get('/story-selection', [DiagnosticAssessmentController::class, 'storySelection'])->name('story-selection');
+    Route::post('/story-selection', [DiagnosticAssessmentController::class, 'storeStorySelection'])->middleware('throttle:assessment-submit')->name('story-selection.store');
     Route::get('/passage', [DiagnosticAssessmentController::class, 'passage'])->name('passage');
     Route::post('/passage', [DiagnosticAssessmentController::class, 'storePassage'])->middleware('throttle:assessment-submit')->name('passage.store');
     Route::get('/comprehension', [DiagnosticAssessmentController::class, 'comprehension'])->name('comprehension');
@@ -207,9 +209,10 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function (): v
 });
 
 Route::get('/ia-graphics/{filename}', function ($filename) {
-    $path = 'C:\\Users\\balli\\Desktop\\Holder-ReaDirect\\ReaDirect-IA\\assets\\graphics\\' . $filename;
-    if (!file_exists($path)) {
+    $path = 'C:\\Users\\balli\\Desktop\\Holder-ReaDirect\\ReaDirect-IA\\assets\\graphics\\'.$filename;
+    if (! file_exists($path)) {
         abort(404);
     }
+
     return response()->file($path);
 })->where('filename', '.*');

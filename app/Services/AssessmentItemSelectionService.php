@@ -81,6 +81,56 @@ class AssessmentItemSelectionService
         return $this->selectAndLock($assessmentAttempt, self::READING_PASSAGE, ['reading_passage'], 1)->first();
     }
 
+    public function availableReadingPassages(): Collection
+    {
+        return LearningContent::query()
+            ->where('content_type', 'reading_passage')
+            ->where('is_active', true)
+            ->get()
+            ->sortBy(fn (LearningContent $content): array => [
+                (int) ($content->payload['story_number'] ?? 999),
+                $this->sourceCsvId($content) ?? '',
+            ])
+            ->values();
+    }
+
+    public function selectedReadingPassageForAttempt(AssessmentAttempt $assessmentAttempt): ?AssessmentAttemptItem
+    {
+        return $this->getLockedItemsForAttempt($assessmentAttempt, self::READING_PASSAGE)->first();
+    }
+
+    public function selectReadingPassageBySourceCsvIdForAttempt(AssessmentAttempt $assessmentAttempt, string $sourceCsvId): AssessmentAttemptItem
+    {
+        return DB::transaction(function () use ($assessmentAttempt, $sourceCsvId): AssessmentAttemptItem {
+            $existing = $this->selectedReadingPassageForAttempt($assessmentAttempt);
+
+            if ($existing) {
+                if ($existing->source_csv_id !== $sourceCsvId) {
+                    throw new RuntimeException('A reading story is already selected for this assessment attempt.');
+                }
+
+                return $existing;
+            }
+
+            $content = $this->availableReadingPassages()
+                ->first(fn (LearningContent $row): bool => $this->sourceCsvId($row) === $sourceCsvId);
+
+            if (! $content) {
+                throw new RuntimeException('Selected reading story is not available.');
+            }
+
+            $this->lockItemsForAttempt($assessmentAttempt, self::READING_PASSAGE, collect([$content]));
+
+            $selected = $this->selectedReadingPassageForAttempt($assessmentAttempt);
+
+            if (! $selected) {
+                throw new RuntimeException('Reading story could not be locked for this assessment attempt.');
+            }
+
+            return $selected;
+        });
+    }
+
     public function getLockedItemsForAttempt(AssessmentAttempt $assessmentAttempt, string $taskType): Collection
     {
         return AssessmentAttemptItem::query()

@@ -274,8 +274,8 @@ class AdminAreaTest extends TestCase
         $this->assertSame(30, $attempt->crla_total_score);
         $this->assertSame('Grade Ready', $attempt->crla_classification);
         $this->assertSame(80.0, $attempt->reading_accuracy);
-        $this->assertSame(20.0, $attempt->comprehension_percentage);
-        $this->assertSame(44.0, $attempt->final_reading_score);
+        $this->assertSame(25.0, $attempt->comprehension_percentage);
+        $this->assertSame(47.0, $attempt->final_reading_score);
         $this->assertSame('High Emerging Reader', $attempt->reading_classification);
         $this->assertSame($modules['module_2']->id, $attempt->assigned_module_id);
         $this->assertSame($modules['module_2']->id, $learner->fresh()->current_module_id);
@@ -295,9 +295,9 @@ class AdminAreaTest extends TestCase
                 ->where('result.module.key', 'module_2')
                 ->where('result.inputs.task_2_score_entered', 0)
                 ->where('result.computed.effective_task_2_score', 10)
-                ->where('result.computed.weight_calculation.comprehension_contribution', 12)
+                ->where('result.computed.weight_calculation.comprehension_contribution', 15)
                 ->where('result.computed.weight_calculation.accuracy_contribution', 32)
-                ->where('result.computed.weight_calculation.sum', 44)
+                ->where('result.computed.weight_calculation.sum', 47)
                 ->where('result.rules.module_placement.rule_applied', 'MODULE_PLACEMENT_V1')
                 ->where('result.rules.module_placement.decision', 'assign_module_2')
                 ->where('result.rule_tables.0.title', 'Task 1 Routing')

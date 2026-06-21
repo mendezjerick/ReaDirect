@@ -25,8 +25,7 @@ class ModuleMasterySimulatorService
         private readonly ReadingComprehensionScoringService $reading,
         private readonly DiagnosticPlacementService $placement,
         private readonly ModuleMasteryService $mastery,
-    ) {
-    }
+    ) {}
 
     public function learner(): Learner
     {
@@ -99,14 +98,16 @@ class ModuleMasterySimulatorService
 
             $taskOneRoute = $this->crla->routeTaskOne($taskOneScore);
             $effectiveTaskTwoScore = $taskOneRoute['requires_task_2a'] ? $enteredTaskTwoScore : 10;
-            $crlaTotal = $this->crla->calculateTotalScore($taskOneScore, $effectiveTaskTwoScore, $taskThreeScore);
+            $effectiveTaskThreeScore = $taskOneRoute['requires_task_2a'] ? 0 : $taskThreeScore;
+            $crlaTotal = $this->crla->calculateTotalScore($taskOneScore, $effectiveTaskTwoScore, $effectiveTaskThreeScore);
             $crlaBreakdown = $this->crla->classifyTotalScoreWithRule($crlaTotal);
+            $passageEligible = $this->crla->shouldAdministerPassage($taskOneScore, $crlaTotal);
 
-            $accuracy = $this->reading->calculateAccuracyPercentage($incorrectWords);
-            $comprehensionPercentage = $this->reading->calculateComprehensionPercentage($comprehensionCorrect, 5);
+            $accuracy = $passageEligible ? $this->reading->calculateAccuracyPercentage($incorrectWords) : 0.0;
+            $comprehensionPercentage = $passageEligible ? $this->reading->calculateComprehensionPercentage($comprehensionCorrect, 4) : 0.0;
             $comprehensionContribution = round($comprehensionPercentage * 0.60, 2);
             $accuracyContribution = round($accuracy * 0.40, 2);
-            $finalReadingScore = $this->reading->calculateFinalReadingScore($comprehensionPercentage, $accuracy);
+            $finalReadingScore = $passageEligible ? $this->reading->calculateFinalReadingScore($comprehensionPercentage, $accuracy) : 0.0;
             $readingBreakdown = $this->reading->classifyReadingLevelWithRule($finalReadingScore);
 
             $attempt = AssessmentAttempt::create([
@@ -115,12 +116,12 @@ class ModuleMasterySimulatorService
                 'status' => 'reading_completed',
                 'task_1_score' => $taskOneScore,
                 'task_2a_score' => $effectiveTaskTwoScore,
-                'task_2b_score' => $taskThreeScore,
+                'task_2b_score' => $effectiveTaskThreeScore,
                 'crla_total_score' => $crlaTotal,
                 'crla_classification' => $crlaBreakdown['classification'],
                 'reading_accuracy' => $accuracy,
-                'incorrect_words' => $incorrectWords,
-                'comprehension_correct_count' => $comprehensionCorrect,
+                'incorrect_words' => $passageEligible ? $incorrectWords : 0,
+                'comprehension_correct_count' => $passageEligible ? $comprehensionCorrect : 0,
                 'comprehension_percentage' => $comprehensionPercentage,
                 'final_reading_score' => $finalReadingScore,
                 'reading_classification' => $readingBreakdown['classification'],
@@ -146,19 +147,21 @@ class ModuleMasterySimulatorService
                     'task_3_score' => $taskThreeScore,
                     'incorrect_words' => $incorrectWords,
                     'comprehension_correct_count' => $comprehensionCorrect,
-                    'comprehension_total' => 5,
+                    'comprehension_total' => 4,
                 ],
                 'task_routing' => [
                     ...$taskOneRoute,
                     'condition' => $taskOneRoute['requires_task_2a']
-                        ? 'Task 1 score is 0-6, so the entered Task 2 score is used.'
+                        ? 'Task 1 score is 0-6, so Task 2A is administered and Task 2B plus passage reading are automatically recorded as 0.'
                         : 'Task 1 score is 7-10, so Task 2 is auto-scored as 10 in the real diagnostic flow.',
                 ],
                 'computed' => [
                     'effective_task_2_score' => $effectiveTaskTwoScore,
+                    'effective_task_3_score' => $effectiveTaskThreeScore,
                     'crla_total_score' => $crlaTotal,
                     'crla_percentage' => round(($crlaTotal / 30) * 100, 2),
                     'crla_classification' => $crlaBreakdown['classification'],
+                    'passage_eligible' => $passageEligible,
                     'reading_accuracy' => $accuracy,
                     'comprehension_percentage' => $comprehensionPercentage,
                     'reading_weighting' => '60% comprehension + 40% passage accuracy',
@@ -233,8 +236,8 @@ class ModuleMasterySimulatorService
                 'title' => 'Task 1 Routing',
                 'columns' => ['Task 1 score', 'Task 2 handling', 'Next task', 'Rule'],
                 'rows' => [
-                    ['0-6', 'Use entered Task 2 score', 'Task 2A then Task 3', 'CRLA_TASK_1_ROUTING_V1'],
-                    ['7-10', 'Auto-score Task 2 as 10', 'Task 3', 'CRLA_TASK_1_ROUTING_V1'],
+                    ['0-6', 'Use entered Task 2A score', 'Task 2A then diagnostic ends', 'CRLA_TASK_1_ROUTING_V1'],
+                    ['7-10', 'Auto-score Task 2A as 10', 'Task 2B', 'CRLA_TASK_1_ROUTING_V1'],
                 ],
             ],
             [
@@ -252,10 +255,10 @@ class ModuleMasterySimulatorService
                 'columns' => ['Final reading score', 'Classification', 'Placement effect when CRLA is Grade Ready'],
                 'rows' => [
                     ['0-25', ReadingComprehensionScoringService::LOW_EMERGING, 'Assign Module 2'],
-                    ['25.01-50', ReadingComprehensionScoringService::HIGH_EMERGING, 'Assign Module 2'],
-                    ['50.01-75', ReadingComprehensionScoringService::DEVELOPING, 'Assign Module 3'],
-                    ['75.01-90', ReadingComprehensionScoringService::TRANSITIONING, 'Assign Module 3'],
-                    ['90.01-100', ReadingComprehensionScoringService::GRADE_LEVEL, 'No module needed'],
+                    ['26-50', ReadingComprehensionScoringService::HIGH_EMERGING, 'Assign Module 2'],
+                    ['51-75', ReadingComprehensionScoringService::DEVELOPING, 'Assign Module 3'],
+                    ['76-90', ReadingComprehensionScoringService::TRANSITIONING, 'Assign Module 3'],
+                    ['91-100', ReadingComprehensionScoringService::GRADE_LEVEL, 'No module needed'],
                 ],
             ],
             [

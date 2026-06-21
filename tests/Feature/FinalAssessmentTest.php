@@ -196,7 +196,7 @@ class FinalAssessmentTest extends TestCase
 
         $this->withSession(['learner_id' => $learner->id, 'final_assessment_attempt_id' => $final->id, 'admin_testing_mode' => true])
             ->post(route('final-assessment.task.submit', 'task-2b'), ['responses' => $responses])
-            ->assertRedirect(route('final-assessment.task', 'passage'));
+            ->assertRedirect(route('final-assessment.task', 'story-selection'));
 
         $this->assertGreaterThanOrEqual(8, (int) $final->refresh()->task_2b_score);
     }

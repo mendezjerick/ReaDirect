@@ -27,6 +27,7 @@ use App\Support\SubmittedItemSet;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -134,6 +135,10 @@ class FinalAssessmentController extends Controller
                 'assessmentAttemptId' => $attempt->id,
                 'assessmentMode' => $mode->props($request, $attempt, $attempt->learner),
             ]),
+            'story-selection' => Inertia::render('Learner/FinalAssessment/StorySelection', [
+                'stories' => $this->storyOptions($itemSelection),
+                'assessmentAttemptId' => $attempt->id,
+            ]),
             'passage' => Inertia::render('Learner/FinalAssessment/PassageReading', [
                 'passage' => $this->itemForForm($this->readingPassage($attempt, $itemSelection)),
                 'assessmentAttemptId' => $attempt->id,
@@ -172,6 +177,7 @@ class FinalAssessmentController extends Controller
             'task-1' => $this->submitTaskOne($request, $attempt, $itemSelection, $answerMatching, $audioStorage, $analysis, $crla, $mode),
             'task-2a' => $this->submitTaskTwoA($request, $attempt, $itemSelection, $crla, $rhymeDecisionScoring, $comparison, $exports),
             'task-2b' => $this->submitTaskTwoB($request, $attempt, $itemSelection, $answerMatching, $audioStorage, $analysis, $crla, $sentenceScoring, $mode, $comparison, $exports),
+            'story-selection' => $this->submitStorySelection($request, $attempt, $itemSelection),
             'passage' => $this->submitPassage($request, $attempt, $itemSelection, $reading, $audioStorage, $analysis, $mode),
             'comprehension' => $this->submitComprehension($request, $attempt, $itemSelection, $answerMatching, $reading, $comparison, $exports),
             default => abort(404),
@@ -288,6 +294,23 @@ class FinalAssessmentController extends Controller
 
         $attempt->update($fields);
 
+        return redirect()->route('final-assessment.task', 'story-selection');
+    }
+
+    private function submitStorySelection(Request $request, AssessmentAttempt $attempt, AssessmentItemSelectionService $itemSelection): RedirectResponse
+    {
+        $storyIds = $itemSelection->availableReadingPassages()
+            ->map(fn (LearningContent $content): ?string => $content->payload['source_csv_id'] ?? $content->payload['csv_id'] ?? null)
+            ->filter()
+            ->values()
+            ->all();
+
+        $validated = $request->validate([
+            'passage_id' => ['required', 'string', Rule::in($storyIds)],
+        ], $this->friendlyValidationMessages());
+
+        $itemSelection->selectReadingPassageBySourceCsvIdForAttempt($attempt, $validated['passage_id']);
+
         return redirect()->route('final-assessment.task', 'passage');
     }
 
@@ -308,7 +331,11 @@ class FinalAssessmentController extends Controller
             'audio_file_id' => ['nullable', 'integer', 'exists:audio_files,id'],
             'duration_seconds' => $this->passageDurationValidationRules(),
         ], $this->friendlyValidationMessages());
-        $passage = $itemSelection->selectReadingPassageForAttempt($attempt);
+        $passage = $itemSelection->selectedReadingPassageForAttempt($attempt);
+        if (! $passage) {
+            return redirect()->route('final-assessment.task', 'story-selection');
+        }
+
         $incorrectWords = (int) ($validated['incorrect_words'] ?? 0);
         $audioFile = isset($validated['audio_file_id']) && $validated['audio_file_id']
             ? AudioFile::query()
@@ -391,14 +418,26 @@ class FinalAssessmentController extends Controller
         FinalAssessmentComparisonService $comparison,
         CrlaExcelExportService $exports
     ): RedirectResponse {
+        $passage = $this->readingPassage($attempt, $itemSelection);
+        if (! $passage) {
+            return redirect()->route('final-assessment.task', 'story-selection');
+        }
+
+        $questions = $this->questionsForPassage($passage);
+        $questionCount = count($questions);
+
+        if ($questionCount <= 0) {
+            throw ValidationException::withMessages([
+                'responses' => 'No comprehension questions are available for the selected story.',
+            ]);
+        }
+
         $validated = $request->validate([
-            'responses' => ['required', 'array', 'size:5'],
+            'responses' => ['required', 'array', 'size:'.$questionCount],
             'responses.*.question_id' => ['required', 'string'],
             'responses.*.answer' => ['required', 'string', 'max:255', 'regex:/\S/'],
         ], $this->friendlyValidationMessages());
 
-        $passage = $this->readingPassage($attempt, $itemSelection);
-        $questions = $this->questionsForPassage($passage);
         $correct = 0;
 
         foreach ($questions as $question) {
@@ -426,7 +465,7 @@ class FinalAssessmentController extends Controller
             ]);
         }
 
-        $comprehension = $reading->calculateComprehensionPercentage($correct, 5);
+        $comprehension = $reading->calculateComprehensionPercentage($correct, $questionCount);
         $finalScore = $reading->calculateFinalReadingScore($comprehension, (float) $attempt->reading_accuracy);
         $classification = $reading->classifyReadingLevelFromFinalScore($finalScore);
 
@@ -641,11 +680,7 @@ class FinalAssessmentController extends Controller
 
     private function readingPassage(AssessmentAttempt $attempt, AssessmentItemSelectionService $itemSelection): ?AssessmentAttemptItem
     {
-        if ($attempt->baselineAssessment) {
-            $this->cloneBaselineItems($attempt->baselineAssessment, $attempt, AssessmentItemSelectionService::READING_PASSAGE);
-        }
-
-        return $itemSelection->selectReadingPassageForAttempt($attempt);
+        return $itemSelection->selectedReadingPassageForAttempt($attempt);
     }
 
     private function cloneBaselineItems(AssessmentAttempt $baseline, AssessmentAttempt $attempt, string $taskType): void
@@ -1024,10 +1059,24 @@ class FinalAssessmentController extends Controller
                 'question_text' => $content->prompt,
                 'question_type' => $content->payload['question_type'] ?? 'multiple_choice',
                 'correct_answer' => $content->payload['correct_answer'] ?? '',
+                'correct_choice' => $content->payload['correct_choice'] ?? '',
                 'accepted_answers' => $content->accepted_answers ?? [],
                 'choices' => $content->payload['choices'] ?? [],
                 'saved_answer' => $savedAnswers->get((string) ($content->payload['source_csv_id'] ?? $content->id)),
             ])
+            ->all();
+    }
+
+    private function storyOptions(AssessmentItemSelectionService $itemSelection): array
+    {
+        return $itemSelection->availableReadingPassages()
+            ->map(fn (LearningContent $content): array => [
+                'id' => $content->payload['source_csv_id'] ?? $content->payload['csv_id'] ?? (string) $content->id,
+                'story_number' => (int) ($content->payload['story_number'] ?? 0),
+                'title' => $content->title,
+                'word_count' => (int) ($content->payload['word_count'] ?? 0),
+            ])
+            ->values()
             ->all();
     }
 

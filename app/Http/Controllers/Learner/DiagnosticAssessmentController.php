@@ -29,6 +29,7 @@ use App\Support\SubmittedItemSet;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -354,6 +355,41 @@ class DiagnosticAssessmentController extends Controller
         return Inertia::render('Learner/ReadingIntro');
     }
 
+    public function storySelection(Request $request, AssessmentItemSelectionService $itemSelection, LearnerFlowService $flow): Response|RedirectResponse
+    {
+        $attempt = $this->attemptForStep($request, $flow, 'story-selection');
+        if ($attempt instanceof RedirectResponse) {
+            return $attempt;
+        }
+
+        return Inertia::render('Learner/StorySelection', [
+            'stories' => $this->storyOptions($itemSelection),
+            'assessmentAttemptId' => $attempt->id,
+        ]);
+    }
+
+    public function storeStorySelection(Request $request, AssessmentItemSelectionService $itemSelection): RedirectResponse
+    {
+        $attempt = $this->attemptForStep($request, app(LearnerFlowService::class), 'story-selection');
+        if ($attempt instanceof RedirectResponse) {
+            return $attempt;
+        }
+
+        $storyIds = $itemSelection->availableReadingPassages()
+            ->map(fn (LearningContent $content): ?string => $content->payload['source_csv_id'] ?? $content->payload['csv_id'] ?? null)
+            ->filter()
+            ->values()
+            ->all();
+
+        $validated = $request->validate([
+            'passage_id' => ['required', 'string', Rule::in($storyIds)],
+        ], $this->friendlyValidationMessages());
+
+        $itemSelection->selectReadingPassageBySourceCsvIdForAttempt($attempt, $validated['passage_id']);
+
+        return redirect()->route('learner.diagnostic.passage');
+    }
+
     public function passage(Request $request, AssessmentItemSelectionService $itemSelection, LearnerFlowService $flow, AssessmentModeService $mode): Response|RedirectResponse
     {
         $attempt = $this->attemptForStep($request, $flow, 'passage');
@@ -361,7 +397,11 @@ class DiagnosticAssessmentController extends Controller
             return $attempt;
         }
 
-        $passage = $itemSelection->selectReadingPassageForAttempt($attempt);
+        $passage = $itemSelection->selectedReadingPassageForAttempt($attempt);
+
+        if (! $passage) {
+            return redirect()->route('learner.diagnostic.story-selection');
+        }
 
         return Inertia::render('Learner/PassageReading', [
             'passage' => $this->itemForForm($passage),
@@ -385,7 +425,11 @@ class DiagnosticAssessmentController extends Controller
             'duration_seconds' => $this->passageDurationValidationRules(),
         ], $this->friendlyValidationMessages());
 
-        $passage = app(AssessmentItemSelectionService::class)->selectReadingPassageForAttempt($attempt);
+        $passage = app(AssessmentItemSelectionService::class)->selectedReadingPassageForAttempt($attempt);
+        if (! $passage) {
+            return redirect()->route('learner.diagnostic.story-selection');
+        }
+
         $incorrectWords = (int) ($validated['incorrect_words'] ?? 0);
         $audioFile = isset($validated['audio_file_id']) && $validated['audio_file_id']
             ? AudioFile::query()
@@ -468,7 +512,11 @@ class DiagnosticAssessmentController extends Controller
             return $attempt;
         }
 
-        $passage = $itemSelection->selectReadingPassageForAttempt($attempt);
+        $passage = $itemSelection->selectedReadingPassageForAttempt($attempt);
+
+        if (! $passage) {
+            return redirect()->route('learner.diagnostic.story-selection');
+        }
 
         return Inertia::render('Learner/ComprehensionQuestions', [
             'questions' => $this->questionsForPassage($passage),
@@ -488,14 +536,26 @@ class DiagnosticAssessmentController extends Controller
             return $attempt;
         }
 
+        $passage = $itemSelection->selectedReadingPassageForAttempt($attempt);
+        if (! $passage) {
+            return redirect()->route('learner.diagnostic.story-selection');
+        }
+
+        $questions = $this->questionsForPassage($passage);
+        $questionCount = count($questions);
+
+        if ($questionCount <= 0) {
+            throw ValidationException::withMessages([
+                'responses' => 'No comprehension questions are available for the selected story.',
+            ]);
+        }
+
         $validated = $request->validate([
-            'responses' => ['required', 'array', 'size:5'],
+            'responses' => ['required', 'array', 'size:'.$questionCount],
             'responses.*.question_id' => ['required', 'string'],
             'responses.*.answer' => ['required', 'string', 'max:255', 'regex:/\S/'],
         ], $this->friendlyValidationMessages());
 
-        $passage = $itemSelection->selectReadingPassageForAttempt($attempt);
-        $questions = $this->questionsForPassage($passage);
         $correct = 0;
 
         foreach ($questions as $question) {
@@ -523,7 +583,7 @@ class DiagnosticAssessmentController extends Controller
             ]);
         }
 
-        $comprehension = $reading->calculateComprehensionPercentage($correct, 5);
+        $comprehension = $reading->calculateComprehensionPercentage($correct, $questionCount);
         $finalScore = $reading->calculateFinalReadingScore($comprehension, (float) $attempt->reading_accuracy);
         $classification = $reading->classifyReadingLevelFromFinalScore($finalScore);
 
@@ -1200,10 +1260,24 @@ class DiagnosticAssessmentController extends Controller
                 'question_text' => $content->prompt,
                 'question_type' => $content->payload['question_type'] ?? 'multiple_choice',
                 'correct_answer' => $content->payload['correct_answer'] ?? '',
+                'correct_choice' => $content->payload['correct_choice'] ?? '',
                 'accepted_answers' => $content->accepted_answers ?? [],
                 'choices' => $content->payload['choices'] ?? [],
                 'saved_answer' => $savedAnswers->get((string) ($content->payload['source_csv_id'] ?? $content->id)),
             ])
+            ->all();
+    }
+
+    private function storyOptions(AssessmentItemSelectionService $itemSelection): array
+    {
+        return $itemSelection->availableReadingPassages()
+            ->map(fn (LearningContent $content): array => [
+                'id' => $content->payload['source_csv_id'] ?? $content->payload['csv_id'] ?? (string) $content->id,
+                'story_number' => (int) ($content->payload['story_number'] ?? 0),
+                'title' => $content->title,
+                'word_count' => (int) ($content->payload['word_count'] ?? 0),
+            ])
+            ->values()
             ->all();
     }
 

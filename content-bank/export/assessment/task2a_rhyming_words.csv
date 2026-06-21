@@ -1,11 +1,11 @@
-id,sequence,item_type,assessment_part,word_1,word_2,is_rhyme,correct_answer,audio_script,difficulty,points,is_active
-T2A-D001,1,rhyme_decision,task_2a,cat,hat,true,yes,"cat, hat",easy,1,true
-T2A-D002,2,rhyme_decision,task_2a,dog,log,true,yes,"dog, log",easy,1,true
-T2A-D003,3,rhyme_decision,task_2a,sun,run,true,yes,"sun, run",easy,1,true
-T2A-D004,4,rhyme_decision,task_2a,pen,hen,true,yes,"pen, hen",easy,1,true
-T2A-D005,5,rhyme_decision,task_2a,bug,rug,true,yes,"bug, rug",easy,1,true
-T2A-D006,6,rhyme_decision,task_2a,bee,tree,true,yes,"bee, tree",easy,1,true
-T2A-D007,7,rhyme_decision,task_2a,sun,book,false,no,"sun, book",easy,1,true
-T2A-D008,8,rhyme_decision,task_2a,cat,dog,false,no,"cat, dog",easy,1,true
-T2A-D009,9,rhyme_decision,task_2a,pen,cup,false,no,"pen, cup",easy,1,true
-T2A-D010,10,rhyme_decision,task_2a,fish,tree,false,no,"fish, tree",easy,1,true
+"id","sequence","order","assessment_type","task","item_type","assessment_part","word_1","word_2","is_rhyme","correct_answer","prompt_text","audio_script","vivian_script","difficulty","points","active","is_active"
+"T2A-D001","1","1","shared","task_2a","rhyme_decision","task_2a","cat","hat","true","yes","Do cat and hat rhyme?","cat, hat","Cat. Hat. Do they rhyme?","easy","1","true","true"
+"T2A-D002","2","2","shared","task_2a","rhyme_decision","task_2a","sun","run","true","yes","Do sun and run rhyme?","sun, run","Sun. Run. Do they rhyme?","easy","1","true","true"
+"T2A-D003","3","3","shared","task_2a","rhyme_decision","task_2a","dog","log","true","yes","Do dog and log rhyme?","dog, log","Dog. Log. Do they rhyme?","easy","1","true","true"
+"T2A-D004","4","4","shared","task_2a","rhyme_decision","task_2a","cup","pup","true","yes","Do cup and pup rhyme?","cup, pup","Cup. Pup. Do they rhyme?","easy","1","true","true"
+"T2A-D005","5","5","shared","task_2a","rhyme_decision","task_2a","bed","red","true","yes","Do bed and red rhyme?","bed, red","Bed. Red. Do they rhyme?","easy","1","true","true"
+"T2A-D006","6","6","shared","task_2a","rhyme_decision","task_2a","hop","top","true","yes","Do hop and top rhyme?","hop, top","Hop. Top. Do they rhyme?","easy","1","true","true"
+"T2A-D007","7","7","shared","task_2a","rhyme_decision","task_2a","map","sit","false","no","Do map and sit rhyme?","map, sit","Map. Sit. Do they rhyme?","easy","1","true","true"
+"T2A-D008","8","8","shared","task_2a","rhyme_decision","task_2a","pen","bug","false","no","Do pen and bug rhyme?","pen, bug","Pen. Bug. Do they rhyme?","easy","1","true","true"
+"T2A-D009","9","9","shared","task_2a","rhyme_decision","task_2a","bat","lip","false","no","Do bat and lip rhyme?","bat, lip","Bat. Lip. Do they rhyme?","easy","1","true","true"
+"T2A-D010","10","10","shared","task_2a","rhyme_decision","task_2a","hen","tap","false","no","Do hen and tap rhyme?","hen, tap","Hen. Tap. Do they rhyme?","easy","1","true","true"

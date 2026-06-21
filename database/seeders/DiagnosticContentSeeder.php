@@ -29,7 +29,7 @@ class DiagnosticContentSeeder extends Seeder
     {
         foreach ($this->csv('task1_letter_pronunciation.csv') as $row) {
             $metadata = $this->metadata($row);
-            $enrichment = $this->enrichmentFor($this->rowId($row));
+            $enrichment = $this->rowEnrichment($row) + $this->enrichmentFor($this->rowId($row));
             $this->updateLearningContent(
                 'letter',
                 $this->rowId($row),
@@ -57,7 +57,7 @@ class DiagnosticContentSeeder extends Seeder
     {
         foreach ($this->csv('task2a_rhyming_words.csv') as $row) {
             $metadata = $this->metadata($row);
-            $enrichment = $this->enrichmentFor($this->rowId($row));
+            $enrichment = $this->rowEnrichment($row) + $this->enrichmentFor($this->rowId($row));
             $wordOne = $this->taskTwoAWordOne($row, $metadata);
             $wordTwo = $this->taskTwoAWordTwo($row, $metadata);
             $isRhyme = $this->taskTwoAIsRhyme($row, $metadata);
@@ -73,14 +73,17 @@ class DiagnosticContentSeeder extends Seeder
                     'payload' => [
                         'source_csv_id' => $this->rowId($row),
                         'sequence' => $this->sequence($row, $metadata),
+                        'assessment_type' => $row['assessment_type'] ?? $metadata['assessment_type'] ?? 'shared',
+                        'task' => $row['task'] ?? $metadata['task'] ?? 'task_2a',
                         'item_type' => $row['item_type'] ?? $metadata['item_type'] ?? 'rhyme_decision',
                         'assessment_part' => $row['assessment_part'] ?? $metadata['assessment_part'] ?? 'task_2a',
                         'word_1' => $wordOne,
                         'word_2' => $wordTwo,
                         'is_rhyme' => $isRhyme,
                         'correct_answer' => $correctAnswer,
+                        'prompt_text' => $row['prompt_text'] ?? $metadata['prompt_text'] ?? "Do {$wordOne} and {$wordTwo} rhyme?",
                         'audio_script' => $audioScript,
-                        'vivian_prompt_script' => $audioScript,
+                        'vivian_prompt_script' => $row['vivian_script'] ?? $metadata['vivian_script'] ?? $metadata['vivian_prompt_script'] ?? $audioScript,
                         'points' => $this->points($row, $metadata),
                         'enrichment' => $enrichment,
                     ],
@@ -97,7 +100,7 @@ class DiagnosticContentSeeder extends Seeder
     {
         foreach ($this->csv('task2b_word_in_sentence.csv') as $row) {
             $metadata = $this->metadata($row);
-            $enrichment = $this->enrichmentFor($this->rowId($row));
+            $enrichment = $this->rowEnrichment($row) + $this->enrichmentFor($this->rowId($row));
             $this->updateLearningContent(
                 'word_sentence',
                 $this->rowId($row),
@@ -125,7 +128,7 @@ class DiagnosticContentSeeder extends Seeder
     {
         foreach ($this->csv('reading_passages.csv') as $row) {
             $metadata = $this->metadata($row);
-            $enrichment = $this->enrichmentFor($this->rowId($row));
+            $enrichment = $this->rowEnrichment($row) + $this->enrichmentFor($this->rowId($row));
             $this->updateLearningContent(
                 'reading_passage',
                 $this->rowId($row),
@@ -137,6 +140,8 @@ class DiagnosticContentSeeder extends Seeder
                         'word_count' => (int) ($row['word_count'] ?? $metadata['word_count'] ?? 0),
                         'expected_reading_time_seconds' => (int) ($row['expected_reading_time_seconds'] ?? $metadata['expected_reading_time_seconds'] ?? 0),
                         'max_time_seconds' => (int) ($row['max_time_seconds'] ?? $metadata['max_time_seconds'] ?? 0),
+                        'story_number' => (int) ($row['story_number'] ?? $metadata['story_number'] ?? 0),
+                        'assessment_active' => $this->active($row['assessment_active'] ?? $metadata['assessment_active'] ?? $row['is_active'] ?? true),
                         'enrichment' => $enrichment,
                     ],
                     'accepted_answers' => null,
@@ -152,7 +157,21 @@ class DiagnosticContentSeeder extends Seeder
     {
         foreach ($this->csv('comprehension_questions.csv') as $row) {
             $metadata = $this->metadata($row);
-            $enrichment = $this->enrichmentFor($this->rowId($row));
+            $enrichment = $this->rowEnrichment($row) + $this->enrichmentFor($this->rowId($row));
+            $choices = [
+                'A' => $row['choice_a'] ?? $metadata['choice_a'] ?? null,
+                'B' => $row['choice_b'] ?? $metadata['choice_b'] ?? null,
+                'C' => $row['choice_c'] ?? $metadata['choice_c'] ?? null,
+                'D' => $row['choice_d'] ?? $metadata['choice_d'] ?? null,
+            ];
+            $correctChoice = strtoupper(trim((string) ($row['correct_choice'] ?? $metadata['correct_choice'] ?? '')));
+            $correctAnswer = $choices[$correctChoice] ?? $row['correct_answer'] ?? $metadata['correct_answer'] ?? $this->expectedAnswer($row, $metadata);
+            $acceptedAnswers = $this->pipeList($row['accepted_answers'] ?? '');
+
+            if ($acceptedAnswers === [] && $correctAnswer !== null && trim((string) $correctAnswer) !== '') {
+                $acceptedAnswers = [(string) $correctAnswer];
+            }
+
             $this->updateLearningContent(
                 'comprehension_question',
                 $this->rowId($row),
@@ -164,17 +183,13 @@ class DiagnosticContentSeeder extends Seeder
                         'passage_id' => $row['passage_id'] ?? $metadata['passage_id'] ?? null,
                         'sequence' => $this->sequence($row, $metadata),
                         'question_type' => $row['question_type'] ?? $metadata['question_type'] ?? 'multiple_choice',
-                        'correct_answer' => $row['correct_answer'] ?? $metadata['correct_answer'] ?? $this->expectedAnswer($row, $metadata),
-                        'choices' => [
-                            'A' => $row['choice_a'] ?? $metadata['choice_a'] ?? null,
-                            'B' => $row['choice_b'] ?? $metadata['choice_b'] ?? null,
-                            'C' => $row['choice_c'] ?? $metadata['choice_c'] ?? null,
-                            'D' => $row['choice_d'] ?? $metadata['choice_d'] ?? null,
-                        ],
+                        'correct_answer' => $correctAnswer,
+                        'correct_choice' => $correctChoice,
+                        'choices' => $choices,
                         'points' => $this->points($row, $metadata),
                         'enrichment' => $enrichment,
                     ],
-                    'accepted_answers' => $this->pipeList($row['accepted_answers']),
+                    'accepted_answers' => $acceptedAnswers,
                     'enrichment_metadata' => $enrichment,
                     'difficulty' => $row['difficulty'],
                     'is_active' => $this->active($row['is_active']),
@@ -235,7 +250,7 @@ class DiagnosticContentSeeder extends Seeder
 
     private function taskTwoAAudioScript(array $row, array $metadata, string $wordOne, string $wordTwo): string
     {
-        return trim((string) ($row['audio_script'] ?? $metadata['audio_script'] ?? "{$wordOne}, {$wordTwo}"));
+        return trim((string) ($row['audio_script'] ?? $row['vivian_script'] ?? $metadata['audio_script'] ?? $metadata['vivian_script'] ?? "{$wordOne}, {$wordTwo}"));
     }
 
     private function active(string|int|bool|null $value): bool
@@ -271,7 +286,7 @@ class DiagnosticContentSeeder extends Seeder
 
     private function sequence(array $row, array $metadata): int
     {
-        return (int) ($row['sequence'] ?? $metadata['sequence'] ?? 0);
+        return (int) ($row['sequence'] ?? $row['question_order'] ?? $row['order'] ?? $metadata['sequence'] ?? 0);
     }
 
     private function points(array $row, array $metadata): int
@@ -308,6 +323,31 @@ class DiagnosticContentSeeder extends Seeder
         $index = $this->enrichmentIndex();
 
         return $index[$promptId] ?? [];
+    }
+
+    private function rowEnrichment(array $row): array
+    {
+        $fields = [
+            'expected_phonemes',
+            'initial_phoneme',
+            'vowel_phonemes',
+            'final_phoneme',
+            'phoneme_pattern',
+            'skill_tag',
+            'skill_group',
+            'error_focus',
+            'target_position',
+            'target_phoneme',
+            'difficulty_level',
+            'difficulty_score',
+            'adaptive_bucket',
+            'recommended_for_error_type',
+            'needs_manual_review',
+        ];
+
+        return collect($row)
+            ->only($fields)
+            ->all();
     }
 
     private function enrichmentIndex(): array

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\AssessmentAttempt;
+use App\Models\AssessmentAttemptItem;
 use App\Models\AudioFile;
 use App\Models\Learner;
 use App\Models\Report;
@@ -218,13 +219,15 @@ class CrlaExcelExportService
             ];
         }
 
+        $passage = $this->selectedPassage($attempt);
+        $totalWords = max(1, (int) data_get($passage?->prompt_snapshot, 'payload.word_count', 50));
         $incorrectWords = max(0, (int) ($attempt->incorrect_words ?? 0));
-        $wordsRead = max(0, 50 - $incorrectWords);
+        $wordsRead = max(0, $totalWords - $incorrectWords);
         $duration = $this->passageDurationSeconds($attempt);
         $wpm = $duration > 0 ? round(($wordsRead / $duration) * 60, 2) : null;
 
         return [
-            'story_number' => 1,
+            'story_number' => (int) data_get($passage?->prompt_snapshot, 'payload.story_number', 1),
             'miscues' => $incorrectWords,
             'words_read' => $wordsRead,
             'minutes' => $duration > 0 ? intdiv($duration, 60) : '',
@@ -232,6 +235,16 @@ class CrlaExcelExportService
             'wpm' => $wpm,
             'correct_words_fraction' => round(((float) ($attempt->reading_accuracy ?? 0)) / 100, 4),
         ];
+    }
+
+    private function selectedPassage(AssessmentAttempt $attempt): ?AssessmentAttemptItem
+    {
+        return AssessmentAttemptItem::query()
+            ->where('assessment_attempt_id', $attempt->id)
+            ->where('task_type', AssessmentItemSelectionService::READING_PASSAGE)
+            ->latest('selected_at')
+            ->latest('id')
+            ->first();
     }
 
     private function passageDurationSeconds(AssessmentAttempt $attempt): int

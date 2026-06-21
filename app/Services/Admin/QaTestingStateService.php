@@ -31,8 +31,7 @@ class QaTestingStateService
         private readonly ReadingComprehensionScoringService $reading,
         private readonly DiagnosticPlacementService $placement,
         private readonly ModuleMasteryService $mastery,
-    ) {
-    }
+    ) {}
 
     public function tester(): Learner
     {
@@ -185,14 +184,14 @@ class QaTestingStateService
                 $this->redirect($tester, route('learner.diagnostic.passage')),
                 function () use ($attempt): void {
                     $this->seedCrlaComplete($attempt, 8, 10, 8);
-                    $this->assessmentItems->selectReadingPassageForAttempt($attempt);
+                    $this->assessmentItems->selectReadingPassageBySourceCsvIdForAttempt($attempt, 'PASS-001');
                 }
             ),
             'diagnostic-comprehension' => tap(
                 $this->redirect($tester, route('learner.diagnostic.comprehension')),
                 function () use ($attempt): void {
                     $this->seedCrlaComplete($attempt, 8, 10, 8);
-                    $this->assessmentItems->selectReadingPassageForAttempt($attempt);
+                    $this->assessmentItems->selectReadingPassageBySourceCsvIdForAttempt($attempt, 'PASS-001');
                     $this->seedPassageComplete($attempt, 2);
                 }
             ),
@@ -200,7 +199,7 @@ class QaTestingStateService
                 $this->redirect($tester, route('learner.diagnostic.reading-summary')),
                 function () use ($attempt): void {
                     $this->seedCrlaComplete($attempt, 8, 10, 8);
-                    $this->assessmentItems->selectReadingPassageForAttempt($attempt);
+                    $this->assessmentItems->selectReadingPassageBySourceCsvIdForAttempt($attempt, 'PASS-001');
                     $this->seedReadingComplete($attempt, 2, 4);
                 }
             ),
@@ -302,14 +301,14 @@ class QaTestingStateService
                 $this->redirect($tester->fresh(), route('final-assessment.task', 'passage')),
                 function () use ($attempt): void {
                     $this->seedCrlaComplete($attempt, 8, 10, 8);
-                    $this->assessmentItems->selectReadingPassageForAttempt($attempt);
+                    $this->assessmentItems->selectReadingPassageBySourceCsvIdForAttempt($attempt, 'PASS-001');
                 }
             ),
             'final-comprehension' => tap(
                 $this->redirect($tester->fresh(), route('final-assessment.task', 'comprehension')),
                 function () use ($attempt): void {
                     $this->seedCrlaComplete($attempt, 8, 10, 8);
-                    $this->assessmentItems->selectReadingPassageForAttempt($attempt);
+                    $this->assessmentItems->selectReadingPassageBySourceCsvIdForAttempt($attempt, 'PASS-001');
                     $this->seedPassageComplete($attempt, 2);
                 }
             ),
@@ -337,7 +336,7 @@ class QaTestingStateService
     private function seedDiagnosticForModule(Learner $tester, string $moduleKey): AssessmentAttempt
     {
         [$taskOne, $taskTwoA, $taskTwoB, $incorrectWords, $correctAnswers] = match ($moduleKey) {
-            'module_1' => [4, 4, 2, 0, 5],
+            'module_1' => [4, 4, 2, 0, 4],
             'module_2' => [10, 10, 10, 50, 0],
             'module_3' => [10, 10, 10, 10, 3],
             default => throw new \InvalidArgumentException('Unknown module key.'),
@@ -400,8 +399,9 @@ class QaTestingStateService
 
     private function seedReadingComplete(AssessmentAttempt $attempt, int $incorrectWords, int $correctAnswers): void
     {
+        $correctAnswers = min(4, max(0, $correctAnswers));
         $accuracy = $this->reading->calculateAccuracyPercentage($incorrectWords);
-        $comprehension = $this->reading->calculateComprehensionPercentage($correctAnswers, 5);
+        $comprehension = $this->reading->calculateComprehensionPercentage($correctAnswers, 4);
         $final = $this->reading->calculateFinalReadingScore($comprehension, $accuracy);
 
         $attempt->update([

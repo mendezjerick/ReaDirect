@@ -51,9 +51,9 @@ const scoreRows = computed(() => {
 
     return [
         ['Task 1 entered', `${props.result.inputs.task_1_score} / 10`],
-        ['Task 2 entered', `${props.result.inputs.task_2_score_entered} / 10`],
-        ['Task 2 effective', `${props.result.computed.effective_task_2_score} / 10`],
-        ['Task 3 entered', `${props.result.inputs.task_3_score} / 10`],
+        ['Task 2A entered', `${props.result.inputs.task_2_score_entered} / 10`],
+        ['Task 2A effective', `${props.result.computed.effective_task_2_score} / 10`],
+        ['Task 2B entered', `${props.result.inputs.task_3_score} / 10`],
         ['CRLA total', `${props.result.computed.crla_total_score} / 30`],
         ['CRLA percentage', `${props.result.computed.crla_percentage}%`],
         ['CRLA classification', props.result.computed.crla_classification],
@@ -156,8 +156,8 @@ const ruleTables = computed(() => props.result?.rule_tables ?? []);
 
                         <label v-for="field in [
                             ['task_1_score', 'Task 1', 10],
-                            ['task_2_score', 'Task 2', 10],
-                            ['task_3_score', 'Task 3', 10],
+                            ['task_2_score', 'Task 2A', 10],
+                            ['task_3_score', 'Task 2B', 10],
                         ]" :key="field[0]" class="grid gap-2">
                             <span class="flex items-center justify-between text-[12px] font-bold text-slate-500">
                                 {{ field[1] }}
@@ -192,11 +192,11 @@ const ruleTables = computed(() => props.result?.rule_tables ?? []);
                         <label class="grid gap-2">
                             <span class="flex items-center justify-between text-[12px] font-bold text-slate-500">
                                 Comprehension correct
-                                <span class="text-text">{{ form.comprehension_correct_count }} / 5</span>
+                                <span class="text-text">{{ form.comprehension_correct_count }} / 4</span>
                             </span>
                             <div class="flex items-center gap-3">
-                                <input v-model.number="form.comprehension_correct_count" type="range" min="0" max="5" step="1" class="w-full accent-primary">
-                                <input v-model.number="form.comprehension_correct_count" type="number" min="0" max="5" class="h-10 w-20 rounded-xl border border-border bg-white px-3 text-sm font-bold text-text focus:border-primary focus:ring-2 focus:ring-primary/10">
+                                <input v-model.number="form.comprehension_correct_count" type="range" min="0" max="4" step="1" class="w-full accent-primary">
+                                <input v-model.number="form.comprehension_correct_count" type="number" min="0" max="4" class="h-10 w-20 rounded-xl border border-border bg-white px-3 text-sm font-bold text-text focus:border-primary focus:ring-2 focus:ring-primary/10">
                             </div>
                             <p v-if="form.errors.comprehension_correct_count" class="text-xs font-semibold text-rose-600">{{ form.errors.comprehension_correct_count }}</p>
                         </label>

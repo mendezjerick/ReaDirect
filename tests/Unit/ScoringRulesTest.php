@@ -128,7 +128,8 @@ class ScoringRulesTest extends TestCase
     {
         $service = new ReadingComprehensionScoringService;
 
-        $this->assertSame(80.0, $service->calculateComprehensionPercentage(4));
+        $this->assertSame(100.0, $service->calculateComprehensionPercentage(4));
+        $this->assertSame(75.0, $service->calculateComprehensionPercentage(3));
     }
 
     public function test_final_reading_score_formula(): void

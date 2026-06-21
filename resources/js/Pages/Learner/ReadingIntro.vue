@@ -14,7 +14,7 @@ import BottomActionBar from '../../Components/BottomActionBar.vue';
                 agent-type="assessment"
                 state="speaking"
                 presentation="reading-intro"
-                message="Read the passage aloud first. Then answer five questions."
+                message="Choose a story, read it aloud, then answer four questions."
             />
         </template>
 
@@ -55,16 +55,16 @@ import BottomActionBar from '../../Components/BottomActionBar.vue';
                 <div class="relative z-10">
                     <p class="text-[14px] font-black uppercase tracking-widest text-primary">Miss Vivian</p>
                     <p class="mt-4 text-xl font-black leading-relaxed text-slate-800">
-                        Read the passage clearly. Then answer five short questions.
+                        Choose a story. Read the passage clearly, then answer four short questions.
                     </p>
                 </div>
             </section>
         </div>
 
         <BottomActionBar>
-            <Link href="/learner/diagnostic/passage" class="w-full sm:w-auto">
+            <Link href="/learner/diagnostic/story-selection" class="w-full sm:w-auto">
                 <PrimaryButton class="w-full gap-3 rounded-[22px] px-5 text-base shadow-xl shadow-primary/25 sm:w-auto sm:min-w-[320px] sm:gap-4 sm:px-9 sm:text-lg">
-                    Start passage
+                    Choose story
                     <ArrowRight class="size-5 stroke-[3] sm:size-6" />
                 </PrimaryButton>
             </Link>

@@ -44,6 +44,10 @@ const normalizedResult = computed(() => result.value ? normalizeAsrResponse(resu
 const isModuleSection = computed(() => selectedSection.value?.source === 'module');
 const expectedText = computed(() => String(selectedItem.value?.expected_text ?? '').trim());
 const isWordLineMode = computed(() => sandboxMode.value === 'word_line');
+const isNoAsrItem = computed(() => !isWordLineMode.value && (
+    selectedItem.value?.metadata?.no_asr_required === true
+    || selectedItem.value?.payload?.no_asr_required === true
+));
 const isSingleWordTarget = (value) => {
     const text = String(value ?? '').trim();
 
@@ -60,7 +64,7 @@ const wordLineCandidateItems = computed(() => items.value.filter((item) => {
     const typeContext = `${promptType} ${contentType} ${activity}`;
 
     return isSingleWordTarget(expected)
-        && !['letter', 'sentence', 'passage', 'paragraph', 'reading_passage'].includes(promptType)
+        && !['letter', 'sentence', 'passage', 'paragraph', 'reading_passage', 'decision'].includes(promptType)
         && !(expected.length === 1 && typeContext.includes('letter'));
 }));
 const selectedLineItems = computed(() => selectedLineItemIds.value
@@ -390,6 +394,11 @@ const clearLineItems = () => {
 
 const runAsr = async (file = currentFile.value) => {
     const item = selectedItem.value;
+    if (isNoAsrItem.value) {
+        error.value = 'This content is a no-ASR click response. There is no recording to analyze.';
+        return;
+    }
+
     if (!hasRunnableTarget.value || !file) {
         error.value = isWordLineMode.value
             ? 'Select one or more word items and record audio first.'
@@ -767,7 +776,10 @@ const rejectAndContinue = () => {
                                 <span v-if="selectedItem.module" class="flex items-center rounded-lg bg-background px-3 py-2 text-[11px] font-bold text-muted truncate transition-colors duration-150 hover:bg-slate-100" :title="selectedItem.module.title">Module: {{ selectedItem.module.title }}</span>
                                 <span class="flex items-center rounded-lg bg-background px-3 py-2 text-[11px] font-bold text-muted truncate transition-colors duration-150 hover:bg-slate-100" :title="selectedItem.source">Source: {{ selectedItem.source }}</span>
                             </div>
-                            <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div v-if="isNoAsrItem" class="rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-sm font-semibold text-emerald-800">
+                                Task 2A is scored by the selected Yes/No answer. Recording and ASR are intentionally not used for this item.
+                            </div>
+                            <div v-if="isWordLineMode" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                 <span class="flex items-center rounded-lg bg-background px-3 py-2 text-[11px] font-bold text-muted truncate transition-colors duration-150 hover:bg-slate-100">Prompt: sentence</span>
                                 <span class="flex items-center rounded-lg bg-background px-3 py-2 text-[11px] font-bold text-muted truncate transition-colors duration-150 hover:bg-slate-100">Words: {{ selectedLineItems.length }}</span>
                                 <span class="flex items-center rounded-lg bg-background px-3 py-2 text-[11px] font-bold text-muted truncate transition-colors duration-150 hover:bg-slate-100">Task: true_sandbox_word_line</span>
@@ -779,7 +791,7 @@ const rejectAndContinue = () => {
 
                 <!-- Audio Recorder -->
                 <Transition name="ts-card-slide">
-                    <DashboardCard v-if="hasRunnableTarget" class="card-in" style="animation-delay: 160ms">
+                    <DashboardCard v-if="hasRunnableTarget && !isNoAsrItem" class="card-in" style="animation-delay: 160ms">
                         <AudioRecorder
                             :key="`${recorderContextKey}-${recorderResetKey}`"
                             :reset-key="`${recorderContextKey}-${recorderResetKey}`"

@@ -324,6 +324,10 @@ class LearnerFlowService
             return 'learner.diagnostic.module-placement';
         }
 
+        if ($attempt->reading_accuracy === null && ! $this->hasSelectedReadingPassage($attempt)) {
+            return 'learner.diagnostic.story-selection';
+        }
+
         if ($attempt->reading_accuracy === null) {
             return 'learner.diagnostic.passage';
         }
@@ -349,6 +353,7 @@ class LearnerFlowService
             'task-2b' => 'learner.diagnostic.task-2b',
             'crla-summary' => 'learner.diagnostic.crla-summary',
             'reading-intro' => 'learner.diagnostic.reading-intro',
+            'story-selection' => 'learner.diagnostic.story-selection',
             'passage' => 'learner.diagnostic.passage',
             'comprehension' => 'learner.diagnostic.comprehension',
             'reading-summary' => 'learner.diagnostic.reading-summary',
@@ -369,6 +374,7 @@ class LearnerFlowService
             'task-2b' => $current === 'learner.diagnostic.task-2b' && (int) $attempt->task_1_score >= 7,
             'crla-summary' => $attempt->crla_total_score !== null && ! $this->isDiagnosticComplete($attempt),
             'reading-intro' => $attempt->crla_total_score !== null && $this->passageEligibleForAttempt($attempt) && $attempt->reading_accuracy === null,
+            'story-selection' => $current === 'learner.diagnostic.story-selection',
             'passage' => $current === 'learner.diagnostic.passage',
             'comprehension' => $current === 'learner.diagnostic.comprehension',
             'reading-summary' => $attempt->final_reading_score !== null && ! $this->isDiagnosticComplete($attempt),
@@ -404,6 +410,10 @@ class LearnerFlowService
             return 'summary';
         }
 
+        if ($attempt->reading_accuracy === null && ! $this->hasSelectedReadingPassage($attempt)) {
+            return 'story-selection';
+        }
+
         if ($attempt->reading_accuracy === null) {
             return 'passage';
         }
@@ -427,6 +437,18 @@ class LearnerFlowService
         }
 
         return app(CrlaScoringService::class)->shouldAdministerPassage((int) $attempt->task_1_score, (int) $attempt->crla_total_score);
+    }
+
+    private function hasSelectedReadingPassage(AssessmentAttempt $attempt): bool
+    {
+        if ($attempt->relationLoaded('selectedItems')) {
+            return $attempt->selectedItems
+                ->contains(fn ($item): bool => $item->task_type === AssessmentItemSelectionService::READING_PASSAGE);
+        }
+
+        return $attempt->selectedItems()
+            ->where('task_type', AssessmentItemSelectionService::READING_PASSAGE)
+            ->exists();
     }
 
     public function moduleAccessible(Learner $learner, Module $module): bool

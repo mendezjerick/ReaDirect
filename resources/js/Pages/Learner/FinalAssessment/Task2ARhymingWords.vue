@@ -33,9 +33,9 @@ const currentAnswer = computed(() => step.answers[step.currentItem.value?.id] ??
 const canUseDeveloperJumpControls = computed(() => props.assessmentMode?.canUseDeveloperJumpControls === true);
 const firstFormError = computed(() => Object.values(form.errors ?? {})[0] ?? '');
 const vivianPrompt = computed(() => {
-    const script = currentPayload.value.audio_script ?? currentPayload.value.vivian_prompt_script ?? step.currentItem.value?.prompt ?? '';
+    const script = currentPayload.value.vivian_prompt_script ?? currentPayload.value.audio_script ?? step.currentItem.value?.prompt ?? '';
 
-    return `${script}. Do these words rhyme?`;
+    return String(script).toLowerCase().includes('rhyme') ? script : `${script}. Do these words rhyme?`;
 });
 
 const selectAnswer = (answer) => {

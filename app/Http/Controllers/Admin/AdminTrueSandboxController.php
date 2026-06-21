@@ -31,13 +31,14 @@ class AdminTrueSandboxController extends Controller
             'assessment_type' => 'diagnostic',
         ],
         'diagnostic_rhymes' => [
-            'label' => 'Diagnostic: Rhyming words',
-            'description' => 'Task 2A rhyme prompts from the assessment content bank.',
+            'label' => 'Diagnostic: Task 2A rhyme decisions',
+            'description' => 'Task 2A yes/no rhyme decision prompts. These are learner click responses and do not use ASR.',
             'source' => 'content',
             'content_types' => ['rhyme_decision', 'crla_task_2a_rhyme_decision', 'rhyme_prompt', 'crla_task_2a_rhyme', 'task_2a_rhyme'],
-            'prompt_type' => 'rhyme',
-            'task_type' => 'crla_task_2a_rhyme',
+            'prompt_type' => 'decision',
+            'task_type' => 'crla_task_2a_rhyme_decision',
             'assessment_type' => 'diagnostic',
+            'no_asr' => true,
         ],
         'diagnostic_task2b' => [
             'label' => 'Diagnostic: Task 2B highlighted words',
@@ -103,13 +104,14 @@ class AdminTrueSandboxController extends Controller
             'assessment_type' => 'final_reassessment',
         ],
         'final_rhymes' => [
-            'label' => 'Final assessment: Rhyming words',
-            'description' => 'Final/reassessment Task 2A rhyme testing.',
+            'label' => 'Final assessment: Task 2A rhyme decisions',
+            'description' => 'Final/reassessment Task 2A yes/no rhyme decisions. These are learner click responses and do not use ASR.',
             'source' => 'content',
             'content_types' => ['rhyme_decision', 'crla_task_2a_rhyme_decision', 'rhyme_prompt', 'crla_task_2a_rhyme', 'task_2a_rhyme'],
-            'prompt_type' => 'rhyme',
-            'task_type' => 'crla_task_2a_rhyme',
+            'prompt_type' => 'decision',
+            'task_type' => 'crla_task_2a_rhyme_decision',
             'assessment_type' => 'final_reassessment',
+            'no_asr' => true,
         ],
         'final_task2b' => [
             'label' => 'Final assessment: Task 2B highlighted words',
@@ -325,6 +327,7 @@ class AdminTrueSandboxController extends Controller
         if (($config['source'] ?? 'content') === 'module') {
             return ModuleActivity::query()
                 ->with(['module', 'learningContent'])
+                ->whereHas('learningContent', fn ($content) => $content->where('is_active', true))
                 ->when($moduleId, fn ($query) => $query->where('module_id', $moduleId))
                 ->when($activityType !== '', fn ($query) => $query->where('activity_type', $activityType))
                 ->when((bool) ($config['mastery_only'] ?? false), fn ($query) => $query
@@ -351,6 +354,7 @@ class AdminTrueSandboxController extends Controller
 
         return LearningContent::query()
             ->whereIn('content_type', $config['content_types'] ?? [])
+            ->where('is_active', true)
             ->when($search !== '', fn ($query) => $query->where(fn ($inner) => $inner
                 ->where('title', 'like', "%{$search}%")
                 ->orWhere('prompt', 'like', "%{$search}%")
@@ -367,6 +371,7 @@ class AdminTrueSandboxController extends Controller
     private function serializeContent(LearningContent $content, string $section, array $config): array
     {
         $payload = $content->payload ?? [];
+        $noAsr = (bool) ($config['no_asr'] ?? false);
         $expectedText = $this->expectedText($content->prompt, $payload, $content->accepted_answers ?? [], (string) ($config['prompt_type'] ?? ''), $section);
 
         return [
@@ -382,11 +387,12 @@ class AdminTrueSandboxController extends Controller
             'activity_type' => $config['task_type'] ?? $content->content_type,
             'assessment_type' => $config['assessment_type'] ?? 'true_sandbox',
             'accepted_answers' => array_values($content->accepted_answers ?? []),
-            'payload' => $payload,
+            'payload' => array_merge($payload, ['no_asr_required' => $noAsr]),
             'metadata' => [
                 'public_id' => $content->public_id,
                 'difficulty' => $content->difficulty,
                 'is_active' => $content->is_active,
+                'no_asr_required' => $noAsr,
                 'enrichment_metadata' => $content->enrichment_metadata ?? [],
             ],
         ];
@@ -433,6 +439,10 @@ class AdminTrueSandboxController extends Controller
 
     private function expectedText(?string $prompt, array $payload, array $acceptedAnswers, string $promptType, string $section): string
     {
+        if (str_contains($section, 'rhymes')) {
+            return trim((string) ($payload['correct_answer'] ?? $acceptedAnswers[0] ?? ''));
+        }
+
         if (str_contains($section, 'task2b')) {
             return trim((string) ($payload['target_word'] ?? $payload['expected_answer'] ?? $acceptedAnswers[0] ?? $prompt ?? ''));
         }

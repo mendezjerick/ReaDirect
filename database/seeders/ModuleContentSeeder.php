@@ -9,6 +9,7 @@ use Illuminate\Database\Seeder;
 class ModuleContentSeeder extends Seeder
 {
     private string $basePath;
+
     private ?array $enrichmentIndex = null;
 
     public function __construct()
@@ -41,7 +42,7 @@ class ModuleContentSeeder extends Seeder
                 'points' => $this->points($row, $metadata),
                 'is_mastery_item' => $this->active($row['is_mastery_item']),
             ];
-            $enrichment = $this->enrichmentFor($this->rowId($row));
+            $enrichment = $this->rowEnrichment($row) + $this->enrichmentFor($this->rowId($row));
 
             $content = $this->updateLearningContent(
                 'module_activity',
@@ -204,6 +205,31 @@ class ModuleContentSeeder extends Seeder
         $index = $this->enrichmentIndex();
 
         return $index[$promptId] ?? [];
+    }
+
+    private function rowEnrichment(array $row): array
+    {
+        $fields = [
+            'expected_phonemes',
+            'initial_phoneme',
+            'vowel_phonemes',
+            'final_phoneme',
+            'phoneme_pattern',
+            'skill_tag',
+            'skill_group',
+            'error_focus',
+            'target_position',
+            'target_phoneme',
+            'difficulty_level',
+            'difficulty_score',
+            'adaptive_bucket',
+            'recommended_for_error_type',
+            'needs_manual_review',
+        ];
+
+        return collect($row)
+            ->only($fields)
+            ->all();
     }
 
     private function enrichmentIndex(): array

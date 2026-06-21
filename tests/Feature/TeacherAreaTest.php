@@ -296,7 +296,7 @@ class TeacherAreaTest extends TestCase
             'crla_classification' => 'Grade Ready',
             'incorrect_words' => 2,
             'reading_accuracy' => 96,
-            'comprehension_correct_count' => 5,
+            'comprehension_correct_count' => 4,
             'comprehension_percentage' => 100,
             'final_reading_score' => 98.4,
             'reading_classification' => 'Reading at Grade Level',

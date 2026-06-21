@@ -713,6 +713,7 @@ class ReadirectAIIntegrationTest extends TestCase
             'readirect.ollama.enabled' => true,
             'readirect.agent_feedback.miss_ciel_ollama_enabled' => true,
             'readirect.ollama.base_url' => 'http://ollama.test',
+            'readirect.tts.base_url' => 'http://tts.test',
         ]);
 
         Http::fake([
@@ -745,6 +746,12 @@ class ReadirectAIIntegrationTest extends TestCase
                 'service' => 'ReaDirect AI/ASR Service',
                 'version' => '0.1.0',
                 'config' => ['asr' => ['architecture' => 'wav2vec2_only', 'provider' => 'wav2vec2']],
+            ]),
+            'http://tts.test/health' => Http::response([
+                'ok' => true,
+                'service' => 'readirect-tts',
+                'provider' => 'kokoro',
+                'voices' => ['vivian' => 'af_heart'],
             ]),
         ]);
 

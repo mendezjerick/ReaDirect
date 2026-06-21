@@ -188,6 +188,10 @@ class DiagnosticAssessmentValidationTest extends TestCase
         $this->withSession($this->learnerSession($attempt))
             ->get(route('learner.diagnostic.passage'))
             ->assertRedirect(route('learner.diagnostic.module-placement'));
+
+        $this->withSession($this->learnerSession($attempt))
+            ->get(route('learner.diagnostic.story-selection'))
+            ->assertRedirect(route('learner.diagnostic.module-placement'));
     }
 
     public function test_task_two_a_summary_shows_saved_score_before_task_two_b(): void
@@ -212,6 +216,56 @@ class DiagnosticAssessmentValidationTest extends TestCase
                 ->where('attempt.task_1_score', 4)
                 ->where('attempt.task_2a_score', 6)
             );
+    }
+
+    public function test_eligible_learner_selects_story_before_passage_reading(): void
+    {
+        $attempt = $this->assessmentAttempt();
+        $attempt->update([
+            'task_1_score' => 10,
+            'task_2a_score' => 10,
+            'task_2b_score' => 10,
+            'crla_total_score' => 30,
+            'crla_classification' => 'Grade Ready',
+            'status' => 'crla_completed',
+        ]);
+
+        foreach ([1 => 'Rosa and the Kite', 2 => 'Lena and the Seed'] as $storyNumber => $title) {
+            LearningContent::create([
+                'content_type' => 'reading_passage',
+                'title' => $title,
+                'prompt' => str_repeat('word ', 50),
+                'payload' => [
+                    'source_csv_id' => sprintf('PASS-%03d', $storyNumber),
+                    'story_number' => $storyNumber,
+                    'word_count' => 50,
+                ],
+                'difficulty' => 'easy',
+                'is_active' => true,
+            ]);
+        }
+
+        $this->withSession($this->learnerSession($attempt))
+            ->get(route('learner.diagnostic.passage'))
+            ->assertRedirect(route('learner.diagnostic.story-selection'));
+
+        $this->withSession($this->learnerSession($attempt))
+            ->get(route('learner.diagnostic.story-selection'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Learner/StorySelection')
+                ->has('stories', 2)
+                ->where('stories.1.id', 'PASS-002')
+            );
+
+        $this->withSession($this->learnerSession($attempt))
+            ->post(route('learner.diagnostic.story-selection.store'), ['passage_id' => 'PASS-002'])
+            ->assertRedirect(route('learner.diagnostic.passage'));
+
+        $this->assertSame(
+            'PASS-002',
+            $attempt->selectedItems()->where('task_type', AssessmentItemSelectionService::READING_PASSAGE)->first()?->source_csv_id
+        );
     }
 
     public function test_task_two_b_submission_with_missing_answer_is_rejected(): void
@@ -249,6 +303,7 @@ class DiagnosticAssessmentValidationTest extends TestCase
             'crla_total_score' => 30,
             'status' => 'crla_completed',
         ]);
+        $this->addReadingPassage($attempt);
 
         $this->withSession($this->learnerSession($attempt, ['admin_testing_mode' => true]))
             ->post(route('learner.diagnostic.passage.store'), [])
@@ -388,7 +443,7 @@ class DiagnosticAssessmentValidationTest extends TestCase
         $this->assertNotNull($attempt->refresh()->reading_accuracy);
     }
 
-    public function test_comprehension_submission_with_fewer_than_five_answers_is_rejected(): void
+    public function test_comprehension_submission_with_fewer_than_required_answers_is_rejected(): void
     {
         $attempt = $this->assessmentAttempt();
         $attempt->update([
@@ -399,11 +454,12 @@ class DiagnosticAssessmentValidationTest extends TestCase
             'reading_accuracy' => 90,
             'status' => 'passage_completed',
         ]);
+        $this->addReadingPassage($attempt);
 
         $this->withSession($this->learnerSession($attempt))
             ->post(route('learner.diagnostic.comprehension.store'), [
                 'responses' => [
-                    ['question_id' => 'CQ-001', 'answer' => 'park'],
+                    ['question_id' => 'CQ-001', 'answer' => 'A'],
                 ],
             ])
             ->assertSessionHasErrors('responses');
@@ -534,7 +590,11 @@ class DiagnosticAssessmentValidationTest extends TestCase
             'content_type' => 'reading_passage',
             'title' => 'Passage',
             'prompt' => 'Leo can read. Leo can run. Leo can hop.',
-            'payload' => ['source_csv_id' => 'PASS-1'],
+            'payload' => [
+                'source_csv_id' => 'PASS-001',
+                'story_number' => 1,
+                'word_count' => 8,
+            ],
             'accepted_answers' => [],
             'difficulty' => 'easy',
             'is_active' => true,
@@ -542,7 +602,7 @@ class DiagnosticAssessmentValidationTest extends TestCase
 
         $attempt->selectedItems()->create([
             'learning_content_id' => $content->id,
-            'source_csv_id' => 'PASS-1',
+            'source_csv_id' => 'PASS-001',
             'task_type' => AssessmentItemSelectionService::READING_PASSAGE,
             'sequence' => 1,
             'prompt_snapshot' => [
@@ -552,6 +612,31 @@ class DiagnosticAssessmentValidationTest extends TestCase
             ],
             'selected_at' => now(),
         ]);
+
+        foreach (range(1, 4) as $index) {
+            LearningContent::create([
+                'content_type' => 'comprehension_question',
+                'title' => 'Question '.$index,
+                'prompt' => 'Question '.$index.'?',
+                'payload' => [
+                    'source_csv_id' => 'CQ-00'.$index,
+                    'passage_id' => 'PASS-001',
+                    'sequence' => $index,
+                    'question_type' => 'multiple_choice',
+                    'choices' => [
+                        'A' => 'A',
+                        'B' => 'B',
+                        'C' => 'C',
+                        'D' => 'D',
+                    ],
+                    'correct_choice' => 'A',
+                    'correct_answer' => 'A',
+                ],
+                'accepted_answers' => ['a', 'A'],
+                'difficulty' => 'easy',
+                'is_active' => true,
+            ]);
+        }
     }
 
     private function audioFile(AssessmentAttempt $attempt, ?string $transcript = null): AudioFile

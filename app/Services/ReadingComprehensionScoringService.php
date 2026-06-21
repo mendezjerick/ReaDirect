@@ -5,9 +5,13 @@ namespace App\Services;
 class ReadingComprehensionScoringService
 {
     public const LOW_EMERGING = 'Low Emerging Reader';
+
     public const HIGH_EMERGING = 'High Emerging Reader';
+
     public const DEVELOPING = 'Developing Reader';
+
     public const TRANSITIONING = 'Transitioning Reader';
+
     public const GRADE_LEVEL = 'Reading at Grade Level';
 
     public function calculateAccuracyPercentage(int $incorrectWords): float
@@ -64,6 +68,7 @@ class ReadingComprehensionScoringService
         for ($index = 0; $index < $pairCount; $index++) {
             if ($expectedWords[$index] === $actualWords[$index]) {
                 $exactMatches++;
+
                 continue;
             }
 
@@ -79,7 +84,7 @@ class ReadingComprehensionScoringService
         ];
     }
 
-    public function calculateComprehensionPercentage(int $correctAnswers, int $totalQuestions = 5): float
+    public function calculateComprehensionPercentage(int $correctAnswers, int $totalQuestions = 4): float
     {
         if ($correctAnswers < 0 || $totalQuestions <= 0 || $correctAnswers > $totalQuestions) {
             throw new \InvalidArgumentException('Comprehension inputs are outside the allowed range.');
