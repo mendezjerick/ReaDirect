@@ -13,8 +13,11 @@ use RuntimeException;
 class AssessmentItemSelectionService
 {
     public const TASK_1_LETTER = 'task_1_letter_pronunciation';
+
     public const TASK_2A_RHYME = 'task_2a_rhyming_words';
+
     public const TASK_2B_WORD_SENTENCE = 'task_2b_word_in_sentence';
+
     public const READING_PASSAGE = 'reading_passage';
 
     public function selectTask1LettersForAttempt(AssessmentAttempt $assessmentAttempt): Collection
@@ -30,7 +33,42 @@ class AssessmentItemSelectionService
 
     public function selectTask2ARhymingPromptsForAttempt(AssessmentAttempt $assessmentAttempt): Collection
     {
-        return $this->selectAndLock($assessmentAttempt, self::TASK_2A_RHYME, ['rhyme_prompt', 'crla_task_2a_rhyme'], 10);
+        return DB::transaction(function () use ($assessmentAttempt): Collection {
+            $existing = $this->getLockedItemsForAttempt($assessmentAttempt, self::TASK_2A_RHYME);
+
+            if ($existing->isNotEmpty()) {
+                return $existing;
+            }
+
+            $available = LearningContent::query()
+                ->whereIn('content_type', ['rhyme_decision', 'crla_task_2a_rhyme_decision'])
+                ->where('is_active', true)
+                ->get()
+                ->sortBy(fn (LearningContent $content): int => (int) ($content->payload['sequence'] ?? $content->id))
+                ->values();
+
+            $rhyming = $available
+                ->filter(fn (LearningContent $content): bool => $this->payloadBoolean($content->payload['is_rhyme'] ?? false))
+                ->take(6)
+                ->values();
+            $nonRhyming = $available
+                ->reject(fn (LearningContent $content): bool => $this->payloadBoolean($content->payload['is_rhyme'] ?? false))
+                ->take(4)
+                ->values();
+
+            if ($rhyming->count() < 6 || $nonRhyming->count() < 4) {
+                throw new RuntimeException('Task 2A requires 6 active rhyming pairs and 4 active non-rhyming pairs.');
+            }
+
+            $items = $rhyming
+                ->concat($nonRhyming)
+                ->sortBy(fn (LearningContent $content): int => (int) ($content->payload['sequence'] ?? $content->id))
+                ->values();
+
+            $this->lockItemsForAttempt($assessmentAttempt, self::TASK_2A_RHYME, $items);
+
+            return $this->getLockedItemsForAttempt($assessmentAttempt, self::TASK_2A_RHYME);
+        });
     }
 
     public function selectTask2BWordSentenceItemsForAttempt(AssessmentAttempt $assessmentAttempt): Collection
@@ -83,21 +121,26 @@ class AssessmentItemSelectionService
                 throw new RuntimeException("Not enough active {$taskType} items are available.");
             }
 
-            $now = now();
-
-            $items->values()->each(function (LearningContent $content, int $index) use ($assessmentAttempt, $taskType, $now): void {
-                AssessmentAttemptItem::create([
-                    'assessment_attempt_id' => $assessmentAttempt->id,
-                    'learning_content_id' => $content->id,
-                    'source_csv_id' => $this->sourceCsvId($content),
-                    'task_type' => $taskType,
-                    'sequence' => $index + 1,
-                    'prompt_snapshot' => $this->snapshot($content),
-                    'selected_at' => $now,
-                ]);
-            });
+            $this->lockItemsForAttempt($assessmentAttempt, $taskType, $items->values());
 
             return $this->getLockedItemsForAttempt($assessmentAttempt, $taskType);
+        });
+    }
+
+    private function lockItemsForAttempt(AssessmentAttempt $assessmentAttempt, string $taskType, Collection $items): void
+    {
+        $now = now();
+
+        $items->values()->each(function (LearningContent $content, int $index) use ($assessmentAttempt, $taskType, $now): void {
+            AssessmentAttemptItem::create([
+                'assessment_attempt_id' => $assessmentAttempt->id,
+                'learning_content_id' => $content->id,
+                'source_csv_id' => $this->sourceCsvId($content),
+                'task_type' => $taskType,
+                'sequence' => $index + 1,
+                'prompt_snapshot' => $this->snapshot($content),
+                'selected_at' => $now,
+            ]);
         });
     }
 
@@ -118,5 +161,14 @@ class AssessmentItemSelectionService
     private function sourceCsvId(LearningContent $content): ?string
     {
         return $content->payload['source_csv_id'] ?? $content->payload['csv_id'] ?? null;
+    }
+
+    private function payloadBoolean(mixed $value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        return in_array(strtolower(trim((string) $value)), ['1', 'true', 'yes'], true);
     }
 }

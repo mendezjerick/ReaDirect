@@ -124,7 +124,7 @@ class DiagnosticAssessmentValidationTest extends TestCase
     public function test_task_two_a_submission_with_missing_answer_is_rejected(): void
     {
         $attempt = $this->attemptWithLockedItems(AssessmentItemSelectionService::TASK_2A_RHYME, 'rhyme_prompt');
-        $responses = $this->responsesFor($attempt, AssessmentItemSelectionService::TASK_2A_RHYME, 'bat');
+        $responses = $this->responsesFor($attempt, AssessmentItemSelectionService::TASK_2A_RHYME, 'yes');
         $responses[0]['answer'] = ' ';
 
         $this->withSession($this->learnerSession($attempt, ['admin_testing_mode' => true]))
@@ -132,31 +132,62 @@ class DiagnosticAssessmentValidationTest extends TestCase
             ->assertSessionHasErrors('responses.0.answer');
     }
 
-    public function test_task_two_a_scores_the_paired_second_word_only(): void
+    public function test_task_two_a_scores_yes_no_decisions_without_asr_and_ends_low_task_one_path(): void
     {
         $attempt = $this->attemptWithLockedItems(AssessmentItemSelectionService::TASK_2A_RHYME, 'rhyme_prompt');
-
-        $attempt->selectedItems()
+        $responses = $attempt->selectedItems()
             ->where('task_type', AssessmentItemSelectionService::TASK_2A_RHYME)
+            ->orderBy('sequence')
             ->get()
-            ->each(function ($item): void {
-                $snapshot = $item->prompt_snapshot;
-                $snapshot['prompt'] = 'cat';
-                $snapshot['payload'] = array_merge($snapshot['payload'] ?? [], [
-                    'target_word' => 'bat',
-                    'expected_answer' => 'bat',
-                ]);
-                $snapshot['accepted_answers'] = ['bat', 'hat', 'mat'];
-                $item->update(['prompt_snapshot' => $snapshot]);
-            });
+            ->map(fn ($item) => [
+                'assessment_attempt_item_id' => $item->id,
+                'answer' => $item->sequence <= 6 ? 'yes' : 'no',
+            ])
+            ->all();
 
         $this->withSession($this->learnerSession($attempt, ['admin_testing_mode' => true]))
             ->post(route('learner.diagnostic.task-2a.store'), [
-                'responses' => $this->responsesFor($attempt, AssessmentItemSelectionService::TASK_2A_RHYME, 'hat'),
+                'responses' => $responses,
             ])
-            ->assertRedirect(route('learner.diagnostic.task-2a-summary'));
+            ->assertRedirect(route('learner.diagnostic.crla-summary'));
 
-        $this->assertSame(0, (int) $attempt->refresh()->task_2a_score);
+        $attempt->refresh();
+
+        $this->assertSame(10, (int) $attempt->task_2a_score);
+        $this->assertSame(0, (int) $attempt->task_2b_score);
+        $this->assertSame(15, (int) $attempt->crla_total_score);
+        $this->assertSame(0.0, (float) $attempt->reading_accuracy);
+        $this->assertSame(0.0, (float) $attempt->final_reading_score);
+        $this->assertSame(0, AudioFile::count());
+        $this->assertSame(10, AssessmentTaskResponse::where('assessment_attempt_id', $attempt->id)->whereNull('audio_file_id')->count());
+        $this->assertTrue(AssessmentTaskResponse::where('assessment_attempt_id', $attempt->id)->get()->every(
+            fn ($response) => $response->metadata_json['asr_used'] === false
+        ));
+    }
+
+    public function test_low_task_one_learner_cannot_access_task_two_b_or_passage(): void
+    {
+        $attempt = $this->assessmentAttempt();
+        $attempt->update([
+            'task_1_score' => 5,
+            'task_2a_score' => 8,
+            'task_2b_score' => 0,
+            'crla_total_score' => 13,
+            'crla_classification' => 'Moderate Refresher',
+            'reading_accuracy' => 0,
+            'comprehension_percentage' => 0,
+            'final_reading_score' => 0,
+            'reading_classification' => 'Low Emerging Reader',
+            'status' => 'crla_completed',
+        ]);
+
+        $this->withSession($this->learnerSession($attempt))
+            ->get(route('learner.diagnostic.task-2b'))
+            ->assertRedirect(route('learner.diagnostic.module-placement'));
+
+        $this->withSession($this->learnerSession($attempt))
+            ->get(route('learner.diagnostic.passage'))
+            ->assertRedirect(route('learner.diagnostic.module-placement'));
     }
 
     public function test_task_two_a_summary_shows_saved_score_before_task_two_b(): void
@@ -165,7 +196,12 @@ class DiagnosticAssessmentValidationTest extends TestCase
         $attempt->update([
             'task_1_score' => 4,
             'task_2a_score' => 6,
-            'status' => 'task_2a_completed',
+            'task_2b_score' => 0,
+            'crla_total_score' => 10,
+            'crla_classification' => 'Full Refresher',
+            'reading_accuracy' => 0,
+            'final_reading_score' => 0,
+            'status' => 'crla_completed',
         ]);
 
         $this->withSession($this->learnerSession($attempt))
@@ -440,12 +476,27 @@ class DiagnosticAssessmentValidationTest extends TestCase
         }
 
         foreach (range(1, 10) as $index) {
+            $isTaskTwoA = $taskType === AssessmentItemSelectionService::TASK_2A_RHYME;
+            $isRhyme = $index <= 6;
+            $taskTwoAWordTwo = $isRhyme ? 'hat' : 'dog';
+            $taskTwoACorrectAnswer = $isRhyme ? 'yes' : 'no';
+            $payload = $isTaskTwoA
+                ? [
+                    'source_csv_id' => 'SRC-'.$index,
+                    'sequence' => $index,
+                    'word_1' => 'cat',
+                    'word_2' => $taskTwoAWordTwo,
+                    'is_rhyme' => $isRhyme,
+                    'correct_answer' => $taskTwoACorrectAnswer,
+                    'audio_script' => "cat, {$taskTwoAWordTwo}",
+                ]
+                : ['source_csv_id' => 'SRC-'.$index, 'target_word' => 'cat', 'expected_answer' => 'A'];
             $content = LearningContent::create([
-                'content_type' => $contentType,
+                'content_type' => $isTaskTwoA ? 'rhyme_decision' : $contentType,
                 'title' => 'Item '.$index,
-                'prompt' => $contentType === 'word_sentence' ? 'I see a cat.' : 'A',
-                'payload' => ['source_csv_id' => 'SRC-'.$index, 'target_word' => 'cat', 'expected_answer' => 'A'],
-                'accepted_answers' => $contentType === 'rhyme_prompt' ? ['bat'] : [$contentType === 'word_sentence' ? 'cat' : 'A'],
+                'prompt' => $isTaskTwoA ? "cat, {$taskTwoAWordTwo}" : ($contentType === 'word_sentence' ? 'I see a cat.' : 'A'),
+                'payload' => $payload,
+                'accepted_answers' => $isTaskTwoA ? [$taskTwoACorrectAnswer] : [$contentType === 'word_sentence' ? 'cat' : 'A'],
                 'difficulty' => 'easy',
                 'is_active' => true,
             ]);

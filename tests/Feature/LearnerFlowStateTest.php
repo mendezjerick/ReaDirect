@@ -123,8 +123,7 @@ class LearnerFlowStateTest extends TestCase
         $attempt->update(['task_2a_score' => 6, 'status' => 'task_2a_completed']);
         $this->withSession(['learner_id' => $learner->id, 'assessment_attempt_id' => $attempt->id])
             ->get(route('learner.diagnostic.task-2a-summary'))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->component('Learner/Task2ASummary'));
+            ->assertRedirect(route('learner.diagnostic.crla-summary'));
     }
 
     public function test_module_access_and_dashboard_actions_follow_current_module_and_stage(): void

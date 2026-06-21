@@ -1,17 +1,13 @@
 <script setup>
-import { computed, reactive, ref } from 'vue';
+import { computed } from 'vue';
 import { useForm } from '@inertiajs/vue3';
+import { Check, Volume2, X } from 'lucide-vue-next';
 import LearnerLayout from '../../Layouts/LearnerLayout.vue';
 import AgentSpeakerPanel from '../../Components/Learner/AgentSpeakerPanel.vue';
-import AudioRecorder from '../../Components/Learner/AudioRecorder.vue';
 import PrimaryButton from '../../Components/PrimaryButton.vue';
 import SecondaryButton from '../../Components/SecondaryButton.vue';
 import BottomActionBar from '../../Components/BottomActionBar.vue';
-import StatusBadge from '../../Components/StatusBadge.vue';
-import ModuleProgressBar from '../../Components/ModuleProgressBar.vue';
-import { MessageCircle, Mic2, Volume2 } from 'lucide-vue-next';
 import { useStepAssessment } from '../../Composables/useStepAssessment';
-import { appendAudioMetadata, normalizeAsrResponse } from '../../utils/asrResponse';
 
 const props = defineProps({
     items: Array,
@@ -19,165 +15,52 @@ const props = defineProps({
     assessmentAttemptId: Number,
     assessmentMode: Object,
 });
+
 const form = useForm({ assessment_attempt_id: props.assessmentAttemptId, responses: [] });
-const audioFiles = reactive({});
-const audioDurations = reactive({});
-const savedEntries = (key) => Object.fromEntries((props.items ?? [])
-    .filter((item) => item?.saved_response?.[key] != null && item.saved_response[key] !== '')
-    .map((item) => [item.id, item.saved_response[key]]));
-const uploadedAudioIds = reactive(savedEntries('audio_file_id'));
-const transcriptSources = reactive(savedEntries('transcript_source'));
-const generatedTranscripts = reactive(Object.fromEntries((props.items ?? [])
-    .filter((item) => item?.saved_response?.answer || item?.saved_response?.displayed_transcript)
-    .map((item) => [item.id, item.saved_response.displayed_transcript ?? item.saved_response.answer])));
-const uploadErrors = reactive({});
-const uploading = reactive({});
-const canUseManualFallback = computed(() => props.assessmentMode?.canUseManualFallback === true);
+const savedAnswers = Object.fromEntries((props.items ?? [])
+    .filter((item) => item?.saved_response?.answer)
+    .map((item) => [item.id, item.saved_response.answer]));
+const step = useStepAssessment(props.items ?? [], {
+    emptyMessage: 'Choose Yes or No.',
+    initialIndex: props.initialIndex ?? 0,
+});
+Object.entries(savedAnswers).forEach(([id, answer]) => {
+    step.answers[id] = answer;
+});
+
+const currentPayload = computed(() => step.currentItem.value?.payload ?? {});
+const currentAnswer = computed(() => step.answers[step.currentItem.value?.id] ?? '');
 const canUseDeveloperJumpControls = computed(() => props.assessmentMode?.canUseDeveloperJumpControls === true);
-const isDeveloperQaMode = computed(() => props.assessmentMode?.isDeveloperQaMode === true);
-const autoTranscribeOnStop = computed(() => props.assessmentMode?.canAutoTranscribeOnStop === true);
-const requireReviewBeforeSubmit = computed(() => props.assessmentMode?.requireReviewBeforeSubmit !== false);
-const manualAnswerFor = (item) => canUseManualFallback.value ? String(step.answers[item?.id] ?? '').trim() : '';
-const answerFor = (item) => manualAnswerFor(item) || String(generatedTranscripts[item?.id] ?? '').trim();
-const sourceFor = (item) => manualAnswerFor(item)
-    ? 'manual'
-    : (transcriptSources[item?.id] ?? (generatedTranscripts[item?.id] ? 'stt_auto' : 'stt_auto'));
-const hasAnswerOrAudio = (item) => answerFor(item).length > 0;
-const step = useStepAssessment(props.items, { emptyMessage: 'Almost there! Finish this item to continue.', initialIndex: props.initialIndex ?? 0, isAnswered: hasAnswerOrAudio });
-const targetWordFor = (item) => item?.payload?.target_word ?? item?.payload?.expected_answer ?? item?.accepted_answers?.[0] ?? '';
-const agentMessage = ref('Listen to the word. Say the word that matches the rhyme.');
-const agentState = ref('listening');
-const neutralMessages = ['Thank you. Let us continue.', 'Good effort. Let us go to the next one.', 'I heard your answer. Let us keep going.'];
-const isCurrentUploading = computed(() => Boolean(uploading[step.currentItem.value?.id]));
 const firstFormError = computed(() => Object.values(form.errors ?? {})[0] ?? '');
+const vivianPrompt = computed(() => {
+    const script = currentPayload.value.audio_script ?? currentPayload.value.vivian_prompt_script ?? step.currentItem.value?.prompt ?? '';
 
-const rememberAudio = (item, file) => {
-    audioFiles[item.id] = file;
-    audioDurations[item.id] = file.durationSeconds ?? null;
-    uploadErrors[item.id] = '';
-    delete uploadedAudioIds[item.id];
-    delete transcriptSources[item.id];
-    delete generatedTranscripts[item.id];
-    agentMessage.value = 'Listen to your answer. If you are happy with your answer, click Submit.';
-    agentState.value = 'speaking';
-};
+    return `${script}. Do these words rhyme?`;
+});
 
-const clearAudio = (item) => {
-    delete audioFiles[item.id];
-    delete audioDurations[item.id];
-    delete uploadedAudioIds[item.id];
-    delete transcriptSources[item.id];
-    delete generatedTranscripts[item.id];
-    delete uploadErrors[item.id];
-    delete uploading[item.id];
-};
-
-const setAnswer = (item, value) => {
-    step.answers[item.id] = value;
-};
-
-const uploadAudio = async (item, file) => {
-    uploading[item.id] = true;
-    agentMessage.value = 'Checking your recording.';
-    agentState.value = 'thinking';
-
-    try {
-        const payload = new FormData();
-        payload.append('audio', file);
-        payload.append('context_type', 'assessment_task');
-        payload.append('assessment_attempt_id', String(props.assessmentAttemptId));
-        payload.append('item_id', String(item.id));
-        payload.append('task_type', 'crla_task_2a_rhyme');
-        if (audioDurations[item.id] != null) {
-            payload.append('duration_seconds', String(audioDurations[item.id]));
-        }
-        appendAudioMetadata(payload, file);
-
-        const response = await fetch('/learner/audio/upload', {
-            method: 'POST',
-            headers: {
-                Accept: 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '',
-            },
-            body: payload,
-        });
-        const result = await response.json();
-
-        if (!response.ok) {
-            throw new Error(result.message ?? 'We had trouble checking your answer. Please try again.');
-        }
-
-        const asr = normalizeAsrResponse(result);
-        if (asr.canSubmit) {
-            uploadedAudioIds[item.id] = result.audio_file_id;
-            const transcript = asr.displayTranscript;
-            generatedTranscripts[item.id] = transcript;
-            transcriptSources[item.id] = result.transcript_source ?? 'stt_auto';
-            agentMessage.value = `You said: ${transcript}`;
-            agentState.value = 'speaking';
-            return;
-        }
-
-        uploadErrors[item.id] = asr.message;
-        agentMessage.value = uploadErrors[item.id];
-        agentState.value = 'retry';
-    } catch (error) {
-        uploadErrors[item.id] = error.message || 'We had trouble checking your answer. Please try again.';
-        agentMessage.value = uploadErrors[item.id];
-        agentState.value = 'retry';
-    } finally {
-        uploading[item.id] = false;
-    }
+const selectAnswer = (answer) => {
+    step.answers[step.currentItem.value.id] = answer;
+    step.feedback.value = '';
 };
 
 const submit = () => {
-    if (!step.validateComplete()) {
-        agentMessage.value = 'Almost there. Finish each rhyme before checking your words.';
-        agentState.value = 'speaking';
-        return;
-    }
+    if (!step.validateComplete()) return;
 
-    form.responses = step.payload((item) => ({
+    form.responses = step.payload((item, answer) => ({
         assessment_attempt_item_id: item.id,
-        answer: answerFor(item),
-        transcript_source: sourceFor(item),
-        audio_file_id: uploadedAudioIds[item.id] ?? null,
-        audio: uploadedAudioIds[item.id] ? null : (audioFiles[item.id] ?? null),
-        duration_seconds: audioDurations[item.id] ?? null,
+        answer,
     }));
     form.post('/learner/diagnostic/task-2a', {
-        forceFormData: true,
         onError: (errors) => {
-            const firstError = Object.values(errors ?? {})[0] ?? 'We could not check these words yet. Please review them and try again.';
+            const firstError = Object.values(errors ?? {})[0] ?? 'Choose Yes or No for each pair.';
             step.feedback.value = Array.isArray(firstError) ? firstError[0] : firstError;
-            agentMessage.value = step.feedback.value;
-            agentState.value = 'retry';
         },
     });
 };
 
 const handlePrimary = () => {
-    if (!step.validateCurrent()) {
-        agentMessage.value = 'Almost there! Finish this item to continue.';
-        agentState.value = 'speaking';
-        return;
-    }
-
-    if (isCurrentUploading.value) {
-        agentMessage.value = 'Wait for the transcript to finish loading.';
-        agentState.value = 'speaking';
-        return;
-    }
-
-    agentMessage.value = neutralMessages[step.currentIndex.value % neutralMessages.length];
-    agentState.value = 'speaking';
-
-    if (step.isLast.value) {
-        submit();
-        return;
-    }
-
+    if (!step.validateCurrent()) return;
+    if (step.isLast.value) return submit();
     step.goNext();
 };
 </script>
@@ -185,177 +68,85 @@ const handlePrimary = () => {
 <template>
     <LearnerLayout :progress="58" diagnostic-step="task-2a">
         <template #agent>
-            <AgentSpeakerPanel compact agent-type="assessment" :state="agentState" :message="agentMessage" />
+            <AgentSpeakerPanel
+                compact
+                show-audio-button
+                agent-type="assessment"
+                state="speaking"
+                presentation="assessment-task"
+                :message="vivianPrompt"
+            />
         </template>
 
-        <section class="mx-auto grid max-w-xl gap-5">
-            <!-- Progress header -->
-            <div class="anim-fade-down grid gap-3">
+        <section class="mx-auto grid w-full max-w-2xl gap-5">
+            <div class="grid gap-3">
                 <div class="flex flex-wrap items-center justify-between gap-3 px-1">
-                    <p class="inline-flex items-center gap-2.5 text-[15px] font-black text-slate-700">
-                        <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-blue-600 text-[12px] font-black text-white shadow-sm shadow-primary/20">
+                    <p class="inline-flex items-center gap-2 text-[15px] font-black text-slate-700">
+                        <span class="grid size-8 place-items-center rounded-lg bg-primary text-sm font-black text-white">
                             {{ step.currentIndex.value + 1 }}
                         </span>
-                        Rhyme {{ step.currentIndex.value + 1 }} of {{ items.length }}
+                        Task 2A item {{ step.currentIndex.value + 1 }} of {{ items.length }}
                     </p>
-                    <p class="inline-flex items-center gap-2 rounded-full bg-primary/5 px-3.5 py-1.5 text-[13px] font-black text-primary ring-1 ring-primary/10">
+                    <p class="inline-flex items-center gap-2 rounded-full bg-primary/5 px-3 py-1.5 text-[13px] font-black text-primary ring-1 ring-primary/10">
                         <Volume2 class="size-4" />
-                        {{ isCurrentUploading ? 'Checking' : 'Voice check' }}
+                        Vivian prompt
                     </p>
                 </div>
-                <div class="h-3.5 overflow-hidden rounded-full bg-slate-100 shadow-inner">
-                    <div
-                        class="h-full rounded-full bg-gradient-to-r from-primary to-blue-500 shadow-sm shadow-primary/30 transition-all duration-500 ease-out"
-                        :style="{ width: `${step.progressPercent.value}%` }"
-                    />
+                <div class="h-3 overflow-hidden rounded-full bg-slate-100 shadow-inner">
+                    <div class="h-full rounded-full bg-primary transition-all duration-300" :style="{ width: `${step.progressPercent.value}%` }" />
                 </div>
             </div>
 
-            <!-- Prompt card – two words with highlighted target -->
-            <div
-                :key="step.currentItem.value.id + '-card'"
-                class="anim-card relative overflow-hidden rounded-[36px] border-[3px] border-primary/10 bg-white p-6 text-center shadow-2xl shadow-primary/10 sm:p-8"
-            >
-                <!-- Decorative blobs -->
-                <span class="pointer-events-none absolute -left-10 -top-10 h-40 w-40 rounded-full bg-primary/5 blur-3xl" aria-hidden="true" />
-                <span class="pointer-events-none absolute -bottom-10 -right-10 h-40 w-40 rounded-full bg-primary/5 blur-3xl" aria-hidden="true" />
-                <!-- Sparkle decorations -->
-                <span class="pointer-events-none absolute left-6 top-6 text-4xl font-black text-primary/5" aria-hidden="true">✦</span>
-                <span class="pointer-events-none absolute right-8 top-8 text-4xl font-black text-primary/5" aria-hidden="true">✦</span>
-
-                <p class="relative text-[14px] font-black uppercase tracking-widest text-slate-400">Read the second word</p>
-                <div class="anim-pop relative mt-4 flex items-center justify-center gap-3 text-3xl font-black leading-snug sm:text-4xl lg:text-5xl">
-                    <span class="bg-gradient-to-br from-slate-900 to-slate-700 bg-clip-text text-transparent">{{ step.currentItem.value.prompt }}</span>
-                    <span class="text-slate-300">–</span>
-                    <mark class="rounded-2xl bg-gradient-to-r from-amber-100 to-yellow-100 px-4 py-1.5 text-slate-800 ring-1 ring-amber-200/50">{{ targetWordFor(step.currentItem.value) }}</mark>
+            <div class="rounded-[28px] border border-slate-200/80 bg-white p-6 text-center shadow-xl shadow-slate-200/30">
+                <p class="text-[13px] font-black uppercase tracking-widest text-slate-400">Word pair</p>
+                <div class="mt-5 grid gap-3 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
+                    <span class="rounded-2xl bg-slate-50 px-5 py-5 text-4xl font-black text-slate-800 ring-1 ring-slate-200/70">
+                        {{ currentPayload.word_1 }}
+                    </span>
+                    <span class="text-2xl font-black text-slate-300">/</span>
+                    <span class="rounded-2xl bg-slate-50 px-5 py-5 text-4xl font-black text-slate-800 ring-1 ring-slate-200/70">
+                        {{ currentPayload.word_2 }}
+                    </span>
                 </div>
             </div>
 
-            <!-- Recording & transcript panel -->
-            <div class="anim-slide-up rounded-[32px] border border-slate-200/80 bg-white p-3 shadow-xl shadow-slate-200/30 sm:p-4">
-                <div class="grid gap-4 lg:grid-cols-[220px_1fr] lg:items-start">
-                    <!-- Mic / recorder panel -->
-                    <div class="rounded-[24px] border border-slate-200/60 bg-slate-50/50 p-4 shadow-sm">
-                        <div class="mb-4 flex items-center justify-between gap-3">
-                            <div class="flex items-center gap-3">
-                                <span class="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-blue-600 text-white shadow-lg shadow-primary/20">
-                                    <Mic2 class="size-6" />
-                                </span>
-                                <div>
-                                    <p class="text-[16px] font-black text-slate-800">Your voice</p>
-                                    <p class="text-[12px] font-semibold leading-snug text-slate-400">Say the word</p>
-                                </div>
-                            </div>
-                            <span
-                                :class="isCurrentUploading
-                                    ? 'bg-amber-50 text-amber-600 ring-1 ring-amber-200/60'
-                                    : 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200/60'"
-                                class="rounded-full px-3 py-1.5 text-[12px] font-black"
-                            >
-                                {{ isCurrentUploading ? 'Checking' : 'Ready' }}
-                            </span>
-                        </div>
-                        <AudioRecorder
-                            :key="step.currentItem.value.id"
-                            :reset-key="step.currentItem.value.id"
-                            compact
-                            :max-duration-seconds="30"
-                            :require-review-before-submit="requireReviewBeforeSubmit"
-                            :auto-transcribe-on-stop="autoTranscribeOnStop"
-                            :submitting="isCurrentUploading"
-                            :submitted="Boolean(uploadedAudioIds[step.currentItem.value.id]) && !uploadErrors[step.currentItem.value.id]"
-                            label="Second word voice"
-                            prompt-type="rhyme"
-                            @recorded="(file) => rememberAudio(step.currentItem.value, file)"
-                            @submit="(file) => uploadAudio(step.currentItem.value, file)"
-                            @cleared="() => clearAudio(step.currentItem.value)"
-                        />
-                    </div>
-
-                    <!-- Transcript panel -->
-                    <div class="grid gap-4 rounded-[24px] border border-slate-200/60 bg-slate-50/50 p-5 shadow-sm">
-                        <label class="grid gap-3 text-[16px] font-black text-slate-800">
-                            <span class="inline-flex items-center gap-3">
-                                <span class="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-md shadow-violet-500/20">
-                                    <MessageCircle class="size-5" />
-                                </span>
-                                You said
-                            </span>
-                            <textarea
-                                :value="generatedTranscripts[step.currentItem.value.id] ?? ''"
-                                class="min-h-36 resize-none rounded-[20px] border-2 border-slate-200/80 bg-white p-5 text-xl font-black text-slate-800 transition-all placeholder:text-slate-300 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
-                                readonly
-                                :placeholder="isCurrentUploading ? 'Checking your recording...' : 'Your words will appear here'"
-                            />
-                        </label>
-                        <label v-if="canUseManualFallback" class="grid gap-2 text-sm font-black text-slate-400">
-                            Developer QA: Manual Transcript Override
-                            <input
-                                :value="step.answers[step.currentItem.value.id]"
-                                class="w-full rounded-[20px] border-2 border-slate-200/80 bg-white px-4 py-3 text-base font-black text-slate-800 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
-                                placeholder="Optional QA fallback text"
-                                @input="setAnswer(step.currentItem.value, $event.target.value)"
-                            >
-                        </label>
-                    </div>
-                </div>
-
-                <!-- Error / feedback messages -->
-                <p v-if="uploadErrors[step.currentItem.value.id]" class="mt-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-black text-rose-600 ring-1 ring-rose-200/60">
-                    {{ uploadErrors[step.currentItem.value.id] }}
-                </p>
-                <p v-if="firstFormError" class="mt-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-black text-rose-600 ring-1 ring-rose-200/60">{{ firstFormError }}</p>
-                <p v-if="step.feedback.value" class="mt-4 rounded-2xl bg-amber-50 px-4 py-3 text-lg font-black text-amber-700 ring-1 ring-amber-200/60">{{ step.feedback.value }}</p>
+            <div class="grid gap-4 sm:grid-cols-2">
+                <button
+                    type="button"
+                    class="grid min-h-36 place-items-center rounded-[24px] border-2 bg-white p-6 text-3xl font-black shadow-lg transition"
+                    :class="currentAnswer === 'yes' ? 'border-emerald-500 text-emerald-700 ring-4 ring-emerald-100' : 'border-slate-200 text-slate-700 hover:border-emerald-300'"
+                    @click="selectAnswer('yes')"
+                >
+                    <span class="grid justify-items-center gap-3">
+                        <Check class="size-12 stroke-[3]" />
+                        Yes
+                    </span>
+                </button>
+                <button
+                    type="button"
+                    class="grid min-h-36 place-items-center rounded-[24px] border-2 bg-white p-6 text-3xl font-black shadow-lg transition"
+                    :class="currentAnswer === 'no' ? 'border-rose-500 text-rose-700 ring-4 ring-rose-100' : 'border-slate-200 text-slate-700 hover:border-rose-300'"
+                    @click="selectAnswer('no')"
+                >
+                    <span class="grid justify-items-center gap-3">
+                        <X class="size-12 stroke-[3]" />
+                        No
+                    </span>
+                </button>
             </div>
+
+            <p v-if="firstFormError" class="rounded-2xl bg-rose-50 px-4 py-3 text-sm font-black text-rose-600 ring-1 ring-rose-200/60">{{ firstFormError }}</p>
+            <p v-if="step.feedback.value" class="rounded-2xl bg-amber-50 px-4 py-3 text-sm font-black text-amber-700 ring-1 ring-amber-200/60">{{ step.feedback.value }}</p>
         </section>
 
         <BottomActionBar>
             <div class="flex w-full items-center justify-between gap-3">
                 <SecondaryButton v-if="canUseDeveloperJumpControls && !step.isFirst.value" @click="step.goBack">Developer QA: Back</SecondaryButton>
                 <span v-else />
-                <PrimaryButton :disabled="form.processing || isCurrentUploading" :class="{ 'opacity-70': !step.isCurrentAnswered.value || isCurrentUploading }" @click="handlePrimary">
-                    {{ step.isLast.value ? 'Check words' : 'Next' }}
+                <PrimaryButton :disabled="form.processing || !step.isCurrentAnswered.value" :class="{ 'opacity-70': !step.isCurrentAnswered.value }" @click="handlePrimary">
+                    {{ step.isLast.value ? 'Save answers' : 'Next' }}
                 </PrimaryButton>
             </div>
         </BottomActionBar>
     </LearnerLayout>
 </template>
-
-<style scoped>
-.anim-card {
-    animation: cardSpring 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-}
-@keyframes cardSpring {
-    from { opacity: 0; transform: scale(0.92) translateY(20px); }
-    to { opacity: 1; transform: scale(1) translateY(0); }
-}
-
-.anim-pop {
-    animation: contentPop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-    animation-delay: 0.15s;
-    opacity: 0;
-}
-@keyframes contentPop {
-    from { opacity: 0; transform: scale(0.7); }
-    to { opacity: 1; transform: scale(1); }
-}
-
-.anim-fade-down {
-    animation: fadeDown 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-@keyframes fadeDown {
-    from { opacity: 0; transform: translateY(-12px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.anim-slide-up {
-    animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    animation-delay: 0.1s;
-    opacity: 0;
-}
-@keyframes slideUp {
-    from { opacity: 0; transform: translateY(24px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-</style>
-

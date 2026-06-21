@@ -1,21 +1,11 @@
-id,sequence,content_type,prompt_text,target_word,expected_rhyme_family,accepted_answers,difficulty,points,is_active
-T2A-R001,1,rhyme_prompt,cat,bat,at,"bat",easy,1,1
-T2A-R002,2,rhyme_prompt,dog,log,og,"log",easy,1,1
-T2A-R003,3,rhyme_prompt,sun,fun,un,"fun",easy,1,1
-T2A-R004,4,rhyme_prompt,hat,mat,at,"mat",easy,1,1
-T2A-R005,5,rhyme_prompt,pen,ten,en,"ten",easy,1,1
-T2A-R006,6,rhyme_prompt,bug,rug,ug,"rug",easy,1,1
-T2A-R007,7,rhyme_prompt,cup,pup,up,"pup",easy,1,1
-T2A-R008,8,rhyme_prompt,red,bed,ed,"bed",easy,1,1
-T2A-R009,9,rhyme_prompt,box,fox,ox,"fox",easy,1,1
-T2A-R010,10,rhyme_prompt,fish,dish,ish,"dish",easy,1,1
-T2A-R011,11,rhyme_prompt,ball,call,all,"call",easy,1,1
-T2A-R012,12,rhyme_prompt,bed,red,ed,"red",easy,1,1
-T2A-R013,13,rhyme_prompt,moon,soon,oon,"soon",easy,1,1
-T2A-R014,14,rhyme_prompt,tree,bee,ee,"bee",easy,1,1
-T2A-R015,15,rhyme_prompt,book,look,ook,"look",easy,1,1
-T2A-R016,16,rhyme_prompt,car,far,ar,"far",easy,1,1
-T2A-R017,17,rhyme_prompt,hand,sand,and,"sand",easy,1,1
-T2A-R018,18,rhyme_prompt,rock,sock,ock,"sock",easy,1,1
-T2A-R019,19,rhyme_prompt,bee,tree,ee,"tree",easy,1,1
-T2A-R020,20,rhyme_prompt,duck,luck,uck,"luck",easy,1,1
+id,sequence,item_type,assessment_part,word_1,word_2,is_rhyme,correct_answer,audio_script,difficulty,points,is_active
+T2A-D001,1,rhyme_decision,task_2a,cat,hat,true,yes,"cat, hat",easy,1,true
+T2A-D002,2,rhyme_decision,task_2a,dog,log,true,yes,"dog, log",easy,1,true
+T2A-D003,3,rhyme_decision,task_2a,sun,run,true,yes,"sun, run",easy,1,true
+T2A-D004,4,rhyme_decision,task_2a,pen,hen,true,yes,"pen, hen",easy,1,true
+T2A-D005,5,rhyme_decision,task_2a,bug,rug,true,yes,"bug, rug",easy,1,true
+T2A-D006,6,rhyme_decision,task_2a,bee,tree,true,yes,"bee, tree",easy,1,true
+T2A-D007,7,rhyme_decision,task_2a,sun,book,false,no,"sun, book",easy,1,true
+T2A-D008,8,rhyme_decision,task_2a,cat,dog,false,no,"cat, dog",easy,1,true
+T2A-D009,9,rhyme_decision,task_2a,pen,cup,false,no,"pen, cup",easy,1,true
+T2A-D010,10,rhyme_decision,task_2a,fish,tree,false,no,"fish, tree",easy,1,true

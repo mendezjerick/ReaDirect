@@ -39,7 +39,7 @@ class ModulePlacementService
         ];
     }
 
-    public function crlaSummary(string $crlaClassification): array
+    public function crlaSummary(string $crlaClassification, bool $passageEligible = true): array
     {
         $moduleKey = in_array($crlaClassification, [
             CrlaScoringService::FULL_REFRESHER,
@@ -52,9 +52,11 @@ class ModulePlacementService
             'decision' => $moduleKey ? 'assign_module_1_preview' : 'reading_check_required',
             'rule_applied' => 'CRLA_MODULE_PREVIEW_V1',
             'crla_meaning' => $this->crlaMeaning($crlaClassification),
-            'decision_reason' => $moduleKey
-                ? 'Your CRLA score places you in Module 1. The passage reading check still runs next so we can record your reading level before your dashboard opens.'
-                : 'Your CRLA score is Grade Ready, so the passage and comprehension check will decide whether you start in Module 2, Module 3, or no module.',
+            'decision_reason' => match (true) {
+                $moduleKey && ! $passageEligible => 'Your CRLA score places you in Module 1. Passage reading is not administered for this CRLA path.',
+                (bool) $moduleKey => 'Your CRLA score places you in Module 1. The passage reading check still runs next so we can record your reading level before your dashboard opens.',
+                default => 'Your CRLA score is Grade Ready, so the passage and comprehension check will decide whether you start in Module 2, Module 3, or no module.',
+            },
         ];
     }
 

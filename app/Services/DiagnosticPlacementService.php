@@ -11,13 +11,14 @@ use Illuminate\Support\Facades\DB;
 
 class DiagnosticPlacementService
 {
-    public function __construct(private readonly ModulePlacementService $placement)
-    {
-    }
+    public function __construct(
+        private readonly ModulePlacementService $placement,
+        private readonly CrlaExcelExportService $exports
+    ) {}
 
     public function completePlacement(AssessmentAttempt $attempt): array
     {
-        return DB::transaction(function () use ($attempt): array {
+        $result = DB::transaction(function () use ($attempt): array {
             $decision = $this->placement->place(
                 (string) $attempt->crla_classification,
                 (string) $attempt->reading_classification
@@ -62,5 +63,11 @@ class DiagnosticPlacementService
                 'attempt' => $attempt->fresh(['assignedModule', 'learner']),
             ];
         });
+
+        if (! $attempt->is_sandbox) {
+            $this->exports->refreshForAttempt($result['attempt']);
+        }
+
+        return $result;
     }
 }

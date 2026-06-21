@@ -18,7 +18,7 @@ defineProps({
             <AgentSpeakerPanel
                 agent-type="evaluator"
                 state="encouraging"
-                message="Task 2A is saved. Check your score, then continue to the word-in-sentence task."
+                message="Task 2A is saved. Task 2B and passage reading are not administered for this path."
             />
         </template>
 
@@ -38,7 +38,7 @@ defineProps({
                     Rhyming word score
                 </h1>
                 <p class="mx-auto mt-3 max-w-2xl text-[15px] font-semibold leading-relaxed text-slate-400">
-                    This score is saved on your diagnostic record. Next, Task 2B checks how you read the target word inside a sentence.
+                    This score is saved on your diagnostic record. Your CRLA summary will show the completed Task 1 and Task 2A results.
                 </p>
             </div>
 
@@ -52,7 +52,7 @@ defineProps({
             <div class="anim-card rounded-[32px] border border-slate-200/80 bg-white p-6 text-left shadow-xl shadow-slate-200/30">
                 <p class="text-[14px] font-black uppercase tracking-widest text-slate-400">What happens next</p>
                 <p class="mt-3 text-[15px] font-semibold leading-relaxed text-slate-500">
-                    Task 2B will add the sentence-word score, then the CRLA summary will show Task 1, Task 2A, Task 2B, and your CRLA level together.
+                    Task 2B and passage reading are not administered when Task 1A is 0-6. The CRLA summary records Task 2B and passage score as 0.
                 </p>
             </div>
 
@@ -61,8 +61,8 @@ defineProps({
         </section>
 
         <BottomActionBar>
-            <Link href="/learner/diagnostic/task-2b">
-                <PrimaryButton>Continue to Task 2B</PrimaryButton>
+            <Link href="/learner/diagnostic/crla-summary">
+                <PrimaryButton>Continue to CRLA Summary</PrimaryButton>
             </Link>
         </BottomActionBar>
     </LearnerLayout>
@@ -119,4 +119,3 @@ defineProps({
     to { opacity: 1; transform: translateY(0); }
 }
 </style>
-

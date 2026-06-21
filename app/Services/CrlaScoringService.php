@@ -5,8 +5,11 @@ namespace App\Services;
 class CrlaScoringService
 {
     public const FULL_REFRESHER = 'Full Refresher';
+
     public const MODERATE_REFRESHER = 'Moderate Refresher';
+
     public const LIGHT_REFRESHER = 'Light Refresher';
+
     public const GRADE_READY = 'Grade Ready';
 
     public function shouldRequireTask2A(int $taskOneScore): bool
@@ -14,6 +17,13 @@ class CrlaScoringService
         $this->assertScoreRange($taskOneScore);
 
         return $taskOneScore <= 6;
+    }
+
+    public function canProceedToTask2B(int $taskOneScore): bool
+    {
+        $this->assertScoreRange($taskOneScore);
+
+        return $taskOneScore >= 7;
     }
 
     public function routeTaskOne(int $taskOneScore): array
@@ -35,6 +45,46 @@ class CrlaScoringService
         $this->assertScoreRange($taskTwoBScore);
 
         return $taskOneScore + $taskTwoAScore + $taskTwoBScore;
+    }
+
+    public function shouldAdministerPassage(int $taskOneScore, int $totalScore): bool
+    {
+        $this->assertScoreRange($taskOneScore);
+
+        if ($totalScore < 0 || $totalScore > 30) {
+            throw new \InvalidArgumentException('CRLA total score must be between 0 and 30.');
+        }
+
+        return $taskOneScore >= 7 && $totalScore >= 17;
+    }
+
+    public function completeWithoutTask2BOrPassage(int $taskOneScore, int $taskTwoAScore): array
+    {
+        if ($taskOneScore > 6) {
+            throw new \InvalidArgumentException('Only Task 1 scores from 0 to 6 can skip Task 2B through this rule.');
+        }
+
+        $totalScore = $this->calculateTotalScore($taskOneScore, $taskTwoAScore, 0);
+
+        return array_merge([
+            'task_2b_score' => 0,
+            'crla_total_score' => $totalScore,
+            'crla_classification' => $this->classifyTotalScore($totalScore),
+            'rule_applied' => 'CRLA_TASK_1_LOW_PATH_V1',
+            'decision_reason' => 'Task 1A score is 0-6; Task 2A was administered, while Task 2B and passage reading were not administered.',
+        ], $this->ineligiblePassageFields());
+    }
+
+    public function ineligiblePassageFields(): array
+    {
+        return [
+            'incorrect_words' => 0,
+            'reading_accuracy' => 0.0,
+            'comprehension_correct_count' => 0,
+            'comprehension_percentage' => 0.0,
+            'final_reading_score' => 0.0,
+            'reading_classification' => ReadingComprehensionScoringService::LOW_EMERGING,
+        ];
     }
 
     public function classifyTotalScore(int $totalScore): string

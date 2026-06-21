@@ -45,17 +45,28 @@ class AssessmentItemSelectionServiceTest extends TestCase
         $this->assertNotNull($firstSelection->first()->prompt_snapshot);
     }
 
-    public function test_it_locks_task_two_a_rhyme_prompts(): void
+    public function test_it_locks_task_two_a_rhyme_decisions_with_required_split(): void
     {
         $attempt = $this->assessmentAttempt();
 
-        foreach (range(1, 12) as $sequence) {
+        foreach (range(1, 10) as $sequence) {
+            $isRhyme = $sequence <= 6;
+            $wordTwo = $isRhyme ? 'hat' : 'dog';
+
             LearningContent::create([
-                'content_type' => 'rhyme_prompt',
-                'title' => 'Rhyme '.$sequence,
-                'prompt' => 'cat',
-                'payload' => ['source_csv_id' => sprintf('T2A-R%03d', $sequence)],
-                'accepted_answers' => ['bat', 'hat'],
+                'content_type' => 'rhyme_decision',
+                'title' => 'Rhyme decision '.$sequence,
+                'prompt' => "cat, {$wordTwo}",
+                'payload' => [
+                    'source_csv_id' => sprintf('T2A-D%03d', $sequence),
+                    'sequence' => $sequence,
+                    'word_1' => 'cat',
+                    'word_2' => $wordTwo,
+                    'is_rhyme' => $isRhyme,
+                    'correct_answer' => $isRhyme ? 'yes' : 'no',
+                    'audio_script' => "cat, {$wordTwo}",
+                ],
+                'accepted_answers' => [$isRhyme ? 'yes' : 'no'],
                 'difficulty' => 'easy',
                 'is_active' => true,
             ]);
@@ -65,6 +76,8 @@ class AssessmentItemSelectionServiceTest extends TestCase
 
         $this->assertCount(10, $items);
         $this->assertSame(AssessmentItemSelectionService::TASK_2A_RHYME, $items->first()->task_type);
+        $this->assertSame(6, $items->filter(fn ($item) => (bool) $item->prompt_snapshot['payload']['is_rhyme'])->count());
+        $this->assertSame(4, $items->reject(fn ($item) => (bool) $item->prompt_snapshot['payload']['is_rhyme'])->count());
     }
 
     public function test_new_task_one_selection_excludes_unreliable_isolated_letters(): void

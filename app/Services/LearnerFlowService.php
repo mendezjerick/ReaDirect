@@ -296,8 +296,20 @@ class LearnerFlowService
             return 'learner.diagnostic.task-1';
         }
 
-        if ($attempt->task_2a_score === null && (int) $attempt->task_1_score <= 6) {
-            return 'learner.diagnostic.task-2a';
+        if ((int) $attempt->task_1_score <= 6) {
+            if ($attempt->task_2a_score === null) {
+                return 'learner.diagnostic.task-2a';
+            }
+
+            if ($attempt->crla_total_score === null || $attempt->final_reading_score === null) {
+                return 'learner.diagnostic.crla-summary';
+            }
+
+            if (! $this->isDiagnosticComplete($attempt)) {
+                return 'learner.diagnostic.module-placement';
+            }
+
+            return 'learner.dashboard';
         }
 
         if ($attempt->task_2b_score === null) {
@@ -306,6 +318,10 @@ class LearnerFlowService
 
         if ($attempt->crla_total_score === null) {
             return 'learner.diagnostic.task-2b';
+        }
+
+        if (! $this->passageEligibleForAttempt($attempt)) {
+            return 'learner.diagnostic.module-placement';
         }
 
         if ($attempt->reading_accuracy === null) {
@@ -349,9 +365,10 @@ class LearnerFlowService
             'task-1' => $current === 'learner.diagnostic.task-1',
             'task-routing' => $attempt->task_1_score !== null && $attempt->task_2b_score === null,
             'task-2a' => $current === 'learner.diagnostic.task-2a',
-            'task-2a-summary' => (int) $attempt->task_1_score <= 6 && $attempt->task_2a_score !== null && $attempt->task_2b_score === null,
-            'task-2b' => $current === 'learner.diagnostic.task-2b',
-            'crla-summary', 'reading-intro' => $attempt->crla_total_score !== null && $attempt->reading_accuracy === null,
+            'task-2a-summary' => (int) $attempt->task_1_score <= 6 && $attempt->task_2a_score !== null && $attempt->crla_total_score !== null,
+            'task-2b' => $current === 'learner.diagnostic.task-2b' && (int) $attempt->task_1_score >= 7,
+            'crla-summary' => $attempt->crla_total_score !== null && ! $this->isDiagnosticComplete($attempt),
+            'reading-intro' => $attempt->crla_total_score !== null && $this->passageEligibleForAttempt($attempt) && $attempt->reading_accuracy === null,
             'passage' => $current === 'learner.diagnostic.passage',
             'comprehension' => $current === 'learner.diagnostic.comprehension',
             'reading-summary' => $attempt->final_reading_score !== null && ! $this->isDiagnosticComplete($attempt),
@@ -362,7 +379,11 @@ class LearnerFlowService
 
     public function finalResumeRoute(AssessmentAttempt $attempt): string
     {
-        return route('final-assessment.task', $this->finalResumeTaskKey($attempt));
+        $taskKey = $this->finalResumeTaskKey($attempt);
+
+        return $taskKey === 'summary'
+            ? route('final-assessment.summary')
+            : route('final-assessment.task', $taskKey);
     }
 
     public function finalResumeTaskKey(AssessmentAttempt $attempt): string
@@ -371,12 +392,16 @@ class LearnerFlowService
             return 'task-1';
         }
 
-        if ($attempt->task_2a_score === null && (int) $attempt->task_1_score <= 6) {
-            return 'task-2a';
+        if ((int) $attempt->task_1_score <= 6) {
+            return $attempt->task_2a_score === null ? 'task-2a' : 'summary';
         }
 
         if ($attempt->task_2b_score === null || $attempt->crla_total_score === null) {
             return 'task-2b';
+        }
+
+        if (! $this->passageEligibleForAttempt($attempt)) {
+            return 'summary';
         }
 
         if ($attempt->reading_accuracy === null) {
@@ -393,6 +418,15 @@ class LearnerFlowService
     public function finalTaskAllowed(AssessmentAttempt $attempt, string $taskKey): bool
     {
         return $taskKey === $this->finalResumeTaskKey($attempt);
+    }
+
+    private function passageEligibleForAttempt(AssessmentAttempt $attempt): bool
+    {
+        if ($attempt->task_1_score === null || $attempt->crla_total_score === null) {
+            return false;
+        }
+
+        return app(CrlaScoringService::class)->shouldAdministerPassage((int) $attempt->task_1_score, (int) $attempt->crla_total_score);
     }
 
     public function moduleAccessible(Learner $learner, Module $module): bool

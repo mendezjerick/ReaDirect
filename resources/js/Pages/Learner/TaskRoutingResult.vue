@@ -10,9 +10,9 @@ const props = defineProps({ attempt: Object, route: Object });
 
 const requiresTask2A = props.route?.requires_task_2a ?? ((props.attempt?.task_1_score ?? 0) <= 6);
 const nextHref = requiresTask2A ? '/learner/diagnostic/task-2a' : '/learner/diagnostic/task-2b';
-const nextTitle = requiresTask2A ? 'Task 2A: Rhyming Words' : 'Task 2B: Word in Sentence';
+const nextTitle = requiresTask2A ? 'Task 2A: Rhyming Decision' : 'Task 2B: Word in Sentence';
 const nextSummary = requiresTask2A
-    ? 'You will continue to the rhyming task next.'
+    ? 'You will continue to the yes-or-no rhyming task next.'
     : 'Task 2A is skipped, and you will continue directly to the sentence-reading task.';
 const taskTwoAScoreLabel = requiresTask2A ? 'Required next' : `${props.route?.assigned_task_2a_score ?? props.attempt?.task_2a_score ?? 10}/10`;
 const metricCards = [
@@ -41,7 +41,7 @@ const infoCards = [
                 agent-type="evaluator"
                 state="pointing"
                 presentation="routing"
-                :message="requiresTask2A ? 'I checked the letter score. Task 2A is required before we move on.' : 'I checked the letter score. Task 2A is skipped, so we can move straight to the next reading task.'"
+                :message="requiresTask2A ? 'I checked the letter score. Task 2A is required, then this diagnostic path ends.' : 'I checked the letter score. Task 2A is skipped, so we can move straight to the next reading task.'"
             />
         </template>
 
@@ -174,4 +174,3 @@ const infoCards = [
     to { opacity: 1; transform: translateY(0); }
 }
 </style>
-

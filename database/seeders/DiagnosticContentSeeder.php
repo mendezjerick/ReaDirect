@@ -8,6 +8,7 @@ use Illuminate\Database\Seeder;
 class DiagnosticContentSeeder extends Seeder
 {
     private string $basePath;
+
     private ?array $enrichmentIndex = null;
 
     public function __construct()
@@ -57,25 +58,36 @@ class DiagnosticContentSeeder extends Seeder
         foreach ($this->csv('task2a_rhyming_words.csv') as $row) {
             $metadata = $this->metadata($row);
             $enrichment = $this->enrichmentFor($this->rowId($row));
+            $wordOne = $this->taskTwoAWordOne($row, $metadata);
+            $wordTwo = $this->taskTwoAWordTwo($row, $metadata);
+            $isRhyme = $this->taskTwoAIsRhyme($row, $metadata);
+            $correctAnswer = $this->taskTwoACorrectAnswer($row, $metadata, $isRhyme);
+            $audioScript = $this->taskTwoAAudioScript($row, $metadata, $wordOne, $wordTwo);
+
             $this->updateLearningContent(
-                'rhyme_prompt',
+                'rhyme_decision',
                 $this->rowId($row),
                 [
-                    'title' => 'Rhyme '.$this->promptText($row, $metadata),
-                    'prompt' => $this->promptText($row, $metadata),
+                    'title' => 'Rhyme decision '.$wordOne.' / '.$wordTwo,
+                    'prompt' => $audioScript,
                     'payload' => [
                         'source_csv_id' => $this->rowId($row),
                         'sequence' => $this->sequence($row, $metadata),
-                        'target_word' => $this->taskTwoATargetWord($row),
-                        'expected_answer' => $this->taskTwoATargetWord($row),
-                        'expected_rhyme_family' => $metadata['expected_rhyme_family'] ?? $row['expected_rhyme_family'] ?? $row['expected_text'] ?? null,
+                        'item_type' => $row['item_type'] ?? $metadata['item_type'] ?? 'rhyme_decision',
+                        'assessment_part' => $row['assessment_part'] ?? $metadata['assessment_part'] ?? 'task_2a',
+                        'word_1' => $wordOne,
+                        'word_2' => $wordTwo,
+                        'is_rhyme' => $isRhyme,
+                        'correct_answer' => $correctAnswer,
+                        'audio_script' => $audioScript,
+                        'vivian_prompt_script' => $audioScript,
                         'points' => $this->points($row, $metadata),
                         'enrichment' => $enrichment,
                     ],
-                    'accepted_answers' => [$this->taskTwoATargetWord($row)],
+                    'accepted_answers' => [$correctAnswer],
                     'enrichment_metadata' => $enrichment,
-                    'difficulty' => $row['difficulty'],
-                    'is_active' => $this->active($row['is_active']),
+                    'difficulty' => $row['difficulty'] ?? $metadata['difficulty'] ?? 'easy',
+                    'is_active' => $this->active($row['is_active'] ?? $row['active'] ?? true),
                 ]
             );
         }
@@ -197,6 +209,33 @@ class DiagnosticContentSeeder extends Seeder
         $metadata = $this->metadata($row);
 
         return trim((string) ($row['target_word'] ?? $metadata['target_word'] ?? $row['expected_answer'] ?? $this->pipeList($row['accepted_answers'] ?? '')[0] ?? ''));
+    }
+
+    private function taskTwoAWordOne(array $row, array $metadata): string
+    {
+        return trim((string) ($row['word_1'] ?? $metadata['word_1'] ?? $row['prompt_text'] ?? $metadata['prompt_text'] ?? ''));
+    }
+
+    private function taskTwoAWordTwo(array $row, array $metadata): string
+    {
+        return trim((string) ($row['word_2'] ?? $metadata['word_2'] ?? $row['target_word'] ?? $metadata['target_word'] ?? ''));
+    }
+
+    private function taskTwoAIsRhyme(array $row, array $metadata): bool
+    {
+        return $this->active($row['is_rhyme'] ?? $metadata['is_rhyme'] ?? false);
+    }
+
+    private function taskTwoACorrectAnswer(array $row, array $metadata, bool $isRhyme): string
+    {
+        $answer = strtolower(trim((string) ($row['correct_answer'] ?? $metadata['correct_answer'] ?? ($isRhyme ? 'yes' : 'no'))));
+
+        return $answer === 'yes' ? 'yes' : 'no';
+    }
+
+    private function taskTwoAAudioScript(array $row, array $metadata, string $wordOne, string $wordTwo): string
+    {
+        return trim((string) ($row['audio_script'] ?? $metadata['audio_script'] ?? "{$wordOne}, {$wordTwo}"));
     }
 
     private function active(string|int|bool|null $value): bool

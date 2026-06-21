@@ -10,6 +10,7 @@ defineProps({
     attempt: Object,
     placementPreview: Object,
     taskTwoBReview: Object,
+    passageEligible: Boolean,
 });
 
 const accuracyTone = (percentage) => {
@@ -27,7 +28,9 @@ const accuracyTone = (percentage) => {
                 agent-type="evaluator"
                 state="celebrating"
                 presentation="summary"
-                message="The CRLA tasks are complete. Review each score, then we will read a short passage to finish placement."
+                :message="passageEligible
+                    ? 'The CRLA tasks are complete. Review each score, then we will read a short passage to finish placement.'
+                    : 'The CRLA tasks are complete. Passage reading is not administered for this result.'"
             />
         </template>
 
@@ -166,9 +169,9 @@ const accuracyTone = (percentage) => {
         </div>
 
         <BottomActionBar>
-            <Link href="/learner/diagnostic/reading-intro" class="w-full sm:w-auto">
+            <Link :href="passageEligible ? '/learner/diagnostic/reading-intro' : '/learner/diagnostic/module-placement'" class="w-full sm:w-auto">
                 <PrimaryButton class="w-full gap-3 rounded-[22px] px-5 text-base shadow-xl shadow-primary/25 sm:w-auto sm:min-w-[320px] sm:gap-4 sm:px-9 sm:text-lg">
-                    Continue to Passage Reading
+                    {{ passageEligible ? 'Continue to Passage Reading' : 'Continue to Module Placement' }}
                     <ArrowRight class="size-5 stroke-[3] sm:size-6" />
                 </PrimaryButton>
             </Link>

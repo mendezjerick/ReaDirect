@@ -15,10 +15,12 @@ use App\Services\Assessment\FinalAssessmentComparisonService;
 use App\Services\AssessmentItemSelectionService;
 use App\Services\AssessmentModeService;
 use App\Services\AudioStorageService;
+use App\Services\CrlaExcelExportService;
 use App\Services\CrlaScoringService;
 use App\Services\LearnerFlowService;
 use App\Services\ReadingComprehensionScoringService;
 use App\Services\SentenceReadingScoringService;
+use App\Services\TaskTwoARhymeDecisionScoringService;
 use App\Support\CurrentLearner;
 use App\Support\LearnerStage;
 use App\Support\SubmittedItemSet;
@@ -157,7 +159,9 @@ class FinalAssessmentController extends Controller
         SentenceReadingScoringService $sentenceScoring,
         ReadingComprehensionScoringService $reading,
         FinalAssessmentComparisonService $comparison,
-        AssessmentModeService $mode
+        AssessmentModeService $mode,
+        TaskTwoARhymeDecisionScoringService $rhymeDecisionScoring,
+        CrlaExcelExportService $exports
     ): RedirectResponse {
         $attempt = $this->attemptForFinalStep($request, app(LearnerFlowService::class), $taskKey);
         if ($attempt instanceof RedirectResponse) {
@@ -166,10 +170,10 @@ class FinalAssessmentController extends Controller
 
         return match ($taskKey) {
             'task-1' => $this->submitTaskOne($request, $attempt, $itemSelection, $answerMatching, $audioStorage, $analysis, $crla, $mode),
-            'task-2a' => $this->submitTaskTwoA($request, $attempt, $itemSelection, $answerMatching, $audioStorage, $analysis, $mode),
-            'task-2b' => $this->submitTaskTwoB($request, $attempt, $itemSelection, $answerMatching, $audioStorage, $analysis, $crla, $sentenceScoring, $mode),
+            'task-2a' => $this->submitTaskTwoA($request, $attempt, $itemSelection, $crla, $rhymeDecisionScoring, $comparison, $exports),
+            'task-2b' => $this->submitTaskTwoB($request, $attempt, $itemSelection, $answerMatching, $audioStorage, $analysis, $crla, $sentenceScoring, $mode, $comparison, $exports),
             'passage' => $this->submitPassage($request, $attempt, $itemSelection, $reading, $audioStorage, $analysis, $mode),
-            'comprehension' => $this->submitComprehension($request, $attempt, $itemSelection, $answerMatching, $reading, $comparison),
+            'comprehension' => $this->submitComprehension($request, $attempt, $itemSelection, $answerMatching, $reading, $comparison, $exports),
             default => abort(404),
         };
     }
@@ -217,19 +221,32 @@ class FinalAssessmentController extends Controller
         Request $request,
         AssessmentAttempt $attempt,
         AssessmentItemSelectionService $itemSelection,
-        AnswerMatchingService $answerMatching,
-        AudioStorageService $audioStorage,
-        AIAnalysisResolver $analysis,
-        AssessmentModeService $mode
+        CrlaScoringService $crla,
+        TaskTwoARhymeDecisionScoringService $rhymeDecisionScoring,
+        FinalAssessmentComparisonService $comparison,
+        CrlaExcelExportService $exports
     ): RedirectResponse {
-        $validated = $request->validate($this->textResponseRules(10), $this->friendlyValidationMessages());
+        if (! $crla->shouldRequireTask2A((int) $attempt->task_1_score)) {
+            return redirect()->route('final-assessment.task', 'task-2b');
+        }
+
+        $validated = $request->validate($this->rhymeDecisionResponseRules(), $this->friendlyValidationMessages());
         $items = $itemSelection->getLockedItemsForAttempt($attempt, AssessmentItemSelectionService::TASK_2A_RHYME);
         $this->validateSubmittedAssessmentItemSet($items, $validated['responses']);
-        $score = $this->scoreTextResponses($attempt, $items, $validated['responses'], $answerMatching, $audioStorage, $analysis, 'FINAL_CRLA_TASK_2A_SCORING_V1', $mode->canShowManualFallback($request, $attempt, $attempt->learner));
+        $score = $rhymeDecisionScoring->score($attempt, $items, $validated['responses'], 'FINAL_CRLA_TASK_2A_RHYME_DECISION_V1');
 
-        $attempt->update(['task_2a_score' => $score, 'status' => 'task_2a_completed']);
+        $attempt->update(array_merge(
+            [
+                'task_2a_score' => $score,
+                'status' => LearnerFlowService::FINAL_COMPLETE,
+                'completed_at' => now(),
+            ],
+            $crla->completeWithoutTask2BOrPassage((int) $attempt->task_1_score, $score),
+        ));
 
-        return redirect()->route('final-assessment.task', 'task-2b');
+        $this->completeFinalAttempt($attempt, $comparison, $exports);
+
+        return redirect()->route('learner.completion');
     }
 
     private function submitTaskTwoB(
@@ -241,7 +258,9 @@ class FinalAssessmentController extends Controller
         AIAnalysisResolver $analysis,
         CrlaScoringService $crla,
         SentenceReadingScoringService $sentenceScoring,
-        AssessmentModeService $mode
+        AssessmentModeService $mode,
+        FinalAssessmentComparisonService $comparison,
+        CrlaExcelExportService $exports
     ): RedirectResponse {
         $validated = $request->validate($this->textResponseRules(10), $this->friendlyValidationMessages());
         $items = $itemSelection->getLockedItemsForAttempt($attempt, AssessmentItemSelectionService::TASK_2B_WORD_SENTENCE);
@@ -250,12 +269,24 @@ class FinalAssessmentController extends Controller
         $taskTwoBScore = $taskTwoBReview['task_score'];
         $totalScore = $crla->calculateTotalScore((int) $attempt->task_1_score, (int) $attempt->task_2a_score, $taskTwoBScore);
 
-        $attempt->update([
+        $fields = [
             'task_2b_score' => $taskTwoBScore,
             'crla_total_score' => $totalScore,
             'crla_classification' => $crla->classifyTotalScore($totalScore),
             'status' => 'crla_completed',
-        ]);
+        ];
+
+        if (! $crla->shouldAdministerPassage((int) $attempt->task_1_score, $totalScore)) {
+            $attempt->update(array_merge($fields, $crla->ineligiblePassageFields(), [
+                'status' => LearnerFlowService::FINAL_COMPLETE,
+                'completed_at' => now(),
+            ]));
+            $this->completeFinalAttempt($attempt, $comparison, $exports);
+
+            return redirect()->route('learner.completion');
+        }
+
+        $attempt->update($fields);
 
         return redirect()->route('final-assessment.task', 'passage');
     }
@@ -275,7 +306,7 @@ class FinalAssessmentController extends Controller
             'incorrect_words' => [$allowManualFallback ? 'required' : 'nullable', 'integer', 'min:0', 'max:50'],
             'audio' => AudioStorageService::validationRules(),
             'audio_file_id' => ['nullable', 'integer', 'exists:audio_files,id'],
-            'duration_seconds' => AudioStorageService::durationValidationRules(),
+            'duration_seconds' => $this->passageDurationValidationRules(),
         ], $this->friendlyValidationMessages());
         $passage = $itemSelection->selectReadingPassageForAttempt($attempt);
         $incorrectWords = (int) ($validated['incorrect_words'] ?? 0);
@@ -357,7 +388,8 @@ class FinalAssessmentController extends Controller
         AssessmentItemSelectionService $itemSelection,
         AnswerMatchingService $answerMatching,
         ReadingComprehensionScoringService $reading,
-        FinalAssessmentComparisonService $comparison
+        FinalAssessmentComparisonService $comparison,
+        CrlaExcelExportService $exports
     ): RedirectResponse {
         $validated = $request->validate([
             'responses' => ['required', 'array', 'size:5'],
@@ -407,10 +439,7 @@ class FinalAssessmentController extends Controller
             'completed_at' => now(),
         ]);
 
-        $attempt->refresh();
-        $comparisonSummary = $comparison->compareAttempts($attempt->baselineAssessment, $attempt);
-        $attempt->update(['comparison_summary' => $comparisonSummary]);
-        $attempt->learner->update(['current_stage' => LearnerStage::FINAL_REASSESSMENT_COMPLETED]);
+        $this->completeFinalAttempt($attempt, $comparison, $exports);
 
         return redirect()->route('learner.completion');
     }
@@ -677,6 +706,14 @@ class FinalAssessmentController extends Controller
                 ->with('info', 'The final reassessment is not available yet.');
         }
 
+        if (! $allowCompleted && in_array($stage, [
+            LearnerStage::FINAL_REASSESSMENT_COMPLETED,
+            LearnerStage::COMPLETED,
+        ], true)) {
+            return redirect()->route('learner.completion')
+                ->with('info', 'Your final reassessment is complete.');
+        }
+
         $attempt = $this->attemptFromRequest($request, $learner, $allowCompleted)
             ?? $flow->resolveFinalAttempt($request, $allowCompleted);
 
@@ -685,6 +722,13 @@ class FinalAssessmentController extends Controller
         }
 
         if (! $attempt) {
+            $latestFinal = $flow->latestFinalAttempt($learner);
+
+            if ($flow->isFinalComplete($latestFinal)) {
+                return redirect()->route('learner.completion')
+                    ->with('info', 'Your final reassessment is complete.');
+            }
+
             return $stage === LearnerStage::FINAL_REASSESSMENT_PENDING
                 ? redirect()->route('final-assessment.start')
                 : redirect()->route('learner.dashboard');
@@ -759,6 +803,18 @@ class FinalAssessmentController extends Controller
             ->first();
     }
 
+    private function completeFinalAttempt(AssessmentAttempt $attempt, FinalAssessmentComparisonService $comparison, CrlaExcelExportService $exports): void
+    {
+        $attempt->refresh();
+        $comparisonSummary = $comparison->compareAttempts($attempt->baselineAssessment, $attempt);
+        $attempt->update(['comparison_summary' => $comparisonSummary]);
+        $attempt->learner->update(['current_stage' => LearnerStage::FINAL_REASSESSMENT_COMPLETED]);
+
+        if (! $attempt->is_sandbox) {
+            $exports->refreshForAttempt($attempt->fresh(['learner.school', 'learner.schoolClass']));
+        }
+    }
+
     private function itemsForForm(Collection $items): array
     {
         return $items->map(fn (AssessmentAttemptItem $item) => $this->itemForForm($item))->values()->all();
@@ -787,7 +843,7 @@ class FinalAssessmentController extends Controller
             'accepted_answers' => $item->prompt_snapshot['accepted_answers'] ?? [],
             'answered_at' => $item->answered_at?->toISOString(),
             'saved_response' => $savedResponse ? [
-                'answer' => $savedResponse->learner_transcript ?: $savedResponse->response_text,
+                'answer' => $savedResponse->selected_answer ?: ($savedResponse->learner_transcript ?: $savedResponse->response_text),
                 'displayed_transcript' => $savedResponse->response_text,
                 'audio_file_id' => $savedResponse->audio_file_id,
                 'transcript_source' => $savedResponse->transcript_source,
@@ -988,6 +1044,20 @@ class FinalAssessmentController extends Controller
         ];
     }
 
+    private function passageDurationValidationRules(): array
+    {
+        return ['nullable', 'numeric', 'min:'.AudioStorageService::MIN_TRANSCRIBABLE_SECONDS, 'max:60'];
+    }
+
+    private function rhymeDecisionResponseRules(): array
+    {
+        return [
+            'responses' => ['required', 'array', 'size:10'],
+            'responses.*.assessment_attempt_item_id' => ['required', 'integer', 'exists:assessment_attempt_items,id'],
+            'responses.*.answer' => ['required', 'string', 'in:yes,no'],
+        ];
+    }
+
     private function validateSubmittedAssessmentItemSet(Collection $items, array $responses): void
     {
         if (! SubmittedItemSet::idsMatch($items, $responses, 'assessment_attempt_item_id')) {
@@ -1007,6 +1077,7 @@ class FinalAssessmentController extends Controller
             'incorrect_words.required' => 'Add the number of words to review before moving on.',
             'incorrect_words.integer' => 'Use a whole number for words to review.',
             'duration_seconds.min' => 'That recording was too short. Please try again and speak clearly.',
+            'duration_seconds.max' => 'Passage reading time is limited to 60 seconds.',
             'responses.*.duration_seconds.min' => 'That recording was too short. Please try again and speak clearly.',
         ];
     }

@@ -6,13 +6,14 @@ use App\Services\CrlaScoringService;
 use App\Services\ModuleMasteryService;
 use App\Services\ModulePlacementService;
 use App\Services\ReadingComprehensionScoringService;
+use App\Services\TaskTwoARhymeDecisionScoringService;
 use PHPUnit\Framework\TestCase;
 
 class ScoringRulesTest extends TestCase
 {
     public function test_crla_classification_boundaries(): void
     {
-        $service = new CrlaScoringService();
+        $service = new CrlaScoringService;
 
         $this->assertSame('Full Refresher', $service->classifyTotalScore(10));
         $this->assertSame('Moderate Refresher', $service->classifyTotalScore(16));
@@ -22,16 +23,55 @@ class ScoringRulesTest extends TestCase
 
     public function test_task_one_routing(): void
     {
-        $service = new CrlaScoringService();
+        $service = new CrlaScoringService;
 
         $this->assertTrue($service->routeTaskOne(6)['requires_task_2a']);
         $this->assertFalse($service->routeTaskOne(7)['requires_task_2a']);
         $this->assertSame(10, $service->routeTaskOne(7)['assigned_task_2a_score']);
     }
 
+    public function test_crla_total_formula_examples(): void
+    {
+        $service = new CrlaScoringService;
+
+        $this->assertSame(13, $service->calculateTotalScore(5, 8, 0));
+        $this->assertSame(25, $service->calculateTotalScore(8, 10, 7));
+    }
+
+    public function test_passage_eligibility_rules(): void
+    {
+        $service = new CrlaScoringService;
+
+        $this->assertFalse($service->shouldAdministerPassage(6, 16));
+        $this->assertFalse($service->shouldAdministerPassage(7, 16));
+        $this->assertTrue($service->shouldAdministerPassage(7, 17));
+        $this->assertTrue($service->shouldAdministerPassage(10, 30));
+    }
+
+    public function test_low_task_one_completion_sets_task_two_b_and_passage_scores_to_zero(): void
+    {
+        $service = new CrlaScoringService;
+        $fields = $service->completeWithoutTask2BOrPassage(5, 8);
+
+        $this->assertSame(0, $fields['task_2b_score']);
+        $this->assertSame(13, $fields['crla_total_score']);
+        $this->assertSame('Moderate Refresher', $fields['crla_classification']);
+        $this->assertSame(0.0, $fields['reading_accuracy']);
+        $this->assertSame(0.0, $fields['final_reading_score']);
+    }
+
+    public function test_task_two_a_button_answer_normalization(): void
+    {
+        $service = new TaskTwoARhymeDecisionScoringService;
+
+        $this->assertSame('yes', $service->normalizeAnswer('YES'));
+        $this->assertSame('no', $service->normalizeAnswer('No'));
+        $this->assertSame('no', $service->normalizeAnswer('anything else'));
+    }
+
     public function test_reading_accuracy_formula(): void
     {
-        $service = new ReadingComprehensionScoringService();
+        $service = new ReadingComprehensionScoringService;
 
         $this->assertSame(94.0, $service->calculateAccuracyPercentage(3));
         $this->assertSame(0.0, $service->calculateAccuracyPercentage(60));
@@ -39,7 +79,7 @@ class ScoringRulesTest extends TestCase
 
     public function test_passage_incorrect_count_uses_ai_split_merge_alignment(): void
     {
-        $service = new ReadingComprehensionScoringService();
+        $service = new ReadingComprehensionScoringService;
         $expected = 'time after lunch';
         $raw = 'timeafter lunch';
         $alignment = [
@@ -68,7 +108,7 @@ class ScoringRulesTest extends TestCase
 
     public function test_passage_incorrect_count_accepts_legacy_correct_alignment_status(): void
     {
-        $service = new ReadingComprehensionScoringService();
+        $service = new ReadingComprehensionScoringService;
 
         $this->assertSame(0, $service->calculateIncorrectWordCount('a proud carabao', 'a proud carabao', [
             ['expected_word' => 'a', 'recognized_word' => 'a', 'status' => 'correct'],
@@ -79,28 +119,28 @@ class ScoringRulesTest extends TestCase
 
     public function test_passage_incorrect_count_falls_back_when_alignment_is_missing(): void
     {
-        $service = new ReadingComprehensionScoringService();
+        $service = new ReadingComprehensionScoringService;
 
         $this->assertSame(2, $service->calculateIncorrectWordCount('time after lunch', 'timeafter lunch'));
     }
 
     public function test_comprehension_percentage_formula(): void
     {
-        $service = new ReadingComprehensionScoringService();
+        $service = new ReadingComprehensionScoringService;
 
         $this->assertSame(80.0, $service->calculateComprehensionPercentage(4));
     }
 
     public function test_final_reading_score_formula(): void
     {
-        $service = new ReadingComprehensionScoringService();
+        $service = new ReadingComprehensionScoringService;
 
         $this->assertSame(85.6, $service->calculateFinalReadingScore(80, 94));
     }
 
     public function test_reading_classification_uses_final_score_only(): void
     {
-        $service = new ReadingComprehensionScoringService();
+        $service = new ReadingComprehensionScoringService;
 
         $accuracy = $service->calculateAccuracyPercentage(0);
         $comprehension = $service->calculateComprehensionPercentage(0);
@@ -112,7 +152,7 @@ class ScoringRulesTest extends TestCase
 
     public function test_reading_classification_boundaries(): void
     {
-        $service = new ReadingComprehensionScoringService();
+        $service = new ReadingComprehensionScoringService;
 
         $this->assertSame('Low Emerging Reader', $service->classifyReadingLevelFromFinalScore(25));
         $this->assertSame('High Emerging Reader', $service->classifyReadingLevelFromFinalScore(26));
@@ -127,7 +167,7 @@ class ScoringRulesTest extends TestCase
 
     public function test_module_placement(): void
     {
-        $service = new ModulePlacementService();
+        $service = new ModulePlacementService;
 
         $this->assertSame('module_1', $service->place('Light Refresher', 'Reading at Grade Level')['module_key']);
         $this->assertSame('module_2', $service->place('Grade Ready', 'Low Emerging Reader')['module_key']);
@@ -137,7 +177,7 @@ class ScoringRulesTest extends TestCase
 
     public function test_module_mastery_decisions(): void
     {
-        $service = new ModuleMasteryService();
+        $service = new ModuleMasteryService;
 
         $this->assertSame('move_to_module_2', $service->decide('module_1', 90)['decision']);
         $this->assertSame('repeat_module_1', $service->decide('module_1', 89)['decision']);

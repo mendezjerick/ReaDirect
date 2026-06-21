@@ -22,6 +22,7 @@ use App\Services\LearnerFlowService;
 use App\Services\ModulePlacementService;
 use App\Services\ReadingComprehensionScoringService;
 use App\Services\SentenceReadingScoringService;
+use App\Services\TaskTwoARhymeDecisionScoringService;
 use App\Support\CurrentLearner;
 use App\Support\LearnerStage;
 use App\Support\SubmittedItemSet;
@@ -220,25 +221,32 @@ class DiagnosticAssessmentController extends Controller
     public function storeTaskTwoA(
         Request $request,
         AssessmentItemSelectionService $itemSelection,
-        AnswerMatchingService $answerMatching,
-        AudioStorageService $audioStorage,
-        AIAnalysisResolver $analysis,
-        AgentCommentaryService $commentary,
-        AssessmentModeService $mode
+        CrlaScoringService $crla,
+        TaskTwoARhymeDecisionScoringService $rhymeDecisionScoring
     ): RedirectResponse {
         $attempt = $this->attemptForStep($request, app(LearnerFlowService::class), 'task-2a');
         if ($attempt instanceof RedirectResponse) {
             return $attempt;
         }
 
-        $validated = $request->validate($this->textResponseRules(10), $this->friendlyValidationMessages());
+        if (! $crla->shouldRequireTask2A((int) $attempt->task_1_score)) {
+            return redirect()->route('learner.diagnostic.task-2b');
+        }
+
+        $validated = $request->validate($this->rhymeDecisionResponseRules(), $this->friendlyValidationMessages());
         $items = $itemSelection->getLockedItemsForAttempt($attempt, AssessmentItemSelectionService::TASK_2A_RHYME);
         $this->validateSubmittedAssessmentItemSet($items, $validated['responses']);
-        $score = $this->scoreTextResponses($attempt, $items, $validated['responses'], $answerMatching, $audioStorage, $analysis, $commentary, 'CRLA_TASK_2A_SCORING_V1', $mode->canShowManualFallback($request, $attempt, $attempt->learner));
+        $score = $rhymeDecisionScoring->score($attempt, $items, $validated['responses'], 'CRLA_TASK_2A_RHYME_DECISION_V1');
 
-        $attempt->update(['task_2a_score' => $score, 'status' => 'task_2a_completed']);
+        $attempt->update(array_merge(
+            [
+                'task_2a_score' => $score,
+                'status' => 'crla_completed',
+            ],
+            $crla->completeWithoutTask2BOrPassage((int) $attempt->task_1_score, $score),
+        ));
 
-        return redirect()->route('learner.diagnostic.task-2a-summary');
+        return redirect()->route('learner.diagnostic.crla-summary');
     }
 
     public function taskTwoASummary(Request $request, LearnerFlowService $flow): Response|RedirectResponse
@@ -253,11 +261,15 @@ class DiagnosticAssessmentController extends Controller
         ]);
     }
 
-    public function taskTwoB(Request $request, AssessmentItemSelectionService $itemSelection, LearnerFlowService $flow, AssessmentModeService $mode): Response|RedirectResponse
+    public function taskTwoB(Request $request, AssessmentItemSelectionService $itemSelection, LearnerFlowService $flow, AssessmentModeService $mode, CrlaScoringService $crla): Response|RedirectResponse
     {
         $attempt = $this->attemptForStep($request, $flow, 'task-2b');
         if ($attempt instanceof RedirectResponse) {
             return $attempt;
+        }
+
+        if (! $crla->canProceedToTask2B((int) $attempt->task_1_score)) {
+            return redirect()->route('learner.diagnostic.crla-summary');
         }
 
         $items = $itemSelection->selectTask2BWordSentenceItemsForAttempt($attempt);
@@ -286,6 +298,10 @@ class DiagnosticAssessmentController extends Controller
             return $attempt;
         }
 
+        if (! $crla->canProceedToTask2B((int) $attempt->task_1_score)) {
+            return redirect()->route('learner.diagnostic.crla-summary');
+        }
+
         $validated = $request->validate($this->textResponseRules(10), $this->friendlyValidationMessages());
         $items = $itemSelection->getLockedItemsForAttempt($attempt, AssessmentItemSelectionService::TASK_2B_WORD_SENTENCE);
         $this->validateSubmittedAssessmentItemSet($items, $validated['responses']);
@@ -295,27 +311,36 @@ class DiagnosticAssessmentController extends Controller
         $totalScore = $crla->calculateTotalScore((int) $attempt->task_1_score, $taskTwoAScore, $taskTwoBScore);
         $classification = $crla->classifyTotalScore($totalScore);
 
-        $attempt->update([
+        $fields = [
             'task_2b_score' => $taskTwoBScore,
             'crla_total_score' => $totalScore,
             'crla_classification' => $classification,
             'status' => 'crla_completed',
-        ]);
+        ];
+
+        if (! $crla->shouldAdministerPassage((int) $attempt->task_1_score, $totalScore)) {
+            $fields = array_merge($fields, $crla->ineligiblePassageFields());
+        }
+
+        $attempt->update($fields);
 
         return redirect()->route('learner.diagnostic.crla-summary');
     }
 
-    public function crlaSummary(Request $request, LearnerFlowService $flow, ModulePlacementService $placementService): Response|RedirectResponse
+    public function crlaSummary(Request $request, LearnerFlowService $flow, ModulePlacementService $placementService, CrlaScoringService $crla): Response|RedirectResponse
     {
         $attempt = $this->attemptForStep($request, $flow, 'crla-summary');
         if ($attempt instanceof RedirectResponse) {
             return $attempt;
         }
 
+        $passageEligible = $crla->shouldAdministerPassage((int) $attempt->task_1_score, (int) $attempt->crla_total_score);
+
         return Inertia::render('Learner/CrlaSummary', [
             'attempt' => $attempt->only('task_1_score', 'task_2a_score', 'task_2b_score', 'crla_total_score', 'crla_classification'),
-            'placementPreview' => $placementService->crlaSummary((string) $attempt->crla_classification),
+            'placementPreview' => $placementService->crlaSummary((string) $attempt->crla_classification, $passageEligible),
             'taskTwoBReview' => $this->taskTwoBSummary($attempt),
+            'passageEligible' => $passageEligible,
         ]);
     }
 
@@ -357,7 +382,7 @@ class DiagnosticAssessmentController extends Controller
             'incorrect_words' => [$allowManualFallback ? 'required' : 'nullable', 'integer', 'min:0', 'max:50'],
             'audio' => AudioStorageService::validationRules(),
             'audio_file_id' => ['nullable', 'integer', 'exists:audio_files,id'],
-            'duration_seconds' => AudioStorageService::durationValidationRules(),
+            'duration_seconds' => $this->passageDurationValidationRules(),
         ], $this->friendlyValidationMessages());
 
         $passage = app(AssessmentItemSelectionService::class)->selectReadingPassageForAttempt($attempt);
@@ -920,7 +945,7 @@ class DiagnosticAssessmentController extends Controller
             'accepted_answers' => $item->prompt_snapshot['accepted_answers'] ?? [],
             'answered_at' => $item->answered_at?->toISOString(),
             'saved_response' => $savedResponse ? [
-                'answer' => $savedResponse->learner_transcript ?: $savedResponse->response_text,
+                'answer' => $savedResponse->selected_answer ?: ($savedResponse->learner_transcript ?: $savedResponse->response_text),
                 'displayed_transcript' => $savedResponse->response_text,
                 'audio_file_id' => $savedResponse->audio_file_id,
                 'transcript_source' => $savedResponse->transcript_source,
@@ -1206,6 +1231,20 @@ class DiagnosticAssessmentController extends Controller
         ];
     }
 
+    private function passageDurationValidationRules(): array
+    {
+        return ['nullable', 'numeric', 'min:'.AudioStorageService::MIN_TRANSCRIBABLE_SECONDS, 'max:60'];
+    }
+
+    private function rhymeDecisionResponseRules(): array
+    {
+        return [
+            'responses' => ['required', 'array', 'size:10'],
+            'responses.*.assessment_attempt_item_id' => ['required', 'integer', 'exists:assessment_attempt_items,id'],
+            'responses.*.answer' => ['required', 'string', 'in:yes,no'],
+        ];
+    }
+
     private function validateSubmittedAssessmentItemSet(Collection $items, array $responses): void
     {
         if (! SubmittedItemSet::idsMatch($items, $responses, 'assessment_attempt_item_id')) {
@@ -1225,6 +1264,7 @@ class DiagnosticAssessmentController extends Controller
             'incorrect_words.required' => 'Add the number of words to review before moving on.',
             'incorrect_words.integer' => 'Use a whole number for words to review.',
             'duration_seconds.min' => 'That recording was too short. Please try again and speak clearly.',
+            'duration_seconds.max' => 'Passage reading time is limited to 60 seconds.',
             'responses.*.duration_seconds.min' => 'That recording was too short. Please try again and speak clearly.',
         ];
     }

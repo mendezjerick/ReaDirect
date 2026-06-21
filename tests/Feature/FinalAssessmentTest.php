@@ -67,6 +67,55 @@ class FinalAssessmentTest extends TestCase
         $this->assertSame(10, AssessmentTaskResponse::where('assessment_attempt_id', $final->id)->count());
     }
 
+    public function test_final_low_task_one_path_completes_after_task_two_a_without_task_two_b_or_passage(): void
+    {
+        [$learner] = $this->learnerWithBaselineDiagnostic();
+        $this->seedTaskTwoADecisions();
+        $this->withSession(['learner_id' => $learner->id])->post(route('final-assessment.start.store'));
+        $final = AssessmentAttempt::where('attempt_type', 'final_reassessment')->firstOrFail();
+        $taskOneResponses = $final->selectedItems()
+            ->where('task_type', AssessmentItemSelectionService::TASK_1_LETTER)
+            ->orderBy('sequence')
+            ->get()
+            ->map(fn ($item) => [
+                'assessment_attempt_item_id' => $item->id,
+                'answer' => $item->sequence <= 5 ? $item->prompt_snapshot['prompt'] : 'wrong',
+                'transcript_source' => 'manual',
+            ])
+            ->all();
+
+        $this->withSession(['learner_id' => $learner->id, 'final_assessment_attempt_id' => $final->id, 'admin_testing_mode' => true])
+            ->post(route('final-assessment.task.submit', 'task-1'), ['responses' => $taskOneResponses])
+            ->assertRedirect(route('final-assessment.task', 'task-2a'));
+
+        app(AssessmentItemSelectionService::class)->selectTask2ARhymingPromptsForAttempt($final->refresh());
+        $taskTwoAResponses = $final->selectedItems()
+            ->where('task_type', AssessmentItemSelectionService::TASK_2A_RHYME)
+            ->orderBy('sequence')
+            ->get()
+            ->map(fn ($item) => [
+                'assessment_attempt_item_id' => $item->id,
+                'answer' => $item->prompt_snapshot['payload']['correct_answer'],
+            ])
+            ->all();
+
+        $this->withSession(['learner_id' => $learner->id, 'final_assessment_attempt_id' => $final->id, 'admin_testing_mode' => true])
+            ->post(route('final-assessment.task.submit', 'task-2a'), ['responses' => $taskTwoAResponses])
+            ->assertRedirect(route('learner.completion'));
+
+        $final->refresh();
+        $this->assertSame('final_reassessment_completed', $final->status);
+        $this->assertSame(5, (int) $final->task_1_score);
+        $this->assertSame(10, (int) $final->task_2a_score);
+        $this->assertSame(0, (int) $final->task_2b_score);
+        $this->assertSame(15, (int) $final->crla_total_score);
+        $this->assertSame(0.0, (float) $final->final_reading_score);
+
+        $this->withSession(['learner_id' => $learner->id, 'final_assessment_attempt_id' => $final->id])
+            ->get(route('final-assessment.task', 'task-2b'))
+            ->assertRedirect(route('learner.completion'));
+    }
+
     public function test_final_task_one_page_resumes_first_unanswered_item_from_database(): void
     {
         [$learner] = $this->learnerWithBaselineDiagnostic();
@@ -413,6 +462,32 @@ class FinalAssessmentTest extends TestCase
             ],
             'selected_at' => now(),
         ]);
+    }
+
+    private function seedTaskTwoADecisions(): void
+    {
+        foreach (range(1, 10) as $index) {
+            $isRhyme = $index <= 6;
+            $wordTwo = $isRhyme ? 'hat' : 'dog';
+
+            LearningContent::create([
+                'content_type' => 'rhyme_decision',
+                'title' => 'Rhyme decision '.$index,
+                'prompt' => "cat, {$wordTwo}",
+                'payload' => [
+                    'source_csv_id' => 'FINAL-T2A-'.$index,
+                    'sequence' => $index,
+                    'word_1' => 'cat',
+                    'word_2' => $wordTwo,
+                    'is_rhyme' => $isRhyme,
+                    'correct_answer' => $isRhyme ? 'yes' : 'no',
+                    'audio_script' => "cat, {$wordTwo}",
+                ],
+                'accepted_answers' => [$isRhyme ? 'yes' : 'no'],
+                'difficulty' => 'easy',
+                'is_active' => true,
+            ]);
+        }
     }
 
     private function audioFile(AssessmentAttempt $attempt): AudioFile
