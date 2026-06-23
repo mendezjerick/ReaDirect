@@ -47,6 +47,8 @@ class AudioUploadController extends Controller
             'audio_metadata.silence_ratio' => ['nullable', 'numeric', 'min:0', 'max:1'],
             'audio_metadata.speech_ratio' => ['nullable', 'numeric', 'min:0', 'max:1'],
             'audio_metadata.was_trimmed' => ['nullable', 'boolean'],
+            'include_trace' => ['nullable', 'boolean'],
+            'debug_trace' => ['nullable', 'boolean'],
         ], AudioStorageService::durationValidationMessages());
 
         $learner = CurrentLearner::require($request);
@@ -72,7 +74,8 @@ class AudioUploadController extends Controller
             ]
         );
         $canSeeRawAiPayload = $mode->canSeeRawAiPayload($request, $assessmentAttempt ?? $moduleAttempt, $learner);
-        $context = $this->analysisContext($assessmentAttempt, $moduleAttempt, $validated, $canSeeRawAiPayload);
+        $includeTrace = (bool) ($validated['include_trace'] ?? false) || (bool) ($validated['debug_trace'] ?? false);
+        $context = $this->analysisContext($assessmentAttempt, $moduleAttempt, $validated, $canSeeRawAiPayload, $includeTrace);
         $sttOptions = $this->sttOptions($assessmentAttempt, $validated);
         $resolved = $this->shouldUseFastLetterPath($validated)
             ? $this->fastLetterResolution($audioFile, $transcription, $sttOptions)
@@ -119,6 +122,11 @@ class AudioUploadController extends Controller
             'transcript_source' => $canComplete ? $resolved['source'] : null,
             'word_alignment' => data_get($resolved, 'ai_response.word_alignment', []),
         ];
+
+        if ($includeTrace) {
+            $payload['trace'] = data_get($resolved, 'ai_response.trace', []);
+            $payload['trace_notes'] = data_get($resolved, 'ai_response.trace_notes', []);
+        }
 
         if (! $canSeeRawAiPayload) {
             return response()->json($payload);
@@ -177,6 +185,8 @@ class AudioUploadController extends Controller
             'stt_error' => $resolved['stt_result']?->error,
             'ai_error' => $resolved['ai_response']['error'] ?? null,
             'ai_warnings' => $resolved['ai_response']['warnings'] ?? [],
+            'trace' => $resolved['ai_response']['trace'] ?? [],
+            'trace_notes' => $resolved['ai_response']['trace_notes'] ?? [],
         ]));
     }
 
@@ -322,7 +332,7 @@ class AudioUploadController extends Controller
         };
     }
 
-    private function analysisContext(?AssessmentAttempt $assessmentAttempt, ?ModuleAttempt $moduleAttempt, array $validated, bool $canShowDebug = false): array
+    private function analysisContext(?AssessmentAttempt $assessmentAttempt, ?ModuleAttempt $moduleAttempt, array $validated, bool $canShowDebug = false, bool $includeTrace = false): array
     {
         $item = $this->assessmentItem($assessmentAttempt, $validated)
             ?? $this->passageItem($assessmentAttempt, $validated)
@@ -356,6 +366,8 @@ class AudioUploadController extends Controller
             ],
             'content_metadata' => ['prompt_snapshot' => $snapshot],
             'debug' => $canShowDebug,
+            'include_trace' => $includeTrace,
+            'debug_trace' => $includeTrace,
         ];
     }
 

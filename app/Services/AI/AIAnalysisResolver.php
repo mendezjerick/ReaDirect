@@ -176,6 +176,8 @@ class AIAnalysisResolver
             'candidate_items' => array_values($context['candidate_items'] ?? []),
             'content_metadata' => $context['content_metadata'] ?? [],
             'debug' => (bool) ($context['debug'] ?? false),
+            'include_trace' => (bool) ($context['include_trace'] ?? $context['debug_trace'] ?? false),
+            'debug_trace' => (bool) ($context['debug_trace'] ?? $context['include_trace'] ?? false),
         ];
     }
 

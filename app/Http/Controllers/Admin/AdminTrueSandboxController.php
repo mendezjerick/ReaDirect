@@ -203,6 +203,8 @@ class AdminTrueSandboxController extends Controller
             'accepted_answers.*' => ['nullable', 'string', 'max:500'],
             'content_metadata' => ['nullable', 'array'],
             'audio_metadata' => ['nullable', 'array'],
+            'include_trace' => ['nullable', 'boolean'],
+            'debug_trace' => ['nullable', 'boolean'],
         ], AudioStorageService::durationValidationMessages());
 
         $path = $validated['audio']->store('audio/true-sandbox', 'local');
@@ -231,6 +233,8 @@ class AdminTrueSandboxController extends Controller
                     'content' => $validated['content_metadata'] ?? [],
                 ],
                 'debug' => true,
+                'include_trace' => (bool) ($validated['include_trace'] ?? false) || (bool) ($validated['debug_trace'] ?? false),
+                'debug_trace' => (bool) ($validated['debug_trace'] ?? false) || (bool) ($validated['include_trace'] ?? false),
             ];
 
             $aiResponse = $ai->analyzeAudio($payload);
@@ -253,6 +257,8 @@ class AdminTrueSandboxController extends Controller
                 'corrected_transcript' => $aiResponse['corrected_transcript'] ?? $normalized['scoring_transcript'],
                 'displayed_transcript' => $normalized['display_transcript'],
                 'raw_transcript' => $normalized['debug_transcript'],
+                'trace' => $aiResponse['trace'] ?? [],
+                'trace_notes' => $aiResponse['trace_notes'] ?? [],
                 'ai_response' => $aiResponse,
                 'request_context' => $payload,
             ]);

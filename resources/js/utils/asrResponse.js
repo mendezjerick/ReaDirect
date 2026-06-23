@@ -1,3 +1,5 @@
+import { useAsrVisualization } from '../Composables/useAsrVisualization';
+
 export const normalizeAsrResponse = (response = {}) => {
     const scoringTranscript = String(
         response.corrected_transcript
@@ -33,6 +35,12 @@ export const normalizeAsrResponse = (response = {}) => {
 
 export const appendAudioMetadata = (payload, file) => {
     const metadata = file?.audioMetadata;
+    const { enabled } = useAsrVisualization();
+
+    if (enabled.value) {
+        payload.append('include_trace', '1');
+        payload.append('debug_trace', '1');
+    }
 
     if (!metadata) return;
 

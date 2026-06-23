@@ -34,6 +34,8 @@ let runId = 0;
 let timers = [];
 const animatedResultKey = ref('');
 
+const SCRAMBLES_PER_CHARACTER = 10;
+const TICK_INTERVAL_MS = 45;
 const scrambleCharacters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#@$%&*+=?';
 const reduceMotion = typeof window !== 'undefined'
     && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
@@ -74,6 +76,47 @@ const resolvedTrace = computed(() => {
         ?? {};
 });
 
+const resolvedTraceNotes = computed(() => {
+    const result = props.asrResult ?? {};
+    const notes = result.trace_notes
+        ?? result.ai_response?.trace_notes
+        ?? result.debug_info?.trace_notes
+        ?? result.ai_response?.debug_info?.trace_notes
+        ?? [];
+
+    return asArray(notes).filter(Boolean).slice(0, 3);
+});
+
+const hasObjectContent = (value) => value && typeof value === 'object' && Object.keys(value).length > 0;
+const traceReady = computed(() => {
+    const trace = resolvedTrace.value ?? {};
+
+    return hasObjectContent(trace)
+        && (
+            hasObjectContent(trace.audio)
+            || hasObjectContent(trace.features)
+            || hasObjectContent(trace.embeddings)
+            || hasObjectContent(trace.logits)
+            || hasObjectContent(trace.decoding)
+            || hasObjectContent(trace.gop)
+            || hasObjectContent(trace.expected_centric)
+            || hasValue(trace.final_transcript)
+        );
+});
+const traceSignature = computed(() => {
+    const trace = resolvedTrace.value ?? {};
+
+    return JSON.stringify({
+        final: trace.final_transcript ?? '',
+        audioSamples: trace.audio?.num_samples ?? '',
+        featureShape: trace.features?.shape ?? [],
+        embeddingShape: trace.embeddings?.shape ?? [],
+        logitsShape: trace.logits?.shape ?? [],
+        decoding: trace.decoding?.raw_transcript ?? '',
+        heard: trace.expected_centric?.heard ?? '',
+    });
+});
+
 const finalTranscript = computed(() => String(firstPresent(
     props.transcript,
     resolvedTrace.value?.final_transcript,
@@ -92,16 +135,49 @@ const expectedText = computed(() => String(firstPresent(
 
 const placeholderText = computed(() => props.isProcessing ? props.processingText : props.placeholder);
 
-const randomizeAfterCursor = (target, cursor) => target
+const isLockedByDefault = (character) => character === '\n' || character === ' ' || character === '\t';
+const scrambleCharacter = () => scrambleCharacters[Math.floor(Math.random() * scrambleCharacters.length)];
+const revealIndexes = (target) => target
     .split('')
-    .map((character, index) => {
-        if (index <= cursor || character === '\n' || character === ' ' || character === '\t') {
-            return character;
-        }
+    .map((character, index) => ({ character, index }))
+    .filter(({ character }) => !isLockedByDefault(character))
+    .map(({ index }) => index);
 
-        return scrambleCharacters[Math.floor(Math.random() * scrambleCharacters.length)];
-    })
-    .join('');
+const batchSizeForStage = (stage, indexes) => {
+    const count = indexes.length;
+
+    if (count <= 0) return 1;
+
+    if (stage.title === 'Final Transcript') {
+        if (count <= 16) return 1;
+
+        return Math.max(2, Math.ceil(count / 12));
+    }
+
+    if (count <= 12) return 1;
+
+    return Math.max(2, Math.ceil(count / 4));
+};
+
+const renderScrambledTarget = (target, lockedIndexes, activeIndexes) => {
+    const locked = new Set(lockedIndexes);
+    const active = new Set(activeIndexes);
+
+    return target
+        .split('')
+        .map((character, index) => {
+            if (isLockedByDefault(character) || locked.has(index)) {
+                return character;
+            }
+
+            if (active.has(index)) {
+                return scrambleCharacter();
+            }
+
+            return ' ';
+        })
+        .join('');
+};
 
 const revealStage = async (stage, index, currentRunId) => {
     stageTitle.value = stage.title;
@@ -116,14 +192,30 @@ const revealStage = async (stage, index, currentRunId) => {
         return;
     }
 
-    const frameCount = Math.max(10, Math.min(22, Math.ceil(target.length / 6)));
+    const indexes = revealIndexes(target);
+    const batchSize = batchSizeForStage(stage, indexes);
+    const lockedIndexes = [];
 
-    for (let frame = 0; frame <= frameCount; frame += 1) {
+    if (!indexes.length) {
+        displayText.value = target;
+        progress.value = Math.round(((index + 1) / totalStages) * 100);
+        return;
+    }
+
+    for (let start = 0; start < indexes.length; start += batchSize) {
+        const activeIndexes = indexes.slice(start, start + batchSize);
+
+        for (let tick = 0; tick < SCRAMBLES_PER_CHARACTER; tick += 1) {
+            if (currentRunId !== runId) return;
+
+            displayText.value = renderScrambledTarget(target, lockedIndexes, activeIndexes);
+            await sleep(TICK_INTERVAL_MS);
+        }
+
         if (currentRunId !== runId) return;
 
-        const cursor = Math.floor((target.length - 1) * (frame / frameCount));
-        displayText.value = randomizeAfterCursor(target, cursor);
-        await sleep(26);
+        lockedIndexes.push(...activeIndexes);
+        displayText.value = renderScrambledTarget(target, lockedIndexes, []);
     }
 
     if (currentRunId !== runId) return;
@@ -139,9 +231,18 @@ const formatList = (items, formatter, emptyText) => {
     return normalized.map(formatter).join('\n');
 };
 
+function hasValue(value) {
+    return value !== null && value !== undefined && String(value).trim() !== '';
+}
+
+const shapeText = (shape) => asArray(shape).length ? `[${shape.join(', ')}]` : '';
+const valuesText = (values) => asArray(values).length ? values.map(formatValue).join(', ') : '';
+
 const buildStages = () => {
     const trace = resolvedTrace.value ?? {};
     const result = props.asrResult ?? {};
+    const audio = trace.audio ?? result.audio ?? result.ai_response?.audio ?? {};
+    const features = trace.features ?? result.features ?? {};
     const embeddings = trace.embeddings ?? result.embeddings ?? {};
     const logits = trace.logits ?? result.logits ?? result.ai_response?.logits;
     const decoding = trace.decoding ?? result.decoding ?? {};
@@ -158,27 +259,47 @@ const buildStages = () => {
         result.dynamic_correction_confidence,
         result.asr_spelling_variant_confidence,
     );
-    const decodingSteps = asArray(decoding.steps);
+    const decodingSteps = asArray(decoding.partial_steps).length ? asArray(decoding.partial_steps) : asArray(decoding.steps);
+    const topTokens = Array.isArray(logits) ? logits : asArray(logits?.top_tokens);
+    const audioLines = [
+        hasValue(audio.sample_rate) ? `Sample rate: ${formatValue(audio.sample_rate)} Hz` : '',
+        hasValue(audio.duration_ms) ? `Duration: ${formatValue(audio.duration_ms)} ms` : '',
+        hasValue(audio.num_samples) ? `Samples: ${formatValue(audio.num_samples)}` : '',
+        valuesText(audio.pcm_preview) ? `PCM preview: ${valuesText(audio.pcm_preview)}` : '',
+        valuesText(audio.byte_preview_binary) ? `Byte preview: ${valuesText(audio.byte_preview_binary)}` : '',
+        hasValue(audio.rms) || hasValue(audio.peak) ? `RMS/Peak: ${formatValue(audio.rms)} / ${formatValue(audio.peak)}` : '',
+    ].filter(Boolean);
+    const featureLines = [
+        features.type ? `Features: ${features.type}` : '',
+        shapeText(features.shape) ? `Feature shape: ${shapeText(features.shape)}` : '',
+        valuesText(features.preview) ? `Feature preview: ${valuesText(features.preview)}` : '',
+        embeddings.source ? `Embedding source: ${embeddings.source}` : '',
+        shapeText(embeddings.shape) ? `Embedding shape: ${shapeText(embeddings.shape)}` : '',
+        valuesText(embeddings.pooled_preview ?? embeddings.preview) ? `Pooled preview: ${valuesText(embeddings.pooled_preview ?? embeddings.preview)}` : '',
+        valuesText(embeddings.frame_preview) ? `Frame preview: ${valuesText(embeddings.frame_preview)}` : '',
+    ].filter(Boolean);
+    const gopPhonemes = formatList(
+        gop.phoneme_scores,
+        (item) => `${item.phoneme ?? item.phone ?? 'phoneme'}: ${formatValue(item.score ?? item.confidence)}`,
+        '',
+    );
 
     return [
         {
             title: 'Binary Stream',
-            body: trace.binary
-                ? String(trace.binary)
-                : 'Audio stream captured.\nBinary trace unavailable.',
+            body: audioLines.length
+                ? audioLines.join('\n')
+                : (trace.binary ? String(trace.binary) : 'Audio trace unavailable.'),
         },
         {
             title: 'Embedding Space',
-            body: [
-                embeddings.shape ? `Vector shape: [${embeddings.shape.join(', ')}]` : 'Embedding trace unavailable',
-                asArray(embeddings.preview).length ? `Preview: ${embeddings.preview.map(formatValue).join(', ')}` : '',
-            ].filter(Boolean).join('\n'),
+            body: featureLines.length ? featureLines.join('\n') : 'Feature and embedding trace unavailable.',
         },
         {
             title: 'Logits',
             body: formatList(
-                logits,
-                (item) => `${item.token ?? item.label ?? 'token'}: ${formatValue(item.score ?? item.value ?? item.logit)}`,
+                topTokens,
+                (item) => `${item.token ?? item.label ?? 'token'}: ${formatValue(item.score ?? item.value ?? item.logit)}${item.probability !== undefined ? ` / p=${formatValue(item.probability)}` : ''}`,
                 'Logit trace unavailable.',
             ),
         },
@@ -186,7 +307,11 @@ const buildStages = () => {
             title: 'Decoding',
             body: decodingSteps.length
                 ? decodingSteps.join(' -> ')
-                : (decoding.raw ? String(decoding.raw) : 'Decoding trace unavailable.'),
+                : [
+                    asArray(decoding.tokens).length ? `Tokens: ${decoding.tokens.join(', ')}` : '',
+                    asArray(decoding.token_ids).length ? `Token IDs: ${decoding.token_ids.join(', ')}` : '',
+                    decoding.raw_transcript ?? decoding.raw ? `Raw: ${decoding.raw_transcript ?? decoding.raw}` : '',
+                ].filter(Boolean).join('\n') || 'Decoding trace unavailable.',
         },
         {
             title: 'Beam Search',
@@ -201,6 +326,7 @@ const buildStages = () => {
             body: [
                 gopScore !== undefined ? `Pronunciation score: ${formatValue(gopScore)}` : 'GOP score unavailable.',
                 gopVerdict !== undefined ? `Verdict: ${formatValue(gopVerdict)}` : '',
+                gopPhonemes ? `Phonemes:\n${gopPhonemes}` : '',
             ].filter(Boolean).join('\n'),
         },
         {
@@ -229,6 +355,14 @@ const showError = () => {
     displayText.value = props.error || 'The ASR request failed.';
 };
 
+const showTraceWaiting = () => {
+    visualizing.value = true;
+    stageTitle.value = 'ASR Trace';
+    stageNumber.value = 0;
+    progress.value = 12;
+    displayText.value = 'Audio uploaded.\nWaiting for real ASR trace data...';
+};
+
 const playSequence = async () => {
     if (!effectiveEnabled.value) return;
 
@@ -238,12 +372,24 @@ const playSequence = async () => {
     visualizing.value = true;
     progress.value = 0;
 
-    const stages = buildStages();
+    if (!traceReady.value && props.isProcessing) {
+        let waitCycles = 0;
 
-    for (let index = 0; index < stages.length - 1; index += 1) {
+        while (currentRunId === runId && !props.error && props.isProcessing && !traceReady.value && waitCycles < 80) {
+            showTraceWaiting();
+            waitCycles += 1;
+            await sleep(120);
+        }
+    }
+
+    if (currentRunId !== runId || props.error) return;
+
+    const stageCount = buildStages().length;
+
+    for (let index = 0; index < stageCount - 1; index += 1) {
         if (currentRunId !== runId || props.error) return;
 
-        await revealStage(stages[index], index, currentRunId);
+        await revealStage(buildStages()[index], index, currentRunId);
         if (currentRunId !== runId || props.error) return;
         await sleep(95);
     }
@@ -260,7 +406,7 @@ const playSequence = async () => {
 
     if (currentRunId !== runId || props.error) return;
 
-    await revealStage(buildStages()[stages.length - 1], stages.length - 1, currentRunId);
+    await revealStage(buildStages()[stageCount - 1], stageCount - 1, currentRunId);
     await sleep(220);
 
     if (currentRunId === runId) {
@@ -289,11 +435,12 @@ watch(
 );
 
 watch(
-    () => [finalTranscript.value, props.replayKey, props.playOnResult, effectiveEnabled.value],
-    ([transcript, replayKey, playOnResult, enabled]) => {
-        if (!enabled || !playOnResult || props.isProcessing || props.error || !transcript) return;
+    () => [finalTranscript.value, props.replayKey, props.playOnResult, effectiveEnabled.value, props.isProcessing, traceReady.value, traceSignature.value],
+    ([transcript, replayKey, playOnResult, enabled, processing, ready, signature]) => {
+        if (!enabled || processing || props.error || !transcript) return;
+        if (!ready && !playOnResult) return;
 
-        const key = String(replayKey || transcript);
+        const key = String(replayKey || signature || transcript);
         if (animatedResultKey.value === key) return;
 
         animatedResultKey.value = key;
@@ -344,6 +491,9 @@ onBeforeUnmount(() => {
         </div>
 
         <pre class="asr-visualizer-text m-0 whitespace-pre-wrap break-words font-mono text-[13px] font-bold leading-relaxed text-slate-800 sm:text-sm">{{ displayText }}</pre>
+        <p v-if="resolvedTraceNotes.length" class="mt-3 text-[11px] font-semibold leading-snug text-slate-500">
+            {{ resolvedTraceNotes.join(' ') }}
+        </p>
     </div>
 
     <slot v-else name="normal" :transcript="finalTranscript" :placeholder="placeholderText">
