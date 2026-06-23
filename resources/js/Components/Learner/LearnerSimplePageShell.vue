@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import { BookOpen, ChevronLeft, ClipboardList, HelpCircle, Home, Menu, Trophy, X } from 'lucide-vue-next';
+import AsrVisualizationToggle from '../AsrVisualizationToggle.vue';
 
 const props = defineProps({
     learner: { type: Object, default: null },
@@ -104,11 +105,14 @@ const navItems = [
                         <p v-if="subtitle" class="truncate text-xs font-semibold text-slate-400 sm:text-sm">{{ subtitle }}</p>
                     </div>
                 </div>
-                <div class="flex items-center gap-2 rounded-full bg-white py-1 pl-1 pr-3 shadow-sm ring-1 ring-slate-200/80">
-                    <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-sky-400 to-blue-600 text-sm font-black text-white">
-                        {{ initial }}
+                <div class="flex items-center gap-2">
+                    <AsrVisualizationToggle />
+                    <div class="flex items-center gap-2 rounded-full bg-white py-1 pl-1 pr-3 shadow-sm ring-1 ring-slate-200/80">
+                        <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-sky-400 to-blue-600 text-sm font-black text-white">
+                            {{ initial }}
+                        </div>
+                        <span class="hidden text-sm font-bold text-slate-700 sm:inline">{{ firstName }}</span>
                     </div>
-                    <span class="hidden text-sm font-bold text-slate-700 sm:inline">{{ firstName }}</span>
                 </div>
             </header>
 

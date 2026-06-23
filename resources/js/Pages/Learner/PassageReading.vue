@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import LearnerLayout from '../../Layouts/LearnerLayout.vue';
 import AudioRecorder from '../../Components/Learner/AudioRecorder.vue';
+import AsrTranscriptVisualizer from '../../Components/Learner/AsrTranscriptVisualizer.vue';
 import AgentSpeakerPanel from '../../Components/Learner/AgentSpeakerPanel.vue';
 import PrimaryButton from '../../Components/PrimaryButton.vue';
 import BottomActionBar from '../../Components/BottomActionBar.vue';
@@ -27,6 +28,7 @@ const form = useForm({
 const audioFile = ref(null);
 const transcript = ref(String(savedPassageResponse.displayed_transcript ?? savedPassageResponse.answer ?? '').trim());
 const wordAlignment = ref(Array.isArray(savedPassageResponse.word_alignment) ? savedPassageResponse.word_alignment : []);
+const asrResult = ref(null);
 const uploadError = ref('');
 const uploading = ref(false);
 const agentState = computed(() => uploading.value ? 'thinking' : (uploadError.value ? 'retry' : 'listening'));
@@ -274,6 +276,7 @@ const uploadTranscript = async (file) => {
             body: payload,
         });
         const result = await response.json();
+        asrResult.value = result;
 
         if (!response.ok) {
             throw new Error(result.message ?? 'We had trouble checking your answer. Please try again.');
@@ -308,6 +311,7 @@ const rememberAudio = (file) => {
     form.duration_seconds = file.durationSeconds ?? null;
     transcript.value = '';
     wordAlignment.value = [];
+    asrResult.value = null;
     uploadError.value = '';
 };
 
@@ -318,6 +322,7 @@ const clearAudio = () => {
     form.duration_seconds = null;
     transcript.value = '';
     wordAlignment.value = [];
+    asrResult.value = null;
     uploadError.value = '';
 };
 
@@ -426,7 +431,17 @@ const submit = () => {
                             </span>
                             You said
                         </span>
-                        <div class="min-h-32 rounded-[20px] border-2 border-slate-200/80 bg-white p-5 text-xl font-black text-slate-800 transition-all">
+                        <AsrTranscriptVisualizer
+                            :transcript="transcript"
+                            :expected-text="passage?.prompt ?? ''"
+                            :asr-result="asrResult"
+                            :is-processing="uploading"
+                            :error="uploadError"
+                            normal-mode="div"
+                            box-class="min-h-32 rounded-[20px] border-2 border-slate-200/80 bg-white p-5 text-xl font-black text-slate-800 transition-all"
+                        >
+                            <template #normal="{ placeholder }">
+                                <div class="min-h-32 rounded-[20px] border-2 border-slate-200/80 bg-white p-5 text-xl font-black text-slate-800 transition-all">
                             <span v-if="transcript">
                                 <template v-for="(word, index) in diff.actualWords" :key="`${word.index}-${index}`">
                                     <span
@@ -439,9 +454,11 @@ const submit = () => {
                                 </template>
                             </span>
                             <span v-else class="text-[15px] font-semibold text-slate-400">
-                                {{ uploading ? 'Checking your recording...' : 'Your words will appear here' }}
+                                {{ placeholder }}
                             </span>
-                        </div>
+                                </div>
+                            </template>
+                        </AsrTranscriptVisualizer>
                     </label>
 
                     <!-- Manual fallback input -->
@@ -523,4 +540,3 @@ const submit = () => {
     to { opacity: 1; transform: translateY(0); }
 }
 </style>
-

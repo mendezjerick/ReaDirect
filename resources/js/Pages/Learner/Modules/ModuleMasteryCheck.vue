@@ -4,6 +4,7 @@ import { useForm } from '@inertiajs/vue3';
 import LearnerLayout from '../../../Layouts/LearnerLayout.vue';
 import AgentSpeakerPanel from '../../../Components/Learner/AgentSpeakerPanel.vue';
 import AudioRecorder from '../../../Components/Learner/AudioRecorder.vue';
+import AsrTranscriptVisualizer from '../../../Components/Learner/AsrTranscriptVisualizer.vue';
 import AutomaticCielListeningPanel from '../../../Components/Learner/AutomaticCielListeningPanel.vue';
 import CielFocusMode from '../../../Components/Learner/CielFocusMode.vue';
 import PrimaryButton from '../../../Components/PrimaryButton.vue';
@@ -25,6 +26,7 @@ const audioDurations = reactive({});
 const uploadedAudioIds = reactive({});
 const transcriptSources = reactive({});
 const generatedTranscripts = reactive({});
+const asrResults = reactive({});
 const uploadErrors = reactive({});
 const uploading = reactive({});
 const checking = reactive({});
@@ -114,6 +116,7 @@ watch(
         Object.keys(uploadedAudioIds).forEach((key) => delete uploadedAudioIds[key]);
         Object.keys(transcriptSources).forEach((key) => delete transcriptSources[key]);
         Object.keys(generatedTranscripts).forEach((key) => delete generatedTranscripts[key]);
+        Object.keys(asrResults).forEach((key) => delete asrResults[key]);
         Object.keys(uploadErrors).forEach((key) => delete uploadErrors[key]);
         Object.keys(uploading).forEach((key) => delete uploading[key]);
         Object.keys(checking).forEach((key) => delete checking[key]);
@@ -173,6 +176,7 @@ const rememberAudio = (item, file) => {
     delete uploadedAudioIds[item.id];
     delete transcriptSources[item.id];
     delete generatedTranscripts[item.id];
+    delete asrResults[item.id];
     agentMessage.value = 'Listen to your answer. If you are happy with your answer, click Submit.';
     agentState.value = 'speaking';
 };
@@ -183,6 +187,7 @@ const clearAudio = (item, resetAgent = true) => {
     delete uploadedAudioIds[item.id];
     delete transcriptSources[item.id];
     delete generatedTranscripts[item.id];
+    delete asrResults[item.id];
     delete uploadErrors[item.id];
     delete uploading[item.id];
     recorderResetKeys[item.id] = (recorderResetKeys[item.id] ?? 0) + 1;
@@ -224,6 +229,7 @@ const uploadAudio = async (item, file) => {
             body: payload,
         });
         const result = await response.json();
+        asrResults[item.id] = result;
 
         if (!response.ok) {
             throw new Error(result.message ?? 'We had trouble checking your answer. Please try again.');
@@ -379,6 +385,7 @@ const submitAutomaticChunk = async (context) => {
     delete uploadedAudioIds[item.id];
     delete transcriptSources[item.id];
     delete generatedTranscripts[item.id];
+    delete asrResults[item.id];
 
     const uploaded = await uploadAudio(item, file);
     if (!uploaded) {
@@ -553,7 +560,14 @@ onBeforeUnmount(() => {
                         </div>
                         <label class="grid gap-2 text-lg font-black text-text">
                             You said
-                            <textarea :value="generatedTranscripts[step.currentItem.value.id] ?? ''" class="learner-transcript-box resize-none rounded-2xl border-2 border-border bg-background font-black text-text focus:border-primary focus:outline-none" readonly :placeholder="isCurrentUploading ? 'Checking your recording...' : 'Your words will appear here'" />
+                            <AsrTranscriptVisualizer
+                                :transcript="generatedTranscripts[step.currentItem.value.id] ?? ''"
+                                :expected-text="step.currentItem.value.payload?.expected_answer ?? step.currentItem.value.prompt"
+                                :asr-result="asrResults[step.currentItem.value.id]"
+                                :is-processing="isCurrentUploading"
+                                :error="uploadErrors[step.currentItem.value.id] ?? ''"
+                                box-class="learner-transcript-box resize-none rounded-2xl border-2 border-border bg-background font-black text-text focus:border-primary focus:outline-none"
+                            />
                         </label>
                         <label v-if="canUseManualFallback" class="grid gap-2 text-sm font-black text-muted">
                             Developer QA: Manual Transcript Override

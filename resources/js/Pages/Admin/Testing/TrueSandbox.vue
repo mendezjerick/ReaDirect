@@ -5,6 +5,8 @@ import { Activity, AlertTriangle, ArrowLeft, CheckCircle2, Database, FileSearch,
 import AdminLayout from '../../../Layouts/AdminLayout.vue';
 import DashboardCard from '../../../Components/DashboardCard.vue';
 import AudioRecorder from '../../../Components/Learner/AudioRecorder.vue';
+import AsrTranscriptVisualizer from '../../../Components/Learner/AsrTranscriptVisualizer.vue';
+import { useAsrVisualization } from '../../../Composables/useAsrVisualization';
 import { appendAudioMetadata, normalizeAsrResponse } from '../../../utils/asrResponse';
 
 const props = defineProps({
@@ -37,6 +39,7 @@ const reinforcementCase = ref(null);
 const wordReinforcementSubmitting = ref({});
 const wordReinforcementMessages = ref({});
 const wordReinforcementErrors = ref({});
+const { enabled: asrVisualizationEnabled } = useAsrVisualization();
 
 const selectedSection = computed(() => props.sections?.find((item) => item.key === section.value) ?? props.sections?.[0]);
 const selectedItem = computed(() => items.value.find((item) => item.id === selectedItemId.value) ?? items.value[0] ?? null);
@@ -76,6 +79,7 @@ const wordLineExpectedText = computed(() => selectedLineItems.value
     .join(' '));
 const activeExpectedText = computed(() => isWordLineMode.value ? wordLineExpectedText.value : expectedText.value);
 const activePromptText = computed(() => isWordLineMode.value ? wordLineExpectedText.value : (selectedItem.value?.prompt || expectedText.value));
+const displayedTranscript = computed(() => result.value?.displayed_transcript || normalizedResult.value?.displayTranscript || '');
 const hasRunnableTarget = computed(() => isWordLineMode.value ? selectedLineItems.value.length > 0 : Boolean(selectedItem.value));
 const hasWordAlignmentErrors = computed(() => (result.value?.word_alignment ?? []).some((word) => canAddWordReinforcement(word)));
 const canAddReinforcement = computed(() => (
@@ -849,6 +853,19 @@ const rejectAndContinue = () => {
                     <Transition name="ts-fade" mode="out-in">
                         <!-- Loading: shimmer skeleton -->
                         <div v-if="submitting" key="asr-loading" class="mt-6 space-y-4">
+                            <AsrTranscriptVisualizer
+                                v-if="asrVisualizationEnabled"
+                                :transcript="displayedTranscript"
+                                :expected-text="activeExpectedText"
+                                :asr-result="result"
+                                :is-processing="submitting"
+                                :error="error"
+                                normal-mode="div"
+                                processing-text="Analyzing speech..."
+                                placeholder="ASR result will appear here"
+                                box-class="min-h-[260px] rounded-2xl border border-primary/15 bg-white p-5 text-sm font-bold text-slate-800 shadow-sm"
+                            />
+                            <template v-else>
                             <div class="flex items-center justify-center gap-3 rounded-2xl bg-primary/5 border border-primary/10 p-6">
                                 <div class="relative">
                                     <div class="absolute inset-0 rounded-full bg-primary/20 animate-ping"></div>
@@ -874,12 +891,25 @@ const rejectAndContinue = () => {
                                     </div>
                                 </div>
                             </div>
+                            </template>
                         </div>
 
                         <!-- Error state -->
-                        <div v-else-if="error" key="asr-error" class="mt-4 flex items-start gap-3 rounded-2xl bg-red-50 border border-red-200/60 p-4 text-sm font-semibold text-red-700">
-                            <AlertTriangle class="size-5 shrink-0 mt-0.5" />
-                            <span>{{ error }}</span>
+                        <div v-else-if="error" key="asr-error" class="mt-4">
+                            <AsrTranscriptVisualizer
+                                v-if="asrVisualizationEnabled"
+                                :transcript="displayedTranscript"
+                                :expected-text="activeExpectedText"
+                                :asr-result="result"
+                                :is-processing="false"
+                                :error="error"
+                                normal-mode="div"
+                                box-class="min-h-[180px] rounded-2xl border border-red-200/70 bg-red-50 p-5 text-sm font-bold text-red-800"
+                            />
+                            <div v-else class="flex items-start gap-3 rounded-2xl bg-red-50 border border-red-200/60 p-4 text-sm font-semibold text-red-700">
+                                <AlertTriangle class="size-5 shrink-0 mt-0.5" />
+                                <span>{{ error }}</span>
+                            </div>
                         </div>
 
                         <!-- Empty state -->
@@ -921,7 +951,18 @@ const rejectAndContinue = () => {
                                 <div class="rounded-2xl border border-border/60 border-l-[3px] border-l-violet-400 p-4 flex flex-col ts-result-card" style="--delay: 120ms">
                                     <p class="text-[11px] font-bold uppercase tracking-wider text-muted mb-2">Displayed transcript</p>
                                     <div class="max-h-40 overflow-y-auto">
-                                        <p class="text-base font-bold text-text break-words whitespace-pre-wrap">{{ result.displayed_transcript || normalizedResult?.displayTranscript || 'Not reported' }}</p>
+                                        <AsrTranscriptVisualizer
+                                            :transcript="displayedTranscript"
+                                            :expected-text="activeExpectedText"
+                                            :asr-result="result"
+                                            :is-processing="false"
+                                            :error="''"
+                                            :replay-key="result.audio_file_id ?? result.displayed_transcript ?? result.raw_transcript ?? ''"
+                                            play-on-result
+                                            normal-mode="div"
+                                            placeholder="Not reported"
+                                            box-class="min-h-0 rounded-xl border border-transparent bg-transparent p-0 text-base font-bold text-text break-words whitespace-pre-wrap"
+                                        />
                                     </div>
                                 </div>
                                 <div class="rounded-2xl border border-border/60 p-4 flex flex-col ts-result-card" style="--delay: 180ms"

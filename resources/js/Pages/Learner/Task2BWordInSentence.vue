@@ -5,6 +5,7 @@ import { BookOpen, MessageCircle, Mic2, Volume2 } from 'lucide-vue-next';
 import LearnerLayout from '../../Layouts/LearnerLayout.vue';
 import AgentSpeakerPanel from '../../Components/Learner/AgentSpeakerPanel.vue';
 import AudioRecorder from '../../Components/Learner/AudioRecorder.vue';
+import AsrTranscriptVisualizer from '../../Components/Learner/AsrTranscriptVisualizer.vue';
 import PrimaryButton from '../../Components/PrimaryButton.vue';
 import SecondaryButton from '../../Components/SecondaryButton.vue';
 import BottomActionBar from '../../Components/BottomActionBar.vue';
@@ -31,6 +32,7 @@ const transcriptSources = reactive(savedEntries('transcript_source'));
 const generatedTranscripts = reactive(Object.fromEntries((props.items ?? [])
     .filter((item) => item?.saved_response?.answer || item?.saved_response?.displayed_transcript)
     .map((item) => [item.id, item.saved_response.displayed_transcript ?? item.saved_response.answer])));
+const asrResults = reactive({});
 const uploadErrors = reactive({});
 const uploading = reactive({});
 const canUseManualFallback = computed(() => props.assessmentMode?.canUseManualFallback === true);
@@ -94,6 +96,7 @@ const rememberAudio = (item, file) => {
     delete uploadedAudioIds[item.id];
     delete transcriptSources[item.id];
     delete generatedTranscripts[item.id];
+    delete asrResults[item.id];
     step.feedback.value = '';
     agentMessage.value = 'Listen to your answer. If you are happy with your answer, click Submit.';
     agentState.value = 'speaking';
@@ -105,6 +108,7 @@ const clearAudio = (item) => {
     delete uploadedAudioIds[item.id];
     delete transcriptSources[item.id];
     delete generatedTranscripts[item.id];
+    delete asrResults[item.id];
     delete uploadErrors[item.id];
     delete uploading[item.id];
 };
@@ -140,6 +144,7 @@ const uploadAudio = async (item, file) => {
             body: payload,
         });
         const result = await response.json();
+        asrResults[item.id] = result;
 
         if (!response.ok) {
             throw new Error(result.message ?? 'We had trouble checking your answer. Please try again.');
@@ -362,16 +367,28 @@ const handlePrimary = async () => {
                             You said
                         </span>
                     </label>
-                    <div class="grid min-h-40 lg:min-h-72 rounded-[20px] border-2 border-slate-200/80 bg-white p-8 text-2xl font-black leading-snug text-slate-800">
+                    <AsrTranscriptVisualizer
+                        :transcript="currentTranscript"
+                        :expected-text="step.currentItem.value.payload?.target_word ?? step.currentItem.value.payload?.expected_answer ?? step.currentItem.value.prompt"
+                        :asr-result="asrResults[step.currentItem.value.id]"
+                        :is-processing="isCurrentUploading"
+                        :error="uploadErrors[step.currentItem.value.id] ?? ''"
+                        normal-mode="div"
+                        box-class="grid min-h-40 rounded-[20px] border-2 border-slate-200/80 bg-white p-8 text-2xl font-black leading-snug text-slate-800 lg:min-h-72"
+                    >
+                        <template #normal="{ transcript, placeholder }">
+                            <div class="grid min-h-40 rounded-[20px] border-2 border-slate-200/80 bg-white p-8 text-2xl font-black leading-snug text-slate-800 lg:min-h-72">
                         <p v-if="isCurrentUploading" class="place-self-center text-center text-[15px] font-semibold text-slate-400">Checking your recording…</p>
-                        <p v-else-if="currentTranscript">{{ currentTranscript }}</p>
+                        <p v-else-if="transcript">{{ transcript }}</p>
                         <div v-else class="grid place-items-center gap-3 text-center">
                             <span class="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-blue-600 text-white/60 shadow-lg shadow-primary/10">
                                 <Mic2 class="size-7" />
                             </span>
-                            <span class="text-[15px] font-semibold text-slate-400">Your words will appear here</span>
+                            <span class="text-[15px] font-semibold text-slate-400">{{ placeholder }}</span>
                         </div>
-                    </div>
+                            </div>
+                        </template>
+                    </AsrTranscriptVisualizer>
                     <label v-if="canUseManualFallback" class="grid gap-2 text-[14px] font-black text-slate-400">
                         Developer QA: Manual Transcript Override
                         <input
@@ -456,4 +473,3 @@ const handlePrimary = async () => {
     to   { opacity: 1; transform: translateY(0); }
 }
 </style>
-

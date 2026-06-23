@@ -4,6 +4,7 @@ import { useForm } from '@inertiajs/vue3';
 import LearnerLayout from '../../../Layouts/LearnerLayout.vue';
 import AgentSpeakerPanel from '../../../Components/Learner/AgentSpeakerPanel.vue';
 import AudioRecorder from '../../../Components/Learner/AudioRecorder.vue';
+import AsrTranscriptVisualizer from '../../../Components/Learner/AsrTranscriptVisualizer.vue';
 import PrimaryButton from '../../../Components/PrimaryButton.vue';
 import SecondaryButton from '../../../Components/SecondaryButton.vue';
 import BottomActionBar from '../../../Components/BottomActionBar.vue';
@@ -28,6 +29,7 @@ const transcriptSources = reactive(savedEntries('transcript_source'));
 const generatedTranscripts = reactive(Object.fromEntries((props.items ?? [])
     .filter((item) => item?.saved_response?.answer || item?.saved_response?.displayed_transcript)
     .map((item) => [item.id, item.saved_response.displayed_transcript ?? item.saved_response.answer])));
+const asrResults = reactive({});
 const uploadErrors = reactive({});
 const uploading = reactive({});
 const canUseManualFallback = computed(() => props.assessmentMode?.canUseManualFallback === true);
@@ -89,6 +91,7 @@ const rememberAudio = (item, file) => {
     delete uploadedAudioIds[item.id];
     delete transcriptSources[item.id];
     delete generatedTranscripts[item.id];
+    delete asrResults[item.id];
     step.feedback.value = '';
     agentMessage.value = 'Listen to your answer. If you are happy with your answer, click Submit.';
     agentState.value = 'speaking';
@@ -99,6 +102,7 @@ const clearAudio = (item) => {
     delete uploadedAudioIds[item.id];
     delete transcriptSources[item.id];
     delete generatedTranscripts[item.id];
+    delete asrResults[item.id];
     delete uploadErrors[item.id];
     delete uploading[item.id];
 };
@@ -132,6 +136,7 @@ const uploadAudio = async (item, file) => {
             body: payload,
         });
         const result = await response.json();
+        asrResults[item.id] = result;
 
         if (!response.ok) {
             throw new Error(result.message ?? 'We had trouble checking your answer. Please try again.');
@@ -295,7 +300,14 @@ const handlePrimary = async () => {
                     <div class="grid gap-3">
                         <label class="grid gap-2 text-lg font-black text-text">
                             You said
-                            <textarea :value="generatedTranscripts[step.currentItem.value.id] ?? ''" class="learner-transcript-box resize-none rounded-2xl border-2 border-border bg-background font-black text-text focus:border-primary focus:outline-none" readonly :placeholder="isCurrentUploading ? 'Checking your recording...' : 'Your words will appear here'" />
+                            <AsrTranscriptVisualizer
+                                :transcript="generatedTranscripts[step.currentItem.value.id] ?? ''"
+                                :expected-text="step.currentItem.value.payload?.target_word ?? step.currentItem.value.payload?.expected_answer ?? step.currentItem.value.prompt"
+                                :asr-result="asrResults[step.currentItem.value.id]"
+                                :is-processing="isCurrentUploading"
+                                :error="uploadErrors[step.currentItem.value.id] ?? ''"
+                                box-class="learner-transcript-box resize-none rounded-2xl border-2 border-border bg-background font-black text-text focus:border-primary focus:outline-none"
+                            />
                         </label>
                         <label v-if="canUseManualFallback" class="grid gap-2 text-sm font-black text-muted">
                             Developer QA: Manual Transcript Override
@@ -337,4 +349,3 @@ const handlePrimary = async () => {
     to   { opacity: 1; transform: translateY(0); }
 }
 </style>
-

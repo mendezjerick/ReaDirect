@@ -4,6 +4,7 @@ import { Link } from '@inertiajs/vue3';
 import { BookOpenCheck, Check, ArrowLeft } from 'lucide-vue-next';
 import SyncStatusBadge from '../Components/SyncStatusBadge.vue';
 import AdminTestingToolbar from '../Components/Admin/AdminTestingToolbar.vue';
+import AsrVisualizationToggle from '../Components/AsrVisualizationToggle.vue';
 import { diagnosticStepsFor } from '../utils/diagnosticSteps';
 
 const props = defineProps({
@@ -73,6 +74,7 @@ const visibleSteps = computed(() => props.steps.length ? props.steps : (props.di
                 <div v-else class="h-3 flex-1 overflow-hidden rounded-full bg-slate-100 shadow-inner">
                     <div class="h-full rounded-full bg-gradient-to-r from-primary to-blue-500 shadow-sm shadow-primary/30 transition-all duration-500" :style="{ width: `${progress}%` }" />
                 </div>
+                <AsrVisualizationToggle />
                 <SyncStatusBadge />
             </div>
         </header>

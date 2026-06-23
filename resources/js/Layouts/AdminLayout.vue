@@ -153,6 +153,7 @@
 
                 <!-- Right: user avatar dropdown -->
                 <div class="flex items-center gap-2">
+                    <AsrVisualizationToggle />
                     <!-- Avatar + dropdown -->
                     <div class="relative ml-1">
                         <button
@@ -242,6 +243,7 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
+import AsrVisualizationToggle from '../Components/AsrVisualizationToggle.vue';
 import {
     BookOpen,
     Home,
