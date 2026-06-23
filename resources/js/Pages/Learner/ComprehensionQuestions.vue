@@ -15,7 +15,14 @@ const props = defineProps({
     assessmentMode: Object,
 });
 const canUseDeveloperJumpControls = computed(() => props.assessmentMode?.canUseDeveloperJumpControls === true);
-const savedAnswers = Object.fromEntries((props.questions ?? []).filter((question) => question.saved_answer).map((question) => [question.id, question.saved_answer]));
+const normalizeChoiceKey = (question, answer) => {
+    const normalized = String(answer ?? '').trim().toUpperCase();
+    if (['A', 'B', 'C', 'D'].includes(normalized)) return normalized;
+
+    const selected = Object.entries(question.choices ?? {}).find(([, choice]) => String(choice).trim().toLowerCase() === String(answer ?? '').trim().toLowerCase());
+    return selected?.[0] ?? answer;
+};
+const savedAnswers = Object.fromEntries((props.questions ?? []).filter((question) => question.saved_answer).map((question) => [question.id, normalizeChoiceKey(question, question.saved_answer)]));
 const firstUnansweredIndex = (props.questions ?? []).findIndex((question) => !savedAnswers[question.id]);
 const step = useStepAssessment(props.questions, {
     emptyMessage: 'Choose one answer before moving on.',
@@ -26,8 +33,8 @@ Object.entries(savedAnswers).forEach(([id, answer]) => {
     step.answers[id] = answer;
 });
 
-const choose = (choice) => {
-    step.answers[step.currentItem.value.id] = choice;
+const choose = (choiceKey) => {
+    step.answers[step.currentItem.value.id] = choiceKey;
     step.feedback.value = '';
     fetch('/learner/assessment-progress/comprehension', {
         method: 'POST',
@@ -40,7 +47,7 @@ const choose = (choice) => {
         body: JSON.stringify({
             assessment_attempt_id: props.assessmentAttemptId,
             question_id: step.currentItem.value.id,
-            answer: choice,
+            answer: choiceKey,
         }),
     }).catch(() => {});
 };
@@ -116,21 +123,21 @@ const handlePrimary = () => {
                         :key="key"
                         type="button"
                         class="choice-btn group grid min-h-16 grid-cols-[38px_1fr_auto] items-center gap-3 rounded-[20px] border-2 px-5 py-3.5 text-left text-lg font-black transition-all duration-200 sm:min-h-20 sm:grid-cols-[44px_1fr_auto] sm:gap-4 sm:text-xl xl:min-h-22 xl:gap-5 xl:px-6 xl:text-[22px]"
-                        :class="step.answers[step.currentItem.value.id] === choice
+                        :class="step.answers[step.currentItem.value.id] === key
                             ? 'border-primary bg-primary/5 text-primary shadow-xl shadow-primary/10 ring-1 ring-primary/20'
                             : 'border-slate-200/80 bg-white text-slate-800 shadow-xl shadow-slate-200/30 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10'"
-                        @click="choose(choice)"
+                        @click="choose(key)"
                     >
                         <span
                             class="grid size-8 place-items-center rounded-full border-[3px] transition-all duration-200 sm:size-9"
-                            :class="step.answers[step.currentItem.value.id] === choice ? 'border-primary' : 'border-slate-200 group-hover:border-primary/50'"
+                            :class="step.answers[step.currentItem.value.id] === key ? 'border-primary' : 'border-slate-200 group-hover:border-primary/50'"
                             aria-hidden="true"
                         >
-                            <span v-if="step.answers[step.currentItem.value.id] === choice" class="size-5 rounded-full bg-gradient-to-br from-primary to-blue-600" />
+                            <span v-if="step.answers[step.currentItem.value.id] === key" class="size-5 rounded-full bg-gradient-to-br from-primary to-blue-600" />
                         </span>
-                        <span class="min-w-0 break-words">{{ choice }}</span>
+                        <span class="min-w-0 break-words">{{ key }}. {{ choice }}</span>
                         <Star
-                            v-if="step.answers[step.currentItem.value.id] === choice"
+                            v-if="step.answers[step.currentItem.value.id] === key"
                             class="size-7 fill-primary text-primary sm:size-8"
                             aria-hidden="true"
                         />

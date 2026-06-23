@@ -128,8 +128,19 @@ class ScoringRulesTest extends TestCase
     {
         $service = new ReadingComprehensionScoringService;
 
-        $this->assertSame(100.0, $service->calculateComprehensionPercentage(4));
-        $this->assertSame(75.0, $service->calculateComprehensionPercentage(3));
+        $this->assertSame(100.0, $service->calculateComprehensionPercentage(5));
+        $this->assertSame(80.0, $service->calculateComprehensionPercentage(4));
+        $this->assertSame(60.0, $service->calculateComprehensionPercentage(3));
+    }
+
+    public function test_multiple_choice_comprehension_scores_selected_choice_only(): void
+    {
+        $service = new ReadingComprehensionScoringService;
+        $choices = ['A' => 'Rosa', 'B' => 'Lena', 'C' => 'Ben', 'D' => 'Sam'];
+
+        $this->assertTrue($service->isCorrectMultipleChoiceAnswer('A', 'A', $choices));
+        $this->assertFalse($service->isCorrectMultipleChoiceAnswer('Rosa', 'A', $choices));
+        $this->assertFalse($service->isCorrectMultipleChoiceAnswer('Lena', 'A', $choices));
     }
 
     public function test_final_reading_score_formula(): void

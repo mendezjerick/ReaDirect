@@ -26,9 +26,15 @@ class ContentBankImportTest extends TestCase
         $this->assertSame(['PASS-001', 'PASS-002'], $passages->map(fn (LearningContent $content): string => $content->payload['source_csv_id'])->values()->all());
 
         $questions = $this->activeContent('comprehension_question');
-        $this->assertCount(8, $questions);
-        $this->assertCount(4, $questions->where('payload.passage_id', 'PASS-001'));
-        $this->assertCount(4, $questions->where('payload.passage_id', 'PASS-002'));
+        $this->assertCount(10, $questions);
+        $this->assertCount(5, $questions->where('payload.passage_id', 'PASS-001'));
+        $this->assertCount(5, $questions->where('payload.passage_id', 'PASS-002'));
+        $questions->each(function (LearningContent $content): void {
+            $this->assertSame('multiple_choice', $content->payload['question_type']);
+            $this->assertCount(4, array_filter($content->payload['choices']));
+            $this->assertContains($content->payload['correct_choice'], ['A', 'B', 'C', 'D']);
+            $this->assertSame([], $content->accepted_answers);
+        });
 
         $moduleActivities = $this->activeContent('module_activity');
         $this->assertCount(50, $moduleActivities->where('payload.module_key', 'module_1'));

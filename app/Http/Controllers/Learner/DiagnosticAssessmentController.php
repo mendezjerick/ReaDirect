@@ -528,7 +528,6 @@ class DiagnosticAssessmentController extends Controller
     public function storeComprehension(
         Request $request,
         AssessmentItemSelectionService $itemSelection,
-        AnswerMatchingService $answerMatching,
         ReadingComprehensionScoringService $reading
     ): RedirectResponse {
         $attempt = $this->attemptForStep($request, app(LearnerFlowService::class), 'comprehension');
@@ -553,7 +552,7 @@ class DiagnosticAssessmentController extends Controller
         $validated = $request->validate([
             'responses' => ['required', 'array', 'size:'.$questionCount],
             'responses.*.question_id' => ['required', 'string'],
-            'responses.*.answer' => ['required', 'string', 'max:255', 'regex:/\S/'],
+            'responses.*.answer' => ['required', 'string', 'regex:/^[A-D]$/i'],
         ], $this->friendlyValidationMessages());
 
         $correct = 0;
@@ -561,8 +560,10 @@ class DiagnosticAssessmentController extends Controller
         foreach ($questions as $question) {
             $submitted = collect($validated['responses'])->firstWhere('question_id', $question['id']);
             $answer = $submitted['answer'] ?? '';
-            $isCorrect = $answerMatching->isAcceptedAnswer($answer, $question['accepted_answers']);
+            $selectedChoice = $reading->normalizeMultipleChoiceSelection($answer, $question['choices']);
+            $isCorrect = $reading->isCorrectMultipleChoiceAnswer($selectedChoice, $question['correct_choice'], $question['choices']);
             $correct += $isCorrect ? 1 : 0;
+            $selectedAnswerText = $question['choices'][$selectedChoice] ?? $answer;
 
             AssessmentTaskResponse::create([
                 'assessment_attempt_id' => $attempt->id,
@@ -572,14 +573,19 @@ class DiagnosticAssessmentController extends Controller
                 'task_type' => 'comprehension_question',
                 'item_number' => $question['sequence'],
                 'prompt' => $question['question_text'],
-                'expected_answer' => $question['correct_answer'],
-                'selected_answer' => $answer,
-                'response_text' => $answer,
+                'expected_answer' => $question['correct_choice'],
+                'selected_answer' => $selectedChoice,
+                'response_text' => $selectedAnswerText,
                 'is_correct' => $isCorrect,
                 'score' => $isCorrect ? 1 : 0,
-                'rule_applied' => 'COMPREHENSION_EXACT_MATCH_V1',
+                'rule_applied' => 'COMPREHENSION_MULTIPLE_CHOICE_V1',
                 'metadata' => ['source_csv_id' => $question['id']],
-                'metadata_json' => ['choices' => $question['choices']],
+                'metadata_json' => [
+                    'choices' => $question['choices'],
+                    'correct_choice' => $question['correct_choice'],
+                    'correct_answer' => $question['correct_answer'],
+                    'selected_choice' => $selectedChoice,
+                ],
             ]);
         }
 

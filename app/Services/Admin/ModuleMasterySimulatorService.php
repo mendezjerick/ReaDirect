@@ -104,7 +104,9 @@ class ModuleMasterySimulatorService
             $passageEligible = $this->crla->shouldAdministerPassage($taskOneScore, $crlaTotal);
 
             $accuracy = $passageEligible ? $this->reading->calculateAccuracyPercentage($incorrectWords) : 0.0;
-            $comprehensionPercentage = $passageEligible ? $this->reading->calculateComprehensionPercentage($comprehensionCorrect, 4) : 0.0;
+            $comprehensionPercentage = $passageEligible
+                ? $this->reading->calculateComprehensionPercentage($comprehensionCorrect, ReadingComprehensionScoringService::ASSESSMENT_COMPREHENSION_QUESTION_COUNT)
+                : 0.0;
             $comprehensionContribution = round($comprehensionPercentage * 0.60, 2);
             $accuracyContribution = round($accuracy * 0.40, 2);
             $finalReadingScore = $passageEligible ? $this->reading->calculateFinalReadingScore($comprehensionPercentage, $accuracy) : 0.0;
@@ -147,7 +149,7 @@ class ModuleMasterySimulatorService
                     'task_3_score' => $taskThreeScore,
                     'incorrect_words' => $incorrectWords,
                     'comprehension_correct_count' => $comprehensionCorrect,
-                    'comprehension_total' => 4,
+                    'comprehension_total' => ReadingComprehensionScoringService::ASSESSMENT_COMPREHENSION_QUESTION_COUNT,
                 ],
                 'task_routing' => [
                     ...$taskOneRoute,

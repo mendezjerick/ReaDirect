@@ -47,11 +47,11 @@ class ContentBankRevampTest extends TestCase
         }
     }
 
-    public function test_comprehension_questions_are_four_choice_items_for_each_active_story(): void
+    public function test_comprehension_questions_are_five_four_choice_items_for_each_active_story(): void
     {
         $rows = $this->activeRows($this->csv('comprehension_questions.csv'));
 
-        $this->assertCount(8, $rows);
+        $this->assertCount(10, $rows);
 
         $byPassage = [];
         foreach ($rows as $row) {
@@ -61,10 +61,12 @@ class ContentBankRevampTest extends TestCase
             $this->assertCount(4, array_filter($choices, fn (string $choice): bool => trim($choice) !== ''));
             $this->assertContains($row['correct_choice'], ['A', 'B', 'C', 'D']);
             $this->assertSame($choices[ord($row['correct_choice']) - ord('A')], $row['expected_text']);
+            $this->assertSame('', trim($row['accepted_answers']));
+            $this->assertCount(4, array_unique($choices));
         }
 
-        $this->assertCount(4, $byPassage['PASS-001'] ?? []);
-        $this->assertCount(4, $byPassage['PASS-002'] ?? []);
+        $this->assertCount(5, $byPassage['PASS-001'] ?? []);
+        $this->assertCount(5, $byPassage['PASS-002'] ?? []);
     }
 
     public function test_active_module_content_uses_easy_inventory_and_keeps_mastery_counts(): void

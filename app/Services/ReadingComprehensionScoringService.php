@@ -4,6 +4,8 @@ namespace App\Services;
 
 class ReadingComprehensionScoringService
 {
+    public const ASSESSMENT_COMPREHENSION_QUESTION_COUNT = 5;
+
     public const LOW_EMERGING = 'Low Emerging Reader';
 
     public const HIGH_EMERGING = 'High Emerging Reader';
@@ -84,13 +86,32 @@ class ReadingComprehensionScoringService
         ];
     }
 
-    public function calculateComprehensionPercentage(int $correctAnswers, int $totalQuestions = 4): float
+    public function calculateComprehensionPercentage(int $correctAnswers, int $totalQuestions = self::ASSESSMENT_COMPREHENSION_QUESTION_COUNT): float
     {
         if ($correctAnswers < 0 || $totalQuestions <= 0 || $correctAnswers > $totalQuestions) {
             throw new \InvalidArgumentException('Comprehension inputs are outside the allowed range.');
         }
 
         return round(($correctAnswers / $totalQuestions) * 100, 2);
+    }
+
+    public function normalizeMultipleChoiceSelection(?string $answer, array $choices = []): string
+    {
+        $answer = trim((string) $answer);
+
+        if (preg_match('/^[A-D]$/i', $answer) === 1) {
+            return strtoupper($answer);
+        }
+
+        return '';
+    }
+
+    public function isCorrectMultipleChoiceAnswer(?string $answer, ?string $correctChoice, array $choices = []): bool
+    {
+        $selectedChoice = $this->normalizeMultipleChoiceSelection($answer, $choices);
+
+        return $selectedChoice !== ''
+            && $selectedChoice === strtoupper(trim((string) $correctChoice));
     }
 
     public function calculateFinalReadingScore(float $comprehensionPercentage, float $accuracyPercentage): float

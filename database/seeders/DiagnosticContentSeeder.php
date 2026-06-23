@@ -166,9 +166,12 @@ class DiagnosticContentSeeder extends Seeder
             ];
             $correctChoice = strtoupper(trim((string) ($row['correct_choice'] ?? $metadata['correct_choice'] ?? '')));
             $correctAnswer = $choices[$correctChoice] ?? $row['correct_answer'] ?? $metadata['correct_answer'] ?? $this->expectedAnswer($row, $metadata);
-            $acceptedAnswers = $this->pipeList($row['accepted_answers'] ?? '');
+            $questionType = $row['question_type'] ?? $metadata['question_type'] ?? 'multiple_choice';
+            $acceptedAnswers = $questionType === 'multiple_choice'
+                ? []
+                : $this->pipeList($row['accepted_answers'] ?? '');
 
-            if ($acceptedAnswers === [] && $correctAnswer !== null && trim((string) $correctAnswer) !== '') {
+            if ($questionType !== 'multiple_choice' && $acceptedAnswers === [] && $correctAnswer !== null && trim((string) $correctAnswer) !== '') {
                 $acceptedAnswers = [(string) $correctAnswer];
             }
 
@@ -182,7 +185,7 @@ class DiagnosticContentSeeder extends Seeder
                         'source_csv_id' => $this->rowId($row),
                         'passage_id' => $row['passage_id'] ?? $metadata['passage_id'] ?? null,
                         'sequence' => $this->sequence($row, $metadata),
-                        'question_type' => $row['question_type'] ?? $metadata['question_type'] ?? 'multiple_choice',
+                        'question_type' => $questionType,
                         'correct_answer' => $correctAnswer,
                         'correct_choice' => $correctChoice,
                         'choices' => $choices,

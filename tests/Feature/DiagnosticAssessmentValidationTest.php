@@ -465,6 +465,44 @@ class DiagnosticAssessmentValidationTest extends TestCase
             ->assertSessionHasErrors('responses');
     }
 
+    public function test_comprehension_submission_scores_five_multiple_choice_answers_and_stores_selected_choices(): void
+    {
+        $attempt = $this->assessmentAttempt();
+        $attempt->update([
+            'task_1_score' => 10,
+            'task_2a_score' => 10,
+            'task_2b_score' => 10,
+            'crla_total_score' => 30,
+            'reading_accuracy' => 90,
+            'status' => 'passage_completed',
+        ]);
+        $this->addReadingPassage($attempt);
+
+        $responses = collect(range(1, 5))
+            ->map(fn (int $index): array => ['question_id' => 'CQ-00'.$index, 'answer' => 'A'])
+            ->all();
+
+        $this->withSession($this->learnerSession($attempt))
+            ->post(route('learner.diagnostic.comprehension.store'), ['responses' => $responses])
+            ->assertRedirect(route('learner.diagnostic.reading-summary'));
+
+        $attempt->refresh();
+        $this->assertSame(5, (int) $attempt->comprehension_correct_count);
+        $this->assertSame(100.0, (float) $attempt->comprehension_percentage);
+        $this->assertSame(96.0, (float) $attempt->final_reading_score);
+
+        $this->assertDatabaseCount('assessment_task_responses', 5);
+        $this->assertDatabaseHas('assessment_task_responses', [
+            'assessment_attempt_id' => $attempt->id,
+            'task_type' => 'comprehension_question',
+            'expected_answer' => 'A',
+            'selected_answer' => 'A',
+            'response_text' => 'A',
+            'is_correct' => true,
+            'rule_applied' => 'COMPREHENSION_MULTIPLE_CHOICE_V1',
+        ]);
+    }
+
     public function test_normal_learner_cannot_see_or_use_developer_retest(): void
     {
         config(['readirect_ai.debug.enable_developer_assessment_reset' => false]);
@@ -613,7 +651,7 @@ class DiagnosticAssessmentValidationTest extends TestCase
             'selected_at' => now(),
         ]);
 
-        foreach (range(1, 4) as $index) {
+        foreach (range(1, 5) as $index) {
             LearningContent::create([
                 'content_type' => 'comprehension_question',
                 'title' => 'Question '.$index,
@@ -632,7 +670,7 @@ class DiagnosticAssessmentValidationTest extends TestCase
                     'correct_choice' => 'A',
                     'correct_answer' => 'A',
                 ],
-                'accepted_answers' => ['a', 'A'],
+                'accepted_answers' => [],
                 'difficulty' => 'easy',
                 'is_active' => true,
             ]);

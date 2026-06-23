@@ -399,9 +399,9 @@ class QaTestingStateService
 
     private function seedReadingComplete(AssessmentAttempt $attempt, int $incorrectWords, int $correctAnswers): void
     {
-        $correctAnswers = min(4, max(0, $correctAnswers));
+        $correctAnswers = min(ReadingComprehensionScoringService::ASSESSMENT_COMPREHENSION_QUESTION_COUNT, max(0, $correctAnswers));
         $accuracy = $this->reading->calculateAccuracyPercentage($incorrectWords);
-        $comprehension = $this->reading->calculateComprehensionPercentage($correctAnswers, 4);
+        $comprehension = $this->reading->calculateComprehensionPercentage($correctAnswers, ReadingComprehensionScoringService::ASSESSMENT_COMPREHENSION_QUESTION_COUNT);
         $final = $this->reading->calculateFinalReadingScore($comprehension, $accuracy);
 
         $attempt->update([

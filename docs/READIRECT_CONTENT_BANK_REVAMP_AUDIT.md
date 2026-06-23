@@ -27,7 +27,7 @@
 - Task 2A now has exactly 10 active yes/no rhyme decision rows.
 - Task 2B now has exactly 10 active easy word-in-sentence rows; older difficult rows remain inactive.
 - Reading passages now have only two active assessment stories: `PASS-001` and `PASS-002`.
-- Comprehension now has exactly four active multiple-choice questions per active story.
+- Comprehension now has exactly five active multiple-choice questions per active story.
 - Module CSVs retain existing row IDs, but active rows were limited to easier content. Old/harder rows remain present and inactive.
 
 ## Words Removed Or Marked Inactive
@@ -74,9 +74,10 @@
 
 ## Comprehension Records
 
-- `CQ-001` through `CQ-004` link to `PASS-001`.
-- `CQ-005` through `CQ-008` link to `PASS-002`.
-- Each active question has four choices, one `correct_choice`, and accepted answers matching the correct displayed choice text.
+- `CQ-001` through `CQ-004` and `CQ-009` link to `PASS-001`.
+- `CQ-005` through `CQ-008` and `CQ-010` link to `PASS-002`.
+- Each active question has four choices and one `correct_choice`.
+- Active assessment comprehension rows keep `accepted_answers` blank; Laravel scores only the selected A-D choice and does not use ASR or free-text accepted answers.
 - Legacy questions remain in the CSV but are inactive.
 
 ## Reinforcement Status
@@ -93,7 +94,7 @@
 
 ## Module Mastery Simulator Updates
 
-- Comprehension total is now 4.
+- Comprehension total is now 5.
 - Low Task 1A branch now ends after Task 2A with Task 2B and passage fields zeroed.
 - Passage scoring is applied only when CRLA passage eligibility is true.
 - Simulator labels now distinguish Task 2A and Task 2B.

@@ -179,7 +179,7 @@ class FinalAssessmentController extends Controller
             'task-2b' => $this->submitTaskTwoB($request, $attempt, $itemSelection, $answerMatching, $audioStorage, $analysis, $crla, $sentenceScoring, $mode, $comparison, $exports),
             'story-selection' => $this->submitStorySelection($request, $attempt, $itemSelection),
             'passage' => $this->submitPassage($request, $attempt, $itemSelection, $reading, $audioStorage, $analysis, $mode),
-            'comprehension' => $this->submitComprehension($request, $attempt, $itemSelection, $answerMatching, $reading, $comparison, $exports),
+            'comprehension' => $this->submitComprehension($request, $attempt, $itemSelection, $reading, $comparison, $exports),
             default => abort(404),
         };
     }
@@ -413,7 +413,6 @@ class FinalAssessmentController extends Controller
         Request $request,
         AssessmentAttempt $attempt,
         AssessmentItemSelectionService $itemSelection,
-        AnswerMatchingService $answerMatching,
         ReadingComprehensionScoringService $reading,
         FinalAssessmentComparisonService $comparison,
         CrlaExcelExportService $exports
@@ -435,7 +434,7 @@ class FinalAssessmentController extends Controller
         $validated = $request->validate([
             'responses' => ['required', 'array', 'size:'.$questionCount],
             'responses.*.question_id' => ['required', 'string'],
-            'responses.*.answer' => ['required', 'string', 'max:255', 'regex:/\S/'],
+            'responses.*.answer' => ['required', 'string', 'regex:/^[A-D]$/i'],
         ], $this->friendlyValidationMessages());
 
         $correct = 0;
@@ -443,8 +442,10 @@ class FinalAssessmentController extends Controller
         foreach ($questions as $question) {
             $submitted = collect($validated['responses'])->firstWhere('question_id', $question['id']);
             $answer = $submitted['answer'] ?? '';
-            $isCorrect = $answerMatching->isAcceptedAnswer($answer, $question['accepted_answers']);
+            $selectedChoice = $reading->normalizeMultipleChoiceSelection($answer, $question['choices']);
+            $isCorrect = $reading->isCorrectMultipleChoiceAnswer($selectedChoice, $question['correct_choice'], $question['choices']);
             $correct += $isCorrect ? 1 : 0;
+            $selectedAnswerText = $question['choices'][$selectedChoice] ?? $answer;
 
             AssessmentTaskResponse::create([
                 'assessment_attempt_id' => $attempt->id,
@@ -454,14 +455,19 @@ class FinalAssessmentController extends Controller
                 'task_type' => 'comprehension_question',
                 'item_number' => $question['sequence'],
                 'prompt' => $question['question_text'],
-                'expected_answer' => $question['correct_answer'],
-                'selected_answer' => $answer,
-                'response_text' => $answer,
+                'expected_answer' => $question['correct_choice'],
+                'selected_answer' => $selectedChoice,
+                'response_text' => $selectedAnswerText,
                 'is_correct' => $isCorrect,
                 'score' => $isCorrect ? 1 : 0,
-                'rule_applied' => 'FINAL_COMPREHENSION_EXACT_MATCH_V1',
+                'rule_applied' => 'FINAL_COMPREHENSION_MULTIPLE_CHOICE_V1',
                 'metadata' => ['source_csv_id' => $question['id']],
-                'metadata_json' => ['choices' => $question['choices']],
+                'metadata_json' => [
+                    'choices' => $question['choices'],
+                    'correct_choice' => $question['correct_choice'],
+                    'correct_answer' => $question['correct_answer'],
+                    'selected_choice' => $selectedChoice,
+                ],
             ]);
         }
 

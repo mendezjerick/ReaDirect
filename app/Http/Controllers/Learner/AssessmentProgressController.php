@@ -6,18 +6,19 @@ use App\Http\Controllers\Controller;
 use App\Models\AssessmentAttempt;
 use App\Models\AssessmentTaskResponse;
 use App\Models\LearningContent;
+use App\Services\ReadingComprehensionScoringService;
 use App\Support\CurrentLearner;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class AssessmentProgressController extends Controller
 {
-    public function storeComprehensionChoice(Request $request): JsonResponse
+    public function storeComprehensionChoice(Request $request, ReadingComprehensionScoringService $reading): JsonResponse
     {
         $validated = $request->validate([
             'assessment_attempt_id' => ['required', 'integer', 'exists:assessment_attempts,id'],
             'question_id' => ['required', 'string'],
-            'answer' => ['required', 'string', 'max:255'],
+            'answer' => ['required', 'string', 'regex:/^[A-D]$/i'],
         ]);
 
         $learner = CurrentLearner::require($request);
@@ -35,6 +36,9 @@ class AssessmentProgressController extends Controller
             ->where('content_type', 'comprehension_question')
             ->where('payload->source_csv_id', $validated['question_id'])
             ->first();
+        $choices = $question?->payload['choices'] ?? [];
+        $selectedChoice = $reading->normalizeMultipleChoiceSelection($validated['answer'], $choices);
+        $selectedAnswerText = $choices[$selectedChoice] ?? $validated['answer'];
 
         $existing = AssessmentTaskResponse::query()
             ->where('assessment_attempt_id', $attempt->id)
@@ -54,11 +58,16 @@ class AssessmentProgressController extends Controller
             'task_key' => $attempt->attempt_type === 'final_reassessment' ? 'final_reading_comprehension_progress' : 'reading_comprehension_progress',
             'item_number' => (int) ($question?->payload['sequence'] ?? 0),
             'prompt' => $question?->prompt,
-            'expected_answer' => $question?->payload['correct_answer'] ?? null,
-            'selected_answer' => $validated['answer'],
-            'response_text' => $validated['answer'],
+            'expected_answer' => $question?->payload['correct_choice'] ?? null,
+            'selected_answer' => $selectedChoice,
+            'response_text' => $selectedAnswerText,
             'rule_applied' => 'COMPREHENSION_PROGRESS_SAVE_V1',
-            'metadata_json' => ['choices' => $question?->payload['choices'] ?? []],
+            'metadata_json' => [
+                'choices' => $choices,
+                'correct_choice' => $question?->payload['correct_choice'] ?? null,
+                'correct_answer' => $question?->payload['correct_answer'] ?? null,
+                'selected_choice' => $selectedChoice,
+            ],
         ])->save();
 
         return response()->json(['saved' => true]);

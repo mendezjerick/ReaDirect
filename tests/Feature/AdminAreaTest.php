@@ -16,6 +16,7 @@ use App\Models\School;
 use App\Models\SchoolClass;
 use App\Models\User;
 use App\Support\LearnerStage;
+use Database\Seeders\DiagnosticContentSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
@@ -274,8 +275,8 @@ class AdminAreaTest extends TestCase
         $this->assertSame(30, $attempt->crla_total_score);
         $this->assertSame('Grade Ready', $attempt->crla_classification);
         $this->assertSame(80.0, $attempt->reading_accuracy);
-        $this->assertSame(25.0, $attempt->comprehension_percentage);
-        $this->assertSame(47.0, $attempt->final_reading_score);
+        $this->assertSame(20.0, $attempt->comprehension_percentage);
+        $this->assertSame(44.0, $attempt->final_reading_score);
         $this->assertSame('High Emerging Reader', $attempt->reading_classification);
         $this->assertSame($modules['module_2']->id, $attempt->assigned_module_id);
         $this->assertSame($modules['module_2']->id, $learner->fresh()->current_module_id);
@@ -295,9 +296,9 @@ class AdminAreaTest extends TestCase
                 ->where('result.module.key', 'module_2')
                 ->where('result.inputs.task_2_score_entered', 0)
                 ->where('result.computed.effective_task_2_score', 10)
-                ->where('result.computed.weight_calculation.comprehension_contribution', 15)
+                ->where('result.computed.weight_calculation.comprehension_contribution', 12)
                 ->where('result.computed.weight_calculation.accuracy_contribution', 32)
-                ->where('result.computed.weight_calculation.sum', 47)
+                ->where('result.computed.weight_calculation.sum', 44)
                 ->where('result.rules.module_placement.rule_applied', 'MODULE_PLACEMENT_V1')
                 ->where('result.rules.module_placement.decision', 'assign_module_2')
                 ->where('result.rule_tables.0.title', 'Task 1 Routing')
@@ -502,6 +503,43 @@ class AdminAreaTest extends TestCase
             'mastery_decision' => 'proceed_to_reassessment',
             'rule_applied' => 'MODULE_3_MASTERY_V1',
         ]);
+    }
+
+    public function test_all_qa_flow_jump_targets_open_their_destination_pages(): void
+    {
+        $admin = $this->userWithRole('system_admin');
+        $this->seed(DiagnosticContentSeeder::class);
+        $this->moduleWithContent('module_1');
+        $this->moduleWithContent('module_2');
+        $this->moduleWithContent('module_3');
+
+        $flowJump = $this->actingAs($admin)
+            ->get(route('admin.testing.flow-jump'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/Testing/FlowJump')
+                ->has('targets', 30)
+            );
+
+        $targets = $flowJump->viewData('page')['props']['targets'];
+
+        foreach ($targets as $target) {
+            $jump = $this->actingAs($admin)
+                ->get(route('admin.testing.jump', $target['target']))
+                ->assertRedirect();
+
+            $destination = $jump->headers->get('Location');
+            $opened = $this->actingAs($admin)->get($destination);
+
+            if ($target['target'] === 'final-summary') {
+                $opened->assertRedirect(route('learner.completion'));
+                $this->actingAs($admin)->get(route('learner.completion'))->assertOk();
+
+                continue;
+            }
+
+            $opened->assertOk();
+        }
     }
 
     public function test_sandbox_attempts_are_excluded_from_teacher_reports(): void

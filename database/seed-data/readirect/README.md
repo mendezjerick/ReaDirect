@@ -16,7 +16,7 @@ Do not reshuffle items during the same assessment attempt. The UI should read fr
 - `task2a_rhyming_words.csv`: Yes/no rhyme-decision bank. Task 2A selects exactly 10 active prompts when Task 1 score is 0-6.
 - `task2b_word_in_sentence.csv`: Word-in-sentence item bank. Task 2B selects exactly 10 active sentence items when Task 1 score is 7-10.
 - `reading_passages.csv`: Reading passage bank. Eligible learners choose exactly 1 active 50-word story.
-- `comprehension_questions.csv`: Four multiple-choice questions linked to each active passage. The selected passage determines which four questions are used.
+- `comprehension_questions.csv`: Five multiple-choice questions linked to each active passage. The selected passage determines which five questions are used.
 - `agent_scripts.csv`: Fixed scripts for Miss Vivian and Miss Estelle, plus reusable Miss Ciel coaching scripts.
 - `feedback_templates.csv`: Reusable feedback template bank selected by module, error type, and severity.
 - `reading_classification_rules.csv`: Deterministic final reading score bands. Reading classification must use `final_reading_score` only.
@@ -26,10 +26,10 @@ Do not reshuffle items during the same assessment attempt. The UI should read fr
 
 CRLA Task 1 uses 10 locked letter items. If the Task 1 score is 0-6, the learner proceeds only to Task 2A; Task 2B and passage reading are recorded as 0. If the Task 1 score is 7-10, Task 2A receives an automatic score of 10 and the learner proceeds directly to Task 2B.
 
-Reading comprehension uses one selected 50-word passage and its four linked multiple-choice questions. The score inputs are:
+Reading comprehension uses one selected 50-word passage and its five linked multiple-choice questions. The score inputs are:
 
 - `accuracy_percentage = 100 - (incorrect_words * 2)`
-- `comprehension_percentage = (correct_answers / 4) * 100`
+- `comprehension_percentage = (correct_answers / 5) * 100`
 - `final_reading_score = (comprehension_percentage * 0.60) + (accuracy_percentage * 0.40)`
 
 Reading classification follows only `final_reading_score`, not raw accuracy ranges or raw comprehension answer counts.
