@@ -605,6 +605,72 @@ watch(
         </div>
     </section>
     <section
+        v-else-if="presentation === 'assessment-horizontal'"
+        class="assessment-agent-strip"
+        :class="isSpeaking ? 'ring-2 ring-primary/20' : ''"
+    >
+        <AgentSpeakerTTS
+            v-if="ttsEnabled && !voiceLoading"
+            :key="ttsKey"
+            :agent-type="agentType"
+            :message="displayMessage"
+            :mute="isMuted"
+            :volume="volume"
+            :rate="rate"
+            :pitch="pitch"
+            :audio-url="naturalAudioUrl"
+            @speaking-start="handleSpeakingStart"
+            @speaking-end="handleSpeakingEnd"
+            @error="handleTtsError"
+        />
+
+        <div class="assessment-agent-card">
+            <div class="assessment-agent-square">
+                <AgentVideoPlayer
+                    :agent="agentType"
+                    :action="mediaState"
+                    :alt="displayTitle"
+                    :allow-congrats="allowCongrats"
+                    class="agent-media-content"
+                    @interaction-ended="emit('interaction-ended', $event)"
+                />
+            </div>
+            <p class="assessment-agent-name">
+                {{ displayTitle.toUpperCase() }}
+            </p>
+        </div>
+
+        <div class="assessment-agent-dialogue">
+            <p class="min-w-0 flex-1 text-lg font-black leading-snug text-slate-800 xl:text-xl">
+                {{ displayMessage }}
+            </p>
+            <div class="flex shrink-0 items-center gap-2">
+                <button
+                    v-if="ttsEnabled || showAudioButton"
+                    type="button"
+                    class="grid size-9 place-items-center rounded-full bg-primary/5 text-primary ring-1 ring-primary/10 transition hover:bg-primary hover:text-white"
+                    :aria-label="isMuted ? 'Unmute agent voice' : 'Mute agent voice'"
+                    @click="toggleMute"
+                >
+                    <VolumeX v-if="isMuted" class="size-4" />
+                    <Volume2 v-else class="size-4" />
+                </button>
+                <button
+                    v-if="ttsEnabled || showAudioButton"
+                    type="button"
+                    class="grid size-9 place-items-center rounded-full bg-primary/5 text-primary ring-1 ring-primary/10 transition hover:bg-primary hover:text-white"
+                    aria-label="Replay agent message"
+                    @click="replayMessage"
+                >
+                    <RotateCcw class="size-4" />
+                </button>
+            </div>
+            <p v-if="ttsError" class="absolute bottom-3 left-4 text-xs font-bold text-slate-500">
+                {{ ttsError }}
+            </p>
+        </div>
+    </section>
+    <section
         v-else-if="presentation === 'assessment-task'"
         class="relative overflow-hidden rounded-[32px] border border-slate-200/80 bg-white p-6 shadow-xl shadow-slate-200/30"
         :class="isSpeaking ? 'ring-2 ring-primary/20' : ''"
@@ -755,6 +821,86 @@ watch(
 .agent-media-content {
     width: 100%;
     height: 100%;
+}
+
+.assessment-agent-strip {
+    display: grid;
+    grid-template-columns: clamp(5.5rem, 11dvh, 8.5rem) minmax(0, 1fr);
+    align-items: stretch;
+    gap: clamp(0.5rem, 1vw, 0.75rem);
+    height: var(--assessment-agent-row, clamp(7.5rem, 17dvh, 11.25rem));
+    min-height: 0;
+    overflow: hidden;
+    border-radius: 8px;
+    transition: box-shadow 150ms ease;
+}
+
+.assessment-agent-card {
+    display: grid;
+    min-height: 0;
+    height: 100%;
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: clamp(0.15rem, 0.35dvh, 0.3rem);
+    overflow: hidden;
+    border: 1px solid rgb(226 232 240);
+    border-radius: 8px;
+    background: #ffffff;
+    padding: clamp(0.22rem, 0.55dvh, 0.4rem);
+    box-shadow: 0 10px 20px rgb(15 23 42 / 0.06);
+}
+
+.assessment-agent-square {
+    position: relative;
+    display: grid;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    place-items: end center;
+    overflow: hidden;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+}
+
+.assessment-agent-name {
+    min-height: clamp(0.85rem, 1.7dvh, 1.05rem);
+    margin: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: center;
+    font-size: clamp(0.58rem, 1.05dvh, 0.72rem);
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: 0;
+    color: rgb(51 65 85);
+}
+
+.assessment-agent-dialogue {
+    position: relative;
+    display: flex;
+    height: var(--assessment-agent-row, clamp(7.5rem, 17dvh, 11.25rem));
+    min-width: 0;
+    align-items: center;
+    gap: 1rem;
+    overflow: hidden;
+    border: 1px solid rgb(226 232 240);
+    border-radius: 8px;
+    background: #ffffff;
+    padding: clamp(0.75rem, 1.8dvh, 1.4rem);
+    box-shadow: 0 10px 20px rgb(15 23 42 / 0.06);
+}
+
+.assessment-agent-square :deep(.agent-media-player),
+.assessment-agent-square :deep(.agent-media-layer) {
+    width: 100%;
+    height: 100%;
+}
+
+.assessment-agent-square :deep(.agent-media-layer) {
+    object-fit: cover;
+    object-position: center bottom;
 }
 
 @media (max-width: 767px) {

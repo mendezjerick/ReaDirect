@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { Link } from '@inertiajs/vue3';
-import { BookOpenCheck, Check, ArrowLeft } from 'lucide-vue-next';
+import { ArrowLeft, BookOpenCheck, Check, Home } from 'lucide-vue-next';
 import SyncStatusBadge from '../Components/SyncStatusBadge.vue';
 import AdminTestingToolbar from '../Components/Admin/AdminTestingToolbar.vue';
 import AsrVisualizationToggle from '../Components/AsrVisualizationToggle.vue';
@@ -13,15 +13,44 @@ const props = defineProps({
     diagnosticStep: { type: String, default: '' },
     backUrl: { type: String, default: '' },
     backLabel: { type: String, default: 'Back' },
+    assessmentTask: { type: Boolean, default: false },
 });
 
 const visibleSteps = computed(() => props.steps.length ? props.steps : (props.diagnosticStep ? diagnosticStepsFor(props.diagnosticStep) : []));
 </script>
 
 <template>
-    <div class="min-h-screen bg-gradient-to-b from-slate-50 to-blue-50/30 text-text">
+    <div
+        class="bg-gradient-to-b from-slate-50 to-blue-50/30 text-text"
+        :class="assessmentTask ? 'flex h-screen flex-col overflow-hidden' : 'min-h-screen'"
+    >
         <AdminTestingToolbar />
-        <header class="anim-header sticky top-0 z-20 border-b border-blue-100/60 bg-white/90 backdrop-blur-lg">
+        <header
+            v-if="assessmentTask"
+            class="anim-header z-20 flex-none border-b border-slate-200/80 bg-white"
+        >
+            <div class="learner-frame flex min-h-14 items-center gap-3 py-2">
+                <a href="/" class="group inline-flex shrink-0 items-center gap-2.5 text-xl font-black text-primary transition-all hover:scale-[1.02] md:text-2xl">
+                    <span class="grid size-10 place-items-center rounded-lg bg-primary text-sm font-black text-white shadow-sm shadow-primary/20">
+                        Re
+                    </span>
+                    <span>ReaDirect</span>
+                </a>
+
+                <div class="ml-auto flex items-center gap-2">
+                    <AsrVisualizationToggle />
+                    <Link
+                        href="/learner/dashboard"
+                        class="grid size-10 place-items-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-primary/30 hover:bg-primary-light hover:text-primary"
+                        title="Home"
+                        aria-label="Home"
+                    >
+                        <Home class="size-5" />
+                    </Link>
+                </div>
+            </div>
+        </header>
+        <header v-else class="anim-header sticky top-0 z-20 border-b border-blue-100/60 bg-white/90 backdrop-blur-lg">
             <div class="learner-frame flex items-center gap-3 py-3 md:gap-4">
                 <Link v-if="backUrl" :href="backUrl" class="group flex shrink-0 items-center justify-center rounded-full bg-slate-100 p-2.5 text-slate-500 transition-all hover:bg-slate-200 hover:text-slate-800" :title="backLabel">
                     <ArrowLeft class="size-5 transition-transform group-hover:-translate-x-0.5 md:size-6" />
@@ -78,7 +107,10 @@ const visibleSteps = computed(() => props.steps.length ? props.steps : (props.di
                 <SyncStatusBadge />
             </div>
         </header>
-        <main class="learner-frame learner-stage">
+        <main v-if="assessmentTask" class="learner-frame min-h-0 flex-1 overflow-hidden py-2">
+            <slot />
+        </main>
+        <main v-else class="learner-frame learner-stage">
             <div v-if="$slots.agent" class="learner-stage-grid">
                 <aside class="learner-stage-sidebar flex flex-col gap-4 pb-4 lg:sticky lg:top-20 lg:z-10 lg:max-h-[calc(100vh-140px)] lg:overflow-y-auto lg:px-2 lg:-mx-2 lg:pb-8">
                     <slot name="agent" />

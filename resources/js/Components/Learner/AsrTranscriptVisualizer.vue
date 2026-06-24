@@ -470,7 +470,7 @@ onBeforeUnmount(() => {
 <template>
     <div
         v-if="effectiveEnabled && visualizing"
-        :class="[boxClass, 'asr-visualizer-box overflow-hidden']"
+        :class="[boxClass, 'asr-visualizer-box overflow-y-auto']"
         role="status"
         aria-live="polite"
     >
@@ -516,6 +516,8 @@ onBeforeUnmount(() => {
     background:
         linear-gradient(135deg, rgba(239, 246, 255, 0.95), rgba(255, 255, 255, 0.98)),
         #ffffff;
+    min-height: 0;
+    overscroll-behavior: contain;
 }
 
 .asr-visualizer-text {

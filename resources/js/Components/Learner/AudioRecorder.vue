@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { CheckCircle2, Mic, RotateCcw, Send, Square } from 'lucide-vue-next';
+import { AudioWaveform, CheckCircle2, Mic, Play, RotateCcw, Send, Square } from 'lucide-vue-next';
 import { stopAllAgentAudio, stopAllAgentAudioBeforeRecording } from '../../utils/stopAgentAudio';
 import LearnerAudioPlayer from './LearnerAudioPlayer.vue';
 
@@ -24,6 +24,7 @@ const props = defineProps({
     submitLabel: { type: String, default: 'Submit My Answer' },
     externalError: { type: String, default: '' },
     resetKey: { type: [String, Number], default: null },
+    presentation: { type: String, default: 'standard' },
 });
 
 const emit = defineEmits(['recorded', 'submit', 'cleared', 'error', 'stateChanged']);
@@ -40,6 +41,12 @@ const timer = ref(null);
 const cueTimer = ref(null);
 const recordingStartedAt = ref(null);
 const canSpeak = ref(false);
+const reviewAudioEl = ref(null);
+const isPlaying = ref(false);
+const playbackFinished = ref(false);
+const pendingStopAtMinimum = ref(false);
+const ignoreNextClick = ref(false);
+const isHoldPresentation = computed(() => props.presentation === 'hold-circle');
 const hasPendingRecording = computed(() => Boolean(currentFile.value));
 const hasSubmittedRecording = computed(() => props.submitted && !hasPendingRecording.value);
 
@@ -105,6 +112,17 @@ const hasMinimumDuration = computed(() => duration.value >= props.minDurationSec
 const cueDelaySeconds = computed(() => Math.max(0, Number(props.cueDelayMs ?? 0) / 1000));
 const shouldShowReviewSubmit = computed(() => props.requireReviewBeforeSubmit || !props.autoTranscribeOnStop);
 
+const holdButtonText = computed(() => {
+    if (status.value === 'recording' || status.value === 'processing') return 'Recording...';
+    if (isPlaying.value) return 'Playing...';
+    if (audioUrl.value && playbackFinished.value) return 'Retry?';
+    if (audioUrl.value) return 'Click to play audio';
+    return 'Hold to record';
+});
+
+const canRecordFromHoldButton = computed(() => !audioUrl.value && !props.disabled && !props.submitting && !props.submitted && status.value !== 'processing');
+const canPlayFromHoldButton = computed(() => Boolean(audioUrl.value) && status.value !== 'recording' && !props.submitting);
+
 const cueText = computed(() => {
     if (status.value !== 'recording') {
         return `Minimum ${minDurationLabel.value} for transcription.`;
@@ -140,10 +158,15 @@ const stopTracks = () => {
 const resetRecordingState = () => {
     clearTimer();
     stopTracks();
+    reviewAudioEl.value?.pause();
     if (audioUrl.value) {
         URL.revokeObjectURL(audioUrl.value);
     }
     audioUrl.value = '';
+    isPlaying.value = false;
+    playbackFinished.value = false;
+    pendingStopAtMinimum.value = false;
+    ignoreNextClick.value = false;
     chunks.value = [];
     currentFile.value = null;
     duration.value = 0;
@@ -413,6 +436,8 @@ const startRecording = async () => {
                 file.audioMetadata = metadata;
                 currentFile.value = file;
                 audioUrl.value = URL.createObjectURL(converted.blob);
+                playbackFinished.value = false;
+                isPlaying.value = false;
                 stopTracks();
                 setStatus('saved');
                 emit('recorded', file);
@@ -442,6 +467,10 @@ const startRecording = async () => {
             if (hasMinimumDuration.value && errorMessage.value) {
                 errorMessage.value = '';
             }
+            if (pendingStopAtMinimum.value && hasMinimumDuration.value) {
+                stopRecording({ bypassMinimum: true });
+                return;
+            }
             if (duration.value >= props.maxDurationSeconds) {
                 stopRecording();
             }
@@ -455,13 +484,19 @@ const startRecording = async () => {
     }
 };
 
-const stopRecording = () => {
-    if (status.value === 'recording' && !hasMinimumDuration.value) {
+const stopRecording = (options = {}) => {
+    if (status.value === 'recording' && !hasMinimumDuration.value && options.bypassMinimum !== true) {
+        if (isHoldPresentation.value) {
+            pendingStopAtMinimum.value = true;
+            return;
+        }
+
         errorMessage.value = `Keep recording for at least ${minDurationLabel.value} so transcription can start.`;
         return;
     }
 
     if (mediaRecorder.value?.state === 'recording') {
+        pendingStopAtMinimum.value = false;
         duration.value = recordingStartedAt.value
             ? Math.max(duration.value, (performance.now() - recordingStartedAt.value) / 1000)
             : duration.value;
@@ -481,6 +516,80 @@ const stopAgentAudioForPlayback = () => {
     stopAllAgentAudio();
 };
 
+const playHoldButtonAudio = async () => {
+    if (!canPlayFromHoldButton.value || !reviewAudioEl.value) {
+        return;
+    }
+
+    stopAgentAudioForPlayback();
+    playbackFinished.value = false;
+
+    try {
+        await reviewAudioEl.value.play();
+    } catch {
+        isPlaying.value = false;
+    }
+};
+
+const handleHoldStart = (event) => {
+    if (!isHoldPresentation.value || !canRecordFromHoldButton.value) {
+        return;
+    }
+
+    event?.preventDefault?.();
+    ignoreNextClick.value = true;
+    startRecording();
+};
+
+const handleHoldEnd = (event) => {
+    if (!isHoldPresentation.value || status.value !== 'recording') {
+        return;
+    }
+
+    event?.preventDefault?.();
+    stopRecording();
+};
+
+const handleTouchStart = (event) => {
+    if (typeof window !== 'undefined' && 'PointerEvent' in window) {
+        return;
+    }
+
+    handleHoldStart(event);
+};
+
+const handleTouchEnd = (event) => {
+    if (typeof window !== 'undefined' && 'PointerEvent' in window) {
+        return;
+    }
+
+    handleHoldEnd(event);
+};
+
+const handleHoldClick = () => {
+    if (ignoreNextClick.value) {
+        ignoreNextClick.value = false;
+        return;
+    }
+
+    playHoldButtonAudio();
+};
+
+const handleReviewAudioPlay = () => {
+    isPlaying.value = true;
+    playbackFinished.value = false;
+    stopAgentAudioForPlayback();
+};
+
+const handleReviewAudioPause = () => {
+    isPlaying.value = false;
+};
+
+const handleReviewAudioEnded = () => {
+    isPlaying.value = false;
+    playbackFinished.value = true;
+};
+
 const handleSpacebar = (event) => {
     if (!props.spacebarEnabled || props.disabled || props.submitting || props.submitted || event.code !== 'Space' || event.repeat || isEditableTarget(event.target)) {
         return;
@@ -492,6 +601,13 @@ const handleSpacebar = (event) => {
 
     event.preventDefault();
 
+    if (isHoldPresentation.value) {
+        if (canRecordFromHoldButton.value) {
+            startRecording();
+        }
+        return;
+    }
+
     if (status.value === 'recording') {
         stopRecording();
         return;
@@ -500,8 +616,22 @@ const handleSpacebar = (event) => {
     startRecording();
 };
 
+const handleSpacebarUp = (event) => {
+    if (!isHoldPresentation.value || !props.spacebarEnabled || props.disabled || event.code !== 'Space' || isEditableTarget(event.target)) {
+        return;
+    }
+
+    if (status.value !== 'recording') {
+        return;
+    }
+
+    event.preventDefault();
+    stopRecording();
+};
+
 onMounted(() => {
     window.addEventListener('keydown', handleSpacebar);
+    window.addEventListener('keyup', handleSpacebarUp);
     checkMobile();
     window.addEventListener('resize', checkMobile);
 });
@@ -524,6 +654,7 @@ watch(
 
 onBeforeUnmount(() => {
     window.removeEventListener('keydown', handleSpacebar);
+    window.removeEventListener('keyup', handleSpacebarUp);
     window.removeEventListener('resize', checkMobile);
     clearTimer();
     stopTracks();
@@ -535,6 +666,59 @@ onBeforeUnmount(() => {
 
 <template>
     <div
+        v-if="isHoldPresentation"
+        class="assessment-hold-recorder flex h-full min-h-0 flex-col items-center justify-center rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
+    >
+        <audio
+            v-if="audioUrl"
+            ref="reviewAudioEl"
+            class="hidden"
+            :src="audioUrl"
+            @play="handleReviewAudioPlay"
+            @pause="handleReviewAudioPause"
+            @ended="handleReviewAudioEnded"
+        />
+
+        <button
+            type="button"
+            class="assessment-hold-button grid place-items-center rounded-full bg-primary text-white shadow-xl shadow-primary/25 ring-1 ring-white/40 transition hover:bg-primary-dark active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+            :class="status === 'recording' ? 'assessment-hold-button--recording' : ''"
+            :disabled="(!canRecordFromHoldButton && !canPlayFromHoldButton) || status === 'processing'"
+            :aria-label="holdButtonText"
+            @pointerdown="handleHoldStart"
+            @pointerup="handleHoldEnd"
+            @pointerleave="handleHoldEnd"
+            @pointercancel="handleHoldEnd"
+            @touchstart.prevent="handleTouchStart"
+            @touchend.prevent="handleTouchEnd"
+            @click="handleHoldClick"
+        >
+            <span v-if="status === 'recording' || status === 'processing'" class="text-3xl font-black tracking-tight">Re</span>
+            <AudioWaveform v-else-if="isPlaying" class="size-11 stroke-[2.6]" />
+            <Play v-else-if="audioUrl" class="ml-1 size-11 fill-white stroke-[2.6]" />
+            <Mic v-else class="size-11 stroke-[2.6]" />
+        </button>
+
+        <button
+            v-if="audioUrl && playbackFinished"
+            type="button"
+            class="mt-4 text-lg font-black text-primary underline-offset-4 hover:underline disabled:cursor-not-allowed disabled:opacity-60"
+            :disabled="submitting"
+            @click.stop="clearRecording"
+        >
+            Retry?
+        </button>
+        <p v-else class="mt-4 text-center text-lg font-black text-slate-700" aria-live="polite">
+            {{ holdButtonText }}
+        </p>
+
+        <p v-if="(errorMessage || externalError) && (status === 'retry' || status === 'error')" class="mt-3 rounded-lg bg-orange-50 px-3 py-2 text-center text-xs font-black text-orange-600 ring-1 ring-orange-200/60">
+            {{ externalError || errorMessage }}
+        </p>
+    </div>
+
+    <div
+        v-else
         class="learner-audio-recorder rounded-[28px] border border-slate-200/80 bg-white shadow-lg shadow-slate-200/30"
         :class="compact ? 'p-4' : 'p-5 xl:p-6'"
     >
@@ -648,3 +832,24 @@ onBeforeUnmount(() => {
         <p v-if="required && !audioUrl" class="mt-3 text-xs font-bold text-slate-500">Please record your answer before continuing.</p>
     </div>
 </template>
+
+<style scoped>
+.assessment-hold-button {
+    width: clamp(7rem, 17vh, 10rem);
+    height: clamp(7rem, 17vh, 10rem);
+}
+
+.assessment-hold-button--recording {
+    animation: hold-recording-pulse 900ms ease-in-out infinite alternate;
+}
+
+@keyframes hold-recording-pulse {
+    from {
+        box-shadow: 0 18px 32px rgb(59 130 246 / 0.24), 0 0 0 0 rgb(59 130 246 / 0.26);
+    }
+
+    to {
+        box-shadow: 0 18px 32px rgb(59 130 246 / 0.18), 0 0 0 12px rgb(59 130 246 / 0);
+    }
+}
+</style>
