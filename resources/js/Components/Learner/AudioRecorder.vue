@@ -683,38 +683,40 @@ onBeforeUnmount(() => {
             @ended="handleReviewAudioEnded"
         />
 
-        <AssessmentCircleButton
-            :recording="status === 'recording'"
-            :pulse="holdButtonPulsing"
-            :attempt-segments="attemptSegments"
-            :disabled="(!canRecordFromHoldButton && !canPlayFromHoldButton) || status === 'processing'"
-            :aria-label="holdButtonText"
-            @pointerdown="handleHoldStart"
-            @pointerup="handleHoldEnd"
-            @pointerleave="handleHoldEnd"
-            @pointercancel="handleHoldEnd"
-            @touchstart.prevent="handleTouchStart"
-            @touchend.prevent="handleTouchEnd"
-            @click="handleHoldClick"
-        >
-            <span v-if="status === 'recording' || status === 'processing'" class="text-3xl font-black tracking-tight">Re</span>
-            <AudioWaveform v-else-if="isPlaying" class="size-11 stroke-[2.6]" />
-            <Play v-else-if="audioUrl" class="ml-1 size-11 fill-white stroke-[2.6]" />
-            <Mic v-else class="size-11 stroke-[2.6]" />
-        </AssessmentCircleButton>
+        <div class="assessment-button-group">
+            <AssessmentCircleButton
+                :recording="status === 'recording'"
+                :pulse="holdButtonPulsing"
+                :attempt-segments="attemptSegments"
+                :disabled="(!canRecordFromHoldButton && !canPlayFromHoldButton) || status === 'processing'"
+                :aria-label="holdButtonText"
+                @pointerdown="handleHoldStart"
+                @pointerup="handleHoldEnd"
+                @pointerleave="handleHoldEnd"
+                @pointercancel="handleHoldEnd"
+                @touchstart.prevent="handleTouchStart"
+                @touchend.prevent="handleTouchEnd"
+                @click="handleHoldClick"
+            >
+                <span v-if="status === 'recording' || status === 'processing'" class="assessment-circle-re-text font-black tracking-tight">Re</span>
+                <AudioWaveform v-else-if="isPlaying" class="assessment-circle-icon stroke-[2.6]" />
+                <Play v-else-if="audioUrl" class="assessment-circle-icon assessment-circle-icon--play fill-white stroke-[2.6]" />
+                <Mic v-else class="assessment-circle-icon stroke-[2.6]" />
+            </AssessmentCircleButton>
 
-        <button
-            v-if="audioUrl && playbackFinished"
-            type="button"
-            class="mt-4 text-lg font-black text-primary underline-offset-4 hover:underline disabled:cursor-not-allowed disabled:opacity-60"
-            :disabled="submitting"
-            @click.stop="clearRecording"
-        >
-            Retry?
-        </button>
-        <p v-else class="mt-4 text-center text-lg font-black text-slate-700" aria-live="polite">
-            {{ holdButtonText }}
-        </p>
+            <button
+                v-if="audioUrl && playbackFinished"
+                type="button"
+                class="assessment-button-label assessment-button-label--action text-primary underline-offset-4 hover:underline disabled:cursor-not-allowed disabled:opacity-60"
+                :disabled="submitting"
+                @click.stop="clearRecording"
+            >
+                Retry?
+            </button>
+            <p v-else class="assessment-button-label text-slate-700" aria-live="polite">
+                {{ holdButtonText }}
+            </p>
+        </div>
 
         <p v-if="(errorMessage || externalError) && (status === 'retry' || status === 'error')" class="mt-3 rounded-lg bg-orange-50 px-3 py-2 text-center text-xs font-black text-orange-600 ring-1 ring-orange-200/60">
             {{ externalError || errorMessage }}
@@ -836,3 +838,49 @@ onBeforeUnmount(() => {
         <p v-if="required && !audioUrl" class="mt-3 text-xs font-bold text-slate-500">Please record your answer before continuing.</p>
     </div>
 </template>
+
+<style scoped>
+.assessment-hold-recorder {
+    container-type: size;
+    overflow: visible;
+    padding: clamp(0.45rem, min(3.5cqh, 2.4cqw), 1rem);
+}
+
+.assessment-button-group {
+    display: flex;
+    min-block-size: 0;
+    max-block-size: 100%;
+    inline-size: 100%;
+    flex: 1 1 auto;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(0.35rem, min(3.2cqh, 2cqw), 0.9rem);
+    overflow: visible;
+}
+
+.assessment-button-label {
+    margin: 0;
+    max-inline-size: 100%;
+    text-align: center;
+    font-size: clamp(0.85rem, min(4cqh, 1.35vw), 1.125rem);
+    font-weight: 900;
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+}
+
+.assessment-circle-icon {
+    inline-size: var(--assessment-circle-icon-size);
+    block-size: var(--assessment-circle-icon-size);
+    flex: 0 0 auto;
+}
+
+.assessment-circle-icon--play {
+    margin-inline-start: calc(var(--assessment-circle-icon-size) * 0.08);
+}
+
+.assessment-circle-re-text {
+    font-size: var(--assessment-circle-re-size);
+    line-height: 1;
+}
+</style>

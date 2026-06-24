@@ -71,13 +71,16 @@ const attemptRingGradient = computed(() => {
 
 <style scoped>
 .assessment-circle-button-frame {
-    --assessment-circle-button-size: clamp(5.25rem, min(16dvh, 10vw), 9.75rem);
-    --assessment-circle-ring-gap: clamp(0.35rem, 0.8dvh, 0.5rem);
+    --assessment-circle-button-size: clamp(3rem, min(50cqh, 38cqw), 9.5rem);
+    --assessment-circle-ring-gap: clamp(0.22rem, min(2.2cqh, 1.6cqw), 0.5rem);
+    --assessment-circle-ring-thickness: clamp(3px, min(1.1cqh, 0.8cqw), 5px);
+    --assessment-circle-icon-size: clamp(1.45rem, min(17cqh, 11cqw), 2.75rem);
+    --assessment-circle-re-size: clamp(1.1rem, min(10cqh, 6cqw), 1.875rem);
 
     position: relative;
     display: grid;
     inline-size: calc(var(--assessment-circle-button-size) + (var(--assessment-circle-ring-gap) * 2));
-    block-size: auto;
+    block-size: calc(var(--assessment-circle-button-size) + (var(--assessment-circle-ring-gap) * 2));
     aspect-ratio: 1 / 1;
     flex: 0 0 auto;
     place-items: center;
@@ -87,7 +90,7 @@ const attemptRingGradient = computed(() => {
     position: relative;
     isolation: isolate;
     inline-size: var(--assessment-circle-button-size);
-    block-size: auto;
+    block-size: var(--assessment-circle-button-size);
     aspect-ratio: 1 / 1;
     min-inline-size: 0;
     min-block-size: 0;
@@ -100,14 +103,14 @@ const attemptRingGradient = computed(() => {
     inset: 0;
     border-radius: 9999px;
     pointer-events: none;
-    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
-    mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - var(--assessment-circle-ring-thickness)), #000 calc(100% - var(--assessment-circle-ring-thickness)));
+    mask: radial-gradient(farthest-side, transparent calc(100% - var(--assessment-circle-ring-thickness)), #000 calc(100% - var(--assessment-circle-ring-thickness)));
 }
 
 .assessment-circle-button::before {
     content: '';
     position: absolute;
-    inset: -0.42rem;
+    inset: calc(var(--assessment-circle-ring-gap) * -0.8);
     z-index: -1;
     border: 2px solid rgb(59 130 246 / 0.28);
     border-radius: 9999px;

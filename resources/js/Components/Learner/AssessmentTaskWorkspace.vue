@@ -144,7 +144,20 @@ const togglePromptImage = () => {
 }
 
 .assessment-record-panel {
+    display: flex;
     min-height: 0;
+    align-items: stretch;
+    justify-content: center;
+    container-type: size;
+    overflow: visible;
+}
+
+.assessment-record-panel :deep(.assessment-hold-recorder),
+.assessment-record-panel :deep(.automatic-listening-recorder) {
+    min-width: 0;
+    min-height: 0;
+    inline-size: 100%;
+    flex: 1 1 auto;
 }
 
 .assessment-prompt-panel :deep(*) {

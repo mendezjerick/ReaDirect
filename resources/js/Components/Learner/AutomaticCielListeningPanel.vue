@@ -88,21 +88,23 @@ defineExpose({
 
 <template>
     <section class="automatic-listening-recorder flex h-full min-h-0 flex-col items-center justify-center rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-        <AssessmentCircleButton
-            :pulse="isListeningVisual && !session.isPaused.value"
-            :disabled="!session.isActive.value && !canStart"
-            :aria-label="buttonText"
-            @click="handlePrimary"
-        >
-            <Volume2 v-if="isListeningVisual" class="size-11 stroke-[2.6]" />
-            <Mic v-else class="size-11 stroke-[2.6]" />
-        </AssessmentCircleButton>
+        <div class="automatic-button-group">
+            <AssessmentCircleButton
+                :pulse="isListeningVisual && !session.isPaused.value"
+                :disabled="!session.isActive.value && !canStart"
+                :aria-label="buttonText"
+                @click="handlePrimary"
+            >
+                <Volume2 v-if="isListeningVisual" class="automatic-circle-icon stroke-[2.6]" />
+                <Mic v-else class="automatic-circle-icon stroke-[2.6]" />
+            </AssessmentCircleButton>
 
-        <p class="mt-4 text-center text-lg font-black text-slate-700" aria-live="polite">
-            {{ buttonText }}
-        </p>
+            <p class="automatic-button-label text-slate-700" aria-live="polite">
+                {{ buttonText }}
+            </p>
+        </div>
 
-        <div v-if="session.isActive.value" class="mt-3 h-1.5 w-full max-w-36 overflow-hidden rounded-full bg-slate-100">
+        <div v-if="session.isActive.value" class="automatic-listening-meter h-1.5 w-full max-w-36 overflow-hidden rounded-full bg-slate-100">
             <div
                 class="h-full rounded-full bg-emerald-400 transition-all"
                 :style="{ width: `${Math.min(100, Math.round(session.volumeLevel.value * 1800))}%` }"
@@ -111,12 +113,12 @@ defineExpose({
 
         <p
             v-if="session.errorMessage.value || !isSupported"
-            class="mt-3 rounded-lg bg-orange-50 px-3 py-2 text-center text-xs font-black text-orange-600 ring-1 ring-orange-200/60"
+            class="automatic-helper-text rounded-lg bg-orange-50 px-3 py-2 text-center text-xs font-black text-orange-600 ring-1 ring-orange-200/60"
         >
             {{ helperText }}
         </p>
 
-        <div class="mt-3 flex flex-wrap justify-center gap-2">
+        <div class="automatic-secondary-controls flex flex-wrap justify-center gap-2">
             <button
                 v-if="canStop && session.isActive.value"
                 type="button"
@@ -137,3 +139,46 @@ defineExpose({
         </div>
     </section>
 </template>
+
+<style scoped>
+.automatic-listening-recorder {
+    container-type: size;
+    overflow: visible;
+    padding: clamp(0.45rem, min(3.5cqh, 2.4cqw), 1rem);
+}
+
+.automatic-button-group {
+    display: flex;
+    min-block-size: 0;
+    max-block-size: 100%;
+    inline-size: 100%;
+    flex: 0 1 auto;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(0.35rem, min(3.2cqh, 2cqw), 0.9rem);
+    overflow: visible;
+}
+
+.automatic-button-label {
+    margin: 0;
+    max-inline-size: 100%;
+    text-align: center;
+    font-size: clamp(0.85rem, min(4cqh, 1.35vw), 1.125rem);
+    font-weight: 900;
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+}
+
+.automatic-circle-icon {
+    inline-size: var(--assessment-circle-icon-size);
+    block-size: var(--assessment-circle-icon-size);
+    flex: 0 0 auto;
+}
+
+.automatic-listening-meter,
+.automatic-helper-text,
+.automatic-secondary-controls {
+    margin-block-start: clamp(0.3rem, min(2.4cqh, 1.6cqw), 0.75rem);
+}
+</style>
