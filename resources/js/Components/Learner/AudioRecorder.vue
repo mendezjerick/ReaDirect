@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { AudioWaveform, CheckCircle2, Mic, Play, RotateCcw, Send, Square } from 'lucide-vue-next';
 import { stopAllAgentAudio, stopAllAgentAudioBeforeRecording } from '../../utils/stopAgentAudio';
+import AssessmentCircleButton from './AssessmentCircleButton.vue';
 import LearnerAudioPlayer from './LearnerAudioPlayer.vue';
 
 const props = defineProps({
@@ -26,6 +27,7 @@ const props = defineProps({
     resetKey: { type: [String, Number], default: null },
     presentation: { type: String, default: 'standard' },
     pulseActive: { type: Boolean, default: false },
+    attemptSegments: { type: Array, default: () => [] },
 });
 
 const emit = defineEmits(['recorded', 'submit', 'cleared', 'error', 'stateChanged']);
@@ -681,13 +683,10 @@ onBeforeUnmount(() => {
             @ended="handleReviewAudioEnded"
         />
 
-        <button
-            type="button"
-            class="assessment-hold-button grid place-items-center rounded-full bg-primary text-white shadow-xl shadow-primary/25 ring-1 ring-white/40 transition hover:bg-primary-dark active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
-            :class="{
-                'assessment-hold-button--recording': status === 'recording',
-                'assessment-hold-button--pulse': holdButtonPulsing,
-            }"
+        <AssessmentCircleButton
+            :recording="status === 'recording'"
+            :pulse="holdButtonPulsing"
+            :attempt-segments="attemptSegments"
             :disabled="(!canRecordFromHoldButton && !canPlayFromHoldButton) || status === 'processing'"
             :aria-label="holdButtonText"
             @pointerdown="handleHoldStart"
@@ -702,7 +701,7 @@ onBeforeUnmount(() => {
             <AudioWaveform v-else-if="isPlaying" class="size-11 stroke-[2.6]" />
             <Play v-else-if="audioUrl" class="ml-1 size-11 fill-white stroke-[2.6]" />
             <Mic v-else class="size-11 stroke-[2.6]" />
-        </button>
+        </AssessmentCircleButton>
 
         <button
             v-if="audioUrl && playbackFinished"
@@ -837,99 +836,3 @@ onBeforeUnmount(() => {
         <p v-if="required && !audioUrl" class="mt-3 text-xs font-bold text-slate-500">Please record your answer before continuing.</p>
     </div>
 </template>
-
-<style scoped>
-.assessment-hold-button {
-    position: relative;
-    isolation: isolate;
-    width: clamp(7rem, 17vh, 10rem);
-    height: clamp(7rem, 17vh, 10rem);
-    overflow: visible;
-    will-change: transform;
-}
-
-.assessment-hold-button::before {
-    content: '';
-    position: absolute;
-    inset: -0.42rem;
-    z-index: -1;
-    border: 2px solid rgb(59 130 246 / 0.28);
-    border-radius: 9999px;
-    opacity: 0;
-    transform: scale(0.94);
-    pointer-events: none;
-}
-
-.assessment-hold-button--recording {
-    animation: hold-recording-pulse 900ms ease-in-out infinite alternate;
-}
-
-.assessment-hold-button--pulse {
-    animation: hold-button-syllable-scale 640ms cubic-bezier(0.2, 0.9, 0.28, 1) infinite;
-}
-
-.assessment-hold-button--pulse::before {
-    animation: hold-button-syllable-ring 640ms cubic-bezier(0.2, 0.9, 0.28, 1) infinite;
-}
-
-@keyframes hold-recording-pulse {
-    from {
-        box-shadow: 0 18px 32px rgb(59 130 246 / 0.24), 0 0 0 0 rgb(59 130 246 / 0.26);
-    }
-
-    to {
-        box-shadow: 0 18px 32px rgb(59 130 246 / 0.18), 0 0 0 12px rgb(59 130 246 / 0);
-    }
-}
-
-@keyframes hold-button-syllable-scale {
-    0%,
-    100% {
-        transform: scale(1);
-    }
-
-    12% {
-        transform: scale(1.035);
-    }
-
-    24% {
-        transform: scale(0.995);
-    }
-
-    38% {
-        transform: scale(1.025);
-    }
-
-    54% {
-        transform: scale(1);
-    }
-}
-
-@keyframes hold-button-syllable-ring {
-    0% {
-        opacity: 0;
-        transform: scale(0.94);
-    }
-
-    12% {
-        opacity: 0.38;
-        transform: scale(1.02);
-    }
-
-    42% {
-        opacity: 0;
-        transform: scale(1.16);
-    }
-
-    58% {
-        opacity: 0.22;
-        transform: scale(1.04);
-    }
-
-    82%,
-    100% {
-        opacity: 0;
-        transform: scale(1.22);
-    }
-}
-</style>

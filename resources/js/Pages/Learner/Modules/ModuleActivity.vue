@@ -2,18 +2,12 @@
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import LearnerLayout from '../../../Layouts/LearnerLayout.vue';
-import AgentSpeakerPanel from '../../../Components/Learner/AgentSpeakerPanel.vue';
+import AssessmentTaskWorkspace from '../../../Components/Learner/AssessmentTaskWorkspace.vue';
+import AssessmentPromptText from '../../../Components/Learner/AssessmentPromptText.vue';
 import AudioRecorder from '../../../Components/Learner/AudioRecorder.vue';
 import AsrTranscriptVisualizer from '../../../Components/Learner/AsrTranscriptVisualizer.vue';
 import AutomaticCielListeningPanel from '../../../Components/Learner/AutomaticCielListeningPanel.vue';
 import CielFocusMode from '../../../Components/Learner/CielFocusMode.vue';
-import PrimaryButton from '../../../Components/PrimaryButton.vue';
-import SecondaryButton from '../../../Components/SecondaryButton.vue';
-import BottomActionBar from '../../../Components/BottomActionBar.vue';
-import ModuleProgressBar from '../../../Components/ModuleProgressBar.vue';
-import PromptCard from '../../../Components/PromptCard.vue';
-import StatusBadge from '../../../Components/StatusBadge.vue';
-import { ArrowRight, ArrowLeft } from 'lucide-vue-next';
 import { useStepAssessment } from '../../../Composables/useStepAssessment';
 import { appendAudioMetadata, normalizeAsrResponse } from '../../../utils/asrResponse';
 import { AUTOMATIC_CIEL_LISTENING_MODE, AUTOMATIC_CIEL_LISTENING_STATES } from '../../../Composables/useAutomaticCielListeningSession';
@@ -43,13 +37,11 @@ const uploading = reactive({});
 const checking = reactive({});
 const retryStates = reactive({});
 const recorderResetKeys = reactive({});
+const submittedManualItems = reactive({});
 const automaticListeningPanel = ref(null);
 const manualRecorderOverride = ref(false);
 const agentSpeaking = ref(false);
 const canUseManualFallback = computed(() => props.assessmentMode?.canUseManualFallback === true);
-const isDeveloperQaMode = computed(() => props.assessmentMode?.isDeveloperQaMode === true);
-const autoTranscribeOnStop = computed(() => props.assessmentMode?.canAutoTranscribeOnStop === true);
-const requireReviewBeforeSubmit = computed(() => props.assessmentMode?.requireReviewBeforeSubmit !== false);
 const isAutomaticListeningMode = computed(() => (
     props.listeningMode?.current === AUTOMATIC_CIEL_LISTENING_MODE
     && props.listeningMode?.automatic_mode_available === true
@@ -66,6 +58,9 @@ const recorderPromptType = computed(() => {
 
     return 'word';
 });
+const promptDisplaySize = computed(() => (recorderPromptType.value === 'letter'
+    ? 'letter'
+    : (recorderPromptType.value === 'sentence' ? 'sentence' : 'word')));
 const manualAnswerFor = (item, answer = null) => canUseManualFallback.value ? String(answer ?? step.answers[item?.id] ?? '').trim() : '';
 const answerFor = (item, answer = null) => manualAnswerFor(item, answer) || String(generatedTranscripts[item?.id] ?? '').trim();
 const sourceFor = (item, answer = null) => manualAnswerFor(item, answer)
@@ -88,6 +83,9 @@ const cielFocusEvent = ref(null);
 const focusModeVisible = computed(() => cielFocusEvent.value?.enabled === true);
 const isCurrentUploading = computed(() => Boolean(uploading[step.currentItem.value?.id]));
 const isCurrentChecking = computed(() => Boolean(checking[step.currentItem.value?.id]));
+const currentHasSubmittedAudio = computed(() => Boolean(uploadedAudioIds[step.currentItem.value?.id]) && !uploadErrors[step.currentItem.value?.id]);
+const currentHasSubmittedManual = computed(() => Boolean(submittedManualItems[step.currentItem.value?.id]) && manualAnswerFor(step.currentItem.value).length > 0);
+const currentHasSubmittedAnswer = computed(() => currentHasSubmittedAudio.value || currentHasSubmittedManual.value);
 const currentHighlightTargets = computed(() => highlightTargetsForModuleItem(step.currentItem.value));
 const currentWordImage = computed(() => {
     const item = step.currentItem.value;
@@ -116,7 +114,9 @@ const automaticListeningDisabled = computed(() => (
     || returningToDashboard.value
 ));
 const primaryLabel = computed(() => {
-    if (!isCurrentResolved.value) return 'Check';
+    if (!isCurrentResolved.value) {
+        return currentHasSubmittedAnswer.value ? 'Check' : 'Submit';
+    }
 
     if (step.isLast.value) {
         return props.nextActivityType ? 'Finish activity' : 'Start mastery check';
@@ -124,10 +124,20 @@ const primaryLabel = computed(() => {
 
     return 'Next';
 });
-const primaryDisabled = computed(() => form.processing || isCurrentUploading.value || isCurrentChecking.value || focusModeVisible.value);
+const canSubmitCurrent = computed(() => {
+    const item = step.currentItem.value;
 
-const progressLabel = computed(() => `Activity ${step.currentIndex.value + 1} of ${props.items.length}`);
+    if (!item) return false;
 
+    return Boolean(audioFiles[item.id]) || manualAnswerFor(item).length > 0 || currentHasSubmittedAnswer.value;
+});
+const primaryDisabled = computed(() => (
+    form.processing
+    || isCurrentUploading.value
+    || isCurrentChecking.value
+    || focusModeVisible.value
+    || (!isCurrentResolved.value && !currentHasSubmittedAnswer.value && !canSubmitCurrent.value)
+));
 watch(
     () => props.items.map((item) => item.id).join('|'),
     () => {
@@ -142,6 +152,7 @@ watch(
         Object.keys(uploading).forEach((key) => delete uploading[key]);
         Object.keys(checking).forEach((key) => delete checking[key]);
         Object.keys(recorderResetKeys).forEach((key) => delete recorderResetKeys[key]);
+        Object.keys(submittedManualItems).forEach((key) => delete submittedManualItems[key]);
         seedRetryStates(props.items);
         manualRecorderOverride.value = false;
         automaticListeningPanel.value?.stopSession?.();
@@ -198,6 +209,7 @@ const rememberAudio = (item, file) => {
     delete transcriptSources[item.id];
     delete generatedTranscripts[item.id];
     delete asrResults[item.id];
+    delete submittedManualItems[item.id];
     coachMessage.value = 'Listen to your answer. If you are happy with your answer, click Submit.';
     coachState.value = 'speaking';
 };
@@ -211,6 +223,7 @@ const clearAudio = (item, resetAgent = true) => {
     delete asrResults[item.id];
     delete uploadErrors[item.id];
     delete uploading[item.id];
+    delete submittedManualItems[item.id];
     recorderResetKeys[item.id] = (recorderResetKeys[item.id] ?? 0) + 1;
     if (resetAgent) {
         coachState.value = 'speaking';
@@ -460,6 +473,49 @@ const handleAgentSpeakingEnd = () => {
     window.setTimeout(resumeAutomaticListeningIfReady, 300);
 };
 
+const handleWorkspaceAgentSpeakingChange = (isSpeaking) => {
+    if (isSpeaking) {
+        handleAgentSpeakingStart();
+        return;
+    }
+
+    handleAgentSpeakingEnd();
+};
+
+const submitCurrentForReview = async () => {
+    const item = step.currentItem.value;
+
+    if (!item || isCurrentUploading.value || isCurrentChecking.value || focusModeVisible.value) {
+        return false;
+    }
+
+    const manualAnswer = manualAnswerFor(item);
+    if (manualAnswer) {
+        submittedManualItems[item.id] = true;
+        generatedTranscripts[item.id] = manualAnswer;
+        transcriptSources[item.id] = 'manual';
+        uploadErrors[item.id] = '';
+        step.feedback.value = '';
+        coachMessage.value = `You said: ${manualAnswer}`;
+        coachState.value = 'speaking';
+        return true;
+    }
+
+    if (currentHasSubmittedAudio.value) {
+        return true;
+    }
+
+    const file = audioFiles[item.id];
+    if (!file) {
+        coachMessage.value = 'Hold the blue button to record your answer first.';
+        coachState.value = 'encouraging';
+        step.feedback.value = 'Record this item before submitting.';
+        return false;
+    }
+
+    return uploadAudio(item, file);
+};
+
 const submit = () => {
     form.post(`/learner/modules/${props.module.key}/activity/${props.activityType}`, { forceFormData: true });
 };
@@ -468,6 +524,11 @@ const handlePrimary = async () => {
     if (focusModeVisible.value) return;
 
     if (!isCurrentResolved.value) {
+        if (!currentHasSubmittedAnswer.value) {
+            await submitCurrentForReview();
+            return;
+        }
+
         await checkCurrent();
         return;
     }
@@ -504,7 +565,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <LearnerLayout :progress="85" backUrl="/learner/dashboard" backLabel="Back to Learner Dashboard">
+    <LearnerLayout assessment-task>
         <CielFocusMode
             :visible="focusModeVisible"
             :mode="cielFocusEvent?.mode ?? 'teaching'"
@@ -517,102 +578,87 @@ onBeforeUnmount(() => {
             @closed="closeCielFocusMode"
         />
 
-        <template #agent>
-            <AgentSpeakerPanel
-                compact
-                agent-type="coach_feedback"
-                :state="coachState"
-                :message="coachMessage"
-                :tts-enabled="!focusModeVisible"
-                @speaking-start="handleAgentSpeakingStart"
-                @speaking-end="handleAgentSpeakingEnd"
-            />
-        </template>
+        <AssessmentTaskWorkspace
+            agent-type="coach_feedback"
+            :agent-state="coachState"
+            :agent-message="coachMessage"
+            :progress="step.progressPercent.value"
+            :primary-label="primaryLabel"
+            :primary-disabled="primaryDisabled"
+            :prompt-image="currentWordImage"
+            @primary="handlePrimary"
+            @agent-speaking-change="handleWorkspaceAgentSpeakingChange"
+        >
+            <template #prompt>
+                <AssessmentPromptText
+                    :key="step.currentItem.value.id"
+                    :label="activityLabel"
+                    :prompt="step.currentItem.value.prompt"
+                    :highlight-targets="currentHighlightTargets"
+                    :size="promptDisplaySize"
+                />
+            </template>
 
-        <section class="mx-auto grid max-w-2xl gap-4 xl:gap-5">
-            <div class="flex items-center justify-between">
-                <StatusBadge :status="activityLabel" variant="primary" />
-                <StatusBadge :status="progressLabel" />
-            </div>
-            <ModuleProgressBar :value="step.progressPercent.value" />
-            <PromptCard label="Practice" :prompt="step.currentItem.value.prompt" :highlight-targets="currentHighlightTargets" :illustration="currentWordImage" size="word" />
-            <div class="rounded-[32px] border border-slate-200/80 bg-white p-4 sm:p-5 shadow-xl shadow-slate-200/30 xl:p-7">
-                <div class="grid gap-5 lg:grid-cols-[minmax(220px,1fr)_1.3fr] lg:items-start xl:gap-6">
-                    <AutomaticCielListeningPanel
-                        v-if="isAutomaticListeningMode"
-                        ref="automaticListeningPanel"
-                        :active-item="step.currentItem.value"
-                        :disabled="automaticListeningDisabled"
-                        :submit-chunk="submitAutomaticChunk"
-                        @error="handleAutomaticError"
-                        @fallback-manual="fallbackToManualRecorder"
-                    />
-                    <AudioRecorder
-                        v-else
-                        :key="step.currentItem.value.id"
-                        :reset-key="`${step.currentItem.value.id}-${recorderResetKeys[step.currentItem.value.id] ?? 0}`"
-                        compact
-                        :max-duration-seconds="45"
-                        :prompt-type="recorderPromptType"
-                        :require-review-before-submit="requireReviewBeforeSubmit"
-                        :auto-transcribe-on-stop="autoTranscribeOnStop"
-                        :submitting="isCurrentUploading || isCurrentChecking || focusModeVisible"
-                        :submitted="Boolean(uploadedAudioIds[step.currentItem.value.id]) && !uploadErrors[step.currentItem.value.id]"
-                        label="Practice voice"
-                        @recorded="(file) => rememberAudio(step.currentItem.value, file)"
-                        @submit="(file) => uploadAudio(step.currentItem.value, file)"
-                        @cleared="() => clearAudio(step.currentItem.value)"
-                        @error="handleRecorderError"
-                    />
-                    <div class="grid gap-4">
-                        <div class="flex flex-wrap gap-2">
-                            <span
-                                v-for="slot in currentAttemptSlots"
-                                :key="slot.attempt"
-                                class="rounded-full px-3 py-1.5 text-xs font-black ring-1"
-                                :class="{
-                                    'bg-emerald-50 text-emerald-700 ring-emerald-200': slot.status === 'correct',
-                                    'bg-rose-50 text-rose-700 ring-rose-200': slot.status === 'incorrect',
-                                    'bg-slate-50 text-slate-400 ring-slate-200': slot.status === 'unused',
-                                }"
-                            >
-                                Attempt {{ slot.attempt }}<span v-if="slot.status === 'correct'">: Correct</span><span v-else-if="slot.status === 'incorrect'">: Try again</span>
-                            </span>
-                        </div>
-                        <label class="grid gap-2 text-base font-black text-slate-800 xl:text-lg">
-                            You said
-                            <AsrTranscriptVisualizer
-                                :transcript="generatedTranscripts[step.currentItem.value.id] ?? ''"
-                                :expected-text="step.currentItem.value.payload?.expected_answer ?? step.currentItem.value.prompt"
-                                :asr-result="asrResults[step.currentItem.value.id]"
-                                :is-processing="isCurrentUploading"
-                                :error="uploadErrors[step.currentItem.value.id] ?? ''"
-                                box-class="learner-transcript-box resize-none rounded-[20px] border border-slate-200/80 bg-slate-50/50 p-4 text-base font-bold text-slate-800 shadow-sm placeholder:text-slate-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-200/50 xl:p-5 xl:text-lg"
-                            />
-                        </label>
-                        <label v-if="canUseManualFallback" class="grid gap-2 text-sm font-black text-slate-500">
-                            Developer QA: Manual Transcript Override
-                            <input v-model="step.answers[step.currentItem.value.id]" class="rounded-[16px] border border-slate-200/80 bg-white px-4 py-3 text-base font-bold focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-200/50" placeholder="Optional QA fallback text">
-                        </label>
-                    </div>
-                </div>
-                <p v-if="uploadErrors[step.currentItem.value.id]" class="mt-4 rounded-[20px] bg-orange-50 px-5 py-3 text-sm font-black text-orange-600 ring-1 ring-orange-200/60">{{ uploadErrors[step.currentItem.value.id] }}</p>
-                <p v-if="step.feedback.value" class="mt-4 rounded-[20px] bg-blue-50 px-5 py-3 text-base font-black text-blue-700 ring-1 ring-blue-200/60">{{ step.feedback.value }}</p>
-            </div>
-        </section>
+            <template #recorder>
+                <AutomaticCielListeningPanel
+                    v-if="isAutomaticListeningMode"
+                    ref="automaticListeningPanel"
+                    :active-item="step.currentItem.value"
+                    :disabled="automaticListeningDisabled"
+                    :submit-chunk="submitAutomaticChunk"
+                    @error="handleAutomaticError"
+                    @fallback-manual="fallbackToManualRecorder"
+                />
+                <AudioRecorder
+                    v-else
+                    :key="step.currentItem.value.id"
+                    :reset-key="`${step.currentItem.value.id}-${recorderResetKeys[step.currentItem.value.id] ?? 0}`"
+                    presentation="hold-circle"
+                    :max-duration-seconds="45"
+                    :min-duration-seconds="0.5"
+                    :prompt-type="recorderPromptType"
+                    :require-review-before-submit="false"
+                    :auto-transcribe-on-stop="false"
+                    :submitting="isCurrentUploading || isCurrentChecking || focusModeVisible"
+                    :submitted="currentHasSubmittedAudio"
+                    :pulse-active="agentSpeaking"
+                    :attempt-segments="currentAttemptSlots"
+                    label="Practice voice"
+                    @recorded="(file) => rememberAudio(step.currentItem.value, file)"
+                    @submit="(file) => uploadAudio(step.currentItem.value, file)"
+                    @cleared="() => clearAudio(step.currentItem.value)"
+                    @error="handleRecorderError"
+                />
+            </template>
 
-        <BottomActionBar>
-            <div class="flex w-full flex-col-reverse items-center justify-end gap-4 sm:flex-row">
-                <PrimaryButton
-                    class="group w-full gap-3 rounded-[22px] px-8 py-3.5 text-base shadow-xl shadow-primary/25 transition-all duration-200 hover:-translate-y-0.5 hover:scale-[1.02] active:scale-[0.98] sm:w-auto xl:text-lg"
-                    :disabled="primaryDisabled"
-                    :class="{ 'opacity-70': primaryDisabled }"
-                    @click="handlePrimary"
-                >
-                    {{ primaryLabel }}
-                    <ArrowRight class="size-5 stroke-[3] transition-transform group-hover:translate-x-1 sm:size-6" />
-                </PrimaryButton>
-            </div>
-        </BottomActionBar>
+            <template #transcript>
+                <AsrTranscriptVisualizer
+                    :transcript="generatedTranscripts[step.currentItem.value.id] ?? ''"
+                    :expected-text="step.currentItem.value.payload?.expected_answer ?? step.currentItem.value.prompt"
+                    :asr-result="asrResults[step.currentItem.value.id]"
+                    :is-processing="isCurrentUploading"
+                    :error="uploadErrors[step.currentItem.value.id] ?? ''"
+                    placeholder="Transcript will appear here"
+                    box-class="min-h-0 h-full w-full flex-1 resize-none overflow-y-auto rounded-lg border border-slate-200 bg-white p-4 text-2xl font-black leading-tight text-slate-800 transition placeholder:text-slate-300 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
+                />
+            </template>
+
+            <template #status>
+                <p v-if="uploadErrors[step.currentItem.value.id]" class="rounded-lg bg-rose-50 px-3 py-2 text-sm font-black text-rose-600 ring-1 ring-rose-200/60">
+                    {{ uploadErrors[step.currentItem.value.id] }}
+                </p>
+            </template>
+
+            <template v-if="canUseManualFallback" #qa>
+                <label class="flex min-w-0 flex-1 items-center gap-2 text-xs font-black text-slate-500">
+                    <span class="shrink-0">Developer QA: Manual Transcript Override</span>
+                    <input
+                        v-model="step.answers[step.currentItem.value.id]"
+                        class="min-h-9 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-800 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
+                        placeholder="Optional QA fallback text"
+                    >
+                </label>
+            </template>
+        </AssessmentTaskWorkspace>
     </LearnerLayout>
 </template>

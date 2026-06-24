@@ -3,10 +3,12 @@ import { computed, reactive, ref } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import LearnerLayout from '../../Layouts/LearnerLayout.vue';
 import AssessmentTaskWorkspace from './AssessmentTaskWorkspace.vue';
+import AssessmentPromptText from './AssessmentPromptText.vue';
 import AudioRecorder from './AudioRecorder.vue';
 import AsrTranscriptVisualizer from './AsrTranscriptVisualizer.vue';
 import { useStepAssessment } from '../../Composables/useStepAssessment';
 import { appendAudioMetadata, normalizeAsrResponse } from '../../utils/asrResponse';
+import { getWordImage } from '../../utils/readingIllustrations';
 
 const props = defineProps({
     items: { type: Array, default: () => [] },
@@ -14,12 +16,8 @@ const props = defineProps({
     assessmentAttemptId: { type: Number, required: true },
     assessmentMode: { type: Object, default: () => ({}) },
     submitUrl: { type: String, required: true },
-    initialAgentMessage: { type: String, default: 'Say the letter out loud. Record your answer when you are ready.' },
-    submitErrorMessage: { type: String, default: 'We could not check these answers yet. Please review the letters and try again.' },
-    continueMessages: {
-        type: Array,
-        default: () => ['Thank you. Let us continue.', 'Good effort. Let us go to the next one.', 'I heard your answer. Let us keep going.'],
-    },
+    initialAgentMessage: { type: String, default: 'Read the word in the sentence. Speak clearly when you record.' },
+    submitErrorMessage: { type: String, default: 'We could not check these sentences yet. Please review them and try again.' },
 });
 
 const form = useForm({ assessment_attempt_id: props.assessmentAttemptId, responses: [] });
@@ -46,19 +44,55 @@ const answerFor = (item) => manualAnswerFor(item) || String(generatedTranscripts
 const sourceFor = (item) => manualAnswerFor(item)
     ? 'manual'
     : (transcriptSources[item?.id] ?? (generatedTranscripts[item?.id] ? 'stt_auto' : 'stt_auto'));
-const hasAnswerOrAudio = (item) => answerFor(item).length > 0;
-const step = useStepAssessment(props.items, { emptyMessage: 'Try this one before moving on.', initialIndex: props.initialIndex ?? 0, isAnswered: hasAnswerOrAudio });
+const hasManualOverride = (item) => canUseManualFallback.value && manualAnswerFor(item).length > 0;
+const spokenLetterAliases = {
+    a: ['a', 'aye', 'ay'],
+    b: ['be', 'bee'],
+    c: ['see', 'sea'],
+    i: ['i', 'eye'],
+    o: ['o', 'oh'],
+    q: ['cue', 'queue'],
+    r: ['are'],
+    u: ['you', 'yew'],
+    x: ['ex'],
+    y: ['why'],
+};
+const normalizeText = (value) => String(value ?? '').trim().toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ');
+const isSpokenLetterAliasForExpected = (answer, expected) => {
+    const normalizedAnswer = normalizeText(answer);
+    const normalizedExpected = normalizeText(expected);
+
+    return normalizedAnswer.length === 1 && (spokenLetterAliases[normalizedAnswer] ?? []).includes(normalizedExpected);
+};
+const hasUsableTranscript = (item, answer) => {
+    const expectedPrompt = String(item?.payload?.target_word ?? item?.payload?.expected_answer ?? item?.prompt ?? '').trim();
+    const manualAnswer = String(answer ?? '').trim();
+    const normalizedAnswer = manualAnswer || answerFor(item);
+
+    if (!normalizedAnswer) return false;
+    if (/^\d+$/.test(normalizedAnswer)) return false;
+    if (uploadedAudioIds[item?.id]) return true;
+    if (!expectedPrompt) return normalizedAnswer.length > 0;
+    if (isSpokenLetterAliasForExpected(normalizedAnswer, expectedPrompt)) return true;
+
+    return normalizedAnswer.length >= Math.max(2, Math.floor(expectedPrompt.length * 0.6));
+};
+const hasAnswerOrAudio = (item, answer) => (Boolean(uploadedAudioIds[item?.id]) || hasManualOverride(item)) && hasUsableTranscript(item, answer);
+const step = useStepAssessment(props.items, { emptyMessage: 'Almost there! Finish this item to continue.', initialIndex: props.initialIndex ?? 0, isAnswered: hasAnswerOrAudio });
 const agentMessage = ref(props.initialAgentMessage);
 const agentState = ref('listening');
 const agentSpeaking = ref(false);
+const neutralMessages = ['Thank you. Let us continue.', 'Good effort. Let us go to the next one.', 'I heard your answer. Let us keep going.'];
 const isCurrentUploading = computed(() => Boolean(uploading[step.currentItem.value?.id]));
-const isCurrentChecked = computed(() => Boolean(checkedItems[step.currentItem.value?.id]) && hasAnswerOrAudio(step.currentItem.value));
+const currentTranscript = computed(() => String(generatedTranscripts[step.currentItem.value?.id] ?? '').trim());
+const currentWordImage = computed(() => getWordImage(step.currentItem.value?.payload?.target_word));
+const isCurrentChecked = computed(() => Boolean(checkedItems[step.currentItem.value?.id]) && hasAnswerOrAudio(step.currentItem.value, answerFor(step.currentItem.value)));
 const canSubmitCurrent = computed(() => {
     const item = step.currentItem.value;
 
     if (!item) return false;
 
-    return Boolean(audioFiles[item.id]) || manualAnswerFor(item).length > 0;
+    return Boolean(audioFiles[item.id]) || hasManualOverride(item);
 });
 const primaryLabel = computed(() => isCurrentChecked.value ? 'Next' : 'Submit');
 const primaryDisabled = computed(() => form.processing || isCurrentUploading.value || (!isCurrentChecked.value && !canSubmitCurrent.value));
@@ -72,6 +106,7 @@ const rememberAudio = (item, file) => {
     delete generatedTranscripts[item.id];
     delete asrResults[item.id];
     delete checkedItems[item.id];
+    step.feedback.value = '';
     agentMessage.value = 'Listen to your answer. If you are happy with your answer, click Submit.';
     agentState.value = 'speaking';
 };
@@ -90,6 +125,7 @@ const clearAudio = (item) => {
 
 const setAnswer = (item, value) => {
     step.answers[item.id] = value;
+    delete checkedItems[item.id];
 };
 
 const uploadAudio = async (item, file) => {
@@ -108,7 +144,7 @@ const uploadAudio = async (item, file) => {
         payload.append('context_type', 'assessment_task');
         payload.append('assessment_attempt_id', String(props.assessmentAttemptId));
         payload.append('item_id', String(item.id));
-        payload.append('task_type', 'crla_task_1_letter');
+        payload.append('task_type', 'crla_task_2b_sentence');
         if (audioDurations[item.id] != null) {
             payload.append('duration_seconds', String(audioDurations[item.id]));
         }
@@ -137,6 +173,7 @@ const uploadAudio = async (item, file) => {
             generatedTranscripts[item.id] = transcript;
             transcriptSources[item.id] = result.transcript_source ?? 'stt_auto';
             checkedItems[item.id] = true;
+            step.feedback.value = '';
             agentMessage.value = `You said: ${transcript}`;
             agentState.value = 'speaking';
             return true;
@@ -171,6 +208,7 @@ const submitCurrentForReview = async () => {
         transcriptSources[item.id] = 'manual';
         checkedItems[item.id] = true;
         uploadErrors[item.id] = '';
+        step.feedback.value = '';
         agentMessage.value = `You said: ${manualAnswer}`;
         agentState.value = 'speaking';
         return;
@@ -178,7 +216,7 @@ const submitCurrentForReview = async () => {
 
     const file = audioFiles[item.id];
     if (!file) {
-        agentMessage.value = 'Hold the blue button to record your answer first.';
+        agentMessage.value = 'Hold the blue button to record the highlighted word first.';
         agentState.value = 'speaking';
         return;
     }
@@ -188,7 +226,7 @@ const submitCurrentForReview = async () => {
 
 const submit = () => {
     if (!step.validateComplete()) {
-        agentMessage.value = 'Almost there. Finish each letter before checking your answer.';
+        agentMessage.value = 'Almost there. Finish each sentence before checking your words.';
         agentState.value = 'speaking';
         return;
     }
@@ -225,7 +263,7 @@ const goNextOrFinish = () => {
         return;
     }
 
-    agentMessage.value = props.continueMessages[step.currentIndex.value % props.continueMessages.length] ?? 'Thank you. Let us continue.';
+    agentMessage.value = neutralMessages[step.currentIndex.value % neutralMessages.length];
     agentState.value = 'speaking';
 
     if (step.isLast.value) {
@@ -258,13 +296,18 @@ const setAgentSpeaking = (isSpeaking) => {
             :progress="step.progressPercent.value"
             :primary-label="primaryLabel"
             :primary-disabled="primaryDisabled"
+            :prompt-image="currentWordImage"
             @primary="handlePrimary"
             @agent-speaking-change="setAgentSpeaking"
         >
             <template #prompt>
-                <div :key="step.currentItem.value.id" class="letter-prompt">
-                    {{ step.currentItem.value.prompt }}
-                </div>
+                <AssessmentPromptText
+                    :key="step.currentItem.value.id"
+                    label="Read the highlighted word"
+                    :prompt="step.currentItem.value.prompt"
+                    :highlight-targets="[{ text: step.currentItem.value.payload?.target_word ?? '', wholeWord: false }]"
+                    size="sentence"
+                />
             </template>
 
             <template #recorder>
@@ -279,8 +322,8 @@ const setAgentSpeaking = (isSpeaking) => {
                     :submitting="isCurrentUploading"
                     :submitted="Boolean(uploadedAudioIds[step.currentItem.value.id]) && !uploadErrors[step.currentItem.value.id]"
                     :pulse-active="agentSpeaking"
-                    label="Letter voice"
-                    prompt-type="letter"
+                    label="Word voice"
+                    prompt-type="word"
                     @recorded="(file) => rememberAudio(step.currentItem.value, file)"
                     @submit="(file) => uploadAudio(step.currentItem.value, file)"
                     @cleared="() => clearAudio(step.currentItem.value)"
@@ -289,8 +332,8 @@ const setAgentSpeaking = (isSpeaking) => {
 
             <template #transcript>
                 <AsrTranscriptVisualizer
-                    :transcript="generatedTranscripts[step.currentItem.value.id] ?? ''"
-                    :expected-text="step.currentItem.value.payload?.expected_answer ?? step.currentItem.value.prompt"
+                    :transcript="currentTranscript"
+                    :expected-text="step.currentItem.value.payload?.target_word ?? step.currentItem.value.payload?.expected_answer ?? step.currentItem.value.prompt"
                     :asr-result="asrResults[step.currentItem.value.id]"
                     :is-processing="isCurrentUploading"
                     :error="uploadErrors[step.currentItem.value.id] ?? ''"
@@ -329,17 +372,3 @@ const setAgentSpeaking = (isSpeaking) => {
         </AssessmentTaskWorkspace>
     </LearnerLayout>
 </template>
-
-<style scoped>
-.letter-prompt {
-    display: grid;
-    min-width: 0;
-    max-width: 100%;
-    place-items: center;
-    overflow-wrap: anywhere;
-    font-size: clamp(4rem, min(70cqh, 18cqw), 14rem);
-    font-weight: 900;
-    line-height: 0.9;
-    color: rgb(100 116 139);
-}
-</style>

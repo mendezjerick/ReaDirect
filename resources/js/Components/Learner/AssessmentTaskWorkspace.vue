@@ -138,12 +138,23 @@ const togglePromptImage = () => {
     position: relative;
     display: grid;
     min-height: 0;
+    container-type: size;
     place-items: center;
     padding: clamp(0.55rem, 1.7dvh, 1.35rem);
 }
 
 .assessment-record-panel {
     min-height: 0;
+}
+
+.assessment-prompt-panel :deep(*) {
+    max-width: 100%;
+}
+
+.assessment-prompt-panel :deep(.letter-prompt) {
+    overflow-wrap: anywhere;
+    word-break: normal;
+    font-size: clamp(4rem, min(70cqh, 18cqw), 14rem);
 }
 
 .assessment-prompt-toggle {
