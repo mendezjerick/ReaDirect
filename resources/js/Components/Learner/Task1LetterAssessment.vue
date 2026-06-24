@@ -50,6 +50,7 @@ const hasAnswerOrAudio = (item) => answerFor(item).length > 0;
 const step = useStepAssessment(props.items, { emptyMessage: 'Try this one before moving on.', initialIndex: props.initialIndex ?? 0, isAnswered: hasAnswerOrAudio });
 const agentMessage = ref(props.initialAgentMessage);
 const agentState = ref('listening');
+const agentSpeaking = ref(false);
 const isCurrentUploading = computed(() => Boolean(uploading[step.currentItem.value?.id]));
 const firstFormError = computed(() => Object.values(form.errors ?? {})[0] ?? '');
 const isCurrentChecked = computed(() => Boolean(checkedItems[step.currentItem.value?.id]) && hasAnswerOrAudio(step.currentItem.value));
@@ -244,6 +245,10 @@ const handlePrimary = () => {
 
     submitCurrentForReview();
 };
+
+const setAgentSpeaking = (isSpeaking) => {
+    agentSpeaking.value = isSpeaking === true;
+};
 </script>
 
 <template>
@@ -255,6 +260,7 @@ const handlePrimary = () => {
             :primary-label="primaryLabel"
             :primary-disabled="primaryDisabled"
             @primary="handlePrimary"
+            @agent-speaking-change="setAgentSpeaking"
         >
             <template #prompt>
                 <div :key="step.currentItem.value.id" class="letter-prompt">
@@ -273,6 +279,7 @@ const handlePrimary = () => {
                     :auto-transcribe-on-stop="false"
                     :submitting="isCurrentUploading"
                     :submitted="Boolean(uploadedAudioIds[step.currentItem.value.id]) && !uploadErrors[step.currentItem.value.id]"
+                    :pulse-active="agentSpeaking"
                     label="Letter voice"
                     prompt-type="letter"
                     @recorded="(file) => rememberAudio(step.currentItem.value, file)"

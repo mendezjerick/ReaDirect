@@ -13,7 +13,7 @@ const props = defineProps({
     promptImage: { type: String, default: '' },
 });
 
-const emit = defineEmits(['primary']);
+const emit = defineEmits(['primary', 'agent-speaking-change']);
 
 const showPromptImage = ref(false);
 const hasPromptImage = computed(() => String(props.promptImage ?? '').trim().length > 0);
@@ -36,6 +36,8 @@ const togglePromptImage = () => {
             :state="agentState"
             :message="agentMessage"
             presentation="assessment-horizontal"
+            @speaking-start="emit('agent-speaking-change', true)"
+            @speaking-end="emit('agent-speaking-change', false)"
         />
 
         <section class="assessment-prompt-record-grid">

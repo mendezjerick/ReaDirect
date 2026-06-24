@@ -607,7 +607,6 @@ watch(
     <section
         v-else-if="presentation === 'assessment-horizontal'"
         class="assessment-agent-strip"
-        :class="isSpeaking ? 'ring-2 ring-primary/20' : ''"
     >
         <AgentSpeakerTTS
             v-if="ttsEnabled && !voiceLoading"
