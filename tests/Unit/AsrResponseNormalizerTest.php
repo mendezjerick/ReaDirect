@@ -197,6 +197,34 @@ class AsrResponseNormalizerTest extends TestCase
         ], $context));
     }
 
+    public function test_wrong_but_audible_low_expected_confidence_can_complete_as_recording(): void
+    {
+        $context = ['expected_text' => 'tree', 'task_type' => 'word_reading'];
+
+        $this->assertTrue($this->normalizer->canComplete([
+            'transcript' => 'justice',
+            'ai_response' => [
+                'raw_transcript' => 'justice',
+                'corrected_transcript' => 'justice',
+                'accepted' => false,
+                'retry_required' => false,
+                'uncertain' => true,
+                'uncertainty_reasons' => ['low_normalization_confidence'],
+                'prompt_type' => 'word',
+            ],
+        ], $context));
+
+        $this->assertFalse($this->normalizer->canComplete([
+            'transcript' => '',
+            'ai_response' => [
+                'retry_required' => false,
+                'uncertain' => true,
+                'uncertainty_reasons' => ['blank_asr_transcript'],
+                'prompt_type' => 'word',
+            ],
+        ], $context));
+    }
+
     public function test_letter_transcript_can_complete_when_uncertain_but_not_retry_required(): void
     {
         $context = ['expected_text' => 'Z', 'task_type' => 'crla_task_1_letter'];

@@ -267,6 +267,7 @@ import {
     Settings,
     FileSearch,
     FlaskConical,
+    Table2,
     CheckCircle,
     AlertCircle,
 } from 'lucide-vue-next';
@@ -307,6 +308,7 @@ const adminNav = [
     { label: 'Prompt Templates',     href: '/admin/prompts',             icon: MessageSquare },
     { label: 'Audit Logs',           href: '/admin/audit-logs',          icon: ClipboardList },
     { label: 'System Monitoring',    href: '/admin/system-monitoring',   icon: Activity },
+    { label: 'Confusion Matrix',      href: '/admin/confusion-matrix',    icon: Table2 },
     { label: 'Testing / QA Mode',    href: '/admin/testing',             icon: Settings },
     { label: 'True Sandbox',         href: '/admin/testing/true-sandbox', icon: FileSearch },
     { label: 'Module Mastery Simulator', href: '/admin/testing/module-mastery-simulator', icon: FlaskConical },

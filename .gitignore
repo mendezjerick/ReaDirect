@@ -22,6 +22,7 @@
 /public/ia-assets
 /public/storage
 /storage/*.key
+/storage/app/asr_confusion_fixtures/
 /storage/pail
 /vendor
 _ide_helper.php

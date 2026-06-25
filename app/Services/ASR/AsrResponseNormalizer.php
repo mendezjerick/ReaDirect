@@ -156,7 +156,7 @@ class AsrResponseNormalizer
             return true;
         }
 
-        if ($normalized['uncertain'] && ! $allowUncertain) {
+        if ($normalized['uncertain'] && ! $allowUncertain && $this->uncertaintyBlocksCompletion($normalized, $aiResponseArray, $context)) {
             return false;
         }
 
@@ -288,6 +288,31 @@ class AsrResponseNormalizer
         }
 
         return $this->hasUsableTranscript($transcript, $context, $aiResponse);
+    }
+
+    private function uncertaintyBlocksCompletion(array $normalized, array $aiResponse, array $context): bool
+    {
+        if (! $this->hasUsableTranscript($normalized['scoring_transcript'] ?? '', $context, $aiResponse)) {
+            return true;
+        }
+
+        $reasons = array_values(array_filter(array_map(
+            fn ($reason): string => mb_strtolower(trim((string) $reason)),
+            $normalized['uncertainty_reasons'] ?? []
+        )));
+
+        if ($reasons === []) {
+            return true;
+        }
+
+        $nonBlockingReasons = [
+            'low_asr_confidence',
+            'low_normalization_confidence',
+            'low_expected_centric_confidence',
+            'low_expected_centric_score',
+        ];
+
+        return collect($reasons)->contains(fn (string $reason): bool => ! in_array($reason, $nonBlockingReasons, true));
     }
 
     private function isSpokenLetterAliasForExpectedWord(string $transcript, string $expected): bool

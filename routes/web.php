@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AdminAgentController;
 use App\Http\Controllers\Admin\AdminAIEnvironmentGuideController;
 use App\Http\Controllers\Admin\AdminAssessmentContentController;
 use App\Http\Controllers\Admin\AdminAuditLogController;
+use App\Http\Controllers\Admin\AdminConfusionMatrixController;
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AdminLearnerController;
 use App\Http\Controllers\Admin\AdminModuleContentController;
@@ -184,6 +185,12 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function (): v
     Route::get('/audit-logs/export', [AdminAuditLogController::class, 'export'])->name('audit-logs.export');
     Route::get('/system-monitoring', AdminSystemMonitoringController::class)->name('system-monitoring.index');
     Route::get('/ai-env-guide', AdminAIEnvironmentGuideController::class)->name('ai-env-guide');
+    Route::get('/confusion-matrix', [AdminConfusionMatrixController::class, 'index'])->name('confusion-matrix.index');
+    Route::get('/confusion-matrix/fixtures', [AdminConfusionMatrixController::class, 'fixtures'])->name('confusion-matrix.fixtures');
+    Route::get('/confusion-matrix/results', [AdminConfusionMatrixController::class, 'results'])->name('confusion-matrix.results');
+    Route::post('/confusion-matrix/run-fixture', [AdminConfusionMatrixController::class, 'runFixture'])
+        ->middleware('throttle:audio-upload')
+        ->name('confusion-matrix.run-fixture');
 
     Route::prefix('testing')->name('testing.')->group(function (): void {
         Route::get('/', [AdminTestingController::class, 'index'])->name('index');
