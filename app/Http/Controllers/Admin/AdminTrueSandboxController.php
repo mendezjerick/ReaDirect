@@ -8,6 +8,8 @@ use App\Models\Module;
 use App\Models\ModuleActivity;
 use App\Services\Admin\AdminAccessService;
 use App\Services\AI\ReadirectAIService;
+use App\Services\ASR\AsrConfusionManualHistoryService;
+use App\Services\ASR\AsrConfusionResultClassifier;
 use App\Services\ASR\AsrResponseNormalizer;
 use App\Services\ASR\SupervisedReinforcementService;
 use App\Services\AudioStorageService;
@@ -181,7 +183,9 @@ class AdminTrueSandboxController extends Controller
         Request $request,
         AdminAccessService $access,
         ReadirectAIService $ai,
-        AsrResponseNormalizer $normalizer
+        AsrResponseNormalizer $normalizer,
+        AsrConfusionResultClassifier $classifier,
+        AsrConfusionManualHistoryService $history
     ): JsonResponse {
         $access->ensureTesting($request->user());
         $this->extendAudioRequestTime();
@@ -201,6 +205,7 @@ class AdminTrueSandboxController extends Controller
             'duration_seconds' => AudioStorageService::durationValidationRules(),
             'accepted_answers' => ['nullable', 'array'],
             'accepted_answers.*' => ['nullable', 'string', 'max:500'],
+            'expected_should_be_correct' => ['required', 'boolean'],
             'content_metadata' => ['nullable', 'array'],
             'audio_metadata' => ['nullable', 'array'],
             'include_trace' => ['nullable', 'boolean'],
@@ -239,19 +244,50 @@ class AdminTrueSandboxController extends Controller
 
             $aiResponse = $ai->analyzeAudio($payload);
             $normalized = $normalizer->normalize($aiResponse);
+            $context = [
+                'expected_text' => $payload['expected_text'],
+                'accepted_answers' => $payload['accepted_answers'],
+                'prompt_type' => $validated['prompt_type'],
+                'task_type' => $validated['task_type'] ?? null,
+                'activity_type' => $validated['activity_type'] ?? null,
+            ];
+            $resolved = [
+                'transcript' => $normalized['scoring_transcript'],
+                'displayed_transcript' => $normalized['display_transcript'],
+                'source' => 'ai_asr',
+                'confidence' => $aiResponse['confidence'] ?? null,
+                'ai_response' => $aiResponse,
+            ];
+            $recordingAccepted = $normalizer->canComplete($resolved, $context);
+            $finalCorrectness = $classifier->finalCorrectness($aiResponse, $normalized);
+            $expectedShouldBeCorrect = (bool) $validated['expected_should_be_correct'];
+            $classification = $classifier->classify($expectedShouldBeCorrect, $recordingAccepted, $finalCorrectness);
+            $trueGopScore = $classifier->trueGopScore($aiResponse, $normalized);
 
-            return response()->json([
+            $result = [
                 'ok' => (bool) ($aiResponse['ok'] ?? false),
                 'message' => $this->messageFor($aiResponse, $normalized),
                 'expected_text' => $payload['expected_text'],
+                'expected_should_be_correct' => $expectedShouldBeCorrect,
                 'prompt_text' => $validated['prompt_text'] ?? null,
                 'prompt_type' => $validated['prompt_type'],
                 'task_type' => $validated['task_type'] ?? null,
                 'activity_type' => $validated['activity_type'] ?? null,
                 'assessment_type' => $payload['assessment_type'],
                 'duration_seconds' => isset($validated['duration_seconds']) ? (float) $validated['duration_seconds'] : null,
-                'can_submit' => $this->canUseResult($normalized),
+                'can_submit' => $recordingAccepted,
                 'scoring' => $this->scoringSummary($aiResponse, $normalized),
+                'recording_accepted' => $recordingAccepted,
+                'recording_validity' => $classification['recording_validity'],
+                'recording_validity_code' => $classification['recording_validity_code'],
+                'final_correctness' => $finalCorrectness,
+                'confusion_matrix_result' => $classification['label'],
+                'confusion_matrix_code' => $classification['code'],
+                'confusion_matrix_key' => $classification['result'],
+                'confidence_score' => $trueGopScore,
+                'confidence_percent' => $classifier->confidencePercent($trueGopScore),
+                'true_gop_score' => $trueGopScore,
+                'audio_file_path' => $path,
                 ...$normalized,
                 'transcript' => $normalized['scoring_transcript'],
                 'corrected_transcript' => $aiResponse['corrected_transcript'] ?? $normalized['scoring_transcript'],
@@ -261,9 +297,27 @@ class AdminTrueSandboxController extends Controller
                 'trace_notes' => $aiResponse['trace_notes'] ?? [],
                 'ai_response' => $aiResponse,
                 'request_context' => $payload,
+            ];
+
+            $historyRow = $history->fromTrueSandbox(
+                $result,
+                $validated,
+                $classification,
+                $recordingAccepted,
+                $finalCorrectness,
+                $expectedShouldBeCorrect,
+                $trueGopScore,
+                $request->user(),
+                $path,
+            );
+
+            return response()->json($result + [
+                'manual_history_id' => $historyRow['id'],
             ]);
         } finally {
-            Storage::disk('local')->delete($path);
+            if (app()->environment('testing')) {
+                Storage::disk('local')->delete($path);
+            }
         }
     }
 

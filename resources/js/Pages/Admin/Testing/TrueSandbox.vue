@@ -24,6 +24,7 @@ const activityType = ref('');
 const items = ref(props.initialItems ?? []);
 const selectedItemId = ref(items.value[0]?.id ?? '');
 const sandboxMode = ref('single');
+const expectedResult = ref('');
 const selectedLineItemIds = ref([]);
 const loadingItems = ref(false);
 const itemError = ref('');
@@ -81,6 +82,8 @@ const activeExpectedText = computed(() => isWordLineMode.value ? wordLineExpecte
 const activePromptText = computed(() => isWordLineMode.value ? wordLineExpectedText.value : (selectedItem.value?.prompt || expectedText.value));
 const displayedTranscript = computed(() => result.value?.displayed_transcript || normalizedResult.value?.displayTranscript || '');
 const hasRunnableTarget = computed(() => isWordLineMode.value ? selectedLineItems.value.length > 0 : Boolean(selectedItem.value));
+const hasExpectedResult = computed(() => expectedResult.value === 'correct' || expectedResult.value === 'wrong');
+const expectedShouldBeCorrect = computed(() => expectedResult.value === 'correct');
 const hasWordAlignmentErrors = computed(() => (result.value?.word_alignment ?? []).some((word) => canAddWordReinforcement(word)));
 const canAddReinforcement = computed(() => (
     result.value
@@ -117,6 +120,11 @@ const formatScore = (value) => {
     const number = Number(value);
     return Number.isFinite(number) ? number.toFixed(3).replace(/0+$/, '').replace(/\.$/, '') : String(value);
 };
+const formatPercent = (value) => {
+    if (value === null || value === undefined || value === '') return 'Not available';
+    const number = Number(value);
+    return Number.isFinite(number) ? `${(number * 100).toFixed(1)}%` : 'Not available';
+};
 const acousticGop = computed(() => {
     if (!result.value) return null;
 
@@ -140,6 +148,31 @@ const acousticGop = computed(() => {
         phonemeScores: Array.isArray(phonemeScores) ? phonemeScores : [],
     };
 });
+const trueGopScore = computed(() => (
+    result.value?.true_gop_score
+    ?? result.value?.confidence_score
+    ?? acousticGop.value?.overall
+    ?? null
+));
+const pronunciationConfidence = computed(() => formatPercent(trueGopScore.value));
+const trueGopRaw = computed(() => formatScore(trueGopScore.value));
+const recordingValidityLabel = computed(() => result.value?.recording_validity ?? (result.value?.recording_accepted ? 'Valid Audio' : 'Not reported'));
+const confusionMatrixLabel = computed(() => result.value?.confusion_matrix_result ?? 'Not Applicable');
+const confusionMatrixCode = computed(() => result.value?.confusion_matrix_code ?? 'NA');
+const confusionMatrixBadgeClass = computed(() => ({
+    TP: 'bg-green-50 text-green-700 ring-1 ring-green-200/60',
+    TN: 'bg-blue-50 text-blue-700 ring-1 ring-blue-200/60',
+    FP: 'bg-orange-50 text-orange-700 ring-1 ring-orange-200/60',
+    FN: 'bg-red-50 text-red-700 ring-1 ring-red-200/60',
+    NA: 'bg-slate-50 text-slate-700 ring-1 ring-slate-200/60',
+}[confusionMatrixCode.value] ?? 'bg-slate-50 text-slate-700 ring-1 ring-slate-200/60'));
+const confusionMatrixBorderClass = computed(() => ({
+    TP: 'border-l-[3px] border-l-green-400',
+    TN: 'border-l-[3px] border-l-blue-400',
+    FP: 'border-l-[3px] border-l-orange-400',
+    FN: 'border-l-[3px] border-l-red-400',
+    NA: 'border-l-[3px] border-l-slate-300',
+}[confusionMatrixCode.value] ?? 'border-l-[3px] border-l-slate-300'));
 const gopMetricText = computed(() => {
     if (!acousticGop.value) return 'Not reported';
 
@@ -230,6 +263,7 @@ const loadItems = async () => {
     itemError.value = '';
     result.value = null;
     currentFile.value = null;
+    expectedResult.value = '';
     reinforcementMessage.value = '';
     reinforcementError.value = '';
     reinforcementCase.value = null;
@@ -275,6 +309,7 @@ watch(selectedItemId, () => {
     currentFile.value = null;
     result.value = null;
     error.value = '';
+    expectedResult.value = '';
     reinforcementMessage.value = '';
     reinforcementError.value = '';
     reinforcementCase.value = null;
@@ -288,6 +323,7 @@ watch(sandboxMode, () => {
     currentFile.value = null;
     result.value = null;
     error.value = '';
+    expectedResult.value = '';
     reinforcementMessage.value = '';
     reinforcementError.value = '';
     reinforcementCase.value = null;
@@ -303,6 +339,7 @@ watch(selectedLineItemIds, () => {
     currentFile.value = null;
     result.value = null;
     error.value = '';
+    expectedResult.value = '';
     reinforcementMessage.value = '';
     reinforcementError.value = '';
     reinforcementCase.value = null;
@@ -410,6 +447,11 @@ const runAsr = async (file = currentFile.value) => {
         return;
     }
 
+    if (!hasExpectedResult.value) {
+        error.value = 'Choose whether this recording is expected to be correct audio or intentionally wrong audio before running ASR.';
+        return;
+    }
+
     submitting.value = true;
     error.value = '';
     result.value = null;
@@ -432,6 +474,7 @@ const runAsr = async (file = currentFile.value) => {
         } else {
             appendItemPayload(payload, item);
         }
+        payload.append('expected_should_be_correct', expectedShouldBeCorrect.value ? '1' : '0');
 
         const response = await fetch(props.routes.analyze, {
             method: 'POST',
@@ -589,11 +632,6 @@ const addWordReinforcement = async (word, index) => {
     }
 };
 
-const rejectAndContinue = () => {
-    reinforcementMessage.value = 'Case skipped. No reinforcement data was saved.';
-    reinforcementError.value = '';
-    reinforcementCase.value = null;
-};
 </script>
 
 <template>
@@ -774,6 +812,21 @@ const rejectAndContinue = () => {
                                     <p class="font-semibold text-text break-words whitespace-pre-wrap">{{ activePromptText }}</p>
                                 </div>
                             </div>
+                            <label class="grid gap-1.5">
+                                <span class="text-[11px] font-bold uppercase tracking-wider text-muted">Expected result for this test</span>
+                                <select
+                                    v-model="expectedResult"
+                                    class="w-full rounded-xl border bg-white px-3 py-2.5 text-sm font-semibold text-text transition-all duration-200 hover:border-primary/40 focus:border-primary focus:ring-2 focus:ring-primary/10"
+                                    :class="hasExpectedResult ? 'border-border' : 'border-amber-300'"
+                                >
+                                    <option value="" disabled>Choose correct or intentionally wrong audio</option>
+                                    <option value="correct">Correct audio should score correct</option>
+                                    <option value="wrong">Wrong audio should score incorrect</option>
+                                </select>
+                                <span v-if="!hasExpectedResult" class="text-xs font-semibold text-amber-700">
+                                    Required so True Sandbox can report TP, TN, FP, or FN correctly.
+                                </span>
+                            </label>
                             <div v-if="!isWordLineMode" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                 <span class="flex items-center rounded-lg bg-background px-3 py-2 text-[11px] font-bold text-muted truncate transition-colors duration-150 hover:bg-slate-100" :title="selectedItem.prompt_type">Prompt: {{ selectedItem.prompt_type }}</span>
                                 <span class="flex items-center rounded-lg bg-background px-3 py-2 text-[11px] font-bold text-muted truncate transition-colors duration-150 hover:bg-slate-100" :title="selectedItem.task_type">Task: {{ selectedItem.task_type }}</span>
@@ -819,7 +872,7 @@ const rejectAndContinue = () => {
                         <button
                             type="button"
                             class="mt-3 w-full inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-semibold text-slate-600 transition-all duration-200 hover:bg-primary-light hover:text-primary hover:border-primary/30 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed"
-                            :disabled="!currentFile || submitting"
+                            :disabled="!currentFile || submitting || !hasExpectedResult"
                             @click="runAsr()"
                         >
                             <Loader2 v-if="submitting" class="size-4 animate-spin" />
@@ -922,6 +975,27 @@ const rejectAndContinue = () => {
 
                         <!-- Results -->
                         <div v-else key="asr-results" class="mt-4 grid gap-4">
+                            <div class="grid gap-3 rounded-2xl border border-border/60 bg-surface p-4 sm:grid-cols-2 xl:grid-cols-4 ts-result-card" style="--delay: 0ms">
+                                <div class="rounded-xl bg-background/70 px-3.5 py-3">
+                                    <p class="text-[11px] font-bold uppercase tracking-wider text-muted">Pronunciation Confidence</p>
+                                    <p class="mt-1 text-lg font-extrabold text-text">{{ pronunciationConfidence }}</p>
+                                </div>
+                                <div class="rounded-xl bg-background/70 px-3.5 py-3">
+                                    <p class="text-[11px] font-bold uppercase tracking-wider text-muted">True GOP</p>
+                                    <p class="mt-1 font-mono text-sm font-bold text-text">{{ trueGopRaw }}</p>
+                                </div>
+                                <div class="rounded-xl bg-background/70 px-3.5 py-3">
+                                    <p class="text-[11px] font-bold uppercase tracking-wider text-muted">Recording Validity</p>
+                                    <p class="mt-1 text-sm font-extrabold" :class="result.recording_accepted ? 'text-emerald-700' : 'text-slate-700'">{{ recordingValidityLabel }}</p>
+                                </div>
+                                <div class="rounded-xl bg-background/70 px-3.5 py-3">
+                                    <p class="text-[11px] font-bold uppercase tracking-wider text-muted">Confusion Matrix Result</p>
+                                    <span class="mt-1 inline-flex items-center rounded-full px-3 py-1 text-sm font-extrabold" :class="confusionMatrixBadgeClass">
+                                        {{ confusionMatrixLabel }} <span v-if="confusionMatrixCode !== 'NA'" class="ml-1 font-mono">({{ confusionMatrixCode }})</span>
+                                    </span>
+                                </div>
+                            </div>
+
                             <div v-if="failureDetails.length" class="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
                                 <div class="flex items-start gap-2">
                                     <AlertTriangle class="mt-0.5 size-4 shrink-0" />
@@ -965,27 +1039,16 @@ const rejectAndContinue = () => {
                                         />
                                     </div>
                                 </div>
-                                <div class="rounded-2xl border border-border/60 p-4 flex flex-col ts-result-card" style="--delay: 180ms"
-                                     :class="{
-                                         'border-l-[3px] border-l-green-400': result.scoring?.accepted === true,
-                                         'border-l-[3px] border-l-amber-400': result.retry_required && !result.scoring?.accepted,
-                                         'border-l-[3px] border-l-red-400': !result.scoring?.accepted && !result.retry_required,
-                                         'border-l-[3px] border-l-slate-300': result.scoring?.accepted === undefined && !result.retry_required
-                                     }">
-                                    <p class="text-[11px] font-bold uppercase tracking-wider text-muted mb-2">Decision</p>
-                                    <div>
-                                        <span class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-bold text-sm"
-                                              :class="{
-                                                  'bg-green-50 text-green-700 ring-1 ring-green-200/60': result.scoring?.accepted === true,
-                                                  'bg-amber-50 text-amber-700 ring-1 ring-amber-200/60': result.retry_required && !result.scoring?.accepted,
-                                                  'bg-red-50 text-red-700 ring-1 ring-red-200/60': !result.scoring?.accepted && !result.retry_required,
-                                                  'bg-slate-50 text-slate-700 ring-1 ring-slate-200/60': result.scoring?.accepted === undefined && !result.retry_required
-                                              }">
-                                            <CheckCircle2 v-if="result.scoring?.accepted === true" class="size-3.5" />
-                                            <XCircle v-else-if="result.scoring?.accepted === false && !result.retry_required" class="size-3.5" />
-                                            <AlertTriangle v-else-if="result.retry_required" class="size-3.5" />
-                                            {{ result.scoring?.accepted === true ? 'Accepted' : result.retry_required ? 'Retry required / Uncertain' : result.scoring?.accepted === false ? 'Rejected' : 'Pending' }}
+                                <div class="rounded-2xl border border-border/60 p-4 flex flex-col ts-result-card" style="--delay: 180ms" :class="confusionMatrixBorderClass">
+                                    <p class="text-[11px] font-bold uppercase tracking-wider text-muted mb-2">Confusion Matrix Result</p>
+                                    <div class="grid gap-2">
+                                        <span class="inline-flex w-fit items-center gap-1.5 rounded-full px-3 py-1 font-bold text-sm" :class="confusionMatrixBadgeClass">
+                                            <CheckCircle2 v-if="confusionMatrixCode === 'TP' || confusionMatrixCode === 'TN'" class="size-3.5" />
+                                            <XCircle v-else-if="confusionMatrixCode === 'FP' || confusionMatrixCode === 'FN'" class="size-3.5" />
+                                            <AlertTriangle v-else class="size-3.5" />
+                                            {{ confusionMatrixLabel }} <span v-if="confusionMatrixCode !== 'NA'" class="font-mono">({{ confusionMatrixCode }})</span>
                                         </span>
+                                        <p class="text-xs font-semibold text-muted">Recording: {{ recordingValidityLabel }} / Final correctness: {{ result.final_correctness ? 'Correct' : 'Incorrect' }}</p>
                                     </div>
                                 </div>
                             </div>
@@ -1009,15 +1072,6 @@ const rejectAndContinue = () => {
                                             <Loader2 v-if="reinforcementSubmitting" class="size-4 animate-spin" />
                                             <Database v-else class="size-4" />
                                             Accept as Correct / Add Reinforcement
-                                        </button>
-                                        <button
-                                            type="button"
-                                            class="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-700 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-                                            :disabled="reinforcementSubmitting"
-                                            @click="rejectAndContinue"
-                                        >
-                                            <XCircle class="size-4" />
-                                            Continue
                                         </button>
                                     </div>
                                 </div>

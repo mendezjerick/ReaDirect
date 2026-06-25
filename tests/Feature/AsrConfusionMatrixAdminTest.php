@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Services\ASR\AsrConfusionFixtureService;
+use App\Services\ASR\AsrConfusionManualHistoryService;
 use App\Services\ASR\AsrConfusionMatrixRunner;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -32,6 +33,9 @@ class AsrConfusionMatrixAdminTest extends TestCase
             $mock->shouldReceive('latestResults')->andReturn(null);
             $mock->shouldReceive('fixtureOptions')->andReturn([]);
         });
+        $this->mock(AsrConfusionManualHistoryService::class, function ($mock): void {
+            $mock->shouldReceive('latest')->andReturn([]);
+        });
 
         $this->actingAs($this->userWithRole('system_admin'))
             ->get(route('admin.confusion-matrix.index'))
@@ -39,6 +43,8 @@ class AsrConfusionMatrixAdminTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/ConfusionMatrix')
                 ->where('manifest.summary.total_fixtures', 1)
+                ->where('manualHistory', [])
+                ->where('routes.manualHistory', route('admin.confusion-matrix.manual-history'))
                 ->where('routes.runFixture', route('admin.confusion-matrix.run-fixture')));
     }
 
@@ -80,6 +86,13 @@ class AsrConfusionMatrixAdminTest extends TestCase
         $this->mock(AsrConfusionMatrixRunner::class, function ($mock) use ($fixture, $result): void {
             $mock->shouldReceive('runFixture')->with($fixture)->andReturn($result);
         });
+        $this->mock(AsrConfusionManualHistoryService::class, function ($mock) use ($result): void {
+            $mock->shouldReceive('fromManualFixture')->with($result, \Mockery::type(User::class))->andReturn([
+                'id' => 'history-1',
+                'source_mode' => 'manual_fixture',
+                'confusion_matrix_result' => 'True Negative',
+            ]);
+        });
 
         $this->actingAs($this->userWithRole('system_admin'))
             ->postJson(route('admin.confusion-matrix.run-fixture'), [
@@ -93,7 +106,28 @@ class AsrConfusionMatrixAdminTest extends TestCase
             ->assertJsonPath('result.final_correctness_result', false)
             ->assertJsonPath('result.confusion_matrix_result', 'TN')
             ->assertJsonPath('result.wrong_audible_rejected_as_invalid', false)
-            ->assertJsonPath('result.scoring_debug.beam_search', true);
+            ->assertJsonPath('result.scoring_debug.beam_search', true)
+            ->assertJsonPath('historyRow.source_mode', 'manual_fixture');
+    }
+
+    public function test_manual_history_endpoint_returns_true_sandbox_rows(): void
+    {
+        $this->mock(AsrConfusionManualHistoryService::class, function ($mock): void {
+            $mock->shouldReceive('latest')->with('true_sandbox')->andReturn([
+                [
+                    'id' => 'history-true-sandbox',
+                    'source_mode' => 'true_sandbox',
+                    'source_label' => 'True Sandbox',
+                    'confusion_matrix_result' => 'True Negative',
+                ],
+            ]);
+        });
+
+        $this->actingAs($this->userWithRole('system_admin'))
+            ->getJson(route('admin.confusion-matrix.manual-history', ['source' => 'true_sandbox']))
+            ->assertOk()
+            ->assertJsonPath('manualHistory.0.source_label', 'True Sandbox')
+            ->assertJsonPath('manualHistory.0.confusion_matrix_result', 'True Negative');
     }
 
     private function userWithRole(string $role): User

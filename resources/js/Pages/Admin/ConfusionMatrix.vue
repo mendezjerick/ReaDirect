@@ -20,6 +20,7 @@ const props = defineProps({
     manifest: Object,
     latestRun: Object,
     fixtureOptions: Array,
+    manualHistory: Array,
     routes: Object,
 });
 
@@ -27,7 +28,10 @@ const mode = ref('automated');
 const latestRun = ref(props.latestRun);
 const fixtureOptions = ref(props.fixtureOptions ?? []);
 const manualResult = ref(null);
+const manualHistory = ref(props.manualHistory ?? []);
+const manualHistorySource = ref('all');
 const manualLoading = ref(false);
+const manualHistoryLoading = ref(false);
 const refreshLoading = ref(false);
 const manualForm = ref({
     category: fixtureOptions.value[0]?.key ?? '',
@@ -49,6 +53,7 @@ const selectedCategory = computed(() => fixtureOptions.value.find(category => ca
 const selectedTask = computed(() => selectedCategory.value?.tasks?.find(task => task.key === manualForm.value.task) ?? null);
 const selectedItem = computed(() => selectedTask.value?.items?.find(item => item.key === manualForm.value.item_key) ?? null);
 const selectedFixtures = computed(() => selectedItem.value?.fixtures ?? []);
+const manualHistoryRows = computed(() => manualHistory.value ?? []);
 
 const setMode = (value) => {
     mode.value = value;
@@ -82,6 +87,20 @@ const refreshResults = async () => {
     }
 };
 
+const refreshManualHistory = async () => {
+    manualHistoryLoading.value = true;
+    try {
+        const params = new URLSearchParams();
+        if (manualHistorySource.value !== 'all') params.set('source', manualHistorySource.value);
+        const url = params.toString() ? `${props.routes.manualHistory}?${params.toString()}` : props.routes.manualHistory;
+        const response = await fetch(url, { headers: { Accept: 'application/json' } });
+        const payload = await response.json();
+        manualHistory.value = payload.manualHistory ?? [];
+    } finally {
+        manualHistoryLoading.value = false;
+    }
+};
+
 const runManualFixture = async () => {
     manualLoading.value = true;
     manualResult.value = null;
@@ -97,6 +116,11 @@ const runManualFixture = async () => {
         });
         const payload = await response.json();
         manualResult.value = payload.result ?? payload;
+        if (payload.historyRow) {
+            manualHistory.value = [payload.historyRow, ...manualHistory.value].slice(0, 100);
+        } else {
+            await refreshManualHistory();
+        }
     } finally {
         manualLoading.value = false;
     }
@@ -106,9 +130,20 @@ const pct = (value) => value === null || value === undefined ? '-' : `${Math.rou
 const metric = (value) => value === null || value === undefined ? '-' : value;
 
 const resultVariant = (result) => {
-    if (result === 'TP' || result === 'TN' || result === 'invalid_audio_rejected') return 'success';
-    if (result === 'FP' || result === 'FN' || result === 'wrong_audio_rejected' || result === 'invalid_audio_accepted') return 'danger';
+    if (result === 'TP' || result === 'TN' || result === 'True Positive' || result === 'True Negative' || result === 'invalid_audio_rejected') return 'success';
+    if (result === 'FP' || result === 'FN' || result === 'False Positive' || result === 'False Negative' || result === 'wrong_audio_rejected' || result === 'invalid_audio_accepted') return 'danger';
     return 'primary';
+};
+
+const sourceLabel = (row) => row.source_label ?? ({
+    true_sandbox: 'True Sandbox',
+    manual_fixture: 'Manual Fixture Test',
+}[row.source_mode] ?? row.source_mode ?? '-');
+
+const confidenceText = (value) => {
+    if (value === null || value === undefined || value === '') return '-';
+    const number = Number(value);
+    return Number.isFinite(number) ? `${Math.round(number * 1000) / 10}%` : String(value);
 };
 </script>
 
@@ -276,7 +311,7 @@ const resultVariant = (result) => {
             <DashboardCard v-if="latestRun" class="mt-5">
                 <h2 class="mb-4 text-sm font-bold text-text">Fixture Results</h2>
                 <div class="overflow-x-auto">
-                    <table class="min-w-[1400px] text-left text-xs">
+                    <table class="min-w-[1500px] text-left text-xs">
                         <thead class="text-[10px] uppercase tracking-wider text-muted">
                             <tr>
                                 <th class="py-2 pr-3">Category</th>
@@ -388,6 +423,83 @@ const resultVariant = (result) => {
                     <summary class="cursor-pointer text-sm font-bold text-text">Raw result JSON</summary>
                     <pre class="mt-3 max-h-[420px] overflow-auto text-xs">{{ JSON.stringify(manualResult, null, 2) }}</pre>
                 </details>
+            </DashboardCard>
+
+            <DashboardCard class="mt-5">
+                <div class="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                        <h2 class="text-sm font-bold text-text">Manual History</h2>
+                        <p class="mt-1 text-xs font-semibold text-muted">Includes True Sandbox runs and manual fixture tests.</p>
+                    </div>
+                    <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <select
+                            v-model="manualHistorySource"
+                            class="rounded-xl border border-border bg-white px-3 py-2.5 text-sm font-semibold"
+                            @change="refreshManualHistory"
+                        >
+                            <option value="all">All</option>
+                            <option value="true_sandbox">True Sandbox</option>
+                            <option value="manual_fixture">Manual Fixture Test</option>
+                        </select>
+                        <button
+                            type="button"
+                            class="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-white px-4 py-2.5 text-sm font-bold text-slate-600 transition-colors hover:border-primary/30 hover:bg-primary-light hover:text-primary"
+                            :disabled="manualHistoryLoading"
+                            @click="refreshManualHistory"
+                        >
+                            <Loader2 v-if="manualHistoryLoading" class="size-4 animate-spin" />
+                            <RefreshCw v-else class="size-4" />
+                            Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <div v-if="!manualHistoryRows.length" class="rounded-xl border border-border/60 bg-background px-4 py-6 text-sm font-semibold text-muted">
+                    No manual history has been saved yet.
+                </div>
+
+                <div v-else class="overflow-x-auto">
+                    <table class="min-w-[1400px] text-left text-xs">
+                        <thead class="text-[10px] uppercase tracking-wider text-muted">
+                            <tr>
+                                <th class="py-2 pr-3">Timestamp</th>
+                                <th class="py-2 pr-3">Source</th>
+                                <th class="py-2 pr-3">Category</th>
+                                <th class="py-2 pr-3">Task / Module</th>
+                                <th class="py-2 pr-3">Item</th>
+                                <th class="py-2 pr-3">Expected Answer</th>
+                                <th class="py-2 pr-3">Expected Audio</th>
+                                <th class="py-2 pr-3">Raw ASR</th>
+                                <th class="py-2 pr-3">Displayed Transcript</th>
+                                <th class="py-2 pr-3">Confidence Score</th>
+                                <th class="py-2 pr-3">Recording Validity</th>
+                                <th class="py-2 pr-3">Final Correctness</th>
+                                <th class="py-2 pr-3">Confusion Matrix Result</th>
+                                <th class="py-2 pr-3">Reason</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-border/60">
+                            <tr v-for="row in manualHistoryRows" :key="row.id">
+                                <td class="max-w-[170px] truncate py-2 pr-3 font-mono">{{ row.created_at }}</td>
+                                <td class="py-2 pr-3 font-semibold">{{ sourceLabel(row) }}</td>
+                                <td class="py-2 pr-3">{{ row.category ?? '-' }}</td>
+                                <td class="max-w-[150px] truncate py-2 pr-3">{{ row.task_or_module ?? '-' }}</td>
+                                <td class="max-w-[140px] truncate py-2 pr-3 font-mono">{{ row.item_key ?? '-' }}</td>
+                                <td class="max-w-[180px] truncate py-2 pr-3">{{ row.expected_answer ?? '-' }}</td>
+                                <td class="py-2 pr-3 font-semibold">{{ row.expected_result_label ?? (row.expected_should_be_correct ? 'Correct Audio' : 'Wrong Audio') }}</td>
+                                <td class="max-w-[180px] truncate py-2 pr-3">{{ row.raw_transcript || '-' }}</td>
+                                <td class="max-w-[180px] truncate py-2 pr-3">{{ row.displayed_transcript || '-' }}</td>
+                                <td class="py-2 pr-3 font-mono">{{ confidenceText(row.confidence_score ?? row.true_gop_score) }}</td>
+                                <td class="py-2 pr-3">{{ row.recording_validity ?? '-' }}</td>
+                                <td class="py-2 pr-3">{{ row.final_correctness ? 'Correct' : 'Incorrect' }}</td>
+                                <td class="py-2 pr-3">
+                                    <StatusBadge :status="row.confusion_matrix_result" :variant="resultVariant(row.confusion_matrix_result)" />
+                                </td>
+                                <td class="max-w-[280px] truncate py-2 pr-3 text-slate-600" :title="row.reason || ''">{{ row.reason || '-' }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </DashboardCard>
         </div>
     </AdminLayout>
