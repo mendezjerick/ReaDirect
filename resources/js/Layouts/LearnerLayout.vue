@@ -25,8 +25,13 @@ onErrorCaptured((err, instance, info) => {
 
 <template>
     <div
+<<<<<<< HEAD
         class="text-text relative"
         :class="assessmentTask ? 'flex h-screen flex-col overflow-hidden bg-[#EBF5FF]' : 'min-h-screen bg-[#EBF5FF]'"
+=======
+        class="text-text"
+        :class="assessmentTask ? 'learner-autumn-shell flex h-screen flex-col overflow-hidden' : 'min-h-screen bg-gradient-to-b from-slate-50 to-orange-50/30'"
+>>>>>>> 221b082f91c787ad860240b2aead36f7b517b0b0
     >
         <div v-if="errorDetails" class="absolute inset-0 z-50 bg-red-100 p-8 text-red-900 overflow-auto">
             <h2 class="text-2xl font-bold mb-4">Vue Runtime Error!</h2>
@@ -36,6 +41,7 @@ onErrorCaptured((err, instance, info) => {
         <AdminTestingToolbar />
         <header
             v-if="assessmentTask"
+<<<<<<< HEAD
             class="anim-header z-20 flex-none py-3"
         >
             <div class="learner-frame flex items-center justify-between px-2">
@@ -82,9 +88,41 @@ onErrorCaptured((err, instance, info) => {
                     :aria-label="backLabel"
                 >
                     <ArrowLeft class="size-5 stroke-[2.5]" />
+=======
+            class="anim-header z-20 flex-none px-4 pb-2 pt-1"
+        >
+            <div class="learner-frame rd-learner-assessment-header">
+                <div class="rd-learner-assessment-header-face flex min-h-16 items-center gap-3 px-5 py-2">
+                    <a href="/" class="group inline-flex shrink-0 items-center gap-2.5 text-xl font-black text-primary transition-all hover:scale-[1.02] md:text-2xl">
+                        <span class="grid size-11 place-items-center rounded-xl border-2 border-[#D9652F] bg-primary text-sm font-black text-white shadow-[0_5px_0_#B84B24,0_8px_14px_rgba(54,83,101,0.18),inset_0_2px_0_rgba(255,255,255,0.35)]">
+                            Re
+                        </span>
+                        <span class="text-text">ReaDirect</span>
+                    </a>
+
+                    <div class="ml-auto flex items-center gap-2">
+                        <AsrVisualizationToggle />
+                        <Link
+                            href="/learner/dashboard"
+                            class="rd-learner-header-icon grid size-10 place-items-center rounded-full transition"
+                            title="Home"
+                            aria-label="Home"
+                        >
+                            <Home class="size-5" />
+                        </Link>
+                    </div>
+                </div>
+            </div>
+        </header>
+        <header v-else class="anim-header sticky top-0 z-20 border-b border-orange-100/60 bg-white/90 backdrop-blur-lg">
+            <div class="learner-frame flex items-center gap-3 py-3 md:gap-4">
+                <Link v-if="backUrl" :href="backUrl" class="group flex shrink-0 items-center justify-center rounded-full bg-slate-100 p-2.5 text-slate-500 transition-all hover:bg-slate-200 hover:text-slate-800" :title="backLabel">
+                    <ArrowLeft class="size-5 transition-transform group-hover:-translate-x-0.5 md:size-6" />
+>>>>>>> 221b082f91c787ad860240b2aead36f7b517b0b0
                 </Link>
                 <div v-else class="size-12" />
 
+<<<<<<< HEAD
                 <!-- Center: title -->
                 <div class="flex flex-1 flex-col items-center gap-1.5 px-3">
                     <h1 class="text-2xl font-semibold tracking-tight text-[#1E3A8A] md:text-3xl" style="font-family: 'Fredoka', system-ui, sans-serif;">
@@ -97,9 +135,60 @@ onErrorCaptured((err, instance, info) => {
                     <AsrVisualizationToggle />
                     <SyncStatusBadge />
                 </div>
+=======
+                <a href="/" class="group inline-flex shrink-0 items-center gap-2.5 text-xl font-black text-primary transition-all hover:scale-[1.02] md:text-2xl">
+                    <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-white shadow-md shadow-primary/20 transition-shadow group-hover:shadow-lg group-hover:shadow-primary/30">
+                        <BookOpenCheck class="size-6" />
+                    </span>
+                    <span class="hidden sm:inline">ReaDirect</span>
+                </a>
+                <div v-if="visibleSteps.length" class="hidden flex-1 items-start gap-0 px-3 lg:flex">
+                    <div
+                        v-for="(step, index) in visibleSteps"
+                        :key="step.label"
+                        class="relative flex flex-1 flex-col items-center gap-2 text-center"
+                    >
+                        <div
+                            v-if="index > 0"
+                            class="absolute left-0 top-3.5 h-[3px] w-1/2 -translate-x-1/2 rounded-full transition-colors duration-300"
+                            :class="visibleSteps[index - 1]?.status === 'complete' ? 'bg-primary' : 'bg-slate-200'"
+                            aria-hidden="true"
+                        />
+                        <div
+                            v-if="index < visibleSteps.length - 1"
+                            class="absolute right-0 top-3.5 h-[3px] w-1/2 translate-x-1/2 rounded-full transition-colors duration-300"
+                            :class="step.status === 'complete' ? 'bg-primary' : 'bg-slate-200'"
+                            aria-hidden="true"
+                        />
+                        <span
+                            class="relative z-10 grid size-7 place-items-center rounded-full border-[3px] transition-all duration-300"
+                            :class="step.status === 'pending'
+                                ? 'border-slate-200 bg-white text-slate-300'
+                                : step.status === 'current'
+                                    ? 'border-primary bg-primary/10 text-primary shadow-sm shadow-primary/20'
+                                    : 'border-primary bg-primary text-white shadow-sm shadow-primary/20'"
+                        >
+                            <Check v-if="step.status === 'complete'" class="size-4 stroke-[4]" />
+                            <span v-else-if="step.status === 'current'" class="size-2.5 rounded-full bg-primary" />
+                            <span v-else class="size-2 rounded-full bg-slate-200" />
+                        </span>
+                        <span class="text-[12px] font-bold" :class="step.status === 'pending' ? 'text-slate-400' : 'text-primary'">
+                            {{ step.label }}
+                        </span>
+                    </div>
+                </div>
+                <div v-if="visibleSteps.length" class="h-3 flex-1 overflow-hidden rounded-full bg-slate-100 shadow-inner lg:hidden">
+                    <div class="h-full rounded-full bg-gradient-to-r from-warning to-primary shadow-sm shadow-primary/30 transition-all duration-500" :style="{ width: `${progress}%` }" />
+                </div>
+                <div v-else class="h-3 flex-1 overflow-hidden rounded-full bg-slate-100 shadow-inner">
+                    <div class="h-full rounded-full bg-gradient-to-r from-warning to-primary shadow-sm shadow-primary/30 transition-all duration-500" :style="{ width: `${progress}%` }" />
+                </div>
+                <AsrVisualizationToggle />
+                <SyncStatusBadge />
+>>>>>>> 221b082f91c787ad860240b2aead36f7b517b0b0
             </div>
         </header>
-        <main v-if="assessmentTask" class="learner-frame min-h-0 flex-1 overflow-hidden py-2">
+        <main v-if="assessmentTask" class="learner-frame min-h-0 flex-1 py-2">
             <slot />
         </main>
         <main v-else class="learner-frame learner-stage">
@@ -122,6 +211,33 @@ onErrorCaptured((err, instance, info) => {
 <style scoped>
 .anim-header {
     animation: headerFade 0.4s ease-out forwards;
+}
+
+.rd-learner-assessment-header {
+    border: 2px solid var(--rd-frame-border);
+    border-radius: 26px;
+    background: var(--rd-story-surface);
+    padding: 8px 14px 12px;
+    box-shadow: 0 6px 0 var(--rd-lip), 0 8px 0 var(--rd-lip-dark), 0 22px 30px -12px var(--rd-shadow);
+}
+
+.rd-learner-assessment-header-face {
+    min-width: 0;
+    border: 1.5px solid var(--rd-face-border);
+    border-radius: 18px;
+    background: var(--rd-face-surface);
+    box-shadow: inset 0 2px 0 var(--rd-highlight), inset 0 -6px 10px var(--rd-inner-shade);
+}
+
+.rd-learner-header-icon {
+    border: 2px solid var(--rd-story-border-soft);
+    background: var(--rd-story-surface);
+    color: var(--rd-text-main);
+    box-shadow: 0 4px 0 rgba(111, 101, 52, 0.16), 0 8px 14px rgba(54, 83, 101, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.rd-learner-header-icon:hover {
+    color: var(--rd-primary-orange);
 }
 @keyframes headerFade {
     from { opacity: 0; transform: translateY(-8px); }

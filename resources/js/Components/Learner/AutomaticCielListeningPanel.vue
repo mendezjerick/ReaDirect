@@ -87,6 +87,7 @@ defineExpose({
 </script>
 
 <template>
+<<<<<<< HEAD
     <section class="automatic-listening-recorder flex h-full min-h-0 flex-col items-center justify-center p-4">
         <div class="automatic-button-group">
             <AssessmentCircleButton
@@ -98,44 +99,59 @@ defineExpose({
                 <Volume2 v-if="isListeningVisual" class="automatic-circle-icon stroke-[2.6]" />
                 <Mic v-else class="automatic-circle-icon stroke-[2.6]" />
             </AssessmentCircleButton>
+=======
+    <section class="automatic-listening-recorder flex h-full min-h-0 flex-col">
+        <div class="automatic-listening-recorder-face">
+            <div class="automatic-button-group">
+                <AssessmentCircleButton
+                    :pulse="isListeningVisual && !session.isPaused.value"
+                    :disabled="!session.isActive.value && !canStart"
+                    :aria-label="buttonText"
+                    @click="handlePrimary"
+                >
+                    <Volume2 v-if="isListeningVisual" class="automatic-circle-icon stroke-[2.6]" />
+                    <Mic v-else class="automatic-circle-icon stroke-[2.6]" />
+                </AssessmentCircleButton>
+>>>>>>> 221b082f91c787ad860240b2aead36f7b517b0b0
 
-            <p class="automatic-button-label text-slate-700" aria-live="polite">
-                {{ buttonText }}
+                <p class="automatic-button-label" aria-live="polite">
+                    {{ buttonText }}
+                </p>
+            </div>
+
+            <div v-if="session.isActive.value" class="automatic-listening-meter h-1.5 w-full max-w-36 overflow-hidden rounded-full">
+                <div
+                    class="h-full rounded-full bg-primary transition-all"
+                    :style="{ width: `${Math.min(100, Math.round(session.volumeLevel.value * 1800))}%` }"
+                />
+            </div>
+
+            <p
+                v-if="session.errorMessage.value || !isSupported"
+                class="automatic-helper-text rounded-lg px-3 py-2 text-center text-xs font-black"
+            >
+                {{ helperText }}
             </p>
-        </div>
 
-        <div v-if="session.isActive.value" class="automatic-listening-meter h-1.5 w-full max-w-36 overflow-hidden rounded-full bg-slate-100">
-            <div
-                class="h-full rounded-full bg-emerald-400 transition-all"
-                :style="{ width: `${Math.min(100, Math.round(session.volumeLevel.value * 1800))}%` }"
-            />
-        </div>
-
-        <p
-            v-if="session.errorMessage.value || !isSupported"
-            class="automatic-helper-text rounded-lg bg-orange-50 px-3 py-2 text-center text-xs font-black text-orange-600 ring-1 ring-orange-200/60"
-        >
-            {{ helperText }}
-        </p>
-
-        <div class="automatic-secondary-controls flex flex-wrap justify-center gap-2">
-            <button
-                v-if="canStop && session.isActive.value"
-                type="button"
-                class="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-black text-slate-600 shadow-sm transition hover:bg-slate-50"
-                @click="stop"
-            >
-                <Square class="size-4" />
-                Stop
-            </button>
-            <button
-                type="button"
-                class="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-black text-slate-600 shadow-sm transition hover:bg-slate-50"
-                @click="emit('fallback-manual')"
-            >
-                <RotateCcw class="size-4" />
-                Manual
-            </button>
+            <div class="automatic-secondary-controls flex flex-wrap justify-center gap-2">
+                <button
+                    v-if="canStop && session.isActive.value"
+                    type="button"
+                    class="automatic-secondary-button inline-flex min-h-9 items-center justify-center gap-1.5 px-3 text-xs font-black transition"
+                    @click="stop"
+                >
+                    <Square class="size-4" />
+                    Stop
+                </button>
+                <button
+                    type="button"
+                    class="automatic-secondary-button inline-flex min-h-9 items-center justify-center gap-1.5 px-3 text-xs font-black transition"
+                    @click="emit('fallback-manual')"
+                >
+                    <RotateCcw class="size-4" />
+                    Manual
+                </button>
+            </div>
         </div>
     </section>
 </template>
@@ -144,7 +160,28 @@ defineExpose({
 .automatic-listening-recorder {
     container-type: size;
     overflow: visible;
+    border: 2px solid var(--rd-frame-border);
+    border-radius: var(--rd-radius-frame);
+    background: var(--rd-story-surface);
+    padding: 10px 12px 14px;
+    box-shadow: 0 6px 0 var(--rd-lip), 0 8px 0 var(--rd-lip-dark), 0 22px 30px -12px var(--rd-shadow);
+}
+
+.automatic-listening-recorder-face {
+    display: flex;
+    min-block-size: 0;
+    inline-size: 100%;
+    block-size: 100%;
+    flex: 1 1 auto;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: visible;
+    border: 1.5px solid var(--rd-face-border);
+    border-radius: var(--rd-radius-face);
+    background: var(--rd-face-surface);
     padding: clamp(0.45rem, min(3.5cqh, 2.4cqw), 1rem);
+    box-shadow: inset 0 2px 0 var(--rd-highlight), inset 0 -6px 10px var(--rd-inner-shade);
 }
 
 .automatic-button-group {
@@ -167,6 +204,7 @@ defineExpose({
     font-size: clamp(0.85rem, min(4cqh, 1.35vw), 1.125rem);
     font-weight: 900;
     line-height: 1.15;
+    color: var(--rd-text-main);
     overflow-wrap: anywhere;
 }
 
@@ -180,5 +218,34 @@ defineExpose({
 .automatic-helper-text,
 .automatic-secondary-controls {
     margin-block-start: clamp(0.3rem, min(2.4cqh, 1.6cqw), 0.75rem);
+}
+
+.automatic-listening-meter {
+    background: rgba(250, 247, 239, 0.9);
+    box-shadow: inset 0 2px 6px rgba(54, 83, 101, 0.08);
+}
+
+.automatic-helper-text {
+    border: 1px solid rgba(119, 47, 26, 0.18);
+    background: rgba(250, 247, 239, 0.94);
+    color: var(--rd-wrong-red);
+}
+
+.automatic-secondary-button {
+    border: 2px solid var(--rd-story-border-soft);
+    border-radius: 999px;
+    background: var(--rd-story-surface);
+    color: var(--rd-text-main);
+    box-shadow: 0 3px 0 rgba(111, 101, 52, 0.16), 0 6px 12px rgba(54, 83, 101, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.automatic-secondary-button:hover {
+    border-color: rgba(245, 133, 73, 0.36);
+    color: var(--rd-primary-orange);
+}
+
+.automatic-secondary-button:active {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 rgba(111, 101, 52, 0.16), 0 3px 8px rgba(35, 55, 70, 0.08);
 }
 </style>

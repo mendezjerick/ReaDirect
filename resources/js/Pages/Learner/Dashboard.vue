@@ -235,7 +235,7 @@ const saveListeningMode = (mode) => {
             <!-- Brand -->
             <div class="flex h-16 shrink-0 items-center justify-between gap-2 px-5">
                 <div class="flex items-center gap-2">
-                    <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-sky-400 to-blue-600 text-white shadow-md shadow-blue-500/20 ring-1 ring-white/20">
+                    <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-white shadow-md shadow-primary/20 ring-1 ring-white/20">
                         <BookOpen :size="18" />
                     </div>
                     <span class="text-lg font-black tracking-tight text-slate-800">ReaDirect</span>
@@ -253,7 +253,7 @@ const saveListeningMode = (mode) => {
             <nav class="flex-1 space-y-1.5 overflow-y-auto px-4 pt-4">
                 <a
                     href="/learner/dashboard"
-                    class="flex items-center gap-3 rounded-[16px] bg-gradient-to-r from-sky-50 to-blue-50/50 px-4 py-3 text-sm font-black text-blue-600 ring-1 ring-blue-100/50 transition-all"
+                    class="flex items-center gap-3 rounded-[16px] bg-primary-light px-4 py-3 text-sm font-black text-primary ring-1 ring-primary/15 transition-all"
                     @click="sidebarOpen = false"
                 >
                     <Home :size="18" />
@@ -295,7 +295,7 @@ const saveListeningMode = (mode) => {
 
             <!-- Mascot card at bottom -->
             <div class="m-4 rounded-[24px] border border-slate-200/80 bg-slate-50/50 p-4 text-center shadow-sm">
-                <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-400 to-blue-600 text-white shadow-md shadow-blue-500/20 ring-1 ring-white/20">
+                <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-white shadow-md shadow-primary/20 ring-1 ring-white/20">
                     <GraduationCap :size="24" />
                 </div>
                 <p class="mt-3 text-[12px] font-black leading-snug text-slate-600">
@@ -324,7 +324,7 @@ const saveListeningMode = (mode) => {
                 <!-- Right side controls -->
                 <div class="flex items-center gap-3">
                     <div class="flex items-center gap-2 rounded-full border border-slate-200/80 bg-white py-1 pl-1 pr-4 shadow-sm xl:py-1.5 xl:pl-1.5 xl:pr-5">
-                        <div class="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-sky-400 to-blue-600 text-sm font-black text-white shadow-sm shadow-blue-500/20 xl:h-9 xl:w-9">
+                        <div class="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-black text-white shadow-sm shadow-primary/20 xl:h-9 xl:w-9">
                             {{ initial }}
                         </div>
                         <span class="hidden text-sm font-black text-slate-700 sm:inline xl:text-base">{{ firstName }}</span>
@@ -337,7 +337,7 @@ const saveListeningMode = (mode) => {
             <main class="flex flex-1 flex-col gap-3 p-3 sm:p-4 xl:gap-4">
 
                 <!-- ──── HERO ──── -->
-                <section class="relative shrink-0 overflow-hidden rounded-[36px] bg-gradient-to-br from-sky-400 to-blue-600 p-6 text-white shadow-xl shadow-blue-500/20 sm:p-8 xl:p-10">
+                <section class="relative shrink-0 overflow-hidden rounded-[36px] bg-gradient-to-br from-primary to-orange-500 p-6 text-white shadow-xl shadow-primary/20 sm:p-8 xl:p-10">
                     <!-- Decorative blob -->
                     <div class="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
                     <div class="pointer-events-none absolute -bottom-10 right-40 h-32 w-32 rounded-full bg-white/5 blur-2xl" />
@@ -358,7 +358,7 @@ const saveListeningMode = (mode) => {
                             </p>
                             <Link
                                 :href="primaryActionRoute"
-                                class="mt-6 inline-flex items-center gap-3 rounded-[20px] bg-white px-6 py-3 text-base font-black text-blue-600 shadow-lg shadow-black/5 ring-1 ring-black/5 transition-all duration-200 hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-blue-50 hover:shadow-xl active:scale-[0.98] xl:px-8 xl:py-4 xl:text-lg"
+                                class="mt-6 inline-flex items-center gap-3 rounded-[20px] bg-white px-6 py-3 text-base font-black text-primary shadow-lg shadow-black/5 ring-1 ring-black/5 transition-all duration-200 hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-orange-50 hover:shadow-xl active:scale-[0.98] xl:px-8 xl:py-4 xl:text-lg"
                             >
                                 <Sparkles :size="20" />
                                 {{ primaryActionLabel }}
@@ -418,7 +418,7 @@ const saveListeningMode = (mode) => {
                             :key="option.value"
                             type="button"
                             class="group min-h-[132px] rounded-[24px] border-2 p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-70 xl:p-5"
-                            :class="currentListeningMode === option.value ? 'border-primary bg-blue-50/70 shadow-md shadow-blue-100/50' : 'border-slate-200 bg-slate-50/40'"
+                            :class="currentListeningMode === option.value ? 'border-primary bg-orange-50/70 shadow-md shadow-orange-100/50' : 'border-slate-200 bg-slate-50/40'"
                             :aria-pressed="currentListeningMode === option.value"
                             :disabled="listeningModeForm.processing"
                             @click="saveListeningMode(option.value)"
@@ -459,7 +459,7 @@ const saveListeningMode = (mode) => {
                         <Link
                             v-if="isDone"
                             :href="props.flowState?.diagnostic?.is_completed ? '/learner/diagnostic/reading-summary' : primaryActionRoute"
-                            class="flex items-center gap-1.5 rounded-full border border-blue-200/60 bg-blue-50/50 px-4 py-2 text-sm font-bold text-primary transition-all hover:bg-blue-100/50"
+                            class="flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary-light px-4 py-2 text-sm font-bold text-primary transition-all hover:bg-orange-50"
                         >
                             <Eye :size="16" />
                             <span>View Full Result</span>
@@ -530,10 +530,10 @@ const saveListeningMode = (mode) => {
                                 class="group relative flex flex-col overflow-hidden rounded-[28px] border-2 border-primary bg-white p-5 text-left shadow-lg shadow-primary/10 transition-all duration-200 hover:-translate-y-1 hover:shadow-xl xl:p-6"
                             >
                                 <div class="flex items-start justify-between gap-3">
-                                    <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-blue-600 text-lg font-black text-white shadow-md shadow-blue-500/20 ring-1 ring-white/20 xl:h-14 xl:w-14 xl:text-xl">
+                                    <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-orange-500 text-lg font-black text-white shadow-md shadow-primary/20 ring-1 ring-white/20 xl:h-14 xl:w-14 xl:text-xl">
                                         {{ m.sequence ?? '?' }}
                                     </div>
-                                    <span class="rounded-full bg-blue-100 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-primary xl:text-[11px]">
+                                    <span class="rounded-full bg-primary-light px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-primary xl:text-[11px]">
                                         Current Module
                                     </span>
                                 </div>
@@ -543,7 +543,7 @@ const saveListeningMode = (mode) => {
 
                                 <div class="flex-1 min-h-[1.5rem]" />
 
-                                <div class="mt-4 flex items-center justify-between gap-2 rounded-xl bg-gradient-to-br from-primary to-blue-600 px-4 py-3 text-sm font-black text-white shadow-md shadow-blue-500/20 transition-all group-hover:scale-[1.02] xl:px-5 xl:py-3.5 xl:text-base">
+                                <div class="mt-4 flex items-center justify-between gap-2 rounded-xl bg-gradient-to-br from-primary to-orange-500 px-4 py-3 text-sm font-black text-white shadow-md shadow-primary/20 transition-all group-hover:scale-[1.02] xl:px-5 xl:py-3.5 xl:text-base">
                                     <span>Continue Learning</span>
                                     <ArrowRight :size="18" class="stroke-[3] transition-transform group-hover:translate-x-1" />
                                 </div>
@@ -576,7 +576,7 @@ const saveListeningMode = (mode) => {
                             </article>
                         </template>
                     </div>
-                    <div v-if="['grade_ready', 'final_reassessment_pending', 'final_reassessment_in_progress', 'final_reassessment_completed', 'completed'].includes(currentStage)" class="mt-5 rounded-[24px] border border-blue-200/60 bg-blue-50/50 px-6 py-4 text-base font-bold text-primary">
+                    <div v-if="['grade_ready', 'final_reassessment_pending', 'final_reassessment_in_progress', 'final_reassessment_completed', 'completed'].includes(currentStage)" class="mt-5 rounded-[24px] border border-primary/20 bg-primary-light px-6 py-4 text-base font-bold text-primary">
                         {{ primaryMessage }}
                     </div>
                 </section>

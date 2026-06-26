@@ -119,20 +119,31 @@ const promptDensity = computed(() => {
 
 .assessment-prompt-text-label {
     margin: 0;
+<<<<<<< HEAD
     font-family: 'Fredoka', system-ui, sans-serif;
     font-size: clamp(0.62rem, 1.3dvh, 0.78rem);
     font-weight: 600;
     letter-spacing: 0.07em;
     text-transform: uppercase;
     color: rgb(148 163 184);
+=======
+    font-size: clamp(0.78rem, 1.7dvh, 1rem);
+    font-weight: 900;
+    letter-spacing: 0;
+    color: var(--rd-text-muted);
+>>>>>>> 221b082f91c787ad860240b2aead36f7b517b0b0
 }
 
 .assessment-prompt-text-body {
     margin: 0;
     max-width: 100%;
     min-width: 0;
+<<<<<<< HEAD
     font-family: 'Fredoka', system-ui, sans-serif;
     color: #1E3A8A;
+=======
+    color: var(--rd-text-main);
+>>>>>>> 221b082f91c787ad860240b2aead36f7b517b0b0
     font-size: var(--prompt-font-size);
     font-weight: 600;
     line-height: 1.12;
@@ -142,8 +153,9 @@ const promptDensity = computed(() => {
 }
 
 .assessment-prompt-text--letter .assessment-prompt-text-body {
-    --prompt-font-size: clamp(3.4rem, min(70cqh, 18cqw), 12rem);
+    --prompt-font-size: clamp(6rem, min(70cqh, 18cqw), 11rem);
     line-height: 0.9;
+    text-shadow: 0 3px 0 rgba(255, 255, 255, 0.8), 0 6px 14px rgba(54, 83, 101, 0.18);
 }
 
 .assessment-prompt-text--word .assessment-prompt-text-body {
@@ -166,6 +178,7 @@ const promptDensity = computed(() => {
 }
 
 .assessment-prompt-text-mark {
+<<<<<<< HEAD
     border-radius: 0.8rem;
     background: linear-gradient(145deg, #fef08a, #fde047);
     padding: 0.06em 0.46em;
@@ -174,5 +187,12 @@ const promptDensity = computed(() => {
         inset 0 0 0 1.5px rgba(202, 138, 4, 0.4),
         0 2px 6px rgba(202, 138, 4, 0.18);
     font-weight: 900;
+=======
+    border-radius: 0.75rem;
+    background: rgba(238, 193, 112, 0.42);
+    padding: 0 0.32em;
+    color: var(--rd-text-main);
+    box-shadow: inset 0 0 0 1px rgba(238, 193, 112, 0.62);
+>>>>>>> 221b082f91c787ad860240b2aead36f7b517b0b0
 }
 </style>

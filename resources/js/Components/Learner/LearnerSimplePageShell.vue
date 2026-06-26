@@ -25,7 +25,7 @@ const navItems = [
 </script>
 
 <template>
-    <div class="flex min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30 text-slate-800 lg:flex-row">
+    <div class="flex min-h-screen bg-gradient-to-br from-slate-50 to-orange-50/30 text-slate-800 lg:flex-row">
         <Transition name="overlay">
             <button
                 v-if="sidebarOpen"
@@ -42,7 +42,7 @@ const navItems = [
         >
             <div class="flex h-16 shrink-0 items-center justify-between gap-2 px-5">
                 <Link href="/learner/dashboard" class="flex items-center gap-2.5" @click="sidebarOpen = false">
-                    <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-400 to-blue-600 text-white shadow-md shadow-blue-500/20">
+                    <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-white shadow-md shadow-primary/20">
                         <BookOpen :size="18" stroke-width="2.5" />
                     </span>
                     <span class="text-lg font-black tracking-tight text-slate-800">ReaDirect</span>
@@ -64,7 +64,7 @@ const navItems = [
                     :href="item.href"
                     class="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold transition-all duration-200"
                     :class="active === item.key
-                        ? 'bg-gradient-to-r from-sky-50 to-blue-50/50 font-black text-blue-700 shadow-sm ring-1 ring-blue-200/50'
+                        ? 'bg-primary-light font-black text-primary shadow-sm ring-1 ring-primary/20'
                         : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'"
                     @click="sidebarOpen = false"
                 >
@@ -74,9 +74,9 @@ const navItems = [
             </nav>
 
             <div class="m-3 rounded-[24px] border border-slate-200/60 bg-slate-50/80 p-4 shadow-sm">
-                <p class="text-[11px] font-black uppercase tracking-widest text-blue-600">Signed in as</p>
+                <p class="text-[11px] font-black uppercase tracking-widest text-primary">Signed in as</p>
                 <div class="mt-2.5 flex items-center gap-3">
-                    <span class="grid size-10 place-items-center rounded-2xl bg-gradient-to-br from-sky-400 to-blue-600 text-sm font-black text-white shadow-sm">{{ initial }}</span>
+                    <span class="grid size-10 place-items-center rounded-2xl bg-primary text-sm font-black text-white shadow-sm shadow-primary/20">{{ initial }}</span>
                     <div class="min-w-0">
                         <p class="truncate text-sm font-black text-slate-800">{{ firstName }}</p>
                         <p class="truncate text-xs font-semibold text-slate-400">{{ learner?.learner_code ?? 'Learner' }}</p>
@@ -90,13 +90,13 @@ const navItems = [
                 <div class="flex min-w-0 items-center gap-3">
                     <button
                         type="button"
-                        class="rounded-xl p-2 text-blue-600 transition-colors hover:bg-blue-50 lg:hidden"
+                        class="rounded-xl p-2 text-primary transition-colors hover:bg-primary-light lg:hidden"
                         aria-label="Open menu"
                         @click="sidebarOpen = true"
                     >
                         <Menu :size="20" />
                     </button>
-                    <Link href="/learner/dashboard" class="hidden items-center gap-2 rounded-full bg-blue-50 px-3.5 py-2 text-xs font-black text-blue-600 ring-1 ring-blue-200/60 transition-all hover:bg-blue-100/50 sm:inline-flex">
+                    <Link href="/learner/dashboard" class="hidden items-center gap-2 rounded-full bg-primary-light px-3.5 py-2 text-xs font-black text-primary ring-1 ring-primary/20 transition-all hover:bg-surface sm:inline-flex">
                         <ChevronLeft :size="14" stroke-width="3" />
                         Dashboard
                     </Link>
@@ -108,7 +108,7 @@ const navItems = [
                 <div class="flex items-center gap-2">
                     <AsrVisualizationToggle />
                     <div class="flex items-center gap-2 rounded-full bg-white py-1 pl-1 pr-3 shadow-sm ring-1 ring-slate-200/80">
-                        <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-sky-400 to-blue-600 text-sm font-black text-white">
+                        <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-sm font-black text-white">
                             {{ initial }}
                         </div>
                         <span class="hidden text-sm font-bold text-slate-700 sm:inline">{{ firstName }}</span>

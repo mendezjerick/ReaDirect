@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { MessageSquareText } from 'lucide-vue-next';
 import { useAsrVisualization } from '../../Composables/useAsrVisualization';
 
 const props = defineProps({
@@ -477,33 +478,47 @@ onBeforeUnmount(() => {
         <div class="mb-3 flex items-center justify-between gap-3">
             <div class="min-w-0">
                 <p class="truncate text-[11px] font-black uppercase tracking-[0.16em] text-primary">{{ stageTitle }}</p>
-                <p class="mt-0.5 text-[11px] font-bold text-slate-400">
+                <p class="mt-0.5 text-[11px] font-bold text-muted">
                     {{ stageNumber ? `Stage ${stageNumber} of ${totalStages}` : 'Stopped' }}
                 </p>
             </div>
-            <span class="shrink-0 rounded-full bg-primary/8 px-2.5 py-1 text-[11px] font-black text-primary ring-1 ring-primary/15">
+            <span class="shrink-0 rounded-full bg-primary-light px-2.5 py-1 text-[11px] font-black text-primary ring-1 ring-primary/15">
                 Re
             </span>
         </div>
 
-        <div class="mb-3 h-1.5 overflow-hidden rounded-full bg-slate-200/70">
-            <div class="h-full rounded-full bg-gradient-to-r from-primary to-blue-500 transition-all duration-200" :style="{ width: `${progress}%` }" />
+        <div class="mb-3 h-1.5 overflow-hidden rounded-full bg-primary-light">
+            <div class="h-full rounded-full bg-gradient-to-r from-warning to-primary transition-all duration-200" :style="{ width: `${progress}%` }" />
         </div>
 
-        <pre class="asr-visualizer-text m-0 whitespace-pre-wrap break-words font-mono text-[13px] font-bold leading-relaxed text-slate-800 sm:text-sm">{{ displayText }}</pre>
-        <p v-if="resolvedTraceNotes.length" class="mt-3 text-[11px] font-semibold leading-snug text-slate-500">
+        <pre class="asr-visualizer-text m-0 whitespace-pre-wrap break-words font-mono text-[13px] font-bold leading-relaxed text-text sm:text-sm">{{ displayText }}</pre>
+        <p v-if="resolvedTraceNotes.length" class="mt-3 text-[11px] font-semibold leading-snug text-muted">
             {{ resolvedTraceNotes.join(' ') }}
         </p>
     </div>
 
     <slot v-else name="normal" :transcript="finalTranscript" :placeholder="placeholderText">
         <textarea
-            v-if="normalMode === 'textarea'"
+            v-if="normalMode === 'textarea' && finalTranscript"
             :value="finalTranscript"
             :class="boxClass"
             readonly
             :placeholder="placeholderText"
         />
+        <div
+            v-else-if="normalMode === 'textarea'"
+            :class="[boxClass, 'rd-transcript-empty-state']"
+            role="status"
+            aria-live="polite"
+        >
+            <span class="rd-transcript-empty-icon" aria-hidden="true">
+                <MessageSquareText class="size-5" />
+            </span>
+            <span class="rd-transcript-empty-copy">
+                <span class="rd-transcript-empty-title">{{ placeholderText }}</span>
+                <span class="rd-transcript-empty-helper">Your spoken answer will be transcribed here.</span>
+            </span>
+        </div>
         <div v-else :class="boxClass">
             <span v-if="finalTranscript">{{ finalTranscript }}</span>
             <span v-else :class="placeholderClass">{{ placeholderText }}</span>
@@ -513,14 +528,61 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .asr-visualizer-box {
-    background:
-        linear-gradient(135deg, rgba(239, 246, 255, 0.95), rgba(255, 255, 255, 0.98)),
-        #ffffff;
+    border: 0;
+    border-radius: 24px;
+    background: transparent;
     min-height: 0;
     overscroll-behavior: contain;
 }
 
 .asr-visualizer-text {
     min-height: 4.5rem;
+}
+
+.rd-transcript-empty-state {
+    display: flex;
+    min-height: 0;
+    height: 100%;
+    align-items: center;
+    gap: clamp(0.85rem, 1.5vw, 1.25rem);
+    border: 0 !important;
+    border-radius: 24px !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: var(--rd-text-main) !important;
+    resize: none;
+}
+
+.rd-transcript-empty-icon {
+    display: grid;
+    width: clamp(2.6rem, 5.5dvh, 3.35rem);
+    height: clamp(2.6rem, 5.5dvh, 3.35rem);
+    flex: 0 0 auto;
+    place-items: center;
+    border: 2px solid var(--rd-story-border-soft);
+    border-radius: 999px;
+    background: var(--rd-story-surface);
+    color: var(--rd-brown);
+    box-shadow: 0 4px 0 rgba(111, 101, 52, 0.18), 0 8px 14px rgba(54, 83, 101, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.rd-transcript-empty-copy {
+    display: grid;
+    min-width: 0;
+    gap: 0.25rem;
+}
+
+.rd-transcript-empty-title {
+    color: var(--rd-text-main);
+    font-size: clamp(1rem, 2.3dvh, 1.35rem);
+    font-weight: 900;
+    line-height: 1.15;
+}
+
+.rd-transcript-empty-helper {
+    color: rgba(111, 101, 52, 0.68);
+    font-size: clamp(0.82rem, 1.8dvh, 1rem);
+    font-weight: 800;
+    line-height: 1.25;
 }
 </style>

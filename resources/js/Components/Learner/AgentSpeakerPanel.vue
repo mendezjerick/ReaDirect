@@ -286,6 +286,7 @@ watch(
             @speaking-end="handleSpeakingEnd"
             @error="handleTtsError"
         />
+<<<<<<< HEAD
         <div
             class="pointer-events-none absolute -right-6 -top-6 h-40 w-40 rounded-full bg-primary/5 blur-3xl"
         />
@@ -293,6 +294,11 @@ watch(
             class="pointer-events-none absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-blue-400/5 blur-3xl"
         />
 
+=======
+        <div class="pointer-events-none absolute -right-6 -top-6 h-40 w-40 rounded-full bg-primary/5 blur-3xl" />
+        <div class="pointer-events-none absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-accent/10 blur-3xl" />
+        
+>>>>>>> 221b082f91c787ad860240b2aead36f7b517b0b0
         <div class="relative grid justify-items-center">
             <div class="agent-media-box">
                 <AgentVideoPlayer
@@ -365,12 +371,17 @@ watch(
             @speaking-end="handleSpeakingEnd"
             @error="handleTtsError"
         />
+<<<<<<< HEAD
         <div
             class="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/5 blur-3xl"
         />
         <div
             class="pointer-events-none absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-blue-400/5 blur-3xl"
         />
+=======
+        <div class="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/5 blur-3xl" />
+        <div class="pointer-events-none absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-accent/10 blur-3xl" />
+>>>>>>> 221b082f91c787ad860240b2aead36f7b517b0b0
 
         <div class="grid justify-items-center">
             <div class="agent-media-box">
@@ -470,6 +481,7 @@ watch(
             @speaking-end="handleSpeakingEnd"
             @error="handleTtsError"
         />
+<<<<<<< HEAD
         <div
             class="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/5 blur-3xl"
         />
@@ -477,6 +489,11 @@ watch(
             class="pointer-events-none absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-blue-400/5 blur-3xl"
         />
 
+=======
+        <div class="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/5 blur-3xl" />
+        <div class="pointer-events-none absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-accent/10 blur-3xl" />
+        
+>>>>>>> 221b082f91c787ad860240b2aead36f7b517b0b0
         <div class="relative grid justify-items-center">
             <div class="agent-media-box">
                 <AgentVideoPlayer
@@ -561,6 +578,7 @@ watch(
                 />
             </div>
         </div>
+<<<<<<< HEAD
         <div
             class="relative mt-4 rounded-[22px] border border-blue-200 bg-surface p-4 shadow-sm shadow-primary/10 sm:mt-5 sm:p-5 xl:rounded-[26px] xl:p-6"
         >
@@ -568,6 +586,10 @@ watch(
                 class="absolute left-1/2 top-0 size-8 -translate-x-1/2 -translate-y-1/2 rotate-45 border-l border-t border-blue-200 bg-surface"
                 aria-hidden="true"
             />
+=======
+        <div class="relative mt-4 rounded-[22px] border border-primary/20 bg-surface p-4 shadow-sm shadow-primary/10 sm:mt-5 sm:p-5 xl:rounded-[26px] xl:p-6">
+            <span class="absolute left-1/2 top-0 size-8 -translate-x-1/2 -translate-y-1/2 rotate-45 border-l border-t border-primary/20 bg-surface" aria-hidden="true" />
+>>>>>>> 221b082f91c787ad860240b2aead36f7b517b0b0
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div class="flex items-center gap-3">
                     <span
@@ -642,6 +664,7 @@ watch(
             @speaking-end="handleSpeakingEnd"
             @error="handleTtsError"
         />
+<<<<<<< HEAD
         <div
             class="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/5 blur-3xl"
         />
@@ -649,6 +672,11 @@ watch(
             class="pointer-events-none absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-blue-400/5 blur-3xl"
         />
 
+=======
+        <div class="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/5 blur-3xl" />
+        <div class="pointer-events-none absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-accent/10 blur-3xl" />
+        
+>>>>>>> 221b082f91c787ad860240b2aead36f7b517b0b0
         <div class="grid justify-items-center">
             <div class="agent-media-box">
                 <AgentVideoPlayer
@@ -748,19 +776,22 @@ watch(
         />
 
         <div class="assessment-agent-card">
-            <div class="assessment-agent-square">
-                <AgentVideoPlayer
-                    :agent="agentType"
-                    :action="mediaState"
-                    :alt="displayTitle"
-                    :allow-congrats="allowCongrats"
-                    class="agent-media-content"
-                    @interaction-ended="emit('interaction-ended', $event)"
-                />
+            <div class="assessment-agent-card-face">
+                <div class="assessment-agent-square">
+                    <AgentVideoPlayer
+                        :agent="agentType"
+                        :action="mediaState"
+                        :alt="displayTitle"
+                        :allow-congrats="allowCongrats"
+                        class="agent-media-content"
+                        @interaction-ended="emit('interaction-ended', $event)"
+                    />
+                </div>
             </div>
         </div>
 
         <div class="assessment-agent-dialogue">
+<<<<<<< HEAD
             <div class="flex flex-col w-full h-full justify-center min-w-0">
                 <div class="w-full mb-1">
                     <span
@@ -793,10 +824,33 @@ watch(
                     >
                         <VolumeX v-if="isMuted" class="size-3.5" />
                         <Volume2 v-else class="size-3.5" />
+=======
+            <div class="assessment-agent-dialogue-face">
+                <div class="assessment-agent-dialogue-copy">
+                    <p class="assessment-agent-dialogue-name">{{ displayTitle }}</p>
+                    <p class="assessment-agent-dialogue-text">
+                        {{ displayMessage }}
+                    </p>
+                    <p v-if="ttsError" class="assessment-agent-dialogue-error">
+                        {{ ttsError }}
+                    </p>
+                </div>
+                <div class="flex shrink-0 items-center gap-2">
+                    <button
+                        v-if="ttsEnabled || showAudioButton"
+                        type="button"
+                        class="assessment-agent-audio-button grid size-9 place-items-center rounded-full transition"
+                        :aria-label="isMuted ? 'Unmute agent voice' : 'Mute agent voice'"
+                        @click="toggleMute"
+                    >
+                        <VolumeX v-if="isMuted" class="size-4" />
+                        <Volume2 v-else class="size-4" />
+>>>>>>> 221b082f91c787ad860240b2aead36f7b517b0b0
                     </button>
                     <button
                         v-if="ttsEnabled || showAudioButton"
                         type="button"
+<<<<<<< HEAD
                         class="grid size-8 place-items-center rounded-full bg-primary/10 text-primary ring-1 ring-primary/15 transition hover:bg-primary hover:text-white"
                         aria-label="Replay agent message"
                         @click="replayMessage"
@@ -811,6 +865,16 @@ watch(
             >
                 {{ ttsError }}
             </p>
+=======
+                        class="assessment-agent-audio-button grid size-9 place-items-center rounded-full transition"
+                        aria-label="Replay agent message"
+                        @click="replayMessage"
+                    >
+                        <RotateCcw class="size-4" />
+                    </button>
+                </div>
+            </div>
+>>>>>>> 221b082f91c787ad860240b2aead36f7b517b0b0
         </div>
     </section>
     <section
@@ -958,10 +1022,14 @@ watch(
                     </p>
                 </div>
                 <div class="flex items-center gap-2">
+<<<<<<< HEAD
                     <span
                         class="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-black text-blue-600 ring-1 ring-blue-200/60"
                         >{{ stateLabel }}</span
                     >
+=======
+                    <span class="rounded-full bg-primary-light px-2.5 py-1 text-[11px] font-black text-primary ring-1 ring-primary/15">{{ stateLabel }}</span>
+>>>>>>> 221b082f91c787ad860240b2aead36f7b517b0b0
                     <button
                         v-if="ttsEnabled || showAudioButton"
                         type="button"
@@ -1031,6 +1099,7 @@ watch(
 
 .assessment-agent-strip {
     display: grid;
+<<<<<<< HEAD
     grid-template-columns: auto minmax(0, 1fr);
     align-items: stretch;
     gap: 0;
@@ -1054,6 +1123,43 @@ watch(
     border-radius: 20px;
     background: transparent;
     padding: 0;
+=======
+    grid-template-columns: var(--assessment-agent-row, clamp(7.5rem, 17dvh, 11.25rem)) minmax(0, 1fr);
+    align-items: stretch;
+    gap: clamp(0.8rem, 1.4vw, 1.15rem);
+    height: var(--assessment-agent-row, clamp(7.5rem, 17dvh, 11.25rem));
+    min-height: 0;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    transition: box-shadow 150ms ease;
+}
+
+.assessment-agent-card {
+    display: block;
+    min-height: 0;
+    height: 100%;
+    aspect-ratio: 1 / 1;
+    overflow: visible;
+    border: 2px solid var(--rd-frame-border);
+    border-radius: 22px;
+    background: var(--rd-story-surface);
+    padding: 7px 7px 10px;
+    box-shadow: 0 6px 0 var(--rd-lip), 0 8px 0 var(--rd-lip-dark), 0 22px 30px -12px var(--rd-shadow);
+}
+
+.assessment-agent-card-face {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    border: 1.5px solid var(--rd-face-border);
+    border-radius: 15px;
+    background: var(--rd-face-surface);
+    box-shadow: inset 0 2px 0 var(--rd-highlight), inset 0 -6px 10px var(--rd-inner-shade);
+>>>>>>> 221b082f91c787ad860240b2aead36f7b517b0b0
 }
 
 .assessment-agent-square {
@@ -1063,29 +1169,21 @@ watch(
     height: 100%;
     place-items: center;
     overflow: hidden;
+<<<<<<< HEAD
     border-radius: 20px;
     background: #ebf5ff;
     border: 4px solid rgba(255, 255, 255, 0.9);
     box-shadow: 0 4px 12px rgba(30, 58, 138, 0.1);
-}
-
-.assessment-agent-name {
-    min-height: clamp(0.85rem, 1.7dvh, 1.05rem);
-    margin: 0;
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    text-align: center;
-    font-size: clamp(0.58rem, 1.05dvh, 0.72rem);
-    font-weight: 900;
-    line-height: 1;
-    letter-spacing: 0;
-    color: rgb(51 65 85);
+=======
+    border: 0;
+    border-radius: inherit;
+    background: transparent;
+>>>>>>> 221b082f91c787ad860240b2aead36f7b517b0b0
 }
 
 .assessment-agent-dialogue {
     position: relative;
+<<<<<<< HEAD
     display: flex;
     min-width: 0;
     flex-direction: column;
@@ -1110,6 +1208,101 @@ watch(
     border-top: 14px solid transparent;
     border-bottom: 14px solid transparent;
     border-right: 14px solid #ffffff;
+=======
+    display: grid;
+    height: var(--assessment-agent-row, clamp(7.5rem, 17dvh, 11.25rem));
+    min-width: 0;
+    overflow: visible;
+    border: 2px solid var(--rd-frame-border);
+    border-radius: var(--rd-radius-frame);
+    background: var(--rd-story-surface);
+    padding: 10px 12px 14px;
+    box-shadow: 0 6px 0 var(--rd-lip), 0 8px 0 var(--rd-lip-dark), 0 22px 30px -12px var(--rd-shadow);
+}
+
+.assessment-agent-dialogue::before {
+    content: '';
+    position: absolute;
+    left: -0.9rem;
+    top: 50%;
+    width: 1.7rem;
+    height: 1.7rem;
+    border-left: 2px solid var(--rd-frame-border);
+    border-bottom: 2px solid var(--rd-frame-border);
+    background: var(--rd-story-surface);
+    transform: translateY(-50%) rotate(45deg);
+    box-shadow: -3px 3px 0 rgba(112, 84, 44, 0.08);
+}
+
+.assessment-agent-dialogue-face {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    align-items: center;
+    gap: 1rem;
+    overflow: hidden;
+    border: 1.5px solid var(--rd-face-border);
+    border-radius: var(--rd-radius-face);
+    background: var(--rd-face-surface);
+    padding: clamp(0.62rem, 1.35dvh, 1rem) clamp(0.72rem, 1.25vw, 1.05rem);
+    box-shadow: inset 0 2px 0 var(--rd-highlight), inset 0 -6px 10px var(--rd-inner-shade);
+}
+
+.assessment-agent-dialogue-copy {
+    display: grid;
+    min-width: 0;
+    flex: 1 1 auto;
+    align-content: center;
+    gap: clamp(0.18rem, 0.5dvh, 0.35rem);
+}
+
+.assessment-agent-dialogue-name {
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: clamp(0.9rem, 1.8dvh, 1.15rem);
+    font-weight: 900;
+    line-height: 1.1;
+    letter-spacing: 0;
+    color: var(--rd-primary-orange);
+}
+
+.assessment-agent-dialogue-text {
+    margin: 0;
+    overflow: hidden;
+    font-size: clamp(1rem, 2.1dvh, 1.25rem);
+    font-weight: 900;
+    line-height: 1.18;
+    letter-spacing: 0;
+    color: var(--rd-text-main);
+}
+
+.assessment-agent-dialogue-error {
+    margin: 0;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--rd-text-muted);
+}
+
+.assessment-agent-audio-button {
+    border: 2px solid var(--rd-story-border-soft);
+    background: var(--rd-story-surface);
+    color: var(--rd-text-main);
+    box-shadow: 0 4px 0 rgba(111, 101, 52, 0.18), 0 8px 14px rgba(54, 83, 101, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.assessment-agent-audio-button:hover {
+    background: var(--rd-gold);
+    color: var(--rd-text-main);
+}
+
+.assessment-agent-audio-button:active {
+    transform: translateY(3px);
+    box-shadow: 0 1px 0 rgba(111, 101, 52, 0.18), 0 4px 10px rgba(35, 55, 70, 0.08);
+>>>>>>> 221b082f91c787ad860240b2aead36f7b517b0b0
 }
 
 .assessment-agent-square :deep(.agent-media-player),

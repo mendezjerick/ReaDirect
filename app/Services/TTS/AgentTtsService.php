@@ -25,8 +25,9 @@ class AgentTtsService
                 'miss_estelle' => AgentIdentity::displayName(AgentIdentity::MISS_ESTELLE),
                 default => AgentIdentity::displayName(AgentIdentity::MISS_VIVIAN),
             },
-            'voice' => config('readirect.tts.voices.'.$canonical),
-            'speed' => (float) config('readirect.tts.speeds.'.$canonical),
+            'voice' => $this->voiceForAgent($canonical),
+            'speed' => $this->speedForAgent($canonical),
+            'speed_range' => config('readirect.tts.speed_ranges.'.$canonical),
         ];
     }
 
@@ -58,6 +59,11 @@ class AgentTtsService
                     'voice' => null,
                     'speed' => $profile['speed'],
                     'cache' => (bool) config('readirect.tts.cache_enabled'),
+                    'context' => 'agent_narration',
+                    'humanize' => (bool) config('readirect.tts.humanization.text_humanizer_enabled', true),
+                    'delivery_control' => (bool) config('readirect.tts.humanization.delivery_control_enabled', true),
+                    'audio_humanizer' => (bool) config('readirect.tts.humanization.audio_humanizer_enabled', true),
+                    'pause_control' => (bool) config('readirect.tts.humanization.pause_control_enabled', true),
                 ]);
         } catch (ConnectionException $exception) {
             $this->logFailure('connection_failed', $exception->getMessage());
@@ -179,6 +185,11 @@ class AgentTtsService
     {
         return hash('sha256', implode('|', [
             config('readirect.tts.provider', 'kokoro'),
+            config('readirect.tts.humanization.cache_version', 'humanized-v1'),
+            (bool) config('readirect.tts.humanization.text_humanizer_enabled', true) ? 'humanize:on' : 'humanize:off',
+            (bool) config('readirect.tts.humanization.delivery_control_enabled', true) ? 'delivery:on' : 'delivery:off',
+            (bool) config('readirect.tts.humanization.audio_humanizer_enabled', true) ? 'audio:on' : 'audio:off',
+            (bool) config('readirect.tts.humanization.pause_control_enabled', true) ? 'pause:on' : 'pause:off',
             $profile['agent'],
             $profile['voice'],
             number_format((float) $profile['speed'], 2, '.', ''),
@@ -236,6 +247,28 @@ class AgentTtsService
     private function latency(float $started): int
     {
         return (int) round((microtime(true) - $started) * 1000);
+    }
+
+    private function speedForAgent(string $agent): float
+    {
+        $speed = (float) config('readirect.tts.speeds.'.$agent);
+        $range = config('readirect.tts.speed_ranges.'.$agent, []);
+        $minimum = (float) ($range['min'] ?? $speed);
+        $maximum = (float) ($range['max'] ?? $speed);
+
+        return round(max($minimum, min($maximum, $speed)), 2);
+    }
+
+    private function voiceForAgent(string $agent): string
+    {
+        return match ($agent) {
+            'miss_ciel' => 'af_heart',
+            'miss_vivian' => 'af_bella',
+            'miss_estelle' => str_contains(strtolower((string) config('readirect.tts.voices.miss_estelle', 'bf_isabella')), 'isabella')
+                ? (string) config('readirect.tts.voices.miss_estelle', 'bf_isabella')
+                : 'bf_isabella',
+            default => 'af_bella',
+        };
     }
 
     private function logFailure(string $reason, ?string $detail): void

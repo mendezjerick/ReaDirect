@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\Admin\AdminAccessService;
 use App\Services\ASR\AsrConfusionContentRepository;
 use App\Services\ASR\AsrConfusionFixtureService;
+use App\Services\ASR\AsrConfusionManualHistoryService;
 use App\Services\ASR\AsrConfusionMatrixRunner;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,8 +16,12 @@ use Inertia\Response;
 
 class AdminConfusionMatrixController extends Controller
 {
-    public function index(Request $request, AdminAccessService $access, AsrConfusionFixtureService $fixtures): Response
-    {
+    public function index(
+        Request $request,
+        AdminAccessService $access,
+        AsrConfusionFixtureService $fixtures,
+        AsrConfusionManualHistoryService $history
+    ): Response {
         $access->ensureTesting($request->user());
         $manifest = $fixtures->loadManifest();
 
@@ -28,9 +33,11 @@ class AdminConfusionMatrixController extends Controller
             ],
             'latestRun' => $fixtures->latestResults(),
             'fixtureOptions' => $fixtures->fixtureOptions(),
+            'manualHistory' => $history->latest(),
             'routes' => [
                 'fixtures' => route('admin.confusion-matrix.fixtures'),
                 'results' => route('admin.confusion-matrix.results'),
+                'manualHistory' => route('admin.confusion-matrix.manual-history'),
                 'runFixture' => route('admin.confusion-matrix.run-fixture'),
             ],
         ]);
@@ -60,12 +67,27 @@ class AdminConfusionMatrixController extends Controller
         ]);
     }
 
+    public function manualHistory(
+        Request $request,
+        AdminAccessService $access,
+        AsrConfusionManualHistoryService $history
+    ): JsonResponse {
+        $access->ensureTesting($request->user());
+
+        $source = trim((string) $request->query('source', ''));
+
+        return response()->json([
+            'manualHistory' => $history->latest($source !== '' && $source !== 'all' ? $source : null),
+        ]);
+    }
+
     public function runFixture(
         Request $request,
         AdminAccessService $access,
         AsrConfusionContentRepository $content,
         AsrConfusionFixtureService $fixtures,
-        AsrConfusionMatrixRunner $runner
+        AsrConfusionMatrixRunner $runner,
+        AsrConfusionManualHistoryService $history
     ): JsonResponse {
         $access->ensureTesting($request->user());
         @set_time_limit(max(30, ((int) config('readirect_ai.timeout_seconds', 60)) + 15));
@@ -86,8 +108,12 @@ class AdminConfusionMatrixController extends Controller
 
         abort_unless($fixture !== null, 404, 'Fixture was not found in the manifest.');
 
+        $result = $runner->runFixture($fixture);
+        $historyRow = $history->fromManualFixture($result, $request->user());
+
         return response()->json([
-            'result' => $runner->runFixture($fixture),
+            'result' => $result,
+            'historyRow' => $historyRow,
         ]);
     }
 }

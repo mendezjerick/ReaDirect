@@ -70,7 +70,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <div class="relative flex items-center gap-4 rounded-[32px] border border-blue-100 bg-white p-2.5 pr-6 shadow-md shadow-blue-500/10 transition-all duration-200 xl:p-3 xl:pr-7">
+    <div class="relative flex items-center gap-4 rounded-[32px] border border-[rgba(54,83,101,0.12)] bg-surface p-2.5 pr-6 shadow-md shadow-[rgba(35,55,70,0.10)] transition-all duration-200 xl:p-3 xl:pr-7">
         <!-- Hidden Audio Element -->
         <audio
             ref="audioEl"
@@ -86,7 +86,7 @@ onBeforeUnmount(() => {
         <!-- Play/Pause Button -->
         <button
             type="button"
-            class="group grid size-12 shrink-0 place-items-center rounded-full bg-gradient-to-br from-sky-400 to-blue-600 text-white shadow-sm ring-1 ring-blue-500/20 transition-all duration-200 hover:scale-[1.05] hover:shadow-md active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 xl:size-14"
+            class="group grid size-12 shrink-0 place-items-center rounded-full bg-primary text-white shadow-[0_5px_0_#C96535,0_8px_14px_rgba(245,133,73,0.22)] transition-all duration-150 hover:bg-warning active:translate-y-1 active:shadow-[0_1px_0_#C96535,0_4px_10px_rgba(245,133,73,0.18)] disabled:cursor-not-allowed disabled:opacity-60 xl:size-14"
             :disabled="disabled"
             @click="togglePlay"
             :aria-label="isPlaying ? 'Pause recorded audio' : 'Play recorded audio'"
@@ -102,7 +102,7 @@ onBeforeUnmount(() => {
                 :key="bar"
                 class="w-full rounded-full transition-all duration-150"
                 :class="[
-                    isPlaying ? 'bg-blue-500' : 'bg-blue-200',
+                    isPlaying ? 'bg-primary' : 'bg-accent/55',
                     (currentTime / Math.max(duration, 0.1)) > (bar / 24) ? 'opacity-100' : 'opacity-40',
                     isPlaying ? 'playing-wave' : ''
                 ]"
@@ -116,8 +116,8 @@ onBeforeUnmount(() => {
 
         <!-- Time Display -->
         <div class="shrink-0 text-right min-w-[3rem]">
-            <p class="text-[14px] font-black tracking-tight text-blue-600 xl:text-[15px]">{{ formatTime(currentTime) }}</p>
-            <p class="text-[11px] font-bold text-slate-400 xl:text-[12px]">{{ formatTime(duration) }}</p>
+            <p class="text-[14px] font-black tracking-tight text-primary xl:text-[15px]">{{ formatTime(currentTime) }}</p>
+            <p class="text-[11px] font-bold text-muted xl:text-[12px]">{{ formatTime(duration) }}</p>
         </div>
     </div>
 </template>

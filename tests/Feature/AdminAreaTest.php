@@ -396,6 +396,7 @@ class AdminAreaTest extends TestCase
                 'assessment_type' => 'true_sandbox',
                 'audio' => UploadedFile::fake()->create('answer.webm', 12, 'audio/webm'),
                 'duration_seconds' => 1.2,
+                'expected_should_be_correct' => true,
             ]);
 
         $response
@@ -404,12 +405,94 @@ class AdminAreaTest extends TestCase
             ->assertJsonPath('corrected_transcript', 'hand')
             ->assertJsonPath('displayed_transcript', 'hand')
             ->assertJsonPath('scoring.accepted', true)
-            ->assertJsonPath('gop_score', 0.84);
+            ->assertJsonPath('gop_score', 0.84)
+            ->assertJsonPath('true_gop_score', 0.84)
+            ->assertJsonPath('confidence_percent', 84)
+            ->assertJsonPath('recording_validity', 'Valid Audio')
+            ->assertJsonPath('confusion_matrix_result', 'True Positive')
+            ->assertJsonPath('confusion_matrix_code', 'TP');
 
         Http::assertSent(fn ($request) => $request->url() === 'http://ai.test/analyze-audio'
             && $request['expected_text'] === 'hand'
             && $request['content_metadata']['true_sandbox'] === true
             && ! array_key_exists('learner_id', $request->data()));
+    }
+
+    public function test_true_sandbox_expected_wrong_audio_returns_true_negative(): void
+    {
+        config([
+            'readirect_ai.enabled' => true,
+            'readirect_ai.base_url' => 'http://ai.test',
+            'readirect_ai.endpoints.analyze_audio' => '/analyze-audio',
+        ]);
+        Http::fake([
+            'http://ai.test/analyze-audio' => Http::response([
+                'ok' => true,
+                'raw_transcript' => 'gut',
+                'corrected_transcript' => 'gut',
+                'displayed_transcript' => 'gut',
+                'expected_text' => 'cat',
+                'prompt_type' => 'word',
+                'accepted' => false,
+                'retry_required' => false,
+                'uncertain' => false,
+                'gop_score' => 0.319,
+            ]),
+        ]);
+
+        $response = $this->actingAs($this->userWithRole('system_admin'))
+            ->post(route('admin.testing.true-sandbox.analyze'), [
+                'section' => 'word_pronunciation',
+                'item_id' => 'content:1575',
+                'item_source' => 'learning_content',
+                'expected_text' => 'cat',
+                'prompt_text' => 'cat',
+                'prompt_type' => 'word',
+                'task_type' => 'word_pronunciation',
+                'activity_type' => 'word_pronunciation',
+                'assessment_type' => 'true_sandbox',
+                'audio' => UploadedFile::fake()->create('wrong.webm', 12, 'audio/webm'),
+                'duration_seconds' => 1.2,
+                'expected_should_be_correct' => false,
+            ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('expected_should_be_correct', false)
+            ->assertJsonPath('raw_transcript', 'gut')
+            ->assertJsonPath('recording_validity', 'Valid Audio')
+            ->assertJsonPath('final_correctness', false)
+            ->assertJsonPath('confusion_matrix_result', 'True Negative')
+            ->assertJsonPath('confusion_matrix_code', 'TN')
+            ->assertJsonPath('confidence_percent', 31.9);
+    }
+
+    public function test_true_sandbox_analyze_requires_explicit_expected_correctness_label(): void
+    {
+        Http::fake();
+
+        $response = $this->actingAs($this->userWithRole('system_admin'))
+            ->post(route('admin.testing.true-sandbox.analyze'), [
+                'section' => 'word_pronunciation',
+                'item_id' => 'content:123',
+                'item_source' => 'learning_content',
+                'expected_text' => 'hand',
+                'prompt_text' => 'hand',
+                'prompt_type' => 'word',
+                'task_type' => 'word_pronunciation',
+                'activity_type' => 'word_pronunciation',
+                'assessment_type' => 'true_sandbox',
+                'audio' => UploadedFile::fake()->create('answer.webm', 12, 'audio/webm'),
+                'duration_seconds' => 1.2,
+            ], [
+                'Accept' => 'application/json',
+            ]);
+
+        $response
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('expected_should_be_correct');
+
+        Http::assertNothingSent();
     }
 
     public function test_admin_jump_targets_prepare_sessions_and_include_modules(): void

@@ -188,6 +188,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function (): v
     Route::get('/confusion-matrix', [AdminConfusionMatrixController::class, 'index'])->name('confusion-matrix.index');
     Route::get('/confusion-matrix/fixtures', [AdminConfusionMatrixController::class, 'fixtures'])->name('confusion-matrix.fixtures');
     Route::get('/confusion-matrix/results', [AdminConfusionMatrixController::class, 'results'])->name('confusion-matrix.results');
+    Route::get('/confusion-matrix/manual-history', [AdminConfusionMatrixController::class, 'manualHistory'])->name('confusion-matrix.manual-history');
     Route::post('/confusion-matrix/run-fixture', [AdminConfusionMatrixController::class, 'runFixture'])
         ->middleware('throttle:audio-upload')
         ->name('confusion-matrix.run-fixture');

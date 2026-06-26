@@ -65,13 +65,13 @@ defineProps({ dashboard: Object });
             <!-- Learners by Module -->
             <DashboardCard class="h-full">
                 <div class="mb-4 flex items-center gap-2.5">
-                    <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-500"><BookOpen class="size-4" /></div>
+                    <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-50 text-orange-500"><BookOpen class="size-4" /></div>
                     <h2 class="text-sm font-bold text-text">Learners by Module</h2>
                 </div>
                 <div class="space-y-2">
-                    <div v-for="(count, label) in dashboard.moduleDistribution" :key="label" class="flex items-center justify-between rounded-xl bg-background px-4 py-3 text-sm transition-colors hover:bg-blue-50/60 border border-border/40">
+                    <div v-for="(count, label) in dashboard.moduleDistribution" :key="label" class="flex items-center justify-between rounded-xl bg-background px-4 py-3 text-sm transition-colors hover:bg-orange-50/60 border border-border/40">
                         <span class="font-semibold text-text truncate min-w-0 flex-1">{{ label }}</span>
-                        <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-[11px] font-bold text-blue-700">{{ count }}</span>
+                        <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-orange-100 text-[11px] font-bold text-orange-700">{{ count }}</span>
                     </div>
                 </div>
             </DashboardCard>

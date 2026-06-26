@@ -114,7 +114,7 @@
                 <div class="flex-1" />
 
                 <!-- Bottom CTA card -->
-                <div class="mt-4 rounded-2xl bg-gradient-to-br from-blue-50 via-blue-100/50 to-indigo-50 p-4">
+                <div class="mt-4 rounded-2xl bg-gradient-to-br from-orange-50 via-amber-100/50 to-orange-50 p-4">
                     <div class="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
                         <BookOpen :size="18" class="text-primary" />
                     </div>
@@ -158,7 +158,7 @@
                     <div class="relative ml-1">
                         <button
                             @click="profileOpen = !profileOpen"
-                            class="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-primary to-blue-600 text-white text-xs font-bold shadow-sm ring-2 ring-transparent transition-all hover:ring-blue-200 focus:ring-blue-200"
+                            class="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-primary to-orange-500 text-white text-xs font-bold shadow-sm ring-2 ring-transparent transition-all hover:ring-orange-200 focus:ring-orange-200"
                         >
                             {{ (page.props.auth?.user?.name ?? 'A').charAt(0).toUpperCase() }}
                         </button>
@@ -174,7 +174,7 @@
 
                                 <!-- User info -->
                                 <div class="mb-3 flex items-center gap-3 rounded-xl bg-background p-3">
-                                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-blue-600 text-white text-sm font-bold">
+                                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-orange-500 text-white text-sm font-bold">
                                         {{ (page.props.auth?.user?.name ?? 'A').charAt(0).toUpperCase() }}
                                     </div>
                                     <div class="min-w-0">

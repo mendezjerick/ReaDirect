@@ -59,7 +59,7 @@ const statusVariant = (status) => {
             <DashboardCard>
                 <div class="mb-4 flex items-center justify-between">
                     <div class="flex items-center gap-2.5">
-                        <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-500">
+                        <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-50 text-orange-500">
                             <BookOpen :size="15" />
                         </div>
                         <h2 class="text-sm font-bold text-text">Learners by Module</h2>
@@ -69,7 +69,7 @@ const statusVariant = (status) => {
                     <div
                         v-for="(count, label) in dashboard.moduleDistribution"
                         :key="label"
-                        class="flex items-center justify-between rounded-xl bg-background px-3.5 py-2.5 text-sm transition-colors hover:bg-blue-50/60"
+                        class="flex items-center justify-between rounded-xl bg-background px-3.5 py-2.5 text-sm transition-colors hover:bg-orange-50/60"
                     >
                         <span class="font-semibold text-text">{{ label }}</span>
                         <StatusBadge :status="String(count)" />
@@ -141,7 +141,7 @@ const statusVariant = (status) => {
             <DashboardCard>
                 <div class="mb-4 flex items-center justify-between">
                     <div class="flex items-center gap-2.5">
-                        <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-50 text-sky-500">
+                        <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-50 text-orange-500">
                             <ClipboardCheck :size="15" />
                         </div>
                         <h2 class="text-sm font-bold text-text">Recent Assessment Activity</h2>
@@ -154,7 +154,7 @@ const statusVariant = (status) => {
                         class="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
                     >
                         <div class="min-w-0 flex items-center gap-3">
-                            <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600 text-xs font-bold">
+                            <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-50 text-orange-600 text-xs font-bold">
                                 {{ (item.learner ?? '?').charAt(0).toUpperCase() }}
                             </div>
                             <div class="min-w-0">

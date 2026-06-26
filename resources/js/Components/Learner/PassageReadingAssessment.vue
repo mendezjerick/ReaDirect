@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { useForm } from '@inertiajs/vue3';
+import { MessageSquareText } from 'lucide-vue-next';
 import LearnerLayout from '../../Layouts/LearnerLayout.vue';
 import Task2BAssessmentWorkspace from './Task2BAssessmentWorkspace.vue';
 import AudioRecorder from './AudioRecorder.vue';
@@ -418,7 +419,7 @@ const submitCurrentForReview = async () => {
         return;
     }
 
-    agentMessage.value = 'Hold the blue button to record the passage first.';
+    agentMessage.value = 'Hold the orange button to record the passage first.';
     agentState.value = 'speaking';
 };
 
@@ -519,19 +520,27 @@ const setAgentSpeaking = (isSpeaking) => {
                     box-class="min-h-0 h-full w-full flex-1 overflow-y-auto rounded-lg border border-slate-200 bg-white p-4 text-xl font-black leading-tight text-slate-800 transition"
                 >
                     <template #normal="{ placeholder }">
-                        <div class="min-h-0 h-full w-full flex-1 overflow-y-auto rounded-lg border border-slate-200 bg-white p-4 text-xl font-black leading-tight text-slate-800 transition">
+                        <div class="passage-transcript-words">
                             <span v-if="transcript">
                                 <template v-for="(word, index) in diff.actualWords" :key="`${word.index}-${index}`">
                                     <span
-                                        class="mr-2 inline-block rounded-md px-1"
+                                        class="passage-transcript-token"
                                         :class="{
-                                            'bg-rose-50 text-rose-600 ring-1 ring-rose-200/60': diff.actualStatus[index] === 'incorrect' || diff.actualStatus[index] === 'extra',
-                                            'bg-amber-50 text-amber-700 ring-1 ring-amber-200/60': diff.actualStatus[index] === 'semantic',
+                                            'passage-transcript-token--incorrect': diff.actualStatus[index] === 'incorrect' || diff.actualStatus[index] === 'extra',
+                                            'passage-transcript-token--semantic': diff.actualStatus[index] === 'semantic',
                                         }"
                                     >{{ word.raw }}</span>
                                 </template>
                             </span>
-                            <span v-else class="text-slate-300">{{ placeholder }}</span>
+                            <span v-else class="passage-transcript-empty">
+                                <span class="passage-transcript-empty-icon" aria-hidden="true">
+                                    <MessageSquareText class="size-5" />
+                                </span>
+                                <span class="passage-transcript-empty-copy">
+                                    <span class="passage-transcript-empty-title">{{ placeholder }}</span>
+                                    <span class="passage-transcript-empty-helper">Your spoken answer will be transcribed here.</span>
+                                </span>
+                            </span>
                         </div>
                     </template>
                 </AsrTranscriptVisualizer>
@@ -615,5 +624,80 @@ const setAgentSpeaking = (isSpeaking) => {
     padding: 0 0.18rem;
     color: rgb(180 83 9);
     box-shadow: inset 0 0 0 1px rgb(253 230 138);
+}
+
+.passage-transcript-words {
+    min-height: 0;
+    height: 100%;
+    width: 100%;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    border: 0;
+    border-radius: 24px;
+    background: transparent;
+    padding: clamp(0.35rem, 1dvh, 0.75rem);
+    color: var(--rd-text-main);
+    font-size: clamp(1rem, 2.1dvh, 1.45rem);
+    font-weight: 900;
+    line-height: 1.35;
+}
+
+.passage-transcript-token {
+    display: inline-block;
+    margin-right: 0.5rem;
+    border-radius: 0.55rem;
+    padding: 0 0.18rem;
+}
+
+.passage-transcript-token--incorrect {
+    background: rgba(119, 47, 26, 0.08);
+    color: var(--rd-wrong-red);
+    box-shadow: inset 0 0 0 1px rgba(119, 47, 26, 0.18);
+}
+
+.passage-transcript-token--semantic {
+    background: rgba(238, 193, 112, 0.22);
+    color: var(--rd-brown);
+    box-shadow: inset 0 0 0 1px rgba(238, 193, 112, 0.42);
+}
+
+.passage-transcript-empty {
+    display: flex;
+    height: 100%;
+    align-items: center;
+    gap: clamp(0.85rem, 1.5vw, 1.25rem);
+}
+
+.passage-transcript-empty-icon {
+    display: grid;
+    width: clamp(2.6rem, 5.5dvh, 3.35rem);
+    height: clamp(2.6rem, 5.5dvh, 3.35rem);
+    flex: 0 0 auto;
+    place-items: center;
+    border: 2px solid var(--rd-story-border-soft);
+    border-radius: 999px;
+    background: var(--rd-story-surface);
+    color: var(--rd-brown);
+    box-shadow: 0 4px 0 rgba(111, 101, 52, 0.18), 0 8px 14px rgba(54, 83, 101, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.passage-transcript-empty-copy {
+    display: grid;
+    min-width: 0;
+    gap: 0.25rem;
+}
+
+.passage-transcript-empty-title {
+    color: var(--rd-text-main);
+    font-size: clamp(1rem, 2.3dvh, 1.35rem);
+    font-weight: 900;
+    line-height: 1.15;
+}
+
+.passage-transcript-empty-helper {
+    color: rgba(111, 101, 52, 0.68);
+    font-size: clamp(0.82rem, 1.8dvh, 1rem);
+    font-weight: 800;
+    line-height: 1.25;
 }
 </style>
