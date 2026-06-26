@@ -1,9 +1,10 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import { ArrowRight, Check, Star, BookOpen, Trophy, Target, Sparkles, Shapes, MessageCircle, FileText, Percent, BrainCircuit } from 'lucide-vue-next';
 import LearnerLayout from '../../Layouts/LearnerLayout.vue';
 import AgentVideoPlayer from '../../Components/Agents/AgentVideoPlayer.vue';
+import AgentSpeakerTTS from '../../Components/Agents/AgentSpeakerTTS.vue';
 
 const props = defineProps({ attempt: Object, decision: Object, module: Object });
 
@@ -21,6 +22,59 @@ const bottomMetrics = computed(() => [
     { label: 'Comprehension', value: props.attempt?.comprehension_percentage ?? '-', suffix: '%', icon: BrainCircuit, color: 'text-pink-500', bg: 'bg-pink-100' },
     { label: 'Reading Score', value: props.attempt?.final_reading_score ?? '-', suffix: '%', icon: Target, color: 'text-indigo-500', bg: 'bg-indigo-100' },
 ]);
+
+const evaluatorMessage = computed(() => {
+    if (props.module) {
+        return `Great job! Your reading path is ${moduleTitle.value}. Tap continue to see it on your dashboard.`;
+    }
+    return "Wonderful! You're reading at grade level. Tap continue to head to your dashboard.";
+});
+
+const isSpeaking = ref(false);
+const ttsKey = ref(0);
+const isMuted = ref(false);
+const voicePayload = ref(null);
+const voiceLoading = ref(false);
+const voiceRequestId = ref(0);
+
+const csrfToken = () => document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
+
+const loadNaturalVoice = async () => {
+    const text = evaluatorMessage.value?.trim();
+    const requestId = voiceRequestId.value + 1;
+    voiceRequestId.value = requestId;
+    voicePayload.value = null;
+
+    if (!text || typeof window === 'undefined') return;
+
+    voiceLoading.value = true;
+    try {
+        const response = await fetch('/agent-voice/synthesize', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken(),
+            },
+            body: JSON.stringify({ agent: 'evaluator', text }),
+        });
+
+        if (requestId !== voiceRequestId.value) return;
+        voicePayload.value = response.ok ? await response.json() : { audio_url: null };
+    } catch {
+        if (requestId === voiceRequestId.value) voicePayload.value = { audio_url: null };
+    } finally {
+        if (requestId === voiceRequestId.value) voiceLoading.value = false;
+    }
+};
+
+onMounted(() => loadNaturalVoice());
+
+const replayVoice = () => {
+    isMuted.value = false;
+    ttsKey.value++;
+};
 </script>
 
 <template>
@@ -56,9 +110,21 @@ const bottomMetrics = computed(() => [
                 
                 <!-- Miss Estelle Mascot Area -->
                 <div class="mb-10 flex flex-col items-center justify-center">
+                    
+                    <AgentSpeakerTTS
+                        v-if="!voiceLoading"
+                        :key="ttsKey"
+                        agent-type="evaluator"
+                        :message="evaluatorMessage"
+                        :mute="isMuted"
+                        :audio-url="voicePayload?.audio_url"
+                        @speaking-start="isSpeaking = true"
+                        @speaking-end="isSpeaking = false"
+                    />
+
                     <div class="relative h-48 w-48">
                         <div class="absolute inset-0 scale-125 rounded-full bg-white/60 blur-xl"></div>
-                        <AgentVideoPlayer agent="Estelle" agent-type="evaluator" action="celebrating" class="relative z-10 h-full w-full object-contain" />
+                        <AgentVideoPlayer agent="Estelle" agent-type="evaluator" :action="isSpeaking ? 'speaking' : 'celebrating'" class="relative z-10 h-full w-full object-contain" />
                         <Sparkles class="absolute -right-4 top-10 size-6 text-yellow-400 anim-twinkle" />
                         <Sparkles class="absolute -left-6 bottom-16 size-5 text-yellow-400 anim-twinkle-delay" />
                     </div>
@@ -70,8 +136,12 @@ const bottomMetrics = computed(() => [
                     </div>
                     
                     <div class="mt-4 flex justify-center gap-3">
-                        <button class="rounded-full bg-white/90 px-4 py-1.5 text-[11px] font-black uppercase tracking-wider text-slate-500 shadow-sm ring-1 ring-slate-200 transition-colors hover:bg-slate-50 hover:text-slate-700">Celebrating</button>
-                        <button class="rounded-full bg-white/90 px-4 py-1.5 text-[11px] font-black uppercase tracking-wider text-slate-500 shadow-sm ring-1 ring-slate-200 transition-colors hover:bg-slate-50 hover:text-slate-700">Replay</button>
+                        <button class="rounded-full bg-white/90 px-4 py-1.5 text-[11px] font-black uppercase tracking-wider text-slate-500 shadow-sm ring-1 ring-slate-200 transition-colors hover:bg-slate-50 hover:text-slate-700">
+                            {{ isSpeaking ? 'Speaking' : 'Celebrating' }}
+                        </button>
+                        <button @click="replayVoice" class="rounded-full bg-white/90 px-4 py-1.5 text-[11px] font-black uppercase tracking-wider text-slate-500 shadow-sm ring-1 ring-slate-200 transition-colors hover:bg-slate-50 hover:text-slate-700 hover:text-primary">
+                            Replay
+                        </button>
                     </div>
                 </div>
 
