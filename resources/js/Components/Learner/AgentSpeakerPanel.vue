@@ -1,15 +1,15 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue';
-import { GraduationCap, RotateCcw, Volume2, VolumeX } from 'lucide-vue-next';
-import AgentSpeakerTTS from '../Agents/AgentSpeakerTTS.vue';
-import AgentVideoPlayer from '../Agents/AgentVideoPlayer.vue';
+import { computed, onMounted, ref, watch } from "vue";
+import { GraduationCap, RotateCcw, Volume2, VolumeX } from "lucide-vue-next";
+import AgentSpeakerTTS from "../Agents/AgentSpeakerTTS.vue";
+import AgentVideoPlayer from "../Agents/AgentVideoPlayer.vue";
 
 const props = defineProps({
     agentType: { type: String, required: true },
-    state: { type: String, default: 'idle' },
+    state: { type: String, default: "idle" },
     message: { type: String, required: true },
-    title: { type: String, default: '' },
-    subtitle: { type: String, default: '' },
+    title: { type: String, default: "" },
+    subtitle: { type: String, default: "" },
     compact: Boolean,
     showAudioButton: Boolean,
     ttsEnabled: { type: Boolean, default: true },
@@ -17,37 +17,41 @@ const props = defineProps({
     volume: { type: Number, default: 1 },
     rate: { type: Number, default: 1 },
     pitch: { type: Number, default: 1 },
-    presentation: { type: String, default: 'default' },
+    presentation: { type: String, default: "default" },
     allowCongrats: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(['interaction-ended', 'speaking-start', 'speaking-end']);
+const emit = defineEmits([
+    "interaction-ended",
+    "speaking-start",
+    "speaking-end",
+]);
 
 const agents = {
     assessment: {
-        label: 'Miss Vivian',
-        role: 'Assessment Guide',
-        intro: 'Hello! I am Miss Vivian. I will guide you through your reading assessment. Try your best and answer one step at a time.',
+        label: "Miss Vivian",
+        role: "Assessment Guide",
+        intro: "Hello! I am Miss Vivian. I will guide you through your reading assessment. Try your best and answer one step at a time.",
     },
     coach_feedback: {
-        label: 'Miss Ciel',
-        role: 'Reading Coach',
-        intro: 'Hi! I am Miss Ciel. I will help you practice reading. Mistakes are okay. I am here to guide you.',
+        label: "Miss Ciel",
+        role: "Reading Coach",
+        intro: "Hi! I am Miss Ciel. I will help you practice reading. Mistakes are okay. I am here to guide you.",
     },
     evaluator: {
-        label: 'Miss Estelle',
-        role: 'Results Guide',
-        intro: 'Hello! I am Miss Estelle. I will help explain your results so you know what to do next.',
+        label: "Miss Estelle",
+        role: "Results Guide",
+        intro: "Hello! I am Miss Estelle. I will help explain your results so you know what to do next.",
     },
     evaluator_recommendation: {
-        label: 'Miss Estelle',
-        role: 'Results Guide',
-        intro: 'Hello! I am Miss Estelle. I will help explain your results so you know what to do next.',
+        label: "Miss Estelle",
+        role: "Results Guide",
+        intro: "Hello! I am Miss Estelle. I will help explain your results so you know what to do next.",
     },
 };
 
 const isSpeaking = ref(false);
-const ttsError = ref('');
+const ttsError = ref("");
 const ttsKey = ref(0);
 const showIntro = ref(false);
 const voicePayload = ref(null);
@@ -55,72 +59,97 @@ const voiceLoading = ref(false);
 const voiceRequestId = ref(0);
 
 const storedMutedPreference = () => {
-    if (typeof window === 'undefined') {
+    if (typeof window === "undefined") {
         return props.defaultMuted;
     }
 
-    const storedValue = window.localStorage.getItem('readirect-agent-tts-muted');
+    const storedValue = window.localStorage.getItem(
+        "readirect-agent-tts-muted",
+    );
 
     if (storedValue === null) {
         return props.defaultMuted;
     }
 
-    return storedValue === 'true';
+    return storedValue === "true";
 };
 
 const isMuted = ref(storedMutedPreference());
 
 const agent = computed(() => agents[props.agentType] ?? agents.assessment);
-const introStorageKey = computed(() => `readirect-agent-intro-seen-${props.agentType}`);
-const displayMessage = computed(() => showIntro.value ? agent.value.intro : props.message);
-const effectiveState = computed(() => (isSpeaking.value ? 'speaking' : (props.state || 'idle')));
+const introStorageKey = computed(
+    () => `readirect-agent-intro-seen-${props.agentType}`,
+);
+const displayMessage = computed(() =>
+    showIntro.value ? agent.value.intro : props.message,
+);
+const effectiveState = computed(() =>
+    isSpeaking.value ? "speaking" : props.state || "idle",
+);
 const mediaState = computed(() => {
-    const requestedState = props.state || 'idle';
+    const requestedState = props.state || "idle";
     const hasTalkVideo = [
-        'coach_feedback',
-        'assessment',
-        'evaluator',
-        'evaluator_recommendation',
+        "coach_feedback",
+        "assessment",
+        "evaluator",
+        "evaluator_recommendation",
     ].includes(props.agentType);
-    const passiveStates = ['idle', 'listening', 'speaking', 'neutral', 'none', 'ready'];
+    const passiveStates = [
+        "idle",
+        "listening",
+        "speaking",
+        "neutral",
+        "none",
+        "ready",
+    ];
 
-    if (hasTalkVideo && isSpeaking.value && passiveStates.includes(requestedState)) {
-        return 'talk';
+    if (
+        hasTalkVideo &&
+        isSpeaking.value &&
+        passiveStates.includes(requestedState)
+    ) {
+        return "talk";
     }
 
-    return requestedState === 'speaking' ? 'idle' : requestedState;
+    return requestedState === "speaking" ? "idle" : requestedState;
 });
 const displayTitle = computed(() => props.title || agent.value.label);
 const displaySubtitle = computed(() => props.subtitle || agent.value.role);
 const naturalAudioUrl = computed(() => voicePayload.value?.audio_url ?? null);
 const stateLabel = computed(() => {
     const labels = {
-        idle: 'Ready',
-        speaking: 'Speaking',
-        listening: 'Listening',
-        thinking: 'Thinking',
-        encouraging: 'Encouraging',
-        happy: 'Happy',
-        celebrating: 'Celebrating',
-        confused: 'Thinking',
-        pointing: 'Pointing',
-        neutral: 'Ready',
+        idle: "Ready",
+        speaking: "Speaking",
+        listening: "Listening",
+        thinking: "Thinking",
+        encouraging: "Encouraging",
+        happy: "Happy",
+        celebrating: "Celebrating",
+        confused: "Thinking",
+        pointing: "Pointing",
+        neutral: "Ready",
     };
 
-    return labels[effectiveState.value] ?? 'Ready';
+    return labels[effectiveState.value] ?? "Ready";
 });
-watch(() => props.agentType, () => {
-    showIntro.value = false;
-    loadIntroState();
-});
+watch(
+    () => props.agentType,
+    () => {
+        showIntro.value = false;
+        loadIntroState();
+    },
+);
 
-watch(() => props.message, () => {
-    showIntro.value = false;
-});
+watch(
+    () => props.message,
+    () => {
+        showIntro.value = false;
+    },
+);
 
 watch(isMuted, (value) => {
-    if (typeof window !== 'undefined') {
-        window.localStorage.setItem('readirect-agent-tts-muted', String(value));
+    if (typeof window !== "undefined") {
+        window.localStorage.setItem("readirect-agent-tts-muted", String(value));
     }
 });
 
@@ -136,7 +165,10 @@ const replayMessage = () => {
     ttsKey.value += 1;
 };
 
-const csrfToken = () => document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
+const csrfToken = () =>
+    document
+        .querySelector('meta[name="csrf-token"]')
+        ?.getAttribute("content") ?? "";
 
 const loadNaturalVoice = async () => {
     const text = displayMessage.value?.trim();
@@ -144,20 +176,20 @@ const loadNaturalVoice = async () => {
     voiceRequestId.value = requestId;
     voicePayload.value = null;
 
-    if (!props.ttsEnabled || !text || typeof window === 'undefined') {
+    if (!props.ttsEnabled || !text || typeof window === "undefined") {
         return;
     }
 
     voiceLoading.value = true;
 
     try {
-        const response = await fetch('/agent-voice/synthesize', {
-            method: 'POST',
-            credentials: 'same-origin',
+        const response = await fetch("/agent-voice/synthesize", {
+            method: "POST",
+            credentials: "same-origin",
             headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-CSRF-TOKEN': csrfToken(),
+                "Content-Type": "application/json",
+                Accept: "application/json",
+                "X-CSRF-TOKEN": csrfToken(),
             },
             body: JSON.stringify({
                 agent: props.agentType,
@@ -184,45 +216,45 @@ const loadNaturalVoice = async () => {
 };
 
 const handleSpeakingStart = () => {
-    ttsError.value = '';
+    ttsError.value = "";
     isSpeaking.value = true;
-    emit('speaking-start');
+    emit("speaking-start");
 };
 
 const handleSpeakingEnd = () => {
     isSpeaking.value = false;
-    emit('speaking-end');
+    emit("speaking-end");
 };
 
 const handleTtsError = (message) => {
     if (!message) {
-        ttsError.value = '';
+        ttsError.value = "";
         return;
     }
 
-    if (message.toLowerCase().includes('autoplay')) {
-        ttsError.value = '';
+    if (message.toLowerCase().includes("autoplay")) {
+        ttsError.value = "";
         isSpeaking.value = false;
-        emit('speaking-end');
+        emit("speaking-end");
         return;
     }
 
-    ttsError.value = 'Voice is unavailable, but you can read the message here.';
+    ttsError.value = "Voice is unavailable, but you can read the message here.";
     isSpeaking.value = false;
-    emit('speaking-end');
+    emit("speaking-end");
 };
 
 const loadIntroState = () => {
-    if (typeof window === 'undefined') {
+    if (typeof window === "undefined") {
         return;
     }
 
-    if (window.localStorage.getItem(introStorageKey.value) === 'true') {
+    if (window.localStorage.getItem(introStorageKey.value) === "true") {
         return;
     }
 
     showIntro.value = true;
-    window.localStorage.setItem(introStorageKey.value, 'true');
+    window.localStorage.setItem(introStorageKey.value, "true");
 };
 
 onMounted(loadIntroState);
@@ -254,9 +286,13 @@ watch(
             @speaking-end="handleSpeakingEnd"
             @error="handleTtsError"
         />
-        <div class="pointer-events-none absolute -right-6 -top-6 h-40 w-40 rounded-full bg-primary/5 blur-3xl" />
-        <div class="pointer-events-none absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-blue-400/5 blur-3xl" />
-        
+        <div
+            class="pointer-events-none absolute -right-6 -top-6 h-40 w-40 rounded-full bg-primary/5 blur-3xl"
+        />
+        <div
+            class="pointer-events-none absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-blue-400/5 blur-3xl"
+        />
+
         <div class="relative grid justify-items-center">
             <div class="agent-media-box">
                 <AgentVideoPlayer
@@ -268,18 +304,24 @@ watch(
                     @interaction-ended="emit('interaction-ended', $event)"
                 />
             </div>
-            <p class="mt-6 text-center text-[16px] font-black uppercase tracking-widest text-primary">{{ displayTitle }}</p>
+            <p
+                class="mt-6 text-center text-[16px] font-black uppercase tracking-widest text-primary"
+            >
+                {{ displayTitle }}
+            </p>
             <div class="mt-3 flex flex-wrap justify-center gap-2">
                 <button
                     v-if="ttsEnabled || showAudioButton"
                     type="button"
                     class="inline-flex items-center gap-2 rounded-full bg-primary/5 px-4 py-2 text-sm font-black text-primary ring-1 ring-primary/10 transition hover:bg-primary hover:text-white"
-                    :aria-label="isMuted ? 'Unmute agent voice' : 'Mute agent voice'"
+                    :aria-label="
+                        isMuted ? 'Unmute agent voice' : 'Mute agent voice'
+                    "
                     @click="toggleMute"
                 >
                     <VolumeX v-if="isMuted" class="size-4" />
                     <Volume2 v-else class="size-4" />
-                    {{ isMuted ? 'Muted' : stateLabel }}
+                    {{ isMuted ? "Muted" : stateLabel }}
                 </button>
                 <button
                     v-if="ttsEnabled || showAudioButton"
@@ -293,7 +335,9 @@ watch(
                 </button>
             </div>
         </div>
-        <div class="relative mt-6 rounded-[24px] border border-slate-200/60 bg-slate-50/80 p-5 shadow-sm">
+        <div
+            class="relative mt-6 rounded-[24px] border border-slate-200/60 bg-slate-50/80 p-5 shadow-sm"
+        >
             <p class="text-lg font-black leading-relaxed text-slate-800">
                 {{ displayMessage }}
             </p>
@@ -321,8 +365,12 @@ watch(
             @speaking-end="handleSpeakingEnd"
             @error="handleTtsError"
         />
-        <div class="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/5 blur-3xl" />
-        <div class="pointer-events-none absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-blue-400/5 blur-3xl" />
+        <div
+            class="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/5 blur-3xl"
+        />
+        <div
+            class="pointer-events-none absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-blue-400/5 blur-3xl"
+        />
 
         <div class="grid justify-items-center">
             <div class="agent-media-box">
@@ -336,18 +384,33 @@ watch(
                 />
             </div>
         </div>
-        <div class="relative mt-6 rounded-[24px] border border-slate-200/60 bg-slate-50/80 p-5 shadow-sm xl:mt-8">
-            <div class="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200/60 pb-4">
+        <div
+            class="relative mt-6 rounded-[24px] border border-slate-200/60 bg-slate-50/80 p-5 shadow-sm xl:mt-8"
+        >
+            <div
+                class="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200/60 pb-4"
+            >
                 <div>
-                    <p class="text-base font-black uppercase tracking-widest text-primary xl:text-lg">{{ displayTitle }}</p>
-                    <p v-if="displaySubtitle" class="mt-0.5 text-sm font-bold text-slate-400">{{ displaySubtitle }}</p>
+                    <p
+                        class="text-base font-black uppercase tracking-widest text-primary xl:text-lg"
+                    >
+                        {{ displayTitle }}
+                    </p>
+                    <p
+                        v-if="displaySubtitle"
+                        class="mt-0.5 text-sm font-bold text-slate-400"
+                    >
+                        {{ displaySubtitle }}
+                    </p>
                 </div>
                 <div class="flex items-center gap-2">
                     <button
                         v-if="ttsEnabled || showAudioButton"
                         type="button"
                         class="inline-flex items-center gap-2 rounded-full bg-primary/5 px-4 py-2 text-sm font-black text-primary ring-1 ring-primary/10 transition hover:bg-primary hover:text-white"
-                        :aria-label="isMuted ? 'Unmute agent voice' : 'Mute agent voice'"
+                        :aria-label="
+                            isMuted ? 'Unmute agent voice' : 'Mute agent voice'
+                        "
                         @click="toggleMute"
                     >
                         {{ stateLabel }}
@@ -374,10 +437,15 @@ watch(
                 </div>
             </div>
             <div class="relative mt-5">
-                <p class="text-base font-bold leading-relaxed text-slate-800 xl:text-lg">
+                <p
+                    class="text-base font-bold leading-relaxed text-slate-800 xl:text-lg"
+                >
                     {{ displayMessage }}
                 </p>
-                <p v-if="ttsError" class="mt-2 text-xs font-bold text-slate-500">
+                <p
+                    v-if="ttsError"
+                    class="mt-2 text-xs font-bold text-slate-500"
+                >
                     {{ ttsError }}
                 </p>
             </div>
@@ -402,9 +470,13 @@ watch(
             @speaking-end="handleSpeakingEnd"
             @error="handleTtsError"
         />
-        <div class="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/5 blur-3xl" />
-        <div class="pointer-events-none absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-blue-400/5 blur-3xl" />
-        
+        <div
+            class="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/5 blur-3xl"
+        />
+        <div
+            class="pointer-events-none absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-blue-400/5 blur-3xl"
+        />
+
         <div class="relative grid justify-items-center">
             <div class="agent-media-box">
                 <AgentVideoPlayer
@@ -416,18 +488,24 @@ watch(
                     @interaction-ended="emit('interaction-ended', $event)"
                 />
             </div>
-            <p class="mt-6 text-center text-[16px] font-black uppercase tracking-widest text-primary">{{ displayTitle }}</p>
+            <p
+                class="mt-6 text-center text-[16px] font-black uppercase tracking-widest text-primary"
+            >
+                {{ displayTitle }}
+            </p>
             <div class="mt-3 flex flex-wrap justify-center gap-2">
                 <button
                     v-if="ttsEnabled || showAudioButton"
                     type="button"
                     class="inline-flex items-center gap-2 rounded-full bg-primary/5 px-4 py-2 text-sm font-black text-primary ring-1 ring-primary/10 transition hover:bg-primary hover:text-white"
-                    :aria-label="isMuted ? 'Unmute agent voice' : 'Mute agent voice'"
+                    :aria-label="
+                        isMuted ? 'Unmute agent voice' : 'Mute agent voice'
+                    "
                     @click="toggleMute"
                 >
                     <VolumeX v-if="isMuted" class="size-4" />
                     <Volume2 v-else class="size-4" />
-                    {{ isMuted ? 'Muted' : stateLabel }}
+                    {{ isMuted ? "Muted" : stateLabel }}
                 </button>
                 <button
                     v-if="ttsEnabled || showAudioButton"
@@ -441,7 +519,9 @@ watch(
                 </button>
             </div>
         </div>
-        <div class="relative mt-6 rounded-[24px] border border-slate-200/60 bg-slate-50/80 p-5 shadow-sm">
+        <div
+            class="relative mt-6 rounded-[24px] border border-slate-200/60 bg-slate-50/80 p-5 shadow-sm"
+        >
             <p class="text-[16px] font-bold leading-relaxed text-slate-800">
                 {{ displayMessage }}
             </p>
@@ -481,16 +561,32 @@ watch(
                 />
             </div>
         </div>
-        <div class="relative mt-4 rounded-[22px] border border-blue-200 bg-surface p-4 shadow-sm shadow-primary/10 sm:mt-5 sm:p-5 xl:rounded-[26px] xl:p-6">
-            <span class="absolute left-1/2 top-0 size-8 -translate-x-1/2 -translate-y-1/2 rotate-45 border-l border-t border-blue-200 bg-surface" aria-hidden="true" />
+        <div
+            class="relative mt-4 rounded-[22px] border border-blue-200 bg-surface p-4 shadow-sm shadow-primary/10 sm:mt-5 sm:p-5 xl:rounded-[26px] xl:p-6"
+        >
+            <span
+                class="absolute left-1/2 top-0 size-8 -translate-x-1/2 -translate-y-1/2 rotate-45 border-l border-t border-blue-200 bg-surface"
+                aria-hidden="true"
+            />
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div class="flex items-center gap-3">
-                    <span class="grid size-11 place-items-center rounded-full bg-primary-light text-primary">
+                    <span
+                        class="grid size-11 place-items-center rounded-full bg-primary-light text-primary"
+                    >
                         <GraduationCap class="size-6" />
                     </span>
                     <div>
-                        <p class="text-lg font-black uppercase text-primary xl:text-xl">{{ displayTitle }}</p>
-                        <p v-if="displaySubtitle" class="text-sm font-black text-muted">{{ displaySubtitle }}</p>
+                        <p
+                            class="text-lg font-black uppercase text-primary xl:text-xl"
+                        >
+                            {{ displayTitle }}
+                        </p>
+                        <p
+                            v-if="displaySubtitle"
+                            class="text-sm font-black text-muted"
+                        >
+                            {{ displaySubtitle }}
+                        </p>
                     </div>
                 </div>
                 <div class="flex items-center gap-0">
@@ -498,7 +594,9 @@ watch(
                         v-if="ttsEnabled || showAudioButton"
                         type="button"
                         class="inline-flex items-center gap-2 rounded-l-full rounded-r-none bg-primary-light px-3 py-2 text-sm font-black text-primary transition hover:bg-primary hover:text-white xl:px-4 xl:text-base"
-                        :aria-label="isMuted ? 'Unmute agent voice' : 'Mute agent voice'"
+                        :aria-label="
+                            isMuted ? 'Unmute agent voice' : 'Mute agent voice'
+                        "
                         @click="toggleMute"
                     >
                         {{ stateLabel }}
@@ -515,7 +613,9 @@ watch(
                     </button>
                 </div>
             </div>
-            <p class="mt-5 text-xl font-black leading-relaxed text-text xl:mt-7 xl:text-2xl">
+            <p
+                class="mt-5 text-xl font-black leading-relaxed text-text xl:mt-7 xl:text-2xl"
+            >
                 {{ displayMessage }}
             </p>
             <p v-if="ttsError" class="mt-2 text-xs font-bold text-muted">
@@ -542,9 +642,13 @@ watch(
             @speaking-end="handleSpeakingEnd"
             @error="handleTtsError"
         />
-        <div class="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/5 blur-3xl" />
-        <div class="pointer-events-none absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-blue-400/5 blur-3xl" />
-        
+        <div
+            class="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/5 blur-3xl"
+        />
+        <div
+            class="pointer-events-none absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-blue-400/5 blur-3xl"
+        />
+
         <div class="grid justify-items-center">
             <div class="agent-media-box">
                 <AgentVideoPlayer
@@ -557,18 +661,33 @@ watch(
                 />
             </div>
         </div>
-        <div class="relative mt-6 rounded-[24px] border border-slate-200/60 bg-slate-50/80 p-5 shadow-sm xl:mt-8">
-            <div class="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200/60 pb-4">
+        <div
+            class="relative mt-6 rounded-[24px] border border-slate-200/60 bg-slate-50/80 p-5 shadow-sm xl:mt-8"
+        >
+            <div
+                class="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200/60 pb-4"
+            >
                 <div>
-                    <p class="text-base font-black uppercase tracking-widest text-primary xl:text-lg">{{ displayTitle }}</p>
-                    <p v-if="displaySubtitle" class="mt-0.5 text-sm font-bold text-slate-400">{{ displaySubtitle }}</p>
+                    <p
+                        class="text-base font-black uppercase tracking-widest text-primary xl:text-lg"
+                    >
+                        {{ displayTitle }}
+                    </p>
+                    <p
+                        v-if="displaySubtitle"
+                        class="mt-0.5 text-sm font-bold text-slate-400"
+                    >
+                        {{ displaySubtitle }}
+                    </p>
                 </div>
                 <div class="flex items-center gap-2">
                     <button
                         v-if="ttsEnabled || showAudioButton"
                         type="button"
                         class="inline-flex items-center gap-2 rounded-full bg-primary/5 px-4 py-2 text-sm font-black text-primary ring-1 ring-primary/10 transition hover:bg-primary hover:text-white"
-                        :aria-label="isMuted ? 'Unmute agent voice' : 'Mute agent voice'"
+                        :aria-label="
+                            isMuted ? 'Unmute agent voice' : 'Mute agent voice'
+                        "
                         @click="toggleMute"
                     >
                         {{ stateLabel }}
@@ -595,10 +714,15 @@ watch(
                 </div>
             </div>
             <div class="relative mt-5">
-                <p class="text-base font-bold leading-relaxed text-slate-800 xl:text-lg">
+                <p
+                    class="text-base font-bold leading-relaxed text-slate-800 xl:text-lg"
+                >
                     {{ displayMessage }}
                 </p>
-                <p v-if="ttsError" class="mt-2 text-xs font-bold text-slate-500">
+                <p
+                    v-if="ttsError"
+                    class="mt-2 text-xs font-bold text-slate-500"
+                >
                     {{ ttsError }}
                 </p>
             </div>
@@ -634,37 +758,57 @@ watch(
                     @interaction-ended="emit('interaction-ended', $event)"
                 />
             </div>
-            <p class="assessment-agent-name">
-                {{ displayTitle.toUpperCase() }}
-            </p>
         </div>
 
         <div class="assessment-agent-dialogue">
-            <p class="min-w-0 flex-1 text-lg font-black leading-snug text-slate-800 xl:text-xl">
-                {{ displayMessage }}
-            </p>
-            <div class="flex shrink-0 items-center gap-2">
-                <button
-                    v-if="ttsEnabled || showAudioButton"
-                    type="button"
-                    class="grid size-9 place-items-center rounded-full bg-primary/5 text-primary ring-1 ring-primary/10 transition hover:bg-primary hover:text-white"
-                    :aria-label="isMuted ? 'Unmute agent voice' : 'Mute agent voice'"
-                    @click="toggleMute"
+            <div class="flex flex-col w-full h-full justify-center min-w-0">
+                <div class="w-full mb-1">
+                    <span
+                        class="font-black text-[#1D4ED8] text-sm md:text-base tracking-wide"
+                        >Miss Vivian</span
+                    >
+                </div>
+                <div class="w-full">
+                    <p
+                        class="text-base font-semibold leading-snug text-[#1E3A8A] xl:text-lg"
+                        style="
+                            font-family:
+                                &quot;Fredoka&quot;, system-ui, sans-serif;
+                        "
+                    >
+                        {{ displayMessage }}
+                    </p>
+                </div>
+                <div
+                    class="absolute right-3 top-1/2 -translate-y-1/2 flex shrink-0 items-center gap-1.5"
                 >
-                    <VolumeX v-if="isMuted" class="size-4" />
-                    <Volume2 v-else class="size-4" />
-                </button>
-                <button
-                    v-if="ttsEnabled || showAudioButton"
-                    type="button"
-                    class="grid size-9 place-items-center rounded-full bg-primary/5 text-primary ring-1 ring-primary/10 transition hover:bg-primary hover:text-white"
-                    aria-label="Replay agent message"
-                    @click="replayMessage"
-                >
-                    <RotateCcw class="size-4" />
-                </button>
+                    <button
+                        v-if="ttsEnabled || showAudioButton"
+                        type="button"
+                        class="grid size-8 place-items-center rounded-full bg-primary/10 text-primary ring-1 ring-primary/15 transition hover:bg-primary hover:text-white"
+                        :aria-label="
+                            isMuted ? 'Unmute agent voice' : 'Mute agent voice'
+                        "
+                        @click="toggleMute"
+                    >
+                        <VolumeX v-if="isMuted" class="size-3.5" />
+                        <Volume2 v-else class="size-3.5" />
+                    </button>
+                    <button
+                        v-if="ttsEnabled || showAudioButton"
+                        type="button"
+                        class="grid size-8 place-items-center rounded-full bg-primary/10 text-primary ring-1 ring-primary/15 transition hover:bg-primary hover:text-white"
+                        aria-label="Replay agent message"
+                        @click="replayMessage"
+                    >
+                        <RotateCcw class="size-3.5" />
+                    </button>
+                </div>
             </div>
-            <p v-if="ttsError" class="absolute bottom-3 left-4 text-xs font-bold text-slate-500">
+            <p
+                v-if="ttsError"
+                class="absolute bottom-2 left-4 text-xs font-bold text-[#64748B]"
+            >
                 {{ ttsError }}
             </p>
         </div>
@@ -688,8 +832,10 @@ watch(
             @speaking-end="handleSpeakingEnd"
             @error="handleTtsError"
         />
-        <div class="pointer-events-none absolute -left-10 -top-10 h-40 w-40 rounded-full bg-primary/5 blur-3xl" />
-        
+        <div
+            class="pointer-events-none absolute -left-10 -top-10 h-40 w-40 rounded-full bg-primary/5 blur-3xl"
+        />
+
         <div class="relative grid justify-items-center">
             <div class="agent-media-box">
                 <AgentVideoPlayer
@@ -703,13 +849,26 @@ watch(
             </div>
         </div>
         <div class="relative mt-4">
-            <div class="flex flex-col items-center gap-3 md:flex-row md:justify-between">
+            <div
+                class="flex flex-col items-center gap-3 md:flex-row md:justify-between"
+            >
                 <div class="text-center md:text-left">
-                    <p class="text-[15px] font-black uppercase tracking-widest text-primary">{{ displayTitle }}</p>
-                    <p v-if="displaySubtitle" class="mt-0.5 text-[12px] font-bold tracking-wide text-slate-400">{{ displaySubtitle }}</p>
+                    <p
+                        class="text-[15px] font-black uppercase tracking-widest text-primary"
+                    >
+                        {{ displayTitle }}
+                    </p>
+                    <p
+                        v-if="displaySubtitle"
+                        class="mt-0.5 text-[12px] font-bold tracking-wide text-slate-400"
+                    >
+                        {{ displaySubtitle }}
+                    </p>
                 </div>
                 <div class="flex items-center gap-2">
-                    <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-[12px] font-black text-emerald-600 ring-1 ring-emerald-200/60">
+                    <span
+                        class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-[12px] font-black text-emerald-600 ring-1 ring-emerald-200/60"
+                    >
                         <Volume2 class="size-3.5" />
                         {{ stateLabel }}
                     </span>
@@ -717,7 +876,9 @@ watch(
                         v-if="ttsEnabled || showAudioButton"
                         type="button"
                         class="grid size-8 place-items-center rounded-full bg-primary/5 text-primary ring-1 ring-primary/10 transition hover:bg-primary hover:text-white"
-                        :aria-label="isMuted ? 'Unmute agent voice' : 'Mute agent voice'"
+                        :aria-label="
+                            isMuted ? 'Unmute agent voice' : 'Mute agent voice'
+                        "
                         @click="toggleMute"
                     >
                         <VolumeX v-if="isMuted" class="size-4" />
@@ -725,14 +886,23 @@ watch(
                     </button>
                 </div>
             </div>
-            <div class="mt-4 rounded-[20px] border border-slate-200/60 bg-slate-50/80 p-4 shadow-sm">
+            <div
+                class="mt-4 rounded-[20px] border border-slate-200/60 bg-slate-50/80 p-4 shadow-sm"
+            >
                 <p class="text-[15px] font-bold leading-relaxed text-slate-800">
                     {{ displayMessage }}
                 </p>
             </div>
         </div>
     </section>
-    <section v-else class="agent-speaker-panel grid justify-items-center gap-2 rounded-[32px] border border-slate-200/80 bg-white shadow-xl shadow-slate-200/30 transition" :class="[compact ? 'p-4 lg:p-5' : 'p-4 sm:p-5 lg:p-6 xl:p-8', isSpeaking ? 'ring-2 ring-primary/20' : '']">
+    <section
+        v-else
+        class="agent-speaker-panel grid justify-items-center gap-2 rounded-[32px] border border-slate-200/80 bg-white shadow-xl shadow-slate-200/30 transition"
+        :class="[
+            compact ? 'p-4 lg:p-5' : 'p-4 sm:p-5 lg:p-6 xl:p-8',
+            isSpeaking ? 'ring-2 ring-primary/20' : '',
+        ]"
+    >
         <AgentSpeakerTTS
             v-if="ttsEnabled && !voiceLoading"
             :key="ttsKey"
@@ -759,21 +929,51 @@ watch(
                 />
             </div>
         </div>
-        <div class="relative w-full rounded-[24px] border border-slate-200/60 bg-slate-50/80 p-5 shadow-sm xl:p-6" :class="compact ? 'p-4' : 'p-5 xl:p-6'">
-            <span class="absolute left-1/2 top-0 size-5 -translate-x-1/2 -translate-y-1/2 rotate-45 border-l border-t border-slate-200/60 bg-slate-50" aria-hidden="true" />
-            <div class="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200/60 pb-3 xl:pb-4">
+        <div
+            class="relative w-full rounded-[24px] border border-slate-200/60 bg-slate-50/80 p-5 shadow-sm xl:p-6"
+            :class="compact ? 'p-4' : 'p-5 xl:p-6'"
+        >
+            <span
+                class="absolute left-1/2 top-0 size-5 -translate-x-1/2 -translate-y-1/2 rotate-45 border-l border-t border-slate-200/60 bg-slate-50"
+                aria-hidden="true"
+            />
+            <div
+                class="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200/60 pb-3 xl:pb-4"
+            >
                 <div>
-                    <p class="font-black uppercase tracking-widest text-primary" :class="compact ? 'text-[11px]' : 'text-[13px] xl:text-sm'">{{ displayTitle }}</p>
-                    <p v-if="displaySubtitle" class="mt-0.5 font-bold text-slate-400" :class="compact ? 'text-xs' : 'text-sm'">{{ displaySubtitle }}</p>
+                    <p
+                        class="font-black uppercase tracking-widest text-primary"
+                        :class="
+                            compact ? 'text-[11px]' : 'text-[13px] xl:text-sm'
+                        "
+                    >
+                        {{ displayTitle }}
+                    </p>
+                    <p
+                        v-if="displaySubtitle"
+                        class="mt-0.5 font-bold text-slate-400"
+                        :class="compact ? 'text-xs' : 'text-sm'"
+                    >
+                        {{ displaySubtitle }}
+                    </p>
                 </div>
                 <div class="flex items-center gap-2">
-                    <span class="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-black text-blue-600 ring-1 ring-blue-200/60">{{ stateLabel }}</span>
+                    <span
+                        class="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-black text-blue-600 ring-1 ring-blue-200/60"
+                        >{{ stateLabel }}</span
+                    >
                     <button
                         v-if="ttsEnabled || showAudioButton"
                         type="button"
                         class="grid size-9 place-items-center rounded-full ring-1 ring-primary/10 transition"
-                        :class="isMuted ? 'bg-slate-100 text-slate-400 hover:bg-primary/10 hover:text-primary' : 'bg-primary/5 text-primary hover:bg-primary hover:text-white'"
-                        :aria-label="isMuted ? 'Unmute agent voice' : 'Mute agent voice'"
+                        :class="
+                            isMuted
+                                ? 'bg-slate-100 text-slate-400 hover:bg-primary/10 hover:text-primary'
+                                : 'bg-primary/5 text-primary hover:bg-primary hover:text-white'
+                        "
+                        :aria-label="
+                            isMuted ? 'Unmute agent voice' : 'Mute agent voice'
+                        "
                         @click="toggleMute"
                     >
                         <VolumeX v-if="isMuted" class="size-4" />
@@ -790,7 +990,14 @@ watch(
                     </button>
                 </div>
             </div>
-            <p class="font-bold leading-relaxed text-slate-800" :class="compact ? 'mt-3 text-sm md:text-base' : 'mt-4 text-base xl:text-lg'">
+            <p
+                class="font-bold leading-relaxed text-slate-800"
+                :class="
+                    compact
+                        ? 'mt-3 text-sm md:text-base'
+                        : 'mt-4 text-base xl:text-lg'
+                "
+            >
                 {{ displayMessage }}
             </p>
             <p v-if="ttsError" class="mt-2 text-xs font-bold text-slate-500">
@@ -824,41 +1031,42 @@ watch(
 
 .assessment-agent-strip {
     display: grid;
-    grid-template-columns: clamp(5.5rem, 11dvh, 8.5rem) minmax(0, 1fr);
+    grid-template-columns: auto minmax(0, 1fr);
     align-items: stretch;
-    gap: clamp(0.5rem, 1vw, 0.75rem);
-    height: var(--assessment-agent-row, clamp(7.5rem, 17dvh, 11.25rem));
+    gap: 0;
+    height: var(--atw-agent-h, clamp(7rem, 16dvh, 10rem));
     min-height: 0;
-    overflow: hidden;
-    border-radius: 8px;
-    transition: box-shadow 150ms ease;
+    overflow: visible;
+    border-radius: 20px;
+    background: #dbeafe;
+    padding: 0.55rem;
+    box-shadow: 0 4px 16px rgba(30, 58, 138, 0.08);
 }
 
 .assessment-agent-card {
-    display: grid;
-    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     height: 100%;
-    grid-template-rows: minmax(0, 1fr) auto;
-    gap: clamp(0.15rem, 0.35dvh, 0.3rem);
-    overflow: hidden;
-    border: 1px solid rgb(226 232 240);
-    border-radius: 8px;
-    background: #ffffff;
-    padding: clamp(0.22rem, 0.55dvh, 0.4rem);
-    box-shadow: 0 10px 20px rgb(15 23 42 / 0.06);
+    aspect-ratio: 1 / 1;
+    overflow: visible;
+    border: none;
+    border-radius: 20px;
+    background: transparent;
+    padding: 0;
 }
 
 .assessment-agent-square {
     position: relative;
-    display: grid;
+    display: flex;
     width: 100%;
     height: 100%;
-    min-height: 0;
-    place-items: end center;
+    place-items: center;
     overflow: hidden;
-    border: 0;
-    border-radius: 6px;
-    background: transparent;
+    border-radius: 20px;
+    background: #ebf5ff;
+    border: 4px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 0 4px 12px rgba(30, 58, 138, 0.1);
 }
 
 .assessment-agent-name {
@@ -879,16 +1087,29 @@ watch(
 .assessment-agent-dialogue {
     position: relative;
     display: flex;
-    height: var(--assessment-agent-row, clamp(7.5rem, 17dvh, 11.25rem));
     min-width: 0;
-    align-items: center;
-    gap: 1rem;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 0.2rem;
     overflow: hidden;
-    border: 1px solid rgb(226 232 240);
-    border-radius: 8px;
+    border: none;
+    border-radius: 16px;
     background: #ffffff;
-    padding: clamp(0.75rem, 1.8dvh, 1.4rem);
-    box-shadow: 0 10px 20px rgb(15 23 42 / 0.06);
+    padding: clamp(0.6rem, 1.2dvh, 1rem) clamp(0.75rem, 1.5vw, 1.25rem);
+    margin: 0.4rem 0.75rem 0.4rem 0.5rem;
+    box-shadow: 0 2px 8px rgba(30, 58, 138, 0.06);
+}
+
+.assessment-agent-dialogue::before {
+    content: "";
+    position: absolute;
+    left: -14px;
+    top: 50%;
+    transform: translateY(-50%);
+    border-top: 14px solid transparent;
+    border-bottom: 14px solid transparent;
+    border-right: 14px solid #ffffff;
 }
 
 .assessment-agent-square :deep(.agent-media-player),

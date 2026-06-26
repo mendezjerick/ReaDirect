@@ -1,6 +1,6 @@
 import { readonly, ref } from 'vue';
 
-const enabled = ref(false);
+const enabled = ref(true); // Enabled by default so the user sees the feature!
 const toastMessage = ref('');
 const toastVisible = ref(false);
 let toastTimer = null;

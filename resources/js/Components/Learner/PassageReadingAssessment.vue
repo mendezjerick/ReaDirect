@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import LearnerLayout from '../../Layouts/LearnerLayout.vue';
-import AssessmentTaskWorkspace from './AssessmentTaskWorkspace.vue';
+import Task2BAssessmentWorkspace from './Task2BAssessmentWorkspace.vue';
 import AudioRecorder from './AudioRecorder.vue';
 import AsrTranscriptVisualizer from './AsrTranscriptVisualizer.vue';
 import { appendAudioMetadata, normalizeAsrResponse } from '../../utils/asrResponse';
@@ -257,7 +257,13 @@ const canSubmitForReview = computed(() => {
 
     return canUseManualFallback.value && hasIncorrectWords();
 });
-const primaryLabel = computed(() => passageChecked.value ? 'Next' : 'Submit');
+const primaryLabel = computed(() => {
+    if (uploading.value) return 'Checking...';
+    if (!passageChecked.value && audioFile.value && !form.audio_file_id) {
+        return 'Check Answer';
+    }
+    return passageChecked.value ? 'Next' : 'Submit';
+});
 const primaryDisabled = computed(() => form.processing || uploading.value || (!passageChecked.value && !canSubmitForReview.value));
 
 const applyIncorrectWordsFromCurrentResult = () => {
@@ -271,6 +277,26 @@ const applyIncorrectWordsFromCurrentResult = () => {
         form.incorrect_words = diff.value.incorrectCount;
     }
 };
+
+const currentArcResult = computed(() => {
+    if (!passageChecked.value) return null;
+    return 'correct';
+});
+
+const currentArcScore = computed(() => {
+    if (!passageChecked.value) return null;
+    const asr = asrResult.value;
+    if (asr) {
+        if (typeof asr.accuracy_score === 'number') return asr.accuracy_score > 1 ? asr.accuracy_score / 100 : asr.accuracy_score;
+        if (typeof asr.accuracy === 'number') return asr.accuracy > 1 ? asr.accuracy / 100 : asr.accuracy;
+        if (typeof asr.score === 'number') return asr.score > 1 ? asr.score / 100 : asr.score;
+    }
+    const expectedWordCount = compactWords(props.passage?.prompt ?? '').length;
+    if (expectedWordCount === 0) return 0;
+    const errors = Number(form.incorrect_words) || 0;
+    const correct = Math.max(0, expectedWordCount - errors);
+    return correct / expectedWordCount;
+});
 
 const uploadTranscript = async (file) => {
     if (uploading.value || form.processing) {
@@ -434,13 +460,16 @@ const setAgentSpeaking = (isSpeaking) => {
 
 <template>
     <LearnerLayout assessment-task>
-        <AssessmentTaskWorkspace
+        <Task2BAssessmentWorkspace
             :agent-state="agentState"
             :agent-message="agentMessage"
+            :arc-result="currentArcResult"
+            :arc-score="currentArcScore"
             :progress="100"
             :primary-label="primaryLabel"
             :primary-disabled="primaryDisabled"
             :prompt-image="passageImage"
+            variant="passage"
             @primary="handlePrimary"
             @agent-speaking-change="setAgentSpeaking"
         >
@@ -529,40 +558,44 @@ const setAgentSpeaking = (isSpeaking) => {
                     >
                 </label>
             </template>
-        </AssessmentTaskWorkspace>
+        </Task2BAssessmentWorkspace>
     </LearnerLayout>
 </template>
 
 <style scoped>
 .passage-prompt {
-    display: grid;
-    width: min(100%, 66rem);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
     height: 100%;
     max-height: 100%;
     min-width: 0;
-    align-content: center;
-    justify-items: center;
-    gap: clamp(0.35rem, 1dvh, 0.7rem);
+    gap: clamp(0.4rem, 1.1dvh, 0.8rem);
     overflow: hidden;
-    text-align: left;
+    padding-inline: clamp(0.25rem, 1.5cqw, 0.75rem);
+    text-align: center;
 }
 
 .passage-title {
     margin: 0;
-    width: 100%;
-    text-align: center;
-    font-size: clamp(0.8rem, 1.6dvh, 1rem);
-    font-weight: 900;
-    color: rgb(37 99 235);
+    font-family: 'Fredoka', system-ui, sans-serif;
+    font-size: clamp(0.65rem, 1.3dvh, 0.8rem);
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: rgb(148 163 184);
 }
 
 .passage-text {
     margin: 0;
     max-width: 100%;
-    color: rgb(30 41 59);
-    font-size: clamp(0.85rem, min(9cqh, 2.35cqw), 1.5rem);
-    font-weight: 900;
-    line-height: 1.35;
+    font-family: 'Fredoka', system-ui, sans-serif;
+    color: #1E3A8A;
+    font-size: clamp(1.1rem, min(4.5cqh, 4.5cqw), 2.2rem);
+    font-weight: 600;
+    line-height: 1.25;
     overflow-wrap: anywhere;
     text-wrap: pretty;
     word-break: normal;

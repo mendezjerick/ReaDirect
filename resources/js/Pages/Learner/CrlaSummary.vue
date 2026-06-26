@@ -1,24 +1,82 @@
 <script setup>
+import { computed, onMounted, ref } from 'vue';
 import { Link } from '@inertiajs/vue3';
-import { ArrowRight, BookOpen, Clock3, Music, Star, WholeWord } from 'lucide-vue-next';
+import { ChevronRight, Star, Rocket, CheckCircle2, XCircle } from 'lucide-vue-next';
 import LearnerLayout from '../../Layouts/LearnerLayout.vue';
 import AgentSpeakerPanel from '../../Components/Learner/AgentSpeakerPanel.vue';
 import PrimaryButton from '../../Components/PrimaryButton.vue';
 import BottomActionBar from '../../Components/BottomActionBar.vue';
 
-defineProps({
+const props = defineProps({
     attempt: Object,
     placementPreview: Object,
     taskTwoBReview: Object,
     passageEligible: Boolean,
 });
 
-const accuracyTone = (percentage) => {
-    if (percentage >= 90) return 'text-success bg-success/10';
-    if (percentage >= 75) return 'text-primary bg-primary-light';
-    if (percentage >= 60) return 'text-warning bg-accent/20';
-    return 'text-danger bg-danger/10';
-};
+const score = computed(() => props.attempt?.crla_total_score ?? 0);
+const total = 30;
+
+// Score ring math
+const radius = 40;
+const circumference = 2 * Math.PI * radius;
+const animatedDash = ref(`0 ${circumference.toFixed(1)}`);
+
+onMounted(() => {
+    requestAnimationFrame(() => {
+        setTimeout(() => {
+            const pct = score.value / total;
+            animatedDash.value = `${(pct * circumference).toFixed(1)} ${circumference.toFixed(1)}`;
+        }, 300);
+    });
+});
+
+const scoreColor = computed(() => {
+    const pct = score.value / total;
+    if (pct >= 0.8) return { ring: 'url(#ringGrad)', hex: '#22C55E', glow: 'rgba(34,197,94,0.25)', text: '#16A34A' };
+    if (pct >= 0.5) return { ring: 'url(#ringGrad)', hex: '#3B82F6', glow: 'rgba(59,130,246,0.25)', text: '#2563EB' };
+    if (pct >= 0.3) return { ring: 'url(#ringGrad)', hex: '#F59E0B', glow: 'rgba(245,158,11,0.25)', text: '#D97706' };
+    return { ring: 'url(#ringGrad)', hex: '#EF4444', glow: 'rgba(239,68,68,0.25)', text: '#DC2626' };
+});
+
+const gradStart = computed(() => {
+    const pct = score.value / total;
+    if (pct >= 0.8) return ['#6EE7B7', '#10B981'];
+    if (pct >= 0.5) return ['#93C5FD', '#3B82F6'];
+    if (pct >= 0.3) return ['#FDE68A', '#F59E0B'];
+    return ['#FCA5A5', '#EF4444'];
+});
+
+const agentMessage = computed(() => {
+    if (props.passageEligible) {
+        return `Great job completing the tasks! We will review your scores, then read a short passage together.`;
+    }
+    return `Excellent work! You have finished all the assessment tasks. Let's look at your final score.`;
+});
+
+const nextHref = computed(() => props.passageEligible ? '/learner/diagnostic/reading-intro' : '/learner/diagnostic/module-placement');
+const nextLabel = computed(() => props.passageEligible ? 'Continue to Passage' : 'View Module Placement');
+
+const tasks = computed(() => [
+    { name: 'Task 1: Letters',    score: props.attempt?.task_1_score,  outOf: 10, passed: (props.attempt?.task_1_score ?? 0) >= 7 },
+    { name: 'Task 2A: Rhymes',    score: props.attempt?.task_2a_score, outOf: 10, passed: (props.attempt?.task_2a_score ?? 0) >= 7 },
+    { name: 'Task 2B: Sentences', score: props.attempt?.task_2b_score, outOf: 10, passed: (props.attempt?.task_2b_score ?? 0) >= 7 },
+]);
+
+// Confetti
+const confetti = ref([]);
+onMounted(() => {
+    const colors = ['#6EE7B7','#93C5FD','#FDE68A','#FDA4AF','#C4B5FD','#6EE7B7','#FCD34D'];
+    confetti.value = Array.from({ length: 30 }, (_, i) => ({
+        id: i,
+        color: colors[i % colors.length],
+        left: Math.random() * 100,
+        delay: Math.random() * 1.8,
+        dur: 1.8 + Math.random() * 1.2,
+        size: 6 + Math.random() * 8,
+        rotate: Math.random() * 360,
+    }));
+});
 </script>
 
 <template>
@@ -26,211 +84,461 @@ const accuracyTone = (percentage) => {
         <template #agent>
             <AgentSpeakerPanel
                 agent-type="evaluator"
-                state="celebrating"
-                presentation="summary"
-                :message="passageEligible
-                    ? 'The CRLA tasks are complete. Review each score, then we will read a short passage to finish placement.'
-                    : 'The CRLA tasks are complete. Passage reading is not administered for this result.'"
+                state="encouraging"
+                :message="agentMessage"
+                compact
             />
         </template>
 
-        <div class="relative mx-auto grid w-full max-w-[1120px] gap-5 overflow-hidden pb-1 sm:gap-6">
-            <!-- Decorative blur blobs -->
-            <div class="pointer-events-none absolute -left-20 -top-10 h-40 w-40 rounded-full bg-primary/5 blur-3xl" aria-hidden="true" />
-            <div class="pointer-events-none absolute -right-16 top-52 h-40 w-40 rounded-full bg-blue-500/5 blur-3xl" aria-hidden="true" />
+        <div class="cs-page">
 
-            <!-- Sparkle decorations -->
-            <span class="pointer-events-none absolute right-6 top-2 hidden text-3xl font-black text-primary/5 sm:block" aria-hidden="true">✦</span>
-            <span class="pointer-events-none absolute right-0 top-14 hidden text-4xl font-black text-primary/5 sm:block" aria-hidden="true">✦</span>
-
-            <!-- Status badge -->
-            <div class="anim-fade-down inline-flex min-h-11 w-full items-center gap-3 rounded-full bg-gradient-to-r from-amber-100 to-yellow-100 px-5 py-2.5 text-[15px] font-black text-amber-700 ring-1 ring-amber-200/50 sm:h-12 sm:text-base">
-                <Star class="size-5 fill-amber-500 text-amber-500" />
-                CRLA Complete
+            <!-- ── Confetti ──────────────────────────────────── -->
+            <div class="cs-confetti-wrap" aria-hidden="true">
+                <span
+                    v-for="p in confetti"
+                    :key="p.id"
+                    class="cs-confetti-piece"
+                    :style="{
+                        left: p.left + '%',
+                        width: p.size + 'px',
+                        height: p.size + 'px',
+                        background: p.color,
+                        animationDuration: p.dur + 's',
+                        animationDelay: p.delay + 's',
+                        transform: `rotate(${p.rotate}deg)`,
+                    }"
+                />
             </div>
 
-            <!-- Title -->
-            <div class="anim-fade-down relative text-center">
-                <h1 class="bg-gradient-to-br from-slate-900 to-slate-700 bg-clip-text text-3xl font-black leading-tight text-transparent sm:text-4xl xl:text-5xl">
-                    Your CRLA score is ready.
-                </h1>
-            </div>
-
-            <!-- Task score cards -->
-            <div class="anim-stagger grid gap-4 sm:grid-cols-3 sm:gap-5">
-                <!-- Task 1 Letters -->
-                <article class="flex min-h-24 items-center gap-4 rounded-[28px] border border-slate-200/80 bg-white px-5 py-5 shadow-xl shadow-slate-200/30 xl:min-h-32 xl:gap-5 xl:px-6 xl:py-6">
-                    <span class="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-400 to-blue-600 text-white shadow-lg shadow-blue-500/20 ring-1 ring-white/20 xl:size-16">
-                        <WholeWord class="size-7 xl:size-8" />
-                    </span>
-                    <div class="min-w-0">
-                        <p class="text-[13px] font-black uppercase tracking-widest text-slate-400 xl:text-[14px]">Task 1 Letters</p>
-                        <p class="mt-1.5 text-3xl font-black leading-none text-slate-800 xl:text-4xl">{{ attempt.task_1_score }}</p>
-                        <p class="mt-1.5 text-[12px] font-semibold text-slate-400 xl:mt-2 xl:text-[13px]">from last month</p>
-                    </div>
-                </article>
-
-                <!-- Task 2A Rhymes -->
-                <article class="flex min-h-24 items-center gap-4 rounded-[28px] border border-slate-200/80 bg-white px-5 py-5 shadow-xl shadow-slate-200/30 xl:min-h-32 xl:gap-5 xl:px-6 xl:py-6">
-                    <span class="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-400 to-violet-600 text-white shadow-lg shadow-violet-500/20 ring-1 ring-white/20 xl:size-16">
-                        <Music class="size-7 xl:size-8" />
-                    </span>
-                    <div class="min-w-0">
-                        <p class="text-[13px] font-black uppercase tracking-widest text-slate-400 xl:text-[14px]">Task 2A Rhymes</p>
-                        <p class="mt-1.5 text-3xl font-black leading-none text-slate-800 xl:text-4xl">{{ attempt.task_2a_score }}</p>
-                        <p class="mt-1.5 text-[12px] font-semibold text-slate-400 xl:mt-2 xl:text-[13px]">from last month</p>
-                    </div>
-                </article>
-
-                <!-- Task 2B Words -->
-                <article class="flex min-h-24 items-center gap-4 rounded-[28px] border border-slate-200/80 bg-white px-5 py-5 shadow-xl shadow-slate-200/30 xl:min-h-32 xl:gap-5 xl:px-6 xl:py-6">
-                    <span class="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-lg shadow-emerald-500/20 ring-1 ring-white/20 xl:size-16">
-                        <BookOpen class="size-7 xl:size-8" />
-                    </span>
-                    <div class="min-w-0">
-                        <p class="text-[13px] font-black uppercase tracking-widest text-slate-400 xl:text-[14px]">Task 2B Words</p>
-                        <p class="mt-1.5 text-3xl font-black leading-none text-slate-800 xl:text-4xl">{{ attempt.task_2b_score }}</p>
-                        <p class="mt-1.5 text-[12px] font-semibold text-slate-400 xl:mt-2 xl:text-[13px]">from last month</p>
-                    </div>
-                </article>
-            </div>
-
-            <!-- CRLA Total - hero card -->
-            <section class="anim-slide-up rounded-[36px] border border-slate-200/80 bg-white px-6 py-6 shadow-xl shadow-slate-200/30 sm:px-8 xl:px-10 xl:py-8">
-                <div class="grid gap-6 xl:grid-cols-[240px_1px_1fr] xl:items-center">
-                    <div class="text-center xl:text-left">
-                        <p class="text-[14px] font-black uppercase tracking-widest text-slate-400">CRLA Total</p>
-                        <p class="mt-3 text-5xl font-black leading-none xl:mt-4 xl:text-6xl">
-                            <span class="bg-gradient-to-br from-primary to-blue-600 bg-clip-text text-transparent">{{ attempt.crla_total_score }}</span>
-                            <span class="text-slate-300">/30</span>
-                        </p>
-                        <p class="mt-3 text-xl font-black text-slate-800 xl:mt-4 xl:text-2xl">{{ attempt.crla_classification }}</p>
-                    </div>
-                    <div class="hidden h-32 rounded-full bg-slate-200/60 xl:block" aria-hidden="true" />
-                    <div class="grid gap-4 xl:gap-5">
-                        <div class="flex items-start gap-3 rounded-[20px] border border-slate-200/60 bg-slate-50/50 px-5 py-4 text-[14px] font-black text-slate-800 shadow-sm sm:items-center xl:gap-4 xl:text-[15px]">
-                            <span class="flex size-9 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-md shadow-emerald-500/20 ring-1 ring-white/20">
-                                <Star class="size-5 fill-white text-white" />
-                            </span>
-                            {{ placementPreview?.crla_meaning }}
-                        </div>
-                        <p class="text-[15px] font-semibold leading-relaxed text-slate-500 sm:text-base xl:text-lg">
-                            {{ placementPreview?.decision_reason }}
-                        </p>
-                    </div>
+            <!-- ── Trophy + Title Banner ────────────────────── -->
+            <div class="cs-banner anim-in" style="--d:0ms">
+                <div class="cs-trophy-wrap">
+                    <span class="cs-trophy">🏆</span>
+                    <span class="cs-trophy-glow" />
                 </div>
-            </section>
+                <div class="cs-badge">
+                    <Star class="cs-badge-star" />
+                    CRLA Complete!
+                </div>
+                <h1 class="cs-title">Core Reading Assessment</h1>
+                <p class="cs-subtitle">You scored <strong>{{ score }}</strong> out of <strong>{{ total }}</strong> points across 3 tasks.</p>
+            </div>
 
-            <!-- Task 2B Review section -->
-            <section v-if="taskTwoBReview" class="anim-slide-up rounded-[28px] border border-slate-200/80 bg-white px-5 py-6 shadow-xl shadow-slate-200/30 sm:px-6 xl:px-8">
-                <div class="grid gap-6 xl:grid-cols-[1fr_1px_1fr] xl:items-center">
-                    <div class="flex items-center gap-4 xl:gap-5">
-                        <span class="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-400 to-blue-600 text-white shadow-lg shadow-blue-500/20 ring-1 ring-white/20 xl:size-14">
-                            <BookOpen class="size-6 xl:size-7" />
-                        </span>
-                        <div class="min-w-0">
-                            <p class="text-[16px] font-black text-slate-800 xl:text-lg">Task 2B Word Results</p>
-                            <p class="mt-1.5 text-[13px] font-black uppercase tracking-widest text-slate-400">Average accuracy</p>
-                            <p class="text-3xl font-black xl:text-4xl">
-                                <span class="bg-gradient-to-br from-primary to-blue-600 bg-clip-text text-transparent">{{ taskTwoBReview.average_accuracy_percentage }}%</span>
-                            </p>
-                        </div>
-                    </div>
-                    <div class="hidden h-16 rounded-full bg-slate-200/60 xl:block" aria-hidden="true" />
-                    <div class="flex items-center gap-4 xl:gap-5">
-                        <span class="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-300 to-amber-500 text-white shadow-lg shadow-amber-500/20 ring-1 ring-white/20 xl:size-14">
-                            <Clock3 class="size-6 xl:size-7" />
-                        </span>
-                        <div class="min-w-0">
-                            <p class="text-[13px] font-black uppercase tracking-widest text-slate-400">What we noticed</p>
-                            <p class="mt-1.5 text-xl font-black capitalize text-slate-800 xl:text-2xl">{{ taskTwoBReview.feedback_label }}</p>
-                        </div>
+            <!-- ── Score Ring Card ──────────────────────────── -->
+            <div class="cs-score-card anim-in" style="--d:120ms">
+                <div class="cs-ring-wrap" :style="{ '--glow': scoreColor.glow }">
+                    <svg class="cs-ring-svg" viewBox="0 0 100 100" fill="none">
+                        <defs>
+                            <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" :stop-color="gradStart[0]" />
+                                <stop offset="100%" :stop-color="gradStart[1]" />
+                            </linearGradient>
+                        </defs>
+                        <!-- Track -->
+                        <circle cx="50" cy="50" :r="radius" stroke="#E2E8F0" stroke-width="9" stroke-linecap="round"/>
+                        <!-- Score arc -->
+                        <circle
+                            cx="50" cy="50" :r="radius"
+                            :stroke="scoreColor.ring"
+                            stroke-width="9"
+                            stroke-linecap="round"
+                            :stroke-dasharray="animatedDash"
+                            stroke-dashoffset="0"
+                            transform="rotate(-90 50 50)"
+                            class="cs-ring-arc"
+                        />
+                    </svg>
+                    <div class="cs-ring-inner">
+                        <span class="cs-score-num" :style="{ color: scoreColor.text }">{{ score }}</span>
+                        <span class="cs-score-denom">/{{ total }}</span>
                     </div>
                 </div>
 
-                <div v-if="taskTwoBReview.items?.length" class="anim-stagger mt-6 grid gap-3 2xl:grid-cols-2">
-                    <article
-                        v-for="item in taskTwoBReview.items"
-                        :key="item.item_number"
-                        class="grid gap-3 rounded-[24px] border border-slate-200/60 bg-slate-50/50 px-5 py-4 shadow-sm sm:grid-cols-[1fr_auto] sm:items-center"
+                <!-- Task mini bars -->
+                <div class="cs-task-list">
+                    <div
+                        v-for="(task, idx) in tasks"
+                        :key="idx"
+                        class="cs-task-row"
+                        :style="{ animationDelay: (200 + idx * 80) + 'ms' }"
                     >
-                        <div class="min-w-0">
-                            <p class="text-[13px] font-black uppercase tracking-widest text-primary">Task 2B Item {{ item.item_number }}</p>
-                            <p class="mt-1 break-words text-lg font-black text-slate-800 xl:text-xl">{{ item.prompt }}</p>
-                            <p class="mt-1 text-[13px] font-semibold italic capitalize text-slate-400 xl:text-[14px]">{{ item.feedback_label }}</p>
+                        <div class="cs-task-left">
+                            <component
+                                :is="task.passed ? CheckCircle2 : XCircle"
+                                class="cs-task-icon"
+                                :class="task.passed ? 'cs-task-icon--pass' : 'cs-task-icon--fail'"
+                            />
+                            <span class="cs-task-name">{{ task.name }}</span>
                         </div>
-                        <p class="justify-self-start rounded-[20px] px-4 py-2 text-2xl font-black sm:justify-self-end xl:px-5 xl:py-3 xl:text-3xl" :class="accuracyTone(item.accuracy_percentage)">
-                            {{ item.accuracy_percentage }}%
-                        </p>
-                    </article>
+                        <div class="cs-task-right">
+                            <div class="cs-bar-wrap">
+                                <div
+                                    class="cs-bar-fill"
+                                    :class="task.passed ? 'cs-bar--pass' : 'cs-bar--fail'"
+                                    :style="{ width: ((task.score ?? 0) / task.outOf * 100) + '%', transitionDelay: (400 + idx * 100) + 'ms' }"
+                                />
+                            </div>
+                            <span class="cs-task-score" :class="task.passed ? 'cs-score--pass' : 'cs-score--fail'">
+                                {{ task.score }}/{{ task.outOf }}
+                            </span>
+                        </div>
+                    </div>
                 </div>
-            </section>
+            </div>
 
+            <!-- ── Placement Card ───────────────────────────── -->
+            <div class="cs-placement-card anim-in" style="--d:280ms">
+                <div class="cs-placement-icon-wrap">
+                    <Rocket class="cs-placement-icon" />
+                </div>
+                <div class="cs-placement-body">
+                    <p class="cs-placement-label">Your Placement</p>
+                    <p class="cs-placement-title">{{ attempt?.crla_classification }}</p>
+                    <p class="cs-placement-desc">
+                        {{ placementPreview?.decision_reason || 'You have successfully completed the core reading assessment.' }}
+                    </p>
+                </div>
+            </div>
+
+            <!-- Floating deco stars -->
+            <span class="cs-deco cs-deco--1">✦</span>
+            <span class="cs-deco cs-deco--2">✦</span>
+            <span class="cs-deco cs-deco--3">✦</span>
         </div>
 
         <BottomActionBar>
-            <Link :href="passageEligible ? '/learner/diagnostic/reading-intro' : '/learner/diagnostic/module-placement'" class="w-full sm:w-auto">
-                <PrimaryButton class="w-full gap-3 rounded-[22px] px-5 text-base shadow-xl shadow-primary/25 sm:w-auto sm:min-w-[320px] sm:gap-4 sm:px-9 sm:text-lg">
-                    {{ passageEligible ? 'Continue to Passage Reading' : 'Continue to Module Placement' }}
-                    <ArrowRight class="size-5 stroke-[3] sm:size-6" />
+            <Link :href="nextHref">
+                <PrimaryButton>
+                    <span class="inline-flex items-center gap-3">
+                        {{ nextLabel }}
+                        <ChevronRight class="size-6 stroke-[3]" />
+                    </span>
                 </PrimaryButton>
             </Link>
         </BottomActionBar>
-
     </LearnerLayout>
 </template>
 
 <style scoped>
-/* Card spring entrance */
-.anim-card {
-    animation: cardSpring 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-}
-@keyframes cardSpring {
-    from { opacity: 0; transform: scale(0.92) translateY(20px); }
-    to { opacity: 1; transform: scale(1) translateY(0); }
+/* ── Page ───────────────────────────────────────────── */
+.cs-page {
+    position: relative;
+    display: grid;
+    gap: 1.1rem;
+    max-width: 44rem;
+    margin: 0 auto;
+    padding: 0.5rem 0 3rem;
+    overflow: hidden;
 }
 
-/* Content pop */
-.anim-pop {
-    animation: contentPop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-    animation-delay: 0.15s;
+/* ── Confetti ───────────────────────────────────────── */
+.cs-confetti-wrap {
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    z-index: 0;
+}
+.cs-confetti-piece {
+    position: absolute;
+    top: -20px;
+    border-radius: 3px;
     opacity: 0;
+    animation: confettiFall linear forwards;
 }
-@keyframes contentPop {
-    from { opacity: 0; transform: scale(0.7); }
-    to { opacity: 1; transform: scale(1); }
-}
-
-/* Header fade down */
-.anim-fade-down {
-    animation: fadeDown 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-@keyframes fadeDown {
-    from { opacity: 0; transform: translateY(-12px); }
-    to { opacity: 1; transform: translateY(0); }
+@keyframes confettiFall {
+    0%   { transform: translateY(0) rotate(0deg);   opacity: 1; }
+    80%  { opacity: 1; }
+    100% { transform: translateY(400px) rotate(720deg); opacity: 0; }
 }
 
-/* Panel slide up */
-.anim-slide-up {
-    animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    animation-delay: 0.1s;
-    opacity: 0;
+/* ── Entrance animation ──────────────────────────────── */
+.anim-in {
+    animation: slideUp 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: var(--d, 0ms);
 }
 @keyframes slideUp {
-    from { opacity: 0; transform: translateY(24px); }
-    to { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; transform: translateY(22px); }
+    to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Staggered children */
-.anim-stagger > * {
-    animation: staggerIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+/* ── Banner ─────────────────────────────────────────── */
+.cs-banner {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    background: linear-gradient(135deg, #EFF6FF 0%, #F0FDF4 100%);
+    border: 1.5px solid rgba(191, 219, 254, 0.7);
+    border-radius: 28px;
+    padding: 2rem 1.5rem 1.5rem;
+    box-shadow: 0 8px 32px rgba(30, 58, 138, 0.08), 0 1px 0 rgba(255,255,255,0.9) inset;
 }
-.anim-stagger > *:nth-child(1) { animation-delay: 0ms; }
-.anim-stagger > *:nth-child(2) { animation-delay: 150ms; }
-.anim-stagger > *:nth-child(3) { animation-delay: 300ms; }
-.anim-stagger > *:nth-child(4) { animation-delay: 450ms; }
-@keyframes staggerIn {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
+
+.cs-trophy-wrap {
+    position: relative;
+    display: inline-block;
+    margin-bottom: 0.75rem;
+}
+.cs-trophy {
+    font-size: clamp(3rem, 10vw, 4.5rem);
+    display: block;
+    filter: drop-shadow(0 4px 16px rgba(245,158,11,0.35));
+    animation: trophyBounce 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.4s both;
+}
+@keyframes trophyBounce {
+    from { opacity: 0; transform: scale(0.3) rotate(-15deg); }
+    to   { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+.cs-trophy-glow {
+    position: absolute;
+    inset: -30%;
+    background: radial-gradient(circle, rgba(251,191,36,0.2) 0%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.cs-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 1rem;
+    border-radius: 9999px;
+    background: linear-gradient(135deg, rgba(254,243,199,0.9), rgba(253,230,138,0.9));
+    border: 1.5px solid rgba(251,191,36,0.5);
+    font-family: 'Fredoka', system-ui, sans-serif;
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: #92400E;
+    margin-bottom: 0.75rem;
+    box-shadow: 0 2px 8px rgba(245,158,11,0.2);
+    animation: badgePop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.6s both;
+}
+@keyframes badgePop {
+    from { opacity: 0; transform: scale(0.7); }
+    to   { opacity: 1; transform: scale(1); }
+}
+.cs-badge-star {
+    width: 0.9rem;
+    height: 0.9rem;
+    fill: #F59E0B;
+    stroke: #F59E0B;
+}
+
+.cs-title {
+    font-family: 'Fredoka', system-ui, sans-serif;
+    font-weight: 700;
+    font-size: clamp(1.4rem, 4vw, 1.9rem);
+    color: #1E3A8A;
+    line-height: 1.15;
+    margin: 0 0 0.5rem;
+}
+.cs-subtitle {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #64748B;
+    line-height: 1.5;
+}
+.cs-subtitle strong { color: #1E3A8A; font-weight: 700; }
+
+/* ── Score Card ─────────────────────────────────────── */
+.cs-score-card {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 1.75rem;
+    background: white;
+    border: 1.5px solid rgba(191, 219, 254, 0.7);
+    border-radius: 28px;
+    padding: 1.5rem 1.75rem;
+    box-shadow: 0 8px 32px rgba(30, 58, 138, 0.07), 0 1px 0 rgba(255,255,255,0.9) inset;
+}
+
+/* Ring */
+.cs-ring-wrap {
+    position: relative;
+    flex-shrink: 0;
+    width: clamp(7rem, 20vw, 9.5rem);
+    height: clamp(7rem, 20vw, 9.5rem);
+    filter: drop-shadow(0 0 16px var(--glow, rgba(34,197,94,0.2)));
+}
+.cs-ring-svg {
+    width: 100%;
+    height: 100%;
+}
+.cs-ring-arc {
+    transition: stroke-dasharray 1.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.cs-ring-inner {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+.cs-score-num {
+    font-family: 'Fredoka', system-ui, sans-serif;
+    font-weight: 700;
+    font-size: clamp(2rem, 6vw, 2.8rem);
+}
+.cs-score-denom {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #94A3B8;
+    margin-top: 0.1rem;
+}
+
+/* Task list */
+.cs-task-list {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+.cs-task-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.cs-task-left {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+}
+.cs-task-icon {
+    flex-shrink: 0;
+    width: 1.1rem;
+    height: 1.1rem;
+    stroke-width: 2.5;
+}
+.cs-task-icon--pass { color: #22C55E; }
+.cs-task-icon--fail { color: #EF4444; }
+.cs-task-name {
+    font-family: 'Fredoka', system-ui, sans-serif;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #1E293B;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.cs-task-right {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-shrink: 0;
+}
+.cs-bar-wrap {
+    width: 3.5rem;
+    height: 6px;
+    background: #F1F5F9;
+    border-radius: 9999px;
+    overflow: hidden;
+}
+.cs-bar-fill {
+    height: 100%;
+    border-radius: 9999px;
+    width: 0;
+    transition: width 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.cs-bar--pass { background: linear-gradient(90deg, #86EFAC, #22C55E); }
+.cs-bar--fail { background: linear-gradient(90deg, #FCA5A5, #EF4444); }
+.cs-task-score {
+    font-family: 'Fredoka', system-ui, sans-serif;
+    font-weight: 700;
+    font-size: 0.9rem;
+    min-width: 2.5rem;
+    text-align: right;
+}
+.cs-score--pass { color: #16A34A; }
+.cs-score--fail { color: #DC2626; }
+
+/* ── Placement Card ─────────────────────────────────── */
+.cs-placement-card {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    background: linear-gradient(135deg, #EFF6FF 0%, #F0F9FF 100%);
+    border: 1.5px solid rgba(147, 197, 253, 0.6);
+    border-radius: 24px;
+    padding: 1.25rem 1.5rem;
+    box-shadow: 0 6px 24px rgba(30, 58, 138, 0.07);
+}
+.cs-placement-icon-wrap {
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #60A5FA, #2563EB);
+    box-shadow: 0 4px 16px rgba(37, 99, 235, 0.3);
+    margin-top: 0.1rem;
+}
+.cs-placement-icon {
+    width: 1.5rem;
+    height: 1.5rem;
+    stroke: white;
+    stroke-width: 2.5;
+}
+.cs-placement-label {
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #94A3B8;
+    margin-bottom: 0.3rem;
+}
+.cs-placement-title {
+    font-family: 'Fredoka', system-ui, sans-serif;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #1E3A8A;
+    margin-bottom: 0.3rem;
+}
+.cs-placement-desc {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #475569;
+    line-height: 1.5;
+}
+
+/* ── Deco stars ─────────────────────────────────────── */
+.cs-deco {
+    pointer-events: none;
+    position: absolute;
+    font-weight: 900;
+    color: rgba(59, 130, 246, 0.08);
+    animation: decoFloat 4s ease-in-out infinite alternate;
+    z-index: 0;
+}
+.cs-deco--1 { right: -0.5rem; top: 2rem;   font-size: 2.5rem; animation-delay: 0s; }
+.cs-deco--2 { left: -0.5rem;  bottom: 6rem; font-size: 1.8rem; animation-delay: 1.2s; }
+.cs-deco--3 { right: 2rem;    bottom: 2rem; font-size: 1.2rem; animation-delay: 0.6s; }
+@keyframes decoFloat {
+    from { transform: translateY(0) rotate(0deg); }
+    to   { transform: translateY(-8px) rotate(15deg); }
+}
+
+/* ── Responsive ─────────────────────────────────────── */
+@media (max-width: 520px) {
+    .cs-score-card {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 1.25rem;
+    }
+    .cs-task-row {
+        justify-content: space-between;
+    }
+    .cs-bar-wrap { width: 3rem; }
 }
 </style>

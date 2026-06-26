@@ -36,6 +36,10 @@ export function getWordImage(word) {
 
     if (!key || !ILLUSTRATED_WORDS.has(key)) return null;
 
+    if (key === 'dog') {
+        return `${WORD_IMAGE_BASE}/${key}.png`;
+    }
+
     return `${WORD_IMAGE_BASE}/${key}.svg`;
 }
 

@@ -2,7 +2,7 @@
 import { computed, reactive, ref } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import LearnerLayout from '../../Layouts/LearnerLayout.vue';
-import AssessmentTaskWorkspace from './AssessmentTaskWorkspace.vue';
+import Task2BAssessmentWorkspace from './Task2BAssessmentWorkspace.vue';
 import AssessmentPromptText from './AssessmentPromptText.vue';
 import AudioRecorder from './AudioRecorder.vue';
 import AsrTranscriptVisualizer from './AsrTranscriptVisualizer.vue';
@@ -87,6 +87,36 @@ const isCurrentUploading = computed(() => Boolean(uploading[step.currentItem.val
 const currentTranscript = computed(() => String(generatedTranscripts[step.currentItem.value?.id] ?? '').trim());
 const currentWordImage = computed(() => getWordImage(step.currentItem.value?.payload?.target_word));
 const isCurrentChecked = computed(() => Boolean(checkedItems[step.currentItem.value?.id]) && hasAnswerOrAudio(step.currentItem.value, answerFor(step.currentItem.value)));
+const currentArcResult = computed(() => {
+    if (!isCurrentChecked.value) return null;
+    const asr = asrResults[step.currentItem.value?.id];
+    if (!asr) {
+        // Fallback for manual override: compare transcript
+        const target = (step.currentItem.value?.payload?.target_word || step.currentItem.value?.prompt || '').trim().toLowerCase();
+        const said = currentTranscript.value.toLowerCase();
+        return (said === target && said.length > 0) ? 'correct' : 'wrong';
+    }
+    // Use is_correct from backend if available, else fall back to score threshold
+    if (typeof asr.is_correct === 'boolean') return asr.is_correct ? 'correct' : 'wrong';
+    if (typeof asr.score === 'number') return asr.score >= 0.6 ? 'correct' : 'wrong';
+    if (typeof asr.accuracy === 'number') return asr.accuracy >= 60 ? 'correct' : 'wrong';
+    return null;
+});
+
+const currentArcScore = computed(() => {
+    if (!isCurrentChecked.value) return null;
+    const asr = asrResults[step.currentItem.value?.id];
+    if (!asr) {
+        // Fallback for manual override
+        return currentArcResult.value === 'correct' ? 1.0 : 0.0;
+    }
+    // Prefer explicit accuracy fields (normalize to 0-1)
+    if (typeof asr.accuracy_score === 'number') return asr.accuracy_score > 1 ? asr.accuracy_score / 100 : asr.accuracy_score;
+    if (typeof asr.score === 'number') return asr.score > 1 ? asr.score / 100 : asr.score;
+    if (typeof asr.accuracy === 'number') return asr.accuracy > 1 ? asr.accuracy / 100 : asr.accuracy;
+    if (typeof asr.is_correct === 'boolean') return asr.is_correct ? 1.0 : 0.0;
+    return null;
+});
 const canSubmitCurrent = computed(() => {
     const item = step.currentItem.value;
 
@@ -94,7 +124,13 @@ const canSubmitCurrent = computed(() => {
 
     return Boolean(audioFiles[item.id]) || hasManualOverride(item);
 });
-const primaryLabel = computed(() => isCurrentChecked.value ? 'Next' : 'Submit');
+const primaryLabel = computed(() => {
+    if (isCurrentUploading.value) return 'Checking...';
+    if (!isCurrentChecked.value && audioFiles[step.currentItem.value?.id] && !uploadedAudioIds[step.currentItem.value?.id]) {
+        return 'Check Answer';
+    }
+    return isCurrentChecked.value ? 'Next' : 'Submit';
+});
 const primaryDisabled = computed(() => form.processing || isCurrentUploading.value || (!isCurrentChecked.value && !canSubmitCurrent.value));
 
 const rememberAudio = (item, file) => {
@@ -290,13 +326,18 @@ const setAgentSpeaking = (isSpeaking) => {
 
 <template>
     <LearnerLayout assessment-task>
-        <AssessmentTaskWorkspace
+        <Task2BAssessmentWorkspace
+            variant="sentence"
             :agent-state="agentState"
             :agent-message="agentMessage"
             :progress="step.progressPercent.value"
+            :total-steps="step.items.value.length"
+            :current-step="step.currentIndex.value + 1"
             :primary-label="primaryLabel"
             :primary-disabled="primaryDisabled"
             :prompt-image="currentWordImage"
+            :arc-result="currentArcResult"
+            :arc-score="currentArcScore"
             @primary="handlePrimary"
             @agent-speaking-change="setAgentSpeaking"
         >
@@ -369,6 +410,6 @@ const setAgentSpeaking = (isSpeaking) => {
                     </label>
                 </div>
             </template>
-        </AssessmentTaskWorkspace>
+        </Task2BAssessmentWorkspace>
     </LearnerLayout>
 </template>

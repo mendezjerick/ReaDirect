@@ -102,7 +102,9 @@ const promptDensity = computed(() => {
 <style scoped>
 .assessment-prompt-text {
     display: grid;
-    width: min(100%, 58rem);
+    align-self: stretch;
+    justify-self: stretch;
+    width: 100%;
     height: 100%;
     max-height: 100%;
     min-width: 0;
@@ -111,15 +113,17 @@ const promptDensity = computed(() => {
     justify-items: center;
     gap: clamp(0.4rem, 1.1dvh, 0.8rem);
     overflow: hidden;
-    padding-inline: clamp(0rem, 1cqw, 0.5rem);
+    padding-inline: clamp(0.25rem, 1.5cqw, 0.75rem);
     text-align: center;
 }
 
 .assessment-prompt-text-label {
     margin: 0;
-    font-size: clamp(0.78rem, 1.7dvh, 1rem);
-    font-weight: 900;
-    letter-spacing: 0;
+    font-family: 'Fredoka', system-ui, sans-serif;
+    font-size: clamp(0.62rem, 1.3dvh, 0.78rem);
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
     color: rgb(148 163 184);
 }
 
@@ -127,9 +131,10 @@ const promptDensity = computed(() => {
     margin: 0;
     max-width: 100%;
     min-width: 0;
-    color: rgb(30 41 59);
+    font-family: 'Fredoka', system-ui, sans-serif;
+    color: #1E3A8A;
     font-size: var(--prompt-font-size);
-    font-weight: 900;
+    font-weight: 600;
     line-height: 1.12;
     overflow-wrap: anywhere;
     text-wrap: balance;
@@ -146,25 +151,28 @@ const promptDensity = computed(() => {
 }
 
 .assessment-prompt-text--sentence .assessment-prompt-text-body {
-    --prompt-font-size: clamp(1.35rem, min(24cqh, 5.8cqw), 3.2rem);
-    line-height: 1.18;
-}
-
-.assessment-prompt-text--medium .assessment-prompt-text-body {
-    --prompt-font-size: clamp(1.2rem, min(16cqh, 4.6cqw), 2.7rem);
+    --prompt-font-size: clamp(2.2rem, min(48cqh, 12cqw), 7rem);
     line-height: 1.15;
 }
 
-.assessment-prompt-text--long .assessment-prompt-text-body {
-    --prompt-font-size: clamp(0.95rem, min(11cqh, 3.4cqw), 1.9rem);
+.assessment-prompt-text--medium .assessment-prompt-text-body {
+    --prompt-font-size: clamp(1.7rem, min(28cqh, 7.5cqw), 4.2rem);
     line-height: 1.18;
 }
 
+.assessment-prompt-text--long .assessment-prompt-text-body {
+    --prompt-font-size: clamp(1.1rem, min(14cqh, 4.4cqw), 2.4rem);
+    line-height: 1.22;
+}
+
 .assessment-prompt-text-mark {
-    border-radius: 0.75rem;
-    background: rgb(254 243 199);
-    padding: 0 0.32em;
+    border-radius: 0.8rem;
+    background: linear-gradient(145deg, #fef08a, #fde047);
+    padding: 0.06em 0.46em;
     color: rgb(30 41 59);
-    box-shadow: inset 0 0 0 1px rgb(252 211 77 / 0.5);
+    box-shadow:
+        inset 0 0 0 1.5px rgba(202, 138, 4, 0.4),
+        0 2px 6px rgba(202, 138, 4, 0.18);
+    font-weight: 900;
 }
 </style>

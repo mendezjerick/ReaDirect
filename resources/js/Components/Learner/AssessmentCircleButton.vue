@@ -58,7 +58,7 @@ const attemptRingGradient = computed(() => {
         <button
             v-bind="attrs"
             type="button"
-            class="assessment-circle-button grid place-items-center rounded-full bg-primary text-white shadow-xl shadow-primary/25 ring-1 ring-white/40 transition hover:bg-primary-dark active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+            class="assessment-circle-button grid place-items-center rounded-full text-[#1E3A8A] transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
             :class="{
                 'assessment-circle-button--recording': recording,
                 'assessment-circle-button--pulse': pulse,
@@ -71,11 +71,11 @@ const attemptRingGradient = computed(() => {
 
 <style scoped>
 .assessment-circle-button-frame {
-    --assessment-circle-button-size: clamp(3rem, min(50cqh, 38cqw), 9.5rem);
-    --assessment-circle-ring-gap: clamp(0.22rem, min(2.2cqh, 1.6cqw), 0.5rem);
+    --assessment-circle-button-size: clamp(7rem, min(75cqh, 65cqw), 13.5rem);
+    --assessment-circle-ring-gap: clamp(0.25rem, min(2.5cqh, 1.8cqw), 0.6rem);
     --assessment-circle-ring-thickness: clamp(3px, min(1.1cqh, 0.8cqw), 5px);
-    --assessment-circle-icon-size: clamp(1.45rem, min(17cqh, 11cqw), 2.75rem);
-    --assessment-circle-re-size: clamp(1.1rem, min(10cqh, 6cqw), 1.875rem);
+    --assessment-circle-icon-size: clamp(1.4rem, min(18cqh, 12cqw), 3.5rem);
+    --assessment-circle-re-size: clamp(1.25rem, min(12cqh, 8cqw), 2rem);
 
     position: relative;
     display: grid;
@@ -91,11 +91,16 @@ const attemptRingGradient = computed(() => {
     isolation: isolate;
     inline-size: var(--assessment-circle-button-size);
     block-size: var(--assessment-circle-button-size);
+    max-inline-size: var(--assessment-circle-button-size);
+    max-block-size: var(--assessment-circle-button-size);
     aspect-ratio: 1 / 1;
     min-inline-size: 0;
     min-block-size: 0;
     overflow: visible;
     will-change: transform;
+    background: #DBEAFE;
+    border: 4px solid #3B82F6;
+    box-shadow: 0 4px 12px rgba(30, 58, 138, 0.1);
 }
 
 .assessment-circle-attempt-ring {
@@ -112,7 +117,6 @@ const attemptRingGradient = computed(() => {
     position: absolute;
     inset: calc(var(--assessment-circle-ring-gap) * -0.8);
     z-index: -1;
-    border: 2px solid rgb(59 130 246 / 0.28);
     border-radius: 9999px;
     opacity: 0;
     transform: scale(0.94);
@@ -124,71 +128,40 @@ const attemptRingGradient = computed(() => {
 }
 
 .assessment-circle-button--pulse {
-    animation: hold-button-syllable-scale 640ms cubic-bezier(0.2, 0.9, 0.28, 1) infinite;
+    animation: hold-button-syllable-pulse 580ms cubic-bezier(0.15, 0.85, 0.25, 1) infinite;
 }
 
 .assessment-circle-button--pulse::before {
-    animation: hold-button-syllable-ring 640ms cubic-bezier(0.2, 0.9, 0.28, 1) infinite;
+    animation: hold-button-syllable-ring 580ms cubic-bezier(0.15, 0.85, 0.25, 1) infinite;
 }
 
 @keyframes hold-recording-pulse {
     from {
-        box-shadow: 0 18px 32px rgb(59 130 246 / 0.24), 0 0 0 0 rgb(59 130 246 / 0.26);
+        box-shadow: 0 4px 12px rgba(30, 58, 138, 0.1);
+        border-color: #3B82F6;
     }
-
     to {
-        box-shadow: 0 18px 32px rgb(59 130 246 / 0.18), 0 0 0 12px rgb(59 130 246 / 0);
+        box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.18), 0 8px 28px rgba(59, 130, 246, 0.35);
+        border-color: #2563EB;
     }
 }
 
-@keyframes hold-button-syllable-scale {
-    0%,
-    100% {
-        transform: scale(1);
-    }
-
-    12% {
-        transform: scale(1.035);
-    }
-
-    24% {
-        transform: scale(0.995);
-    }
-
-    38% {
-        transform: scale(1.025);
-    }
-
-    54% {
-        transform: scale(1);
-    }
+/* Syllable-beat pulse: only box-shadow animates, button stays perfectly circular and centered */
+@keyframes hold-button-syllable-pulse {
+    0%   { box-shadow: 0 4px 12px rgba(30, 58, 138, 0.1); }
+    10%  { box-shadow: 0 0 0 5px rgba(59, 130, 246, 0.28), 0 6px 24px rgba(59, 130, 246, 0.4); }
+    22%  { box-shadow: 0 4px 12px rgba(30, 58, 138, 0.08); }
+    40%  { box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18), 0 5px 18px rgba(59, 130, 246, 0.28); }
+    55%  { box-shadow: 0 4px 12px rgba(30, 58, 138, 0.08); }
+    100% { box-shadow: 0 4px 12px rgba(30, 58, 138, 0.1); }
 }
 
 @keyframes hold-button-syllable-ring {
-    0% {
-        opacity: 0;
-        transform: scale(0.94);
-    }
-
-    12% {
-        opacity: 0.38;
-        transform: scale(1.02);
-    }
-
-    42% {
-        opacity: 0;
-        transform: scale(1.16);
-    }
-
-    58% {
-        opacity: 0.22;
-        transform: scale(1.04);
-    }
-
-    82%,
-    100% {
-        opacity: 0;
-        transform: scale(1.22);
-    }
+    0%   { opacity: 0;    transform: scale(0.94); }
+    10%  { opacity: 0.4;  transform: scale(1.0);  }
+    35%  { opacity: 0;    transform: scale(1.18); }
+    55%  { opacity: 0.18; transform: scale(1.06); }
+    80%,
+    100% { opacity: 0;    transform: scale(1.22); }
 }
 </style>

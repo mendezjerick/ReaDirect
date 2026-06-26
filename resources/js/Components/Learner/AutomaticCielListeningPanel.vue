@@ -87,7 +87,7 @@ defineExpose({
 </script>
 
 <template>
-    <section class="automatic-listening-recorder flex h-full min-h-0 flex-col items-center justify-center rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+    <section class="automatic-listening-recorder flex h-full min-h-0 flex-col items-center justify-center p-4">
         <div class="automatic-button-group">
             <AssessmentCircleButton
                 :pulse="isListeningVisual && !session.isPaused.value"

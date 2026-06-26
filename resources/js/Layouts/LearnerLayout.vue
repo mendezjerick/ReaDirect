@@ -1,11 +1,10 @@
+
 <script setup>
-import { computed } from 'vue';
 import { Link } from '@inertiajs/vue3';
-import { ArrowLeft, BookOpenCheck, Check, Home } from 'lucide-vue-next';
+import { ArrowLeft } from 'lucide-vue-next';
 import SyncStatusBadge from '../Components/SyncStatusBadge.vue';
 import AdminTestingToolbar from '../Components/Admin/AdminTestingToolbar.vue';
 import AsrVisualizationToggle from '../Components/AsrVisualizationToggle.vue';
-import { diagnosticStepsFor } from '../utils/diagnosticSteps';
 
 const props = defineProps({
     progress: { type: Number, default: 0 },
@@ -15,96 +14,89 @@ const props = defineProps({
     backLabel: { type: String, default: 'Back' },
     assessmentTask: { type: Boolean, default: false },
 });
+import { ref, onErrorCaptured } from 'vue';
 
-const visibleSteps = computed(() => props.steps.length ? props.steps : (props.diagnosticStep ? diagnosticStepsFor(props.diagnosticStep) : []));
+const errorDetails = ref(null);
+onErrorCaptured((err, instance, info) => {
+    errorDetails.value = { err: err.toString(), info };
+    return false; // prevent propagation
+});
 </script>
 
 <template>
     <div
-        class="bg-gradient-to-b from-slate-50 to-blue-50/30 text-text"
-        :class="assessmentTask ? 'flex h-screen flex-col overflow-hidden' : 'min-h-screen'"
+        class="text-text relative"
+        :class="assessmentTask ? 'flex h-screen flex-col overflow-hidden bg-[#EBF5FF]' : 'min-h-screen bg-[#EBF5FF]'"
     >
+        <div v-if="errorDetails" class="absolute inset-0 z-50 bg-red-100 p-8 text-red-900 overflow-auto">
+            <h2 class="text-2xl font-bold mb-4">Vue Runtime Error!</h2>
+            <pre class="bg-white p-4 rounded text-sm font-mono whitespace-pre-wrap">{{ errorDetails.err }}</pre>
+            <p class="mt-4 font-bold">Info: {{ errorDetails.info }}</p>
+        </div>
         <AdminTestingToolbar />
         <header
             v-if="assessmentTask"
-            class="anim-header z-20 flex-none border-b border-slate-200/80 bg-white"
+            class="anim-header z-20 flex-none py-3"
         >
-            <div class="learner-frame flex min-h-14 items-center gap-3 py-2">
-                <a href="/" class="group inline-flex shrink-0 items-center gap-2.5 text-xl font-black text-primary transition-all hover:scale-[1.02] md:text-2xl">
-                    <span class="grid size-10 place-items-center rounded-lg bg-primary text-sm font-black text-white shadow-sm shadow-primary/20">
-                        Re
-                    </span>
-                    <span>ReaDirect</span>
-                </a>
+            <div class="learner-frame flex items-center justify-between px-2">
+                <!-- Help button -->
+                <button
+                    class="grid size-12 place-items-center rounded-full bg-[#DBEAFE] text-[#2563EB] font-bold text-2xl border-[3px] border-white shadow-md transition-transform active:scale-95 hover:bg-[#BFDBFE]"
+                    title="Help"
+                    aria-label="Help"
+                >
+                    ?
+                </button>
 
-                <div class="ml-auto flex items-center gap-2">
+                <!-- ReaDirect title -->
+                <h1 class="text-3xl md:text-4xl font-semibold tracking-tight text-[#1E3A8A]" style="font-family: 'Fredoka', system-ui, sans-serif;">
+                    ReaDirect
+                </h1>
+
+                <!-- Right Side Actions -->
+                <div class="flex items-center gap-3">
                     <AsrVisualizationToggle />
-                    <Link
-                        href="/learner/dashboard"
-                        class="grid size-10 place-items-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-primary/30 hover:bg-primary-light hover:text-primary"
-                        title="Home"
-                        aria-label="Home"
+
+                    <!-- Settings button -->
+                    <button
+                        class="grid size-12 place-items-center rounded-full bg-[#DBEAFE] text-[#2563EB] border-[3px] border-white shadow-md transition-transform active:scale-95 hover:bg-[#BFDBFE]"
+                        title="Settings"
+                        aria-label="Settings"
                     >
-                        <Home class="size-5" />
-                    </Link>
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                        </svg>
+                    </button>
                 </div>
             </div>
         </header>
-        <header v-else class="anim-header sticky top-0 z-20 border-b border-blue-100/60 bg-white/90 backdrop-blur-lg">
-            <div class="learner-frame flex items-center gap-3 py-3 md:gap-4">
-                <Link v-if="backUrl" :href="backUrl" class="group flex shrink-0 items-center justify-center rounded-full bg-slate-100 p-2.5 text-slate-500 transition-all hover:bg-slate-200 hover:text-slate-800" :title="backLabel">
-                    <ArrowLeft class="size-5 transition-transform group-hover:-translate-x-0.5 md:size-6" />
+        <header v-else class="anim-header relative z-20 py-3">
+            <div class="learner-frame flex items-center justify-between px-2">
+                <!-- Left: back button or help button -->
+                <Link
+                    v-if="backUrl"
+                    :href="backUrl"
+                    class="grid size-12 place-items-center rounded-full bg-[#DBEAFE] text-[#2563EB] border-[3px] border-white shadow-md transition-transform active:scale-95 hover:bg-[#BFDBFE]"
+                    :title="backLabel"
+                    :aria-label="backLabel"
+                >
+                    <ArrowLeft class="size-5 stroke-[2.5]" />
                 </Link>
+                <div v-else class="size-12" />
 
-                <a href="/" class="group inline-flex shrink-0 items-center gap-2.5 text-xl font-black text-primary transition-all hover:scale-[1.02] md:text-2xl">
-                    <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-blue-600 text-white shadow-md shadow-primary/20 transition-shadow group-hover:shadow-lg group-hover:shadow-primary/30">
-                        <BookOpenCheck class="size-6" />
-                    </span>
-                    <span class="hidden sm:inline">ReaDirect</span>
-                </a>
-                <div v-if="visibleSteps.length" class="hidden flex-1 items-start gap-0 px-3 lg:flex">
-                    <div
-                        v-for="(step, index) in visibleSteps"
-                        :key="step.label"
-                        class="relative flex flex-1 flex-col items-center gap-2 text-center"
-                    >
-                        <div
-                            v-if="index > 0"
-                            class="absolute left-0 top-3.5 h-[3px] w-1/2 -translate-x-1/2 rounded-full transition-colors duration-300"
-                            :class="visibleSteps[index - 1]?.status === 'complete' ? 'bg-primary' : 'bg-slate-200'"
-                            aria-hidden="true"
-                        />
-                        <div
-                            v-if="index < visibleSteps.length - 1"
-                            class="absolute right-0 top-3.5 h-[3px] w-1/2 translate-x-1/2 rounded-full transition-colors duration-300"
-                            :class="step.status === 'complete' ? 'bg-primary' : 'bg-slate-200'"
-                            aria-hidden="true"
-                        />
-                        <span
-                            class="relative z-10 grid size-7 place-items-center rounded-full border-[3px] transition-all duration-300"
-                            :class="step.status === 'pending'
-                                ? 'border-slate-200 bg-white text-slate-300'
-                                : step.status === 'current'
-                                    ? 'border-primary bg-primary/10 text-primary shadow-sm shadow-primary/20'
-                                    : 'border-primary bg-primary text-white shadow-sm shadow-primary/20'"
-                        >
-                            <Check v-if="step.status === 'complete'" class="size-4 stroke-[4]" />
-                            <span v-else-if="step.status === 'current'" class="size-2.5 rounded-full bg-primary" />
-                            <span v-else class="size-2 rounded-full bg-slate-200" />
-                        </span>
-                        <span class="text-[12px] font-bold" :class="step.status === 'pending' ? 'text-slate-400' : 'text-primary'">
-                            {{ step.label }}
-                        </span>
-                    </div>
+                <!-- Center: title -->
+                <div class="flex flex-1 flex-col items-center gap-1.5 px-3">
+                    <h1 class="text-2xl font-semibold tracking-tight text-[#1E3A8A] md:text-3xl" style="font-family: 'Fredoka', system-ui, sans-serif;">
+                        ReaDirect
+                    </h1>
                 </div>
-                <div v-if="visibleSteps.length" class="h-3 flex-1 overflow-hidden rounded-full bg-slate-100 shadow-inner lg:hidden">
-                    <div class="h-full rounded-full bg-gradient-to-r from-primary to-blue-500 shadow-sm shadow-primary/30 transition-all duration-500" :style="{ width: `${progress}%` }" />
+
+                <!-- Right: ASR toggle + settings -->
+                <div class="flex items-center gap-3">
+                    <AsrVisualizationToggle />
+                    <SyncStatusBadge />
                 </div>
-                <div v-else class="h-3 flex-1 overflow-hidden rounded-full bg-slate-100 shadow-inner">
-                    <div class="h-full rounded-full bg-gradient-to-r from-primary to-blue-500 shadow-sm shadow-primary/30 transition-all duration-500" :style="{ width: `${progress}%` }" />
-                </div>
-                <AsrVisualizationToggle />
-                <SyncStatusBadge />
             </div>
         </header>
         <main v-if="assessmentTask" class="learner-frame min-h-0 flex-1 overflow-hidden py-2">

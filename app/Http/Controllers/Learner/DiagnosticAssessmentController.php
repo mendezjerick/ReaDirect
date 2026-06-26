@@ -192,9 +192,23 @@ class DiagnosticAssessmentController extends Controller
             'rule_applied' => $storedRoute['rule_applied'] ?? 'CRLA_TASK_1_ROUTING_V1',
         ];
 
+        $itemResponses = AssessmentTaskResponse::query()
+            ->where('assessment_attempt_id', $attempt->id)
+            ->where('task_type', AssessmentItemSelectionService::TASK_1_LETTER)
+            ->orderBy('item_number')
+            ->get()
+            ->map(fn (AssessmentTaskResponse $r) => [
+                'letter'     => strtoupper((string) ($r->expected_answer ?: $r->prompt)),
+                'heard'      => strtoupper((string) ($r->ai_normalized_transcript ?: $r->learner_transcript ?: '')),
+                'is_correct' => (bool) $r->is_correct,
+            ])
+            ->values()
+            ->all();
+
         return Inertia::render('Learner/TaskRoutingResult', [
-            'attempt' => $attempt->only('task_1_score', 'task_2a_score', 'decision_reason'),
-            'route' => $route,
+            'attempt'       => $attempt->only('task_1_score', 'task_2a_score', 'decision_reason'),
+            'route'         => $route,
+            'itemResponses' => $itemResponses,
         ]);
     }
 

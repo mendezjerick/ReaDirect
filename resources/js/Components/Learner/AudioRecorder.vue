@@ -576,6 +576,11 @@ const handleHoldClick = () => {
         return;
     }
 
+    if (audioUrl.value && playbackFinished.value) {
+        clearRecording();
+        return;
+    }
+
     playHoldButtonAudio();
 };
 
@@ -671,7 +676,7 @@ onBeforeUnmount(() => {
 <template>
     <div
         v-if="isHoldPresentation"
-        class="assessment-hold-recorder flex h-full min-h-0 flex-col items-center justify-center rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
+        class="assessment-hold-recorder relative flex h-full min-h-0 flex-col items-center justify-center p-4"
     >
         <audio
             v-if="audioUrl"
@@ -698,29 +703,38 @@ onBeforeUnmount(() => {
                 @touchend.prevent="handleTouchEnd"
                 @click="handleHoldClick"
             >
-                <span v-if="status === 'recording' || status === 'processing'" class="assessment-circle-re-text font-black tracking-tight">Re</span>
-                <AudioWaveform v-else-if="isPlaying" class="assessment-circle-icon stroke-[2.6]" />
-                <Play v-else-if="audioUrl" class="assessment-circle-icon assessment-circle-icon--play fill-white stroke-[2.6]" />
-                <Mic v-else class="assessment-circle-icon stroke-[2.6]" />
+                <div v-if="status === 'recording' || status === 'processing'" class="flex flex-col items-center">
+                    <span class="assessment-circle-re-text font-black tracking-tight leading-none mb-1">Re</span>
+                    <span class="font-bold tracking-wide leading-tight text-center text-balance max-w-[85%]" style="font-family: 'Fredoka', system-ui, sans-serif; font-size: var(--assessment-circle-text-size, clamp(0.65rem, 12cqw, 0.9rem));">{{ holdButtonText }}</span>
+                </div>
+                <div v-else-if="isPlaying" class="flex flex-col items-center">
+                    <AudioWaveform class="assessment-circle-icon stroke-[2.6] mb-1" />
+                    <span class="font-bold tracking-wide leading-tight text-center text-balance max-w-[85%]" style="font-family: 'Fredoka', system-ui, sans-serif; font-size: var(--assessment-circle-text-size, clamp(0.65rem, 12cqw, 0.9rem));">{{ holdButtonText }}</span>
+                </div>
+                <div v-else-if="audioUrl" class="flex flex-col items-center">
+                    <Play class="assessment-circle-icon assessment-circle-icon--play fill-[#426146] stroke-[2.6] mb-1" />
+                    <span
+                        class="font-bold tracking-wide leading-tight text-center text-balance max-w-[85%]"
+                        style="font-family: 'Fredoka', system-ui, sans-serif; font-size: var(--assessment-circle-text-size, clamp(0.65rem, 12cqw, 0.9rem));"
+                    >
+                        <template v-if="playbackFinished">
+                            <span style="text-decoration: underline; text-underline-offset: 2px; cursor: pointer;">Retry?</span>
+                        </template>
+                        <template v-else>{{ holdButtonText }}</template>
+                    </span>
+                </div>
+                <div v-else class="flex flex-col items-center justify-center pt-1">
+                    <Mic class="assessment-circle-icon mb-1 stroke-[2.5]" />
+                    <span class="font-bold tracking-wide leading-tight text-center text-balance max-w-[85%]" style="font-family: 'Fredoka', system-ui, sans-serif; font-size: var(--assessment-circle-text-size, clamp(0.65rem, 12cqw, 0.9rem));">{{ holdButtonText }}</span>
+                </div>
             </AssessmentCircleButton>
-
-            <button
-                v-if="audioUrl && playbackFinished"
-                type="button"
-                class="assessment-button-label assessment-button-label--action text-primary underline-offset-4 hover:underline disabled:cursor-not-allowed disabled:opacity-60"
-                :disabled="submitting"
-                @click.stop="clearRecording"
-            >
-                Retry?
-            </button>
-            <p v-else class="assessment-button-label text-slate-700" aria-live="polite">
-                {{ holdButtonText }}
-            </p>
         </div>
 
-        <p v-if="(errorMessage || externalError) && (status === 'retry' || status === 'error')" class="mt-3 rounded-lg bg-orange-50 px-3 py-2 text-center text-xs font-black text-orange-600 ring-1 ring-orange-200/60">
-            {{ externalError || errorMessage }}
-        </p>
+        <div v-if="(errorMessage || externalError) && (status === 'retry' || status === 'error')" class="absolute -bottom-6 left-1/2 -translate-x-1/2 w-max max-w-[14rem] z-10">
+            <p class="rounded-lg bg-orange-50 px-3 py-2 text-center text-xs font-black text-orange-600 ring-1 ring-orange-200/60 shadow-sm leading-tight">
+                {{ externalError || errorMessage }}
+            </p>
+        </div>
     </div>
 
     <div
@@ -848,6 +862,8 @@ onBeforeUnmount(() => {
 
 .assessment-button-group {
     display: flex;
+    justify-content: center;
+    align-items: center;
     min-block-size: 0;
     max-block-size: 100%;
     inline-size: 100%;

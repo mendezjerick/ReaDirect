@@ -9,9 +9,16 @@ createInertiaApp({
         return pages[`./Pages/${name}.vue`];
     },
     setup({ el, App, props, plugin }) {
-        createApp({ render: () => h(App, props) })
-            .use(plugin)
-            .mount(el);
+        const app = createApp({ render: () => h(App, props) });
+        app.config.errorHandler = (err, instance, info) => {
+            console.error(err, info);
+            document.body.innerHTML = `<div style="padding:20px;background:#fee2e2;color:#991b1b;z-index:9999;position:fixed;inset:0;overflow:auto;">
+                <h2 style="font-size:24px;font-weight:bold;margin-bottom:16px;">Global Vue Error</h2>
+                <pre style="background:white;padding:16px;border-radius:8px;">${err.stack || err}</pre>
+                <p style="margin-top:16px;font-weight:bold;">Info: ${info}</p>
+            </div>`;
+        };
+        app.use(plugin).mount(el);
     },
 });
 

@@ -60,7 +60,13 @@ const canSubmitCurrent = computed(() => {
 
     return Boolean(audioFiles[item.id]) || manualAnswerFor(item).length > 0;
 });
-const primaryLabel = computed(() => isCurrentChecked.value ? 'Next' : 'Submit');
+const primaryLabel = computed(() => {
+    if (isCurrentUploading.value) return 'Checking...';
+    if (!isCurrentChecked.value && audioFiles[step.currentItem.value?.id] && !uploadedAudioIds[step.currentItem.value?.id]) {
+        return 'Check Answer';
+    }
+    return isCurrentChecked.value ? 'Next' : 'Submit';
+});
 const primaryDisabled = computed(() => form.processing || isCurrentUploading.value || (!isCurrentChecked.value && !canSubmitCurrent.value));
 
 const rememberAudio = (item, file) => {
@@ -256,6 +262,8 @@ const setAgentSpeaking = (isSpeaking) => {
             :agent-state="agentState"
             :agent-message="agentMessage"
             :progress="step.progressPercent.value"
+            :total-steps="step.items.value.length"
+            :current-step="step.currentIndex.value + 1"
             :primary-label="primaryLabel"
             :primary-disabled="primaryDisabled"
             @primary="handlePrimary"

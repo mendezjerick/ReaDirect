@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&display=swap');
 @import 'tailwindcss';
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
@@ -7,20 +8,19 @@
 @source '../**/*.vue';
 
 @theme {
-    --font-sans: 'Nunito', 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'Fredoka', ui-sans-serif, system-ui, sans-serif;
     --color-primary: #3B82F6;
-    --color-primary-light: #EFF6FF;
+    --color-primary-light: #DBEAFE;
     --color-primary-dark: #2563EB;
-    --color-accent: #FACC15;
-    --color-success: #22C55E;
-    --color-warning: #F97316;
+    --color-accent: #F59E0B;
+    --color-success: #10B981;
+    --color-warning: #F59E0B;
     --color-danger: #EF4444;
     --color-surface: #FFFFFF;
-    --color-background: #F4F6FA;
-    --color-text: #1E293B;
-    --color-muted: #94A3B8;
-    --color-border: #E8ECF2;
+    --color-background: #EBF5FF;
+    --color-text: #1E3A8A;
+    --color-muted: #64748B;
+    --color-border: #BFDBFE;
 }
 
 html {

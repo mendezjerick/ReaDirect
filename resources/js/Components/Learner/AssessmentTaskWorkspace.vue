@@ -4,26 +4,36 @@ import { ChevronRight } from 'lucide-vue-next';
 import AgentSpeakerPanel from './AgentSpeakerPanel.vue';
 
 const props = defineProps({
-    agentType: { type: String, default: 'assessment' },
-    agentState: { type: String, default: 'listening' },
-    agentMessage: { type: String, required: true },
-    progress: { type: Number, default: 0 },
-    primaryLabel: { type: String, default: 'Submit' },
+    agentType:    { type: String,  default: 'assessment' },
+    agentState:   { type: String,  default: 'listening' },
+    agentMessage: { type: String,  required: true },
+    progress:     { type: Number,  default: 0 },
+    totalSteps:   { type: Number,  default: 0 },
+    currentStep:  { type: Number,  default: 0 },
+    primaryLabel:    { type: String,  default: 'Submit' },
     primaryDisabled: { type: Boolean, default: false },
-    promptImage: { type: String, default: '' },
+    promptImage:     { type: String,  default: '' },
 });
 
 const emit = defineEmits(['primary', 'agent-speaking-change']);
 
 const showPromptImage = ref(false);
-const hasPromptImage = computed(() => String(props.promptImage ?? '').trim().length > 0);
-const progressWidth = computed(() => `${Math.max(0, Math.min(100, Number(props.progress) || 0))}%`);
+const hasPromptImage  = computed(() => String(props.promptImage ?? '').trim().length > 0);
+const progressWidth   = computed(() => `${Math.max(0, Math.min(100, Number(props.progress) || 0))}%`);
+
+// Segmented pill progress
+const segments = computed(() => {
+    const total = props.totalSteps > 0 ? props.totalSteps : 0;
+    if (total === 0) return [];
+    return Array.from({ length: total }, (_, i) => ({
+        filled: i < props.currentStep,
+        current: i === props.currentStep - 1,
+    }));
+});
+const useSegments = computed(() => segments.value.length > 0);
 
 const togglePromptImage = () => {
-    if (!hasPromptImage.value) {
-        return;
-    }
-
+    if (!hasPromptImage.value) return;
     showPromptImage.value = !showPromptImage.value;
 };
 </script>
@@ -60,6 +70,13 @@ const togglePromptImage = () => {
                     class="h-full max-h-full w-full object-contain"
                 >
                 <slot v-else name="prompt" />
+
+                <!-- Right-side arrow guide -->
+                <div class="assessment-prompt-arrow" aria-hidden="true">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="9 18 15 12 9 6"/>
+                    </svg>
+                </div>
             </div>
 
             <div class="assessment-record-panel">
@@ -68,8 +85,21 @@ const togglePromptImage = () => {
         </section>
 
         <section class="assessment-progress-row" aria-label="Assessment progress">
+            <!-- Segmented pill bar -->
             <div class="assessment-progress-track">
-                <div class="assessment-progress-fill" :style="{ width: progressWidth }" />
+                <template v-if="useSegments">
+                    <div
+                        v-for="(seg, i) in segments"
+                        :key="i"
+                        class="assessment-progress-segment"
+                        :class="{
+                            'assessment-progress-segment--filled': seg.filled,
+                            'assessment-progress-segment--current': seg.current,
+                        }"
+                    />
+                </template>
+                <!-- Fallback: plain fill bar when no segments -->
+                <div v-else class="assessment-progress-fill" :style="{ width: progressWidth }" />
             </div>
             <button
                 type="button"
@@ -98,10 +128,11 @@ const togglePromptImage = () => {
 <style scoped>
 .assessment-task-workspace {
     --assessment-gap: clamp(0.35rem, 0.9dvh, 0.65rem);
-    --assessment-agent-row: clamp(7.5rem, 17dvh, 11.25rem);
+    --assessment-agent-row: clamp(10.5rem, 24dvh, 16rem);
     --assessment-prompt-row: clamp(9.5rem, 28dvh, 18rem);
     --assessment-progress-row: clamp(1.85rem, 3.8dvh, 2.35rem);
     --assessment-transcript-min: clamp(8.5rem, 24dvh, 15rem);
+    --atw-agent-h: 100%;
 
     display: grid;
     height: 100%;
@@ -186,6 +217,26 @@ const togglePromptImage = () => {
     box-shadow: 0 6px 14px rgb(15 23 42 / 0.08);
 }
 
+/* Right-side arrow guide */
+.assessment-prompt-arrow {
+    position: absolute;
+    right: 0.55rem;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: clamp(1.6rem, 3.5dvh, 2.2rem);
+    height: clamp(1.6rem, 3.5dvh, 2.2rem);
+    border-radius: 9999px;
+    background: #eff6ff;
+    border: 1.5px solid #bfdbfe;
+    color: #3b82f6;
+    opacity: 0.75;
+    pointer-events: none;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.12);
+}
+
 .assessment-progress-row {
     display: grid;
     min-height: 0;
@@ -199,11 +250,31 @@ const togglePromptImage = () => {
 
 .assessment-progress-track {
     display: flex;
-    align-items: stretch;
+    align-items: center;
+    gap: clamp(0.18rem, 0.4vw, 0.3rem);
+    padding: 0 clamp(0.4rem, 0.8vw, 0.65rem);
     overflow: hidden;
-    background: rgb(226 232 240);
+    background: #dbeafe;
 }
 
+/* Segmented pill variant */
+.assessment-progress-segment {
+    flex: 1 1 0;
+    height: clamp(0.55rem, 1.1dvh, 0.75rem);
+    border-radius: 9999px;
+    background: #bfdbfe;
+    transition: background 300ms ease, transform 200ms ease;
+}
+.assessment-progress-segment--filled {
+    background: #3b82f6;
+}
+.assessment-progress-segment--current {
+    background: #2563eb;
+    box-shadow: 0 0 0 2px rgba(59,130,246,0.35);
+    transform: scaleY(1.15);
+}
+
+/* Plain fill bar (fallback) */
 .assessment-progress-fill {
     height: 100%;
     background: linear-gradient(90deg, rgb(59 130 246), rgb(14 165 233));

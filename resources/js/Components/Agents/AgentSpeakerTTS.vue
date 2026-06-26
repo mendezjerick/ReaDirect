@@ -31,12 +31,51 @@ const stopSpeaking = () => {
         activeAudio.value = null;
     }
 
+    if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+    }
+
     emit('speakingEnd');
 };
 
 const speakWithTextFallback = () => {
-    emit('error', 'Kokoro voice is unavailable right now.');
-    emit('speakingEnd');
+    if (typeof window === 'undefined' || !window.speechSynthesis || !props.browserFallback) {
+        emit('error', 'Voice is unavailable right now.');
+        emit('speakingEnd');
+        return;
+    }
+
+    try {
+        const text = cleanMessage();
+        if (!text) {
+            emit('speakingEnd');
+            return;
+        }
+
+        const utterance = new window.SpeechSynthesisUtterance(text);
+        utterance.volume = clamp(props.volume, 0, 1);
+        utterance.rate = clamp(props.rate, 0.1, 10);
+        utterance.pitch = clamp(props.pitch, 0, 2);
+
+        utterance.onstart = () => emit('speakingStart');
+        utterance.onend = () => emit('speakingEnd');
+        utterance.onerror = (e) => {
+            // Ignore interruption errors
+            if (e.error === 'interrupted' || e.error === 'canceled') return;
+            if (e.error === 'not-allowed') {
+                emit('error', 'autoplay blocked');
+                emit('speakingEnd');
+                return;
+            }
+            emit('error', 'Voice is unavailable right now.');
+            emit('speakingEnd');
+        };
+
+        window.speechSynthesis.speak(utterance);
+    } catch {
+        emit('error', 'Voice is unavailable right now.');
+        emit('speakingEnd');
+    }
 };
 
 const speakWithAudio = async () => {
@@ -57,8 +96,13 @@ const speakWithAudio = async () => {
 
     try {
         await audio.play();
-    } catch {
+    } catch (e) {
         activeAudio.value = null;
+        if (e && e.name === 'NotAllowedError') {
+            emit('error', 'autoplay blocked');
+            emit('speakingEnd');
+            return;
+        }
         speakWithTextFallback();
     }
 };
