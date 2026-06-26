@@ -1,6 +1,6 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
-import { Award, BookOpen, Brain, Flag, Map, Target, ArrowRightIcon } from 'lucide-vue-next';
+import { Award, BookOpen, Brain, Flag, Target, ArrowRightIcon } from 'lucide-vue-next';
 import LearnerLayout from '../../Layouts/LearnerLayout.vue';
 import AgentSpeakerPanel from '../../Components/Learner/AgentSpeakerPanel.vue';
 import PrimaryButton from '../../Components/PrimaryButton.vue';
@@ -180,4 +180,3 @@ defineProps({ attempt: Object });
     to { opacity: 1; transform: translateY(0); }
 }
 </style>
-

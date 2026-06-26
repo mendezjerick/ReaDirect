@@ -3,7 +3,7 @@ import { Link } from '@inertiajs/vue3';
 import AdminLayout from '../../../Layouts/AdminLayout.vue';
 import DashboardCard from '../../../Components/DashboardCard.vue';
 import StatusBadge from '../../../Components/StatusBadge.vue';
-import { ArrowLeft, Gauge, Pencil, Target } from 'lucide-vue-next';
+import { ArrowLeft, Pencil, Target } from 'lucide-vue-next';
 
 defineProps({ rule: Object });
 

@@ -6,7 +6,7 @@ import LessonCard from '../../../Components/LessonCard.vue';
 import PrimaryButton from '../../../Components/PrimaryButton.vue';
 import BottomActionBar from '../../../Components/BottomActionBar.vue';
 import ProgressPath from '../../../Components/ProgressPath.vue';
-import { ArrowRight, ArrowLeft, Play, Pencil, ClipboardCheck, ChevronRight, CheckCircle2 } from 'lucide-vue-next';
+import { ArrowRight, Play, Pencil, ClipboardCheck, ChevronRight, CheckCircle2 } from 'lucide-vue-next';
 
 defineProps({ module: Object, learnerStage: String, flowState: Object });
 

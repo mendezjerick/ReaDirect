@@ -4,10 +4,8 @@ import { Link } from '@inertiajs/vue3';
 import LearnerLayout from '../../../Layouts/LearnerLayout.vue';
 import AgentSpeakerPanel from '../../../Components/Learner/AgentSpeakerPanel.vue';
 import PrimaryButton from '../../../Components/PrimaryButton.vue';
-import SecondaryButton from '../../../Components/SecondaryButton.vue';
 import BottomActionBar from '../../../Components/BottomActionBar.vue';
-import StatusBadge from '../../../Components/StatusBadge.vue';
-import { PlayCircle, ArrowRight, ArrowLeft } from 'lucide-vue-next';
+import { PlayCircle, ArrowRight } from 'lucide-vue-next';
 
 const props = defineProps({
     module: Object,

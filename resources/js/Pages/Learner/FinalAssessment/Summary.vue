@@ -1,12 +1,9 @@
 <script setup>
-import { Link } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import LearnerLayout from '../../../Layouts/LearnerLayout.vue';
 import AgentSpeakerPanel from '../../../Components/Learner/AgentSpeakerPanel.vue';
 import ScoreCard from '../../../Components/ScoreCard.vue';
 import DashboardCard from '../../../Components/DashboardCard.vue';
-import PrimaryButton from '../../../Components/PrimaryButton.vue';
-import BottomActionBar from '../../../Components/BottomActionBar.vue';
 
 defineProps({ attempt: Object, comparison: Object });
 
@@ -67,4 +64,3 @@ const deltaLabel = (value) => {
 
     </LearnerLayout>
 </template>
-
