@@ -11,7 +11,7 @@ defineProps({
 /* Sociafy-style: clean white card, circular colored icon on right, large number.
    Each color variant only affects the icon circle background. */
 const scheme = {
-    blue:   { iconBg: 'bg-blue-50',    iconText: 'text-blue-500',    iconRing: 'ring-blue-100'    },
+    blue:   { iconBg: 'bg-orange-50',  iconText: 'text-orange-500',  iconRing: 'ring-orange-100'  },
     green:  { iconBg: 'bg-emerald-50',  iconText: 'text-emerald-500', iconRing: 'ring-emerald-100' },
     purple: { iconBg: 'bg-violet-50',   iconText: 'text-violet-500',  iconRing: 'ring-violet-100'  },
     orange: { iconBg: 'bg-orange-50',   iconText: 'text-orange-500',  iconRing: 'ring-orange-100'  },

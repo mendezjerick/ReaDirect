@@ -216,7 +216,7 @@ const submitCurrentForReview = async () => {
 
     const file = audioFiles[item.id];
     if (!file) {
-        agentMessage.value = 'Hold the blue button to record the highlighted word first.';
+        agentMessage.value = 'Hold the orange button to record the highlighted word first.';
         agentState.value = 'speaking';
         return;
     }

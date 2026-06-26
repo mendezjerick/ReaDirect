@@ -9,9 +9,9 @@
 @theme {
     --font-sans: 'Nunito', 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
-    --color-primary: #3B82F6;
-    --color-primary-light: #EFF6FF;
-    --color-primary-dark: #2563EB;
+    --color-primary: #F58549;
+    --color-primary-light: #FAF7EF;
+    --color-primary-dark: #C96535;
     --color-accent: #FACC15;
     --color-success: #22C55E;
     --color-warning: #F97316;
@@ -21,6 +21,31 @@
     --color-text: #1E293B;
     --color-muted: #94A3B8;
     --color-border: #E8ECF2;
+}
+
+:root {
+    --rd-bg-blue: #7BA1B5;
+    --rd-depth-blue: #365365;
+    --rd-card-cream: #FFFDF7;
+    --rd-card-warm: #FAF7EF;
+    --rd-primary-orange: #F58549;
+    --rd-primary-orange-dark: #C96535;
+    --rd-secondary-orange: #F2A65A;
+    --rd-gold: #EEC170;
+    --rd-action-button: #0F4C5C;
+    --rd-action-button-light: #17697E;
+    --rd-action-button-dark: #08313D;
+    --rd-action-button-shadow: rgba(8, 49, 61, 0.24);
+    --rd-brown: #6F6534;
+    --rd-correct-green: #585123;
+    --rd-correct-green-dark: #3F3A19;
+    --rd-wrong-red: #772F1A;
+    --rd-wrong-red-dark: #4E1D10;
+    --rd-text-main: #233746;
+    --rd-text-muted: #5F6F78;
+    --rd-soft-border: rgba(54, 83, 101, 0.14);
+    --rd-card-shadow: 0 10px 0 rgba(54, 83, 101, 0.18), 0 18px 36px rgba(35, 55, 70, 0.14);
+    --rd-card-shadow-soft: 0 8px 0 rgba(54, 83, 101, 0.12), 0 16px 28px rgba(35, 55, 70, 0.1);
 }
 
 html {
@@ -33,6 +58,7 @@ body {
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     overflow-x: hidden;
+    background: var(--color-background);
 }
 
 /* ─── Focus Styles ─────────────────────────────────── */
@@ -83,7 +109,7 @@ input[type='tel']:focus,
 textarea:focus,
 select:focus {
     border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    box-shadow: 0 0 0 3px rgba(245, 133, 73, 0.16);
     outline: none;
 }
 
@@ -113,6 +139,63 @@ tbody tr:hover {
 
 ::-webkit-scrollbar-thumb:hover {
     background: var(--color-muted);
+}
+
+.learner-autumn-shell {
+    position: relative;
+    isolation: isolate;
+    overflow-x: hidden;
+    background:
+        radial-gradient(ellipse at 14% 11%, rgba(255, 253, 247, 0.5) 0 7%, transparent 22%),
+        radial-gradient(ellipse at 82% 18%, rgba(255, 253, 247, 0.38) 0 9%, transparent 24%),
+        radial-gradient(ellipse at 7% 104%, rgba(54, 83, 101, 0.28) 0 19%, transparent 41%),
+        radial-gradient(ellipse at 92% 110%, rgba(54, 83, 101, 0.32) 0 21%, transparent 43%),
+        linear-gradient(180deg, #7BA1B5 0%, #8DAFBE 48%, #7BA1B5 100%);
+    color: var(--rd-text-main);
+}
+
+.learner-autumn-shell::before,
+.learner-autumn-shell::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+}
+
+.learner-autumn-shell::before {
+    opacity: 0.72;
+    background:
+        radial-gradient(ellipse 11rem 3rem at 11% 18%, rgba(255, 253, 247, 0.46) 0 46%, transparent 49%),
+        radial-gradient(ellipse 8rem 2.5rem at 18% 15%, rgba(255, 253, 247, 0.34) 0 48%, transparent 51%),
+        radial-gradient(ellipse 13rem 3.5rem at 78% 27%, rgba(255, 253, 247, 0.32) 0 46%, transparent 49%),
+        radial-gradient(ellipse 9rem 2.7rem at 86% 24%, rgba(255, 253, 247, 0.28) 0 48%, transparent 51%),
+        radial-gradient(ellipse 48rem 12rem at 52% 112%, rgba(54, 83, 101, 0.2) 0 42%, transparent 43%);
+}
+
+.learner-autumn-shell::after {
+    opacity: 0.82;
+    background:
+        radial-gradient(ellipse 1.5rem 0.85rem at 4% 12%, rgba(238, 193, 112, 0.78) 0 58%, transparent 61%),
+        radial-gradient(ellipse 1rem 0.62rem at 8% 19%, rgba(245, 133, 73, 0.62) 0 58%, transparent 61%),
+        radial-gradient(ellipse 1.25rem 0.72rem at 94% 11%, rgba(242, 166, 90, 0.72) 0 58%, transparent 61%),
+        radial-gradient(ellipse 0.95rem 0.58rem at 89% 23%, rgba(111, 101, 52, 0.42) 0 58%, transparent 61%),
+        radial-gradient(ellipse 1.25rem 0.72rem at 5% 86%, rgba(242, 166, 90, 0.64) 0 58%, transparent 61%),
+        radial-gradient(ellipse 1.05rem 0.62rem at 11% 94%, rgba(238, 193, 112, 0.72) 0 58%, transparent 61%),
+        radial-gradient(ellipse 1.5rem 0.85rem at 95% 87%, rgba(245, 133, 73, 0.58) 0 58%, transparent 61%),
+        radial-gradient(ellipse 1rem 0.6rem at 90% 95%, rgba(238, 193, 112, 0.68) 0 58%, transparent 61%);
+}
+
+.learner-autumn-shell > * {
+    position: relative;
+    z-index: 1;
+}
+
+.rd-card-surface {
+    border: 1px solid var(--rd-soft-border);
+    border-radius: 28px;
+    background: var(--rd-card-cream);
+    box-shadow: var(--rd-card-shadow);
 }
 
 /* ─── Flash Message Transitions ─────────────────────── */
@@ -192,12 +275,17 @@ tbody tr:hover {
 
 .learner-transcript-box {
     min-height: clamp(5rem, 13vh, 10rem);
+    border: 1px solid var(--rd-soft-border);
+    background: linear-gradient(180deg, rgba(255, 253, 247, 0.98), rgba(250, 247, 239, 0.96));
+    color: var(--rd-text-main);
     font-size: clamp(1.5rem, 2vw, 2.75rem);
     line-height: 1.15;
     padding: clamp(0.9rem, 1.4vw, 1.4rem);
+    box-shadow: inset 0 1px 0 rgba(255, 253, 247, 0.8);
 }
 
 .learner-transcript-box::placeholder {
+    color: rgba(95, 111, 120, 0.42);
     font-size: clamp(1.1rem, 1.4vw, 1.6rem);
     line-height: 1.2;
 }
@@ -220,11 +308,11 @@ tbody tr:hover {
 
     .learner-content .learner-audio-recorder .learner-audio-control-panel,
     .learner-content .learner-audio-recorder .learner-audio-review-card {
-        border: 1px solid rgb(191 219 254 / 0.85);
+        border: 1px solid var(--rd-soft-border);
         background: var(--color-surface);
         border-radius: 24px;
         padding: 1rem;
-        box-shadow: 0 10px 15px -3px rgb(59 130 246 / 0.10), 0 4px 6px -4px rgb(59 130 246 / 0.10);
+        box-shadow: var(--rd-card-shadow-soft);
     }
 
     .learner-audio-review-card audio {

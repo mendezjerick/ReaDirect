@@ -671,7 +671,7 @@ onBeforeUnmount(() => {
 <template>
     <div
         v-if="isHoldPresentation"
-        class="assessment-hold-recorder flex h-full min-h-0 flex-col items-center justify-center rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
+        class="assessment-hold-recorder flex h-full min-h-0 flex-col items-center justify-center p-4"
     >
         <audio
             v-if="audioUrl"
@@ -707,42 +707,42 @@ onBeforeUnmount(() => {
             <button
                 v-if="audioUrl && playbackFinished"
                 type="button"
-                class="assessment-button-label assessment-button-label--action text-primary underline-offset-4 hover:underline disabled:cursor-not-allowed disabled:opacity-60"
+                class="assessment-button-label assessment-button-label--action underline-offset-4 hover:underline disabled:cursor-not-allowed disabled:opacity-60"
                 :disabled="submitting"
                 @click.stop="clearRecording"
             >
                 Retry?
             </button>
-            <p v-else class="assessment-button-label text-slate-700" aria-live="polite">
+            <p v-else class="assessment-button-label" aria-live="polite">
                 {{ holdButtonText }}
             </p>
         </div>
 
-        <p v-if="(errorMessage || externalError) && (status === 'retry' || status === 'error')" class="mt-3 rounded-lg bg-orange-50 px-3 py-2 text-center text-xs font-black text-orange-600 ring-1 ring-orange-200/60">
+        <p v-if="(errorMessage || externalError) && (status === 'retry' || status === 'error')" class="learner-recorder-error mt-3 rounded-lg px-3 py-2 text-center text-xs font-black">
             {{ externalError || errorMessage }}
         </p>
     </div>
 
     <div
         v-else
-        class="learner-audio-recorder rounded-[28px] border border-slate-200/80 bg-white shadow-lg shadow-slate-200/30"
+        class="learner-audio-recorder"
         :class="compact ? 'p-4' : 'p-5 xl:p-6'"
     >
         <div class="learner-audio-control-panel">
             <div class="flex items-center justify-between gap-3">
                 <div>
-                    <p class="text-sm font-black text-slate-800 xl:text-base">{{ label }}</p>
-                    <p class="mt-0.5 text-xs font-semibold text-slate-500 xl:text-sm">{{ helperText }}</p>
+                    <p class="text-sm font-black text-text xl:text-base">{{ label }}</p>
+                    <p class="mt-0.5 text-xs font-semibold text-muted xl:text-sm">{{ helperText }}</p>
                 </div>
                 <span
                     class="shrink-0 rounded-full px-3 py-1.5 text-[11px] font-black uppercase tracking-widest ring-1 xl:text-[12px]"
-                    :class="status === 'recording' ? 'bg-red-50 text-red-600 ring-red-200/60' : status === 'saved' ? 'bg-emerald-50 text-emerald-600 ring-emerald-200/60' : 'bg-blue-50 text-blue-600 ring-blue-200/60'"
+                    :class="status === 'recording' ? 'bg-primary-light text-primary ring-primary/20' : status === 'saved' ? 'bg-[#F5F1D9] text-success ring-success/20' : 'bg-primary-light text-primary ring-primary/20'"
                 >{{ statusLabel }}</span>
             </div>
 
             <div
                 class="mt-4 rounded-[20px] border px-4 py-3 text-center text-sm font-black xl:text-base"
-                :class="status === 'recording' && canSpeak ? 'border-emerald-200/60 bg-emerald-50/50 text-emerald-700' : 'border-slate-200/60 bg-slate-50/50 text-slate-700'"
+                :class="status === 'recording' && canSpeak ? 'border-success/20 bg-[#F5F1D9] text-success' : 'border-[rgba(54,83,101,0.12)] bg-primary-light text-text'"
                 aria-live="polite"
             >
                 {{ cueText }}
@@ -752,7 +752,7 @@ onBeforeUnmount(() => {
                 <button
                     v-if="status !== 'recording'"
                     type="button"
-                    class="inline-flex items-center gap-2 rounded-[18px] bg-gradient-to-br from-sky-400 to-blue-600 px-5 py-3 text-sm font-black text-white shadow-md shadow-blue-500/20 ring-1 ring-white/20 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 xl:text-base"
+                    class="learner-record-button inline-flex items-center gap-2 px-5 py-3 text-sm font-black transition-all duration-150 disabled:cursor-not-allowed xl:text-base"
                     :disabled="disabled || submitting || submitted"
                     @click="startRecording"
                 >
@@ -762,7 +762,7 @@ onBeforeUnmount(() => {
                 <button
                     v-else
                     type="button"
-                    class="inline-flex items-center gap-2 rounded-[18px] bg-gradient-to-br from-red-400 to-red-500 px-5 py-3 text-sm font-black text-white shadow-md shadow-red-500/20 ring-1 ring-white/20 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 xl:text-base"
+                    class="learner-stop-button inline-flex items-center gap-2 px-5 py-3 text-sm font-black transition-all duration-150 disabled:cursor-not-allowed xl:text-base"
                     :disabled="!hasMinimumDuration"
                     @click="stopRecording"
                 >
@@ -773,7 +773,7 @@ onBeforeUnmount(() => {
                 <button
                     v-if="audioUrl && hasPendingRecording"
                     type="button"
-                    class="inline-flex items-center gap-2 rounded-[18px] border-2 border-slate-200/80 bg-white px-5 py-3 text-sm font-black text-slate-600 transition-all hover:border-slate-300 hover:bg-slate-50 xl:text-base"
+                    class="learner-retry-button inline-flex items-center gap-2 px-5 py-3 text-sm font-black transition-all xl:text-base"
                     :disabled="submitting"
                     @click="clearRecording"
                 >
@@ -781,28 +781,28 @@ onBeforeUnmount(() => {
                     Try Again
                 </button>
 
-                <div class="flex h-8 min-w-32 flex-1 items-end gap-1 rounded-2xl bg-slate-50 px-3 py-2">
+                <div class="learner-audio-bars flex h-8 min-w-32 flex-1 items-end gap-1 rounded-2xl px-3 py-2">
                     <span
                         v-for="bar in 8"
                         :key="bar"
-                        class="w-full rounded-full bg-blue-300/50"
+                        class="w-full rounded-full bg-primary/45"
                         :class="status === 'recording' ? 'animate-pulse' : ''"
                         :style="{ height: status === 'recording' ? `${20 + ((bar * 11 + duration * 7) % 55)}%` : `${18 + (bar % 4) * 8}%` }"
                     />
                 </div>
 
-                <span class="w-14 text-right text-sm font-black text-slate-500">{{ formattedDuration }}s</span>
+                <span class="w-14 text-right text-sm font-black text-muted">{{ formattedDuration }}s</span>
             </div>
 
-            <p v-if="(errorMessage || externalError) && (status === 'recording' || status === 'retry' || status === 'error')" class="mt-3 rounded-[16px] bg-orange-50 px-4 py-3 text-xs font-black text-orange-600 ring-1 ring-orange-200/60">
+            <p v-if="(errorMessage || externalError) && (status === 'recording' || status === 'retry' || status === 'error')" class="learner-recorder-error mt-3 rounded-[16px] px-4 py-3 text-xs font-black">
                 {{ externalError || errorMessage }}
             </p>
 
             <p
                 v-if="spacebarEnabled"
-                class="mt-4 rounded-[16px] border border-slate-200/60 bg-slate-50/50 px-4 py-2.5 text-xs font-bold text-slate-600"
+                class="mt-4 rounded-[16px] border border-[rgba(54,83,101,0.12)] bg-primary-light px-4 py-2.5 text-xs font-bold text-muted"
             >
-                Press <span class="rounded-lg border border-slate-200/80 bg-white px-2 py-1 text-[11px] font-black text-blue-600 shadow-sm">Space</span>
+                Press <span class="rounded-lg border border-[rgba(54,83,101,0.12)] bg-surface px-2 py-1 text-[11px] font-black text-primary shadow-sm">Space</span>
                 to {{ status === 'recording' ? `stop after the ${minDurationLabel} minimum` : 'record' }}.
             </p>
         </div>
@@ -810,20 +810,20 @@ onBeforeUnmount(() => {
         <Teleport defer to="#teleport-audio-review" :disabled="isMobile">
             <div
                 v-if="audioUrl && shouldShowReviewSubmit"
-                :class="isMobile ? 'learner-audio-review-card mt-6 border-t border-slate-100 pt-5' : 'learner-audio-review-card rounded-[28px] border border-slate-200/80 bg-white p-4 shadow-lg shadow-slate-200/30 xl:p-5'"
+                :class="isMobile ? 'learner-audio-review-card mt-6 border-t border-[rgba(54,83,101,0.12)] pt-5' : 'learner-audio-review-card p-4 xl:p-5'"
                 aria-live="polite"
             >
                 <div class="flex flex-wrap items-center justify-between gap-2">
                     <div>
-                        <p class="text-base font-black text-slate-800 xl:text-lg">{{ hasSubmittedRecording ? 'Answer submitted' : 'Your audio' }}</p>
+                        <p class="text-base font-black text-text xl:text-lg">{{ hasSubmittedRecording ? 'Answer submitted' : 'Your audio' }}</p>
                     </div>
-                    <CheckCircle2 v-if="hasSubmittedRecording" class="size-6 text-emerald-500 xl:size-7" />
+                    <CheckCircle2 v-if="hasSubmittedRecording" class="size-6 text-success xl:size-7" />
                 </div>
                 <LearnerAudioPlayer class="mt-3" :src="audioUrl" :disabled="submitting" @play="stopAgentAudioForPlayback" />
                 <button
                     v-if="hasPendingRecording"
                     type="button"
-                    class="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-[20px] bg-gradient-to-br from-emerald-400 to-emerald-500 px-5 py-3.5 text-base font-black text-white shadow-lg shadow-emerald-500/25 ring-1 ring-white/20 transition-all duration-200 hover:-translate-y-0.5 hover:scale-[1.02] hover:shadow-xl active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 xl:text-lg"
+                    class="learner-submit-audio-button mt-4 inline-flex w-full items-center justify-center gap-2 px-5 py-3.5 text-base font-black transition-all duration-150 disabled:cursor-not-allowed xl:text-lg"
                     :disabled="submitting || !currentFile"
                     @click="submitRecording"
                 >
@@ -835,7 +835,7 @@ onBeforeUnmount(() => {
         <Teleport defer to="#teleport-audio-review" :disabled="isMobile">
             <LearnerAudioPlayer v-if="!shouldShowReviewSubmit && audioUrl" class="mt-4" :src="audioUrl" @play="stopAgentAudioForPlayback" />
         </Teleport>
-        <p v-if="required && !audioUrl" class="mt-3 text-xs font-bold text-slate-500">Please record your answer before continuing.</p>
+        <p v-if="required && !audioUrl" class="mt-3 text-xs font-bold text-muted">Please record your answer before continuing.</p>
     </div>
 </template>
 
@@ -843,7 +843,11 @@ onBeforeUnmount(() => {
 .assessment-hold-recorder {
     container-type: size;
     overflow: visible;
+    border: 1px solid var(--rd-soft-border);
+    border-radius: 24px;
+    background: linear-gradient(180deg, rgba(255, 253, 247, 0.98), rgba(250, 247, 239, 0.96));
     padding: clamp(0.45rem, min(3.5cqh, 2.4cqw), 1rem);
+    box-shadow: var(--rd-card-shadow-soft);
 }
 
 .assessment-button-group {
@@ -866,7 +870,12 @@ onBeforeUnmount(() => {
     font-size: clamp(0.85rem, min(4cqh, 1.35vw), 1.125rem);
     font-weight: 900;
     line-height: 1.15;
+    color: var(--rd-text-main);
     overflow-wrap: anywhere;
+}
+
+.assessment-button-label--action {
+    color: var(--rd-primary-orange);
 }
 
 .assessment-circle-icon {
@@ -882,5 +891,80 @@ onBeforeUnmount(() => {
 .assessment-circle-re-text {
     font-size: var(--assessment-circle-re-size);
     line-height: 1;
+}
+
+.learner-audio-recorder,
+.learner-audio-review-card {
+    border: 1px solid var(--rd-soft-border);
+    border-radius: 28px;
+    background: linear-gradient(180deg, rgba(255, 253, 247, 0.98), rgba(250, 247, 239, 0.96));
+    box-shadow: var(--rd-card-shadow-soft);
+}
+
+.learner-record-button,
+.learner-stop-button,
+.learner-submit-audio-button {
+    border: 0;
+    border-radius: 999px;
+    color: var(--rd-card-cream);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.learner-record-button {
+    background: var(--rd-primary-orange);
+    box-shadow: 0 7px 0 var(--rd-primary-orange-dark), 0 12px 22px rgba(245, 133, 73, 0.24);
+}
+
+.learner-record-button:hover:not(:disabled) {
+    background: var(--rd-secondary-orange);
+}
+
+.learner-stop-button {
+    background: var(--rd-wrong-red);
+    box-shadow: 0 7px 0 var(--rd-wrong-red-dark), 0 12px 22px rgba(119, 47, 26, 0.2);
+}
+
+.learner-submit-audio-button {
+    background: var(--rd-correct-green);
+    box-shadow: 0 7px 0 var(--rd-correct-green-dark), 0 12px 22px rgba(88, 81, 35, 0.2);
+}
+
+.learner-record-button:active:not(:disabled),
+.learner-stop-button:active:not(:disabled),
+.learner-submit-audio-button:active:not(:disabled) {
+    transform: translateY(5px);
+    box-shadow: 0 2px 0 rgba(78, 29, 16, 0.55), 0 6px 12px rgba(35, 55, 70, 0.14);
+}
+
+.learner-record-button:disabled,
+.learner-stop-button:disabled,
+.learner-submit-audio-button:disabled {
+    opacity: 0.65;
+    box-shadow: 0 6px 0 rgba(111, 101, 52, 0.35);
+}
+
+.learner-retry-button {
+    border: 2px solid rgba(54, 83, 101, 0.14);
+    border-radius: 999px;
+    background: var(--rd-card-cream);
+    color: var(--rd-text-main);
+    box-shadow: 0 4px 0 rgba(111, 101, 52, 0.18), 0 8px 14px rgba(35, 55, 70, 0.08);
+}
+
+.learner-retry-button:hover {
+    border-color: rgba(245, 133, 73, 0.38);
+    color: var(--rd-primary-orange);
+}
+
+.learner-audio-bars {
+    background: rgba(250, 247, 239, 0.9);
+    box-shadow: inset 0 2px 6px rgba(54, 83, 101, 0.08);
+}
+
+.learner-recorder-error {
+    border: 1px solid rgba(119, 47, 26, 0.18);
+    background: rgba(250, 247, 239, 0.94);
+    color: var(--rd-wrong-red);
 }
 </style>

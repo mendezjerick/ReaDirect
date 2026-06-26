@@ -255,7 +255,7 @@ watch(
             @error="handleTtsError"
         />
         <div class="pointer-events-none absolute -right-6 -top-6 h-40 w-40 rounded-full bg-primary/5 blur-3xl" />
-        <div class="pointer-events-none absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-blue-400/5 blur-3xl" />
+        <div class="pointer-events-none absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-accent/10 blur-3xl" />
         
         <div class="relative grid justify-items-center">
             <div class="agent-media-box">
@@ -322,7 +322,7 @@ watch(
             @error="handleTtsError"
         />
         <div class="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/5 blur-3xl" />
-        <div class="pointer-events-none absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-blue-400/5 blur-3xl" />
+        <div class="pointer-events-none absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-accent/10 blur-3xl" />
 
         <div class="grid justify-items-center">
             <div class="agent-media-box">
@@ -403,7 +403,7 @@ watch(
             @error="handleTtsError"
         />
         <div class="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/5 blur-3xl" />
-        <div class="pointer-events-none absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-blue-400/5 blur-3xl" />
+        <div class="pointer-events-none absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-accent/10 blur-3xl" />
         
         <div class="relative grid justify-items-center">
             <div class="agent-media-box">
@@ -481,8 +481,8 @@ watch(
                 />
             </div>
         </div>
-        <div class="relative mt-4 rounded-[22px] border border-blue-200 bg-surface p-4 shadow-sm shadow-primary/10 sm:mt-5 sm:p-5 xl:rounded-[26px] xl:p-6">
-            <span class="absolute left-1/2 top-0 size-8 -translate-x-1/2 -translate-y-1/2 rotate-45 border-l border-t border-blue-200 bg-surface" aria-hidden="true" />
+        <div class="relative mt-4 rounded-[22px] border border-primary/20 bg-surface p-4 shadow-sm shadow-primary/10 sm:mt-5 sm:p-5 xl:rounded-[26px] xl:p-6">
+            <span class="absolute left-1/2 top-0 size-8 -translate-x-1/2 -translate-y-1/2 rotate-45 border-l border-t border-primary/20 bg-surface" aria-hidden="true" />
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div class="flex items-center gap-3">
                     <span class="grid size-11 place-items-center rounded-full bg-primary-light text-primary">
@@ -543,7 +543,7 @@ watch(
             @error="handleTtsError"
         />
         <div class="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/5 blur-3xl" />
-        <div class="pointer-events-none absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-blue-400/5 blur-3xl" />
+        <div class="pointer-events-none absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-accent/10 blur-3xl" />
         
         <div class="grid justify-items-center">
             <div class="agent-media-box">
@@ -634,20 +634,23 @@ watch(
                     @interaction-ended="emit('interaction-ended', $event)"
                 />
             </div>
-            <p class="assessment-agent-name">
-                {{ displayTitle.toUpperCase() }}
-            </p>
         </div>
 
         <div class="assessment-agent-dialogue">
-            <p class="min-w-0 flex-1 text-lg font-black leading-snug text-slate-800 xl:text-xl">
-                {{ displayMessage }}
-            </p>
+            <div class="assessment-agent-dialogue-copy">
+                <p class="assessment-agent-dialogue-name">{{ displayTitle }}</p>
+                <p class="assessment-agent-dialogue-text">
+                    {{ displayMessage }}
+                </p>
+                <p v-if="ttsError" class="assessment-agent-dialogue-error">
+                    {{ ttsError }}
+                </p>
+            </div>
             <div class="flex shrink-0 items-center gap-2">
                 <button
                     v-if="ttsEnabled || showAudioButton"
                     type="button"
-                    class="grid size-9 place-items-center rounded-full bg-primary/5 text-primary ring-1 ring-primary/10 transition hover:bg-primary hover:text-white"
+                    class="assessment-agent-audio-button grid size-9 place-items-center rounded-full transition"
                     :aria-label="isMuted ? 'Unmute agent voice' : 'Mute agent voice'"
                     @click="toggleMute"
                 >
@@ -657,16 +660,13 @@ watch(
                 <button
                     v-if="ttsEnabled || showAudioButton"
                     type="button"
-                    class="grid size-9 place-items-center rounded-full bg-primary/5 text-primary ring-1 ring-primary/10 transition hover:bg-primary hover:text-white"
+                    class="assessment-agent-audio-button grid size-9 place-items-center rounded-full transition"
                     aria-label="Replay agent message"
                     @click="replayMessage"
                 >
                     <RotateCcw class="size-4" />
                 </button>
             </div>
-            <p v-if="ttsError" class="absolute bottom-3 left-4 text-xs font-bold text-slate-500">
-                {{ ttsError }}
-            </p>
         </div>
     </section>
     <section
@@ -767,7 +767,7 @@ watch(
                     <p v-if="displaySubtitle" class="mt-0.5 font-bold text-slate-400" :class="compact ? 'text-xs' : 'text-sm'">{{ displaySubtitle }}</p>
                 </div>
                 <div class="flex items-center gap-2">
-                    <span class="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-black text-blue-600 ring-1 ring-blue-200/60">{{ stateLabel }}</span>
+                    <span class="rounded-full bg-primary-light px-2.5 py-1 text-[11px] font-black text-primary ring-1 ring-primary/15">{{ stateLabel }}</span>
                     <button
                         v-if="ttsEnabled || showAudioButton"
                         type="button"
@@ -824,28 +824,30 @@ watch(
 
 .assessment-agent-strip {
     display: grid;
-    grid-template-columns: clamp(5.5rem, 11dvh, 8.5rem) minmax(0, 1fr);
+    grid-template-columns: var(--assessment-agent-row, clamp(7.5rem, 17dvh, 11.25rem)) minmax(0, 1fr);
     align-items: stretch;
     gap: clamp(0.5rem, 1vw, 0.75rem);
     height: var(--assessment-agent-row, clamp(7.5rem, 17dvh, 11.25rem));
     min-height: 0;
     overflow: hidden;
-    border-radius: 8px;
+    border: 1px solid var(--rd-soft-border);
+    border-radius: 24px;
+    background: linear-gradient(180deg, rgba(255, 253, 247, 0.98), rgba(250, 247, 239, 0.96));
+    box-shadow: var(--rd-card-shadow-soft);
     transition: box-shadow 150ms ease;
 }
 
 .assessment-agent-card {
-    display: grid;
+    display: block;
     min-height: 0;
     height: 100%;
-    grid-template-rows: minmax(0, 1fr) auto;
-    gap: clamp(0.15rem, 0.35dvh, 0.3rem);
+    aspect-ratio: 1 / 1;
     overflow: hidden;
-    border: 1px solid rgb(226 232 240);
-    border-radius: 8px;
-    background: #ffffff;
-    padding: clamp(0.22rem, 0.55dvh, 0.4rem);
-    box-shadow: 0 10px 20px rgb(15 23 42 / 0.06);
+    border: 1px solid rgba(54, 83, 101, 0.1);
+    border-radius: 20px;
+    background: var(--rd-card-cream);
+    padding: 0;
+    box-shadow: 0 8px 18px rgba(35, 55, 70, 0.1);
 }
 
 .assessment-agent-square {
@@ -857,23 +859,8 @@ watch(
     place-items: end center;
     overflow: hidden;
     border: 0;
-    border-radius: 6px;
+    border-radius: inherit;
     background: transparent;
-}
-
-.assessment-agent-name {
-    min-height: clamp(0.85rem, 1.7dvh, 1.05rem);
-    margin: 0;
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    text-align: center;
-    font-size: clamp(0.58rem, 1.05dvh, 0.72rem);
-    font-weight: 900;
-    line-height: 1;
-    letter-spacing: 0;
-    color: rgb(51 65 85);
 }
 
 .assessment-agent-dialogue {
@@ -884,11 +871,66 @@ watch(
     align-items: center;
     gap: 1rem;
     overflow: hidden;
-    border: 1px solid rgb(226 232 240);
-    border-radius: 8px;
-    background: #ffffff;
+    border: 0;
+    border-radius: 24px;
+    background: transparent;
     padding: clamp(0.75rem, 1.8dvh, 1.4rem);
-    box-shadow: 0 10px 20px rgb(15 23 42 / 0.06);
+    box-shadow: none;
+}
+
+.assessment-agent-dialogue-copy {
+    display: grid;
+    min-width: 0;
+    flex: 1 1 auto;
+    align-content: center;
+    gap: clamp(0.18rem, 0.5dvh, 0.35rem);
+}
+
+.assessment-agent-dialogue-name {
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: clamp(0.9rem, 1.8dvh, 1.15rem);
+    font-weight: 900;
+    line-height: 1.1;
+    letter-spacing: 0;
+    color: var(--rd-primary-orange);
+}
+
+.assessment-agent-dialogue-text {
+    margin: 0;
+    overflow: hidden;
+    font-size: clamp(1rem, 2.1dvh, 1.25rem);
+    font-weight: 900;
+    line-height: 1.18;
+    letter-spacing: 0;
+    color: var(--rd-text-main);
+}
+
+.assessment-agent-dialogue-error {
+    margin: 0;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--rd-text-muted);
+}
+
+.assessment-agent-audio-button {
+    border: 1px solid rgba(54, 83, 101, 0.12);
+    background: var(--rd-card-warm);
+    color: var(--rd-text-main);
+    box-shadow: 0 4px 0 rgba(111, 101, 52, 0.18), 0 8px 14px rgba(35, 55, 70, 0.08);
+}
+
+.assessment-agent-audio-button:hover {
+    background: var(--rd-gold);
+    color: var(--rd-text-main);
+}
+
+.assessment-agent-audio-button:active {
+    transform: translateY(3px);
+    box-shadow: 0 1px 0 rgba(111, 101, 52, 0.18), 0 4px 10px rgba(35, 55, 70, 0.08);
 }
 
 .assessment-agent-square :deep(.agent-media-player),

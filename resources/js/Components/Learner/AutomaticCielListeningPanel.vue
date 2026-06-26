@@ -87,7 +87,7 @@ defineExpose({
 </script>
 
 <template>
-    <section class="automatic-listening-recorder flex h-full min-h-0 flex-col items-center justify-center rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+    <section class="automatic-listening-recorder flex h-full min-h-0 flex-col items-center justify-center p-4">
         <div class="automatic-button-group">
             <AssessmentCircleButton
                 :pulse="isListeningVisual && !session.isPaused.value"
@@ -99,21 +99,21 @@ defineExpose({
                 <Mic v-else class="automatic-circle-icon stroke-[2.6]" />
             </AssessmentCircleButton>
 
-            <p class="automatic-button-label text-slate-700" aria-live="polite">
+            <p class="automatic-button-label" aria-live="polite">
                 {{ buttonText }}
             </p>
         </div>
 
-        <div v-if="session.isActive.value" class="automatic-listening-meter h-1.5 w-full max-w-36 overflow-hidden rounded-full bg-slate-100">
+        <div v-if="session.isActive.value" class="automatic-listening-meter h-1.5 w-full max-w-36 overflow-hidden rounded-full">
             <div
-                class="h-full rounded-full bg-emerald-400 transition-all"
+                class="h-full rounded-full bg-primary transition-all"
                 :style="{ width: `${Math.min(100, Math.round(session.volumeLevel.value * 1800))}%` }"
             />
         </div>
 
         <p
             v-if="session.errorMessage.value || !isSupported"
-            class="automatic-helper-text rounded-lg bg-orange-50 px-3 py-2 text-center text-xs font-black text-orange-600 ring-1 ring-orange-200/60"
+            class="automatic-helper-text rounded-lg px-3 py-2 text-center text-xs font-black"
         >
             {{ helperText }}
         </p>
@@ -122,7 +122,7 @@ defineExpose({
             <button
                 v-if="canStop && session.isActive.value"
                 type="button"
-                class="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-black text-slate-600 shadow-sm transition hover:bg-slate-50"
+                class="automatic-secondary-button inline-flex min-h-9 items-center justify-center gap-1.5 px-3 text-xs font-black transition"
                 @click="stop"
             >
                 <Square class="size-4" />
@@ -130,7 +130,7 @@ defineExpose({
             </button>
             <button
                 type="button"
-                class="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-black text-slate-600 shadow-sm transition hover:bg-slate-50"
+                class="automatic-secondary-button inline-flex min-h-9 items-center justify-center gap-1.5 px-3 text-xs font-black transition"
                 @click="emit('fallback-manual')"
             >
                 <RotateCcw class="size-4" />
@@ -144,7 +144,11 @@ defineExpose({
 .automatic-listening-recorder {
     container-type: size;
     overflow: visible;
+    border: 1px solid var(--rd-soft-border);
+    border-radius: 24px;
+    background: linear-gradient(180deg, rgba(255, 253, 247, 0.98), rgba(250, 247, 239, 0.96));
     padding: clamp(0.45rem, min(3.5cqh, 2.4cqw), 1rem);
+    box-shadow: var(--rd-card-shadow-soft);
 }
 
 .automatic-button-group {
@@ -167,6 +171,7 @@ defineExpose({
     font-size: clamp(0.85rem, min(4cqh, 1.35vw), 1.125rem);
     font-weight: 900;
     line-height: 1.15;
+    color: var(--rd-text-main);
     overflow-wrap: anywhere;
 }
 
@@ -180,5 +185,34 @@ defineExpose({
 .automatic-helper-text,
 .automatic-secondary-controls {
     margin-block-start: clamp(0.3rem, min(2.4cqh, 1.6cqw), 0.75rem);
+}
+
+.automatic-listening-meter {
+    background: rgba(250, 247, 239, 0.9);
+    box-shadow: inset 0 2px 6px rgba(54, 83, 101, 0.08);
+}
+
+.automatic-helper-text {
+    border: 1px solid rgba(119, 47, 26, 0.18);
+    background: rgba(250, 247, 239, 0.94);
+    color: var(--rd-wrong-red);
+}
+
+.automatic-secondary-button {
+    border: 1px solid rgba(54, 83, 101, 0.14);
+    border-radius: 999px;
+    background: var(--rd-card-cream);
+    color: var(--rd-text-main);
+    box-shadow: 0 3px 0 rgba(111, 101, 52, 0.16), 0 6px 12px rgba(35, 55, 70, 0.08);
+}
+
+.automatic-secondary-button:hover {
+    border-color: rgba(245, 133, 73, 0.36);
+    color: var(--rd-primary-orange);
+}
+
+.automatic-secondary-button:active {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 rgba(111, 101, 52, 0.16), 0 3px 8px rgba(35, 55, 70, 0.08);
 }
 </style>

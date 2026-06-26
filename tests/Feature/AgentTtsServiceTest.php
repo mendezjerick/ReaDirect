@@ -22,8 +22,20 @@ class AgentTtsServiceTest extends TestCase
         $this->assertSame('af_bella', $service->voiceProfile('assessment')['voice']);
         $this->assertSame('af_heart', $service->voiceProfile('coach_feedback')['voice']);
         $this->assertSame('bf_isabella', $service->voiceProfile('evaluator')['voice']);
-        $this->assertSame(0.95, $service->voiceProfile('assessment')['speed']);
-        $this->assertSame(1.0, $service->voiceProfile('coach_feedback')['speed']);
+        $this->assertSame(0.97, $service->voiceProfile('assessment')['speed']);
+        $this->assertSame(0.94, $service->voiceProfile('coach_feedback')['speed']);
+        $this->assertSame(0.93, $service->voiceProfile('evaluator')['speed']);
+    }
+
+    public function test_agent_tts_service_clamps_ciel_speed_and_keeps_heart_voice(): void
+    {
+        config()->set('readirect.tts.voices.miss_ciel', 'af_bella');
+        config()->set('readirect.tts.speeds.miss_ciel', 1.2);
+
+        $profile = app(AgentTtsService::class)->voiceProfile('coach_feedback');
+
+        $this->assertSame('af_heart', $profile['voice']);
+        $this->assertSame(0.96, $profile['speed']);
     }
 
     public function test_tts_disabled_returns_text_fallback_without_local_paths(): void
@@ -68,6 +80,12 @@ class AgentTtsServiceTest extends TestCase
         $this->assertMatchesRegularExpression('#^/agent-voice/[a-f0-9]{64}$#', $payload['audio_url']);
         $cacheKey = basename($payload['audio_url']);
         Storage::disk('local')->assertExists('tts_cache/'.$cacheKey.'.wav');
+        Http::assertSent(fn ($request) => $request['agent'] === 'miss_vivian'
+            && $request['context'] === 'agent_narration'
+            && $request['humanize'] === true
+            && $request['delivery_control'] === true
+            && $request['audio_humanizer'] === true
+            && $request['pause_control'] === true);
 
         $this->get($payload['audio_url'])
             ->assertOk()

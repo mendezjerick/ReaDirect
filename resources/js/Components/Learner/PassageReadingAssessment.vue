@@ -392,7 +392,7 @@ const submitCurrentForReview = async () => {
         return;
     }
 
-    agentMessage.value = 'Hold the blue button to record the passage first.';
+    agentMessage.value = 'Hold the orange button to record the passage first.';
     agentState.value = 'speaking';
 };
 

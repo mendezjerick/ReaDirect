@@ -24,10 +24,10 @@ const normalizedAttemptSegments = computed(() => Array.from({ length: 3 }, (_, i
 const hasAttemptRing = computed(() => props.attemptSegments.length > 0);
 const attemptRingGradient = computed(() => {
     const colors = {
-        correct: 'rgb(34 197 94)',
-        incorrect: 'rgb(239 68 68)',
-        wrong: 'rgb(239 68 68)',
-        unused: 'rgb(203 213 225)',
+        correct: '#585123',
+        incorrect: '#772F1A',
+        wrong: '#772F1A',
+        unused: 'transparent',
     };
     const gap = 5;
     const segmentSize = 120;
@@ -58,7 +58,7 @@ const attemptRingGradient = computed(() => {
         <button
             v-bind="attrs"
             type="button"
-            class="assessment-circle-button grid place-items-center rounded-full bg-primary text-white shadow-xl shadow-primary/25 ring-1 ring-white/40 transition hover:bg-primary-dark active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+            class="assessment-circle-button grid place-items-center rounded-full transition disabled:cursor-not-allowed"
             :class="{
                 'assessment-circle-button--recording': recording,
                 'assessment-circle-button--pulse': pulse,
@@ -74,7 +74,7 @@ const attemptRingGradient = computed(() => {
     --assessment-circle-button-size: clamp(3rem, min(50cqh, 38cqw), 9.5rem);
     --assessment-circle-ring-gap: clamp(0.22rem, min(2.2cqh, 1.6cqw), 0.5rem);
     --assessment-circle-ring-thickness: clamp(3px, min(1.1cqh, 0.8cqw), 5px);
-    --assessment-circle-icon-size: clamp(1.45rem, min(17cqh, 11cqw), 2.75rem);
+    --assessment-circle-icon-size: clamp(1.55rem, min(18cqh, 12cqw), 3rem);
     --assessment-circle-re-size: clamp(1.1rem, min(10cqh, 6cqw), 1.875rem);
 
     position: relative;
@@ -95,7 +95,48 @@ const attemptRingGradient = computed(() => {
     min-inline-size: 0;
     min-block-size: 0;
     overflow: visible;
+    border: 0;
+    outline: 0;
+    appearance: none;
+    -webkit-appearance: none;
+    background: var(--rd-action-button);
+    background-clip: border-box;
+    color: var(--rd-card-cream);
+    box-shadow:
+        0 clamp(0.38rem, min(3.8cqh, 2.3cqw), 0.72rem) 0 var(--rd-action-button-dark),
+        0 clamp(0.65rem, min(5.8cqh, 3.6cqw), 1rem) clamp(0.58rem, min(4.8cqh, 3cqw), 0.95rem) var(--rd-action-button-shadow);
     will-change: transform;
+}
+
+.assessment-circle-button::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    z-index: -1;
+    border-radius: inherit;
+    background: var(--rd-action-button);
+    pointer-events: none;
+}
+
+.assessment-circle-button:focus,
+.assessment-circle-button:focus-visible {
+    outline: 0;
+}
+
+.assessment-circle-button:hover:not(:disabled) {
+    background: #115A6C;
+}
+
+.assessment-circle-button:active:not(:disabled) {
+    transform: translateY(clamp(0.25rem, min(2.8cqh, 1.8cqw), 0.5rem));
+    box-shadow:
+        0 clamp(0.12rem, min(1.3cqh, 0.8cqw), 0.24rem) 0 var(--rd-action-button-dark),
+        0 clamp(0.38rem, min(3.4cqh, 2.2cqw), 0.68rem) clamp(0.48rem, min(4cqh, 2.6cqw), 0.82rem) rgba(8, 49, 61, 0.18);
+}
+
+.assessment-circle-button:disabled {
+    opacity: 0.65;
+    filter: saturate(0.78);
 }
 
 .assessment-circle-attempt-ring {
@@ -107,18 +148,6 @@ const attemptRingGradient = computed(() => {
     mask: radial-gradient(farthest-side, transparent calc(100% - var(--assessment-circle-ring-thickness)), #000 calc(100% - var(--assessment-circle-ring-thickness)));
 }
 
-.assessment-circle-button::before {
-    content: '';
-    position: absolute;
-    inset: calc(var(--assessment-circle-ring-gap) * -0.8);
-    z-index: -1;
-    border: 2px solid rgb(59 130 246 / 0.28);
-    border-radius: 9999px;
-    opacity: 0;
-    transform: scale(0.94);
-    pointer-events: none;
-}
-
 .assessment-circle-button--recording {
     animation: hold-recording-pulse 900ms ease-in-out infinite alternate;
 }
@@ -127,17 +156,17 @@ const attemptRingGradient = computed(() => {
     animation: hold-button-syllable-scale 640ms cubic-bezier(0.2, 0.9, 0.28, 1) infinite;
 }
 
-.assessment-circle-button--pulse::before {
-    animation: hold-button-syllable-ring 640ms cubic-bezier(0.2, 0.9, 0.28, 1) infinite;
-}
-
 @keyframes hold-recording-pulse {
     from {
-        box-shadow: 0 18px 32px rgb(59 130 246 / 0.24), 0 0 0 0 rgb(59 130 246 / 0.26);
+        box-shadow:
+            0 clamp(0.38rem, min(3.8cqh, 2.3cqw), 0.72rem) 0 var(--rd-action-button-dark),
+            0 clamp(0.65rem, min(5.8cqh, 3.6cqw), 1rem) clamp(0.58rem, min(4.8cqh, 3cqw), 0.95rem) rgba(8, 49, 61, 0.18);
     }
 
     to {
-        box-shadow: 0 18px 32px rgb(59 130 246 / 0.18), 0 0 0 12px rgb(59 130 246 / 0);
+        box-shadow:
+            0 clamp(0.42rem, min(4.2cqh, 2.5cqw), 0.78rem) 0 var(--rd-action-button-dark),
+            0 clamp(0.78rem, min(6.2cqh, 3.8cqw), 1.08rem) clamp(0.62rem, min(5cqh, 3.2cqw), 1rem) rgba(8, 49, 61, 0.24);
     }
 }
 
@@ -164,31 +193,4 @@ const attemptRingGradient = computed(() => {
     }
 }
 
-@keyframes hold-button-syllable-ring {
-    0% {
-        opacity: 0;
-        transform: scale(0.94);
-    }
-
-    12% {
-        opacity: 0.38;
-        transform: scale(1.02);
-    }
-
-    42% {
-        opacity: 0;
-        transform: scale(1.16);
-    }
-
-    58% {
-        opacity: 0.22;
-        transform: scale(1.04);
-    }
-
-    82%,
-    100% {
-        opacity: 0;
-        transform: scale(1.22);
-    }
-}
 </style>

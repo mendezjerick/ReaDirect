@@ -6,8 +6,44 @@ defineProps({ type: { type: String, default: 'button' }, disabled: Boolean });
     <button
         :type="type"
         :disabled="disabled"
-        class="group inline-flex min-h-[56px] items-center justify-center gap-2 rounded-[20px] bg-gradient-to-r from-primary to-blue-600 px-7 text-[17px] font-black text-white shadow-xl shadow-primary/20 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:shadow-2xl hover:shadow-primary/30 focus:outline-none focus:ring-4 focus:ring-primary/20 active:scale-[0.98] active:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:scale-100 disabled:hover:shadow-xl"
+        class="rd-primary-button group inline-flex min-h-[56px] items-center justify-center gap-2 px-7 text-[17px] transition-all duration-150 ease-out disabled:cursor-not-allowed"
     >
         <slot />
     </button>
 </template>
+
+<style scoped>
+.rd-primary-button {
+    border-radius: 999px;
+    border: 0;
+    outline: 0;
+    appearance: none;
+    -webkit-appearance: none;
+    background: linear-gradient(180deg, var(--rd-action-button-light) 0%, var(--rd-action-button) 100%);
+    color: #ffffff;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    box-shadow: 0 7px 0 var(--rd-action-button-dark), 0 10px 16px var(--rd-action-button-shadow);
+}
+
+.rd-primary-button:focus,
+.rd-primary-button:focus-visible {
+    outline: 0;
+}
+
+.rd-primary-button:hover:not(:disabled) {
+    background: linear-gradient(180deg, #1A7890 0%, #115A6C 100%);
+}
+
+.rd-primary-button:active:not(:disabled) {
+    transform: translateY(5px);
+    box-shadow: 0 2px 0 var(--rd-action-button-dark), 0 5px 10px rgba(8, 49, 61, 0.18);
+}
+
+.rd-primary-button:disabled {
+    background: linear-gradient(180deg, #71919A 0%, #557781 100%);
+    opacity: 0.65;
+    box-shadow: 0 6px 0 rgba(8, 49, 61, 0.32);
+}
+</style>

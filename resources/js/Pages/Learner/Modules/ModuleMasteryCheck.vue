@@ -489,7 +489,7 @@ const submitCurrentForReview = async () => {
 
     const file = audioFiles[item.id];
     if (!file) {
-        agentMessage.value = 'Hold the blue button to record your answer first.';
+        agentMessage.value = 'Hold the orange button to record your answer first.';
         agentState.value = 'encouraging';
         step.feedback.value = 'Record this item before submitting.';
         return false;

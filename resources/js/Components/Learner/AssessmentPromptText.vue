@@ -120,14 +120,14 @@ const promptDensity = computed(() => {
     font-size: clamp(0.78rem, 1.7dvh, 1rem);
     font-weight: 900;
     letter-spacing: 0;
-    color: rgb(148 163 184);
+    color: var(--rd-text-muted);
 }
 
 .assessment-prompt-text-body {
     margin: 0;
     max-width: 100%;
     min-width: 0;
-    color: rgb(30 41 59);
+    color: var(--rd-text-main);
     font-size: var(--prompt-font-size);
     font-weight: 900;
     line-height: 1.12;
@@ -162,9 +162,9 @@ const promptDensity = computed(() => {
 
 .assessment-prompt-text-mark {
     border-radius: 0.75rem;
-    background: rgb(254 243 199);
+    background: rgba(238, 193, 112, 0.42);
     padding: 0 0.32em;
-    color: rgb(30 41 59);
-    box-shadow: inset 0 0 0 1px rgb(252 211 77 / 0.5);
+    color: var(--rd-text-main);
+    box-shadow: inset 0 0 0 1px rgba(238, 193, 112, 0.62);
 }
 </style>

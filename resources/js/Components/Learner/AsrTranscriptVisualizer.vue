@@ -477,21 +477,21 @@ onBeforeUnmount(() => {
         <div class="mb-3 flex items-center justify-between gap-3">
             <div class="min-w-0">
                 <p class="truncate text-[11px] font-black uppercase tracking-[0.16em] text-primary">{{ stageTitle }}</p>
-                <p class="mt-0.5 text-[11px] font-bold text-slate-400">
+                <p class="mt-0.5 text-[11px] font-bold text-muted">
                     {{ stageNumber ? `Stage ${stageNumber} of ${totalStages}` : 'Stopped' }}
                 </p>
             </div>
-            <span class="shrink-0 rounded-full bg-primary/8 px-2.5 py-1 text-[11px] font-black text-primary ring-1 ring-primary/15">
+            <span class="shrink-0 rounded-full bg-primary-light px-2.5 py-1 text-[11px] font-black text-primary ring-1 ring-primary/15">
                 Re
             </span>
         </div>
 
-        <div class="mb-3 h-1.5 overflow-hidden rounded-full bg-slate-200/70">
-            <div class="h-full rounded-full bg-gradient-to-r from-primary to-blue-500 transition-all duration-200" :style="{ width: `${progress}%` }" />
+        <div class="mb-3 h-1.5 overflow-hidden rounded-full bg-primary-light">
+            <div class="h-full rounded-full bg-gradient-to-r from-warning to-primary transition-all duration-200" :style="{ width: `${progress}%` }" />
         </div>
 
-        <pre class="asr-visualizer-text m-0 whitespace-pre-wrap break-words font-mono text-[13px] font-bold leading-relaxed text-slate-800 sm:text-sm">{{ displayText }}</pre>
-        <p v-if="resolvedTraceNotes.length" class="mt-3 text-[11px] font-semibold leading-snug text-slate-500">
+        <pre class="asr-visualizer-text m-0 whitespace-pre-wrap break-words font-mono text-[13px] font-bold leading-relaxed text-text sm:text-sm">{{ displayText }}</pre>
+        <p v-if="resolvedTraceNotes.length" class="mt-3 text-[11px] font-semibold leading-snug text-muted">
             {{ resolvedTraceNotes.join(' ') }}
         </p>
     </div>
@@ -514,8 +514,8 @@ onBeforeUnmount(() => {
 <style scoped>
 .asr-visualizer-box {
     background:
-        linear-gradient(135deg, rgba(239, 246, 255, 0.95), rgba(255, 255, 255, 0.98)),
-        #ffffff;
+        linear-gradient(135deg, rgba(250, 247, 239, 0.96), rgba(255, 253, 247, 0.98)),
+        var(--rd-card-cream);
     min-height: 0;
     overscroll-behavior: contain;
 }
