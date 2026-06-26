@@ -624,48 +624,52 @@ watch(
         />
 
         <div class="assessment-agent-card">
-            <div class="assessment-agent-square">
-                <AgentVideoPlayer
-                    :agent="agentType"
-                    :action="mediaState"
-                    :alt="displayTitle"
-                    :allow-congrats="allowCongrats"
-                    class="agent-media-content"
-                    @interaction-ended="emit('interaction-ended', $event)"
-                />
+            <div class="assessment-agent-card-face">
+                <div class="assessment-agent-square">
+                    <AgentVideoPlayer
+                        :agent="agentType"
+                        :action="mediaState"
+                        :alt="displayTitle"
+                        :allow-congrats="allowCongrats"
+                        class="agent-media-content"
+                        @interaction-ended="emit('interaction-ended', $event)"
+                    />
+                </div>
             </div>
         </div>
 
         <div class="assessment-agent-dialogue">
-            <div class="assessment-agent-dialogue-copy">
-                <p class="assessment-agent-dialogue-name">{{ displayTitle }}</p>
-                <p class="assessment-agent-dialogue-text">
-                    {{ displayMessage }}
-                </p>
-                <p v-if="ttsError" class="assessment-agent-dialogue-error">
-                    {{ ttsError }}
-                </p>
-            </div>
-            <div class="flex shrink-0 items-center gap-2">
-                <button
-                    v-if="ttsEnabled || showAudioButton"
-                    type="button"
-                    class="assessment-agent-audio-button grid size-9 place-items-center rounded-full transition"
-                    :aria-label="isMuted ? 'Unmute agent voice' : 'Mute agent voice'"
-                    @click="toggleMute"
-                >
-                    <VolumeX v-if="isMuted" class="size-4" />
-                    <Volume2 v-else class="size-4" />
-                </button>
-                <button
-                    v-if="ttsEnabled || showAudioButton"
-                    type="button"
-                    class="assessment-agent-audio-button grid size-9 place-items-center rounded-full transition"
-                    aria-label="Replay agent message"
-                    @click="replayMessage"
-                >
-                    <RotateCcw class="size-4" />
-                </button>
+            <div class="assessment-agent-dialogue-face">
+                <div class="assessment-agent-dialogue-copy">
+                    <p class="assessment-agent-dialogue-name">{{ displayTitle }}</p>
+                    <p class="assessment-agent-dialogue-text">
+                        {{ displayMessage }}
+                    </p>
+                    <p v-if="ttsError" class="assessment-agent-dialogue-error">
+                        {{ ttsError }}
+                    </p>
+                </div>
+                <div class="flex shrink-0 items-center gap-2">
+                    <button
+                        v-if="ttsEnabled || showAudioButton"
+                        type="button"
+                        class="assessment-agent-audio-button grid size-9 place-items-center rounded-full transition"
+                        :aria-label="isMuted ? 'Unmute agent voice' : 'Mute agent voice'"
+                        @click="toggleMute"
+                    >
+                        <VolumeX v-if="isMuted" class="size-4" />
+                        <Volume2 v-else class="size-4" />
+                    </button>
+                    <button
+                        v-if="ttsEnabled || showAudioButton"
+                        type="button"
+                        class="assessment-agent-audio-button grid size-9 place-items-center rounded-full transition"
+                        aria-label="Replay agent message"
+                        @click="replayMessage"
+                    >
+                        <RotateCcw class="size-4" />
+                    </button>
+                </div>
             </div>
         </div>
     </section>
@@ -826,14 +830,14 @@ watch(
     display: grid;
     grid-template-columns: var(--assessment-agent-row, clamp(7.5rem, 17dvh, 11.25rem)) minmax(0, 1fr);
     align-items: stretch;
-    gap: clamp(0.5rem, 1vw, 0.75rem);
+    gap: clamp(0.8rem, 1.4vw, 1.15rem);
     height: var(--assessment-agent-row, clamp(7.5rem, 17dvh, 11.25rem));
     min-height: 0;
-    overflow: hidden;
-    border: 1px solid var(--rd-soft-border);
-    border-radius: 24px;
-    background: linear-gradient(180deg, rgba(255, 253, 247, 0.98), rgba(250, 247, 239, 0.96));
-    box-shadow: var(--rd-card-shadow-soft);
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
     transition: box-shadow 150ms ease;
 }
 
@@ -842,12 +846,23 @@ watch(
     min-height: 0;
     height: 100%;
     aspect-ratio: 1 / 1;
+    overflow: visible;
+    border: 2px solid var(--rd-frame-border);
+    border-radius: 22px;
+    background: var(--rd-story-surface);
+    padding: 7px 7px 10px;
+    box-shadow: 0 6px 0 var(--rd-lip), 0 8px 0 var(--rd-lip-dark), 0 22px 30px -12px var(--rd-shadow);
+}
+
+.assessment-agent-card-face {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
     overflow: hidden;
-    border: 1px solid rgba(54, 83, 101, 0.1);
-    border-radius: 20px;
-    background: var(--rd-card-cream);
-    padding: 0;
-    box-shadow: 0 8px 18px rgba(35, 55, 70, 0.1);
+    border: 1.5px solid var(--rd-face-border);
+    border-radius: 15px;
+    background: var(--rd-face-surface);
+    box-shadow: inset 0 2px 0 var(--rd-highlight), inset 0 -6px 10px var(--rd-inner-shade);
 }
 
 .assessment-agent-square {
@@ -865,17 +880,44 @@ watch(
 
 .assessment-agent-dialogue {
     position: relative;
-    display: flex;
+    display: grid;
     height: var(--assessment-agent-row, clamp(7.5rem, 17dvh, 11.25rem));
     min-width: 0;
+    overflow: visible;
+    border: 2px solid var(--rd-frame-border);
+    border-radius: var(--rd-radius-frame);
+    background: var(--rd-story-surface);
+    padding: 10px 12px 14px;
+    box-shadow: 0 6px 0 var(--rd-lip), 0 8px 0 var(--rd-lip-dark), 0 22px 30px -12px var(--rd-shadow);
+}
+
+.assessment-agent-dialogue::before {
+    content: '';
+    position: absolute;
+    left: -0.9rem;
+    top: 50%;
+    width: 1.7rem;
+    height: 1.7rem;
+    border-left: 2px solid var(--rd-frame-border);
+    border-bottom: 2px solid var(--rd-frame-border);
+    background: var(--rd-story-surface);
+    transform: translateY(-50%) rotate(45deg);
+    box-shadow: -3px 3px 0 rgba(112, 84, 44, 0.08);
+}
+
+.assessment-agent-dialogue-face {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
     align-items: center;
     gap: 1rem;
     overflow: hidden;
-    border: 0;
-    border-radius: 24px;
-    background: transparent;
-    padding: clamp(0.75rem, 1.8dvh, 1.4rem);
-    box-shadow: none;
+    border: 1.5px solid var(--rd-face-border);
+    border-radius: var(--rd-radius-face);
+    background: var(--rd-face-surface);
+    padding: clamp(0.62rem, 1.35dvh, 1rem) clamp(0.72rem, 1.25vw, 1.05rem);
+    box-shadow: inset 0 2px 0 var(--rd-highlight), inset 0 -6px 10px var(--rd-inner-shade);
 }
 
 .assessment-agent-dialogue-copy {
@@ -917,10 +959,10 @@ watch(
 }
 
 .assessment-agent-audio-button {
-    border: 1px solid rgba(54, 83, 101, 0.12);
-    background: var(--rd-card-warm);
+    border: 2px solid var(--rd-story-border-soft);
+    background: var(--rd-story-surface);
     color: var(--rd-text-main);
-    box-shadow: 0 4px 0 rgba(111, 101, 52, 0.18), 0 8px 14px rgba(35, 55, 70, 0.08);
+    box-shadow: 0 4px 0 rgba(111, 101, 52, 0.18), 0 8px 14px rgba(54, 83, 101, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 .assessment-agent-audio-button:hover {

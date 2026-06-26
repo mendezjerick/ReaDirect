@@ -42,24 +42,26 @@ const togglePromptImage = () => {
 
         <section class="assessment-prompt-record-grid">
             <div class="assessment-prompt-panel">
-                <button
-                    v-if="hasPromptImage"
-                    type="button"
-                    class="assessment-prompt-toggle"
-                    :aria-pressed="showPromptImage"
-                    aria-label="Toggle prompt image"
-                    @click="togglePromptImage"
-                >
-                    <ChevronRight class="size-5 transition-transform" :class="showPromptImage ? 'rotate-180' : ''" />
-                </button>
+                <div class="assessment-prompt-face">
+                    <button
+                        v-if="hasPromptImage"
+                        type="button"
+                        class="assessment-prompt-toggle"
+                        :aria-pressed="showPromptImage"
+                        aria-label="Toggle prompt image"
+                        @click="togglePromptImage"
+                    >
+                        <ChevronRight class="size-5 transition-transform" :class="showPromptImage ? 'rotate-180' : ''" />
+                    </button>
 
-                <img
-                    v-if="showPromptImage && hasPromptImage"
-                    :src="promptImage"
-                    alt=""
-                    class="h-full max-h-full w-full object-contain"
-                >
-                <slot v-else name="prompt" />
+                    <img
+                        v-if="showPromptImage && hasPromptImage"
+                        :src="promptImage"
+                        alt=""
+                        class="h-full max-h-full w-full object-contain"
+                    >
+                    <slot v-else name="prompt" />
+                </div>
             </div>
 
             <div class="assessment-record-panel">
@@ -69,13 +71,15 @@ const togglePromptImage = () => {
 
         <section class="assessment-progress-row" aria-label="Assessment progress">
             <div class="assessment-progress-track">
-                <span class="assessment-progress-marker assessment-progress-marker--start" aria-hidden="true">
-                    <BookOpen class="size-4" stroke-width="2.7" />
-                </span>
-                <div class="assessment-progress-fill" :style="{ width: progressWidth }" />
-                <span class="assessment-progress-marker assessment-progress-marker--end" aria-hidden="true">
-                    <Flag class="size-4" stroke-width="2.7" />
-                </span>
+                <div class="assessment-progress-face">
+                    <span class="assessment-progress-marker assessment-progress-marker--start" aria-hidden="true">
+                        <BookOpen class="size-4" stroke-width="2.7" />
+                    </span>
+                    <div class="assessment-progress-fill" :style="{ width: progressWidth }" />
+                    <span class="assessment-progress-marker assessment-progress-marker--end" aria-hidden="true">
+                        <Flag class="size-4" stroke-width="2.7" />
+                    </span>
+                </div>
             </div>
             <button
                 type="button"
@@ -89,13 +93,17 @@ const togglePromptImage = () => {
 
         <section class="assessment-transcript-section">
             <div class="assessment-transcript-panel">
-                <div class="assessment-transcript-content">
-                    <slot name="transcript" />
+                <div class="assessment-transcript-face">
+                    <div class="assessment-transcript-content">
+                        <slot name="transcript" />
+                    </div>
+                    <slot name="status" />
                 </div>
-                <slot name="status" />
             </div>
             <div v-if="$slots.qa" class="assessment-qa-row">
-                <slot name="qa" />
+                <div class="assessment-qa-face learner-frame">
+                    <slot name="qa" />
+                </div>
             </div>
         </section>
     </section>
@@ -103,49 +111,70 @@ const togglePromptImage = () => {
 
 <style scoped>
 .assessment-task-workspace {
-    --assessment-gap: clamp(0.35rem, 0.9dvh, 0.65rem);
-    --assessment-agent-row: clamp(7.5rem, 17dvh, 11.25rem);
-    --assessment-prompt-row: clamp(9.5rem, 28dvh, 18rem);
-    --assessment-progress-row: clamp(1.85rem, 3.8dvh, 2.35rem);
-    --assessment-transcript-min: clamp(8.5rem, 24dvh, 15rem);
+    --assessment-gap: clamp(0.55rem, 1.25dvh, 1rem);
+    --assessment-agent-row: clamp(8rem, 17dvh, 11.4rem);
+    --assessment-progress-row: clamp(2.75rem, 6dvh, 4.6rem);
+    --assessment-transcript-row: clamp(7rem, 16dvh, 10rem);
+    --assessment-qa-strip-height: 2.1rem;
+    --assessment-qa-strip-gap: 0.65rem;
 
     display: grid;
+    box-sizing: border-box;
     height: 100%;
     min-height: 0;
     grid-template-rows:
         var(--assessment-agent-row)
-        minmax(8.5rem, var(--assessment-prompt-row))
+        minmax(8.5rem, 1fr)
         var(--assessment-progress-row)
-        minmax(var(--assessment-transcript-min), 1fr);
+        var(--assessment-transcript-row);
     gap: var(--assessment-gap);
-    overflow: hidden;
+    overflow: visible;
+    padding-bottom: calc(var(--assessment-qa-strip-height) + var(--assessment-qa-strip-gap));
 }
 
 .assessment-prompt-record-grid {
     display: grid;
     min-height: 0;
-    grid-template-columns: minmax(0, 1fr) minmax(14rem, clamp(16rem, 28vw, 26rem));
-    gap: clamp(0.5rem, 1vw, 0.75rem);
+    grid-template-columns: minmax(0, 1fr) minmax(15rem, clamp(18rem, 30vw, 28rem));
+    gap: clamp(0.75rem, 1.35vw, 1.1rem);
 }
 
 .assessment-prompt-panel,
-.assessment-record-panel,
-.assessment-transcript-panel,
-.assessment-qa-row {
+.assessment-transcript-panel {
     min-width: 0;
-    overflow: hidden;
-    border: 1px solid var(--rd-soft-border);
-    border-radius: 24px;
-    background: linear-gradient(180deg, rgba(255, 253, 247, 0.98), rgba(250, 247, 239, 0.96));
-    box-shadow: var(--rd-card-shadow-soft);
+    min-height: 0;
+    overflow: visible;
+    border: 2px solid var(--rd-frame-border);
+    border-radius: var(--rd-radius-frame);
+    background: var(--rd-story-surface);
+    color: var(--rd-text-main);
+    box-shadow: 0 6px 0 var(--rd-lip), 0 8px 0 var(--rd-lip-dark), 0 22px 30px -12px var(--rd-shadow);
+    padding: 10px 12px 14px;
+}
+
+.assessment-prompt-face,
+.assessment-transcript-face {
+    min-width: 0;
+    min-height: 0;
+    border: 1.5px solid var(--rd-face-border);
+    border-radius: var(--rd-radius-face);
+    background: var(--rd-face-surface);
+    box-shadow: inset 0 2px 0 var(--rd-highlight), inset 0 -6px 10px var(--rd-inner-shade);
 }
 
 .assessment-prompt-panel {
     position: relative;
     display: grid;
     min-height: 0;
+}
+
+.assessment-prompt-face {
+    position: relative;
+    display: grid;
+    height: 100%;
     container-type: size;
     place-items: center;
+    overflow: hidden;
     padding: clamp(0.55rem, 1.7dvh, 1.35rem);
 }
 
@@ -156,6 +185,9 @@ const togglePromptImage = () => {
     justify-content: center;
     container-type: size;
     overflow: visible;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
 }
 
 .assessment-record-panel :deep(.assessment-hold-recorder),
@@ -166,14 +198,16 @@ const togglePromptImage = () => {
     flex: 1 1 auto;
 }
 
-.assessment-prompt-panel :deep(*) {
+.assessment-prompt-face :deep(*) {
     max-width: 100%;
 }
 
-.assessment-prompt-panel :deep(.letter-prompt) {
+.assessment-prompt-face :deep(.letter-prompt) {
     overflow-wrap: anywhere;
     word-break: normal;
-    font-size: clamp(4rem, min(70cqh, 18cqw), 14rem);
+    font-size: clamp(6rem, min(70cqh, 18cqw), 13rem);
+    color: var(--rd-text-main);
+    text-shadow: 0 3px 0 rgba(255, 255, 255, 0.8), 0 6px 14px rgba(54, 83, 101, 0.18);
 }
 
 .assessment-prompt-toggle {
@@ -196,7 +230,7 @@ const togglePromptImage = () => {
     display: grid;
     min-height: 0;
     grid-template-columns: minmax(0, 4fr) minmax(8rem, 1fr);
-    gap: clamp(0.45rem, 0.9vw, 0.7rem);
+    gap: clamp(0.75rem, 1.2vw, 1.1rem);
     overflow: visible;
     border: 0;
     border-radius: 999px;
@@ -206,18 +240,25 @@ const togglePromptImage = () => {
 
 .assessment-progress-track {
     position: relative;
+    overflow: visible;
+    border: 2px solid var(--rd-frame-border);
+    border-radius: 26px;
+    background: var(--rd-story-surface);
+    box-shadow: 0 6px 0 var(--rd-lip), 0 8px 0 var(--rd-lip-dark), 0 22px 30px -12px var(--rd-shadow);
+    padding: 8px 14px 12px;
+}
+
+.assessment-progress-face {
+    position: relative;
     display: flex;
+    height: 100%;
+    min-height: 0;
     align-items: stretch;
     overflow: hidden;
-    border: 1px solid rgba(54, 83, 101, 0.12);
-    border-radius: 999px;
-    background:
-        radial-gradient(circle at 28% 50%, rgba(54, 83, 101, 0.08) 0 0.16rem, transparent 0.18rem),
-        radial-gradient(circle at 42% 50%, rgba(54, 83, 101, 0.08) 0 0.16rem, transparent 0.18rem),
-        radial-gradient(circle at 56% 50%, rgba(54, 83, 101, 0.08) 0 0.16rem, transparent 0.18rem),
-        radial-gradient(circle at 70% 50%, rgba(54, 83, 101, 0.08) 0 0.16rem, transparent 0.18rem),
-        var(--rd-card-cream);
-    box-shadow: inset 0 2px 7px rgba(54, 83, 101, 0.08), 0 6px 12px rgba(35, 55, 70, 0.08);
+    border: 1.5px solid var(--rd-face-border);
+    border-radius: 18px;
+    background: var(--rd-face-surface);
+    box-shadow: inset 0 2px 0 var(--rd-highlight), inset 0 -6px 10px var(--rd-inner-shade);
 }
 
 .assessment-progress-marker {
@@ -225,24 +266,26 @@ const togglePromptImage = () => {
     z-index: 3;
     top: 50%;
     display: grid;
-    width: clamp(1.7rem, 3.6dvh, 2.2rem);
-    height: clamp(1.7rem, 3.6dvh, 2.2rem);
+    width: clamp(2.1rem, 4.5dvh, 3.1rem);
+    height: clamp(2.1rem, 4.5dvh, 3.1rem);
     place-items: center;
+    border: 2px solid rgba(238, 193, 112, 0.7);
     border-radius: 999px;
-    background: var(--rd-card-warm);
-    color: var(--rd-action-button);
+    background: #FFFDF7;
+    color: var(--rd-brown);
     transform: translateY(-50%);
     pointer-events: none;
-    box-shadow: 0 3px 0 rgba(111, 101, 52, 0.18), 0 5px 12px rgba(35, 55, 70, 0.12);
+    box-shadow: 0 3px 0 rgba(111, 101, 52, 0.18), 0 6px 12px rgba(54, 83, 101, 0.12);
 }
 
 .assessment-progress-marker--start {
-    left: 0;
+    left: 0.35rem;
+    color: var(--rd-brown);
 }
 
 .assessment-progress-marker--end {
-    right: 0.15rem;
-    color: var(--rd-action-button);
+    right: 0.35rem;
+    color: var(--rd-brown);
 }
 
 .assessment-progress-marker--end svg {
@@ -252,8 +295,8 @@ const togglePromptImage = () => {
 .assessment-progress-fill {
     height: 100%;
     border-radius: 999px;
-    background: linear-gradient(90deg, var(--rd-secondary-orange), var(--rd-primary-orange));
-    box-shadow: 0 4px 10px rgba(245, 133, 73, 0.18);
+    background: linear-gradient(90deg, #F58549 0%, #F2A65A 100%);
+    box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.24), 0 4px 10px rgba(245, 133, 73, 0.18);
     transition: width 240ms ease;
 }
 
@@ -263,19 +306,19 @@ const togglePromptImage = () => {
     align-items: center;
     justify-content: center;
     gap: 0.35rem;
-    border: 0;
+    border: 2px solid #D9652F;
     outline: 0;
     appearance: none;
     -webkit-appearance: none;
     border-radius: 999px;
-    background: linear-gradient(180deg, var(--rd-action-button-light) 0%, var(--rd-action-button) 100%);
+    background: linear-gradient(180deg, #FF8A4C 0%, #F58549 100%);
     padding-inline: 0.75rem;
     font-size: clamp(0.95rem, 1.6vh, 1.1rem);
     font-weight: 900;
     letter-spacing: 0.04em;
     color: #ffffff;
     text-transform: uppercase;
-    box-shadow: 0 7px 0 var(--rd-action-button-dark), 0 10px 16px var(--rd-action-button-shadow);
+    box-shadow: 0 7px 0 #B84B24, 0 12px 20px rgba(54, 83, 101, 0.25), inset 0 2px 0 rgba(255, 255, 255, 0.35);
 }
 
 .assessment-primary-action:focus,
@@ -284,19 +327,21 @@ const togglePromptImage = () => {
 }
 
 .assessment-primary-action:hover {
-    background: linear-gradient(180deg, #1A7890 0%, #115A6C 100%);
+    background: linear-gradient(180deg, #FF9A5C 0%, #F58549 100%);
 }
 
 .assessment-primary-action:active:not(:disabled) {
     transform: translateY(5px);
-    box-shadow: 0 2px 0 var(--rd-action-button-dark), 0 5px 10px rgba(8, 49, 61, 0.18);
+    box-shadow: 0 2px 0 #B84B24, 0 6px 12px rgba(54, 83, 101, 0.2);
 }
 
 .assessment-primary-action:disabled {
     cursor: not-allowed;
-    background: linear-gradient(180deg, #71919A 0%, #557781 100%);
-    opacity: 0.65;
-    box-shadow: 0 6px 0 rgba(8, 49, 61, 0.32);
+    border-color: rgba(111, 101, 52, 0.18);
+    background: linear-gradient(180deg, #F7D3B0 0%, #F2A65A 100%);
+    color: rgba(255, 255, 255, 0.9);
+    opacity: 0.82;
+    box-shadow: 0 5px 0 rgba(111, 101, 52, 0.2), inset 0 2px 0 rgba(255, 255, 255, 0.35);
 }
 
 .assessment-primary-action-label {
@@ -308,18 +353,25 @@ const togglePromptImage = () => {
 
 .assessment-transcript-section {
     display: grid;
+    width: 100%;
     min-height: 0;
     grid-template-rows: minmax(0, 1fr) auto;
     gap: clamp(0.35rem, 0.75dvh, 0.5rem);
-    overflow: hidden;
+    overflow: visible;
 }
 
 .assessment-transcript-panel {
-    display: flex;
+    display: grid;
     min-height: 0;
+}
+
+.assessment-transcript-face {
+    display: flex;
+    height: 100%;
     flex-direction: column;
-    gap: clamp(0.3rem, 0.7dvh, 0.45rem);
-    padding: clamp(0.45rem, 1dvh, 0.75rem);
+    gap: clamp(0.4rem, 0.8dvh, 0.65rem);
+    overflow: hidden;
+    padding: clamp(0.65rem, 1.2dvh, 1rem);
 }
 
 .assessment-transcript-content {
@@ -331,8 +383,84 @@ const togglePromptImage = () => {
 }
 
 .assessment-qa-row {
-    max-height: clamp(2.55rem, 6dvh, 3.25rem);
-    padding: clamp(0.3rem, 0.75dvh, 0.45rem);
+    position: fixed;
+    left: 0;
+    bottom: 0;
+    z-index: 40;
+    width: 100vw;
+    min-width: 0;
+    height: var(--assessment-qa-strip-height);
+    overflow: hidden;
+    border-block: 1px solid rgba(224, 207, 166, 0.55);
+    border-inline: 0;
+    border-radius: 0;
+    background: rgba(255, 253, 248, 0.9);
+    color: var(--rd-text-main);
+    padding: 0.16rem 0;
+    box-shadow: none;
+}
+
+.assessment-qa-face {
+    display: flex;
+    height: 100%;
+    min-width: 0;
+    align-items: center;
+    overflow: hidden;
+    padding-inline: 0.45rem;
+}
+
+.assessment-qa-face :deep(> *) {
+    width: 100%;
+    min-width: 0;
+}
+
+.assessment-qa-row :deep(label),
+.assessment-qa-row :deep(.flex) {
+    width: 100%;
+    min-height: 0;
+    color: rgba(35, 55, 70, 0.82);
+    font-size: 0.7rem;
+    line-height: 1;
+}
+
+.assessment-qa-row :deep(label) {
+    flex: 1 1 auto;
+    gap: 0.45rem;
+}
+
+.assessment-qa-row :deep(label > span) {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+.assessment-qa-row :deep(input) {
+    flex: 1 1 auto;
+    width: 100%;
+    min-height: 1.45rem !important;
+    height: 1.45rem !important;
+    border: 1px solid rgba(224, 207, 166, 0.72) !important;
+    border-radius: 999px !important;
+    background: rgba(255, 253, 248, 0.92) !important;
+    color: var(--rd-text-main) !important;
+    padding-block: 0 !important;
+    font-size: 0.75rem !important;
+    box-shadow: none !important;
+}
+
+.assessment-qa-row :deep(input:focus) {
+    border-color: var(--rd-primary-orange) !important;
+    box-shadow: 0 0 0 2px rgba(245, 133, 73, 0.14) !important;
+}
+
+.assessment-qa-row :deep(button) {
+    min-height: 1.45rem !important;
+    border: 1px solid rgba(224, 207, 166, 0.72) !important;
+    border-radius: 999px !important;
+    background: rgba(255, 253, 248, 0.88) !important;
+    color: var(--rd-text-main) !important;
+    padding: 0.12rem 0.7rem !important;
+    font-size: 0.7rem !important;
+    box-shadow: none !important;
 }
 
 .assessment-transcript-content :deep(textarea),
@@ -342,29 +470,53 @@ const togglePromptImage = () => {
     flex: 1 1 auto;
     overflow-y: auto;
     overscroll-behavior: contain;
+    border: 0 !important;
+    border-radius: 24px !important;
+    background: transparent !important;
+    color: var(--rd-text-main) !important;
+    box-shadow: none !important;
+    outline: 0 !important;
+}
+
+.assessment-transcript-content :deep(textarea) {
+    font-size: clamp(1.2rem, 2.2dvh, 1.7rem);
+    line-height: 1.2;
+    resize: none;
 }
 
 @media (max-height: 720px) {
     .assessment-task-workspace {
         --assessment-gap: clamp(0.3rem, 0.75dvh, 0.5rem);
         --assessment-agent-row: clamp(6.25rem, 15dvh, 8.5rem);
-        --assessment-prompt-row: clamp(8.5rem, 25dvh, 13rem);
-        --assessment-progress-row: clamp(1.65rem, 3.4dvh, 2rem);
-        --assessment-transcript-min: clamp(8rem, 26dvh, 12rem);
+        --assessment-progress-row: clamp(2.45rem, 5.4dvh, 3.4rem);
+        --assessment-transcript-row: clamp(6.5rem, 17dvh, 8rem);
+        --assessment-qa-strip-gap: 0.45rem;
     }
 }
 
 @media (min-height: 900px) {
     .assessment-task-workspace {
         --assessment-agent-row: clamp(8rem, 16dvh, 11rem);
-        --assessment-prompt-row: clamp(13rem, 29dvh, 20rem);
-        --assessment-transcript-min: clamp(12rem, 28dvh, 18rem);
+        --assessment-transcript-row: clamp(7.5rem, 15dvh, 10rem);
     }
 }
 
 @media (max-width: 760px) {
+    .assessment-task-workspace {
+        overflow-y: auto;
+        grid-template-rows:
+            auto
+            auto
+            auto
+            minmax(7rem, auto);
+    }
+
     .assessment-prompt-record-grid {
-        grid-template-columns: minmax(0, 1fr) minmax(11rem, 34vw);
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .assessment-progress-row {
+        grid-template-columns: minmax(0, 1fr);
     }
 }
 </style>

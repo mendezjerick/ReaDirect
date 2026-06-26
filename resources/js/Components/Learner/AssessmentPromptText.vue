@@ -137,8 +137,9 @@ const promptDensity = computed(() => {
 }
 
 .assessment-prompt-text--letter .assessment-prompt-text-body {
-    --prompt-font-size: clamp(3.4rem, min(70cqh, 18cqw), 12rem);
+    --prompt-font-size: clamp(6rem, min(70cqh, 18cqw), 11rem);
     line-height: 0.9;
+    text-shadow: 0 3px 0 rgba(255, 255, 255, 0.8), 0 6px 14px rgba(54, 83, 101, 0.18);
 }
 
 .assessment-prompt-text--word .assessment-prompt-text-body {

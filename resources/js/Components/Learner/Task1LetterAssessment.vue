@@ -337,9 +337,10 @@ const setAgentSpeaking = (isSpeaking) => {
     max-width: 100%;
     place-items: center;
     overflow-wrap: anywhere;
-    font-size: clamp(4rem, min(70cqh, 18cqw), 14rem);
+    font-size: clamp(6rem, min(70cqh, 18cqw), 11rem);
     font-weight: 900;
     line-height: 0.9;
-    color: rgb(100 116 139);
+    color: var(--rd-text-main);
+    text-shadow: 0 3px 0 rgba(255, 255, 255, 0.8), 0 6px 14px rgba(54, 83, 101, 0.18);
 }
 </style>

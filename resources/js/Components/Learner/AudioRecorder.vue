@@ -671,64 +671,66 @@ onBeforeUnmount(() => {
 <template>
     <div
         v-if="isHoldPresentation"
-        class="assessment-hold-recorder flex h-full min-h-0 flex-col items-center justify-center p-4"
+        class="assessment-hold-recorder flex h-full min-h-0 flex-col"
     >
-        <audio
-            v-if="audioUrl"
-            ref="reviewAudioEl"
-            class="hidden"
-            :src="audioUrl"
-            @play="handleReviewAudioPlay"
-            @pause="handleReviewAudioPause"
-            @ended="handleReviewAudioEnded"
-        />
+        <div class="assessment-hold-recorder-face">
+            <audio
+                v-if="audioUrl"
+                ref="reviewAudioEl"
+                class="hidden"
+                :src="audioUrl"
+                @play="handleReviewAudioPlay"
+                @pause="handleReviewAudioPause"
+                @ended="handleReviewAudioEnded"
+            />
 
-        <div class="assessment-button-group">
-            <AssessmentCircleButton
-                :recording="status === 'recording'"
-                :pulse="holdButtonPulsing"
-                :attempt-segments="attemptSegments"
-                :disabled="(!canRecordFromHoldButton && !canPlayFromHoldButton) || status === 'processing'"
-                :aria-label="holdButtonText"
-                @pointerdown="handleHoldStart"
-                @pointerup="handleHoldEnd"
-                @pointerleave="handleHoldEnd"
-                @pointercancel="handleHoldEnd"
-                @touchstart.prevent="handleTouchStart"
-                @touchend.prevent="handleTouchEnd"
-                @click="handleHoldClick"
-            >
-                <span v-if="status === 'recording' || status === 'processing'" class="assessment-circle-re-text font-black tracking-tight">Re</span>
-                <AudioWaveform v-else-if="isPlaying" class="assessment-circle-icon stroke-[2.6]" />
-                <Play v-else-if="audioUrl" class="assessment-circle-icon assessment-circle-icon--play fill-white stroke-[2.6]" />
-                <Mic v-else class="assessment-circle-icon stroke-[2.6]" />
-            </AssessmentCircleButton>
+            <div class="assessment-button-group">
+                <AssessmentCircleButton
+                    :recording="status === 'recording'"
+                    :pulse="holdButtonPulsing"
+                    :attempt-segments="attemptSegments"
+                    :disabled="(!canRecordFromHoldButton && !canPlayFromHoldButton) || status === 'processing'"
+                    :aria-label="holdButtonText"
+                    @pointerdown="handleHoldStart"
+                    @pointerup="handleHoldEnd"
+                    @pointerleave="handleHoldEnd"
+                    @pointercancel="handleHoldEnd"
+                    @touchstart.prevent="handleTouchStart"
+                    @touchend.prevent="handleTouchEnd"
+                    @click="handleHoldClick"
+                >
+                    <span v-if="status === 'recording' || status === 'processing'" class="assessment-circle-re-text font-black tracking-tight">Re</span>
+                    <AudioWaveform v-else-if="isPlaying" class="assessment-circle-icon stroke-[2.6]" />
+                    <Play v-else-if="audioUrl" class="assessment-circle-icon assessment-circle-icon--play fill-white stroke-[2.6]" />
+                    <Mic v-else class="assessment-circle-icon stroke-[2.6]" />
+                </AssessmentCircleButton>
 
-            <button
-                v-if="audioUrl && playbackFinished"
-                type="button"
-                class="assessment-button-label assessment-button-label--action underline-offset-4 hover:underline disabled:cursor-not-allowed disabled:opacity-60"
-                :disabled="submitting"
-                @click.stop="clearRecording"
-            >
-                Retry?
-            </button>
-            <p v-else class="assessment-button-label" aria-live="polite">
-                {{ holdButtonText }}
+                <button
+                    v-if="audioUrl && playbackFinished"
+                    type="button"
+                    class="assessment-button-label assessment-button-label--action underline-offset-4 hover:underline disabled:cursor-not-allowed disabled:opacity-60"
+                    :disabled="submitting"
+                    @click.stop="clearRecording"
+                >
+                    Retry?
+                </button>
+                <p v-else class="assessment-button-label" aria-live="polite">
+                    {{ holdButtonText }}
+                </p>
+            </div>
+
+            <p v-if="(errorMessage || externalError) && (status === 'retry' || status === 'error')" class="learner-recorder-error mt-3 rounded-lg px-3 py-2 text-center text-xs font-black">
+                {{ externalError || errorMessage }}
             </p>
         </div>
-
-        <p v-if="(errorMessage || externalError) && (status === 'retry' || status === 'error')" class="learner-recorder-error mt-3 rounded-lg px-3 py-2 text-center text-xs font-black">
-            {{ externalError || errorMessage }}
-        </p>
     </div>
 
     <div
         v-else
         class="learner-audio-recorder"
-        :class="compact ? 'p-4' : 'p-5 xl:p-6'"
     >
-        <div class="learner-audio-control-panel">
+        <div class="learner-audio-recorder-face" :class="compact ? 'p-4' : 'p-5 xl:p-6'">
+            <div class="learner-audio-control-panel">
             <div class="flex items-center justify-between gap-3">
                 <div>
                     <p class="text-sm font-black text-text xl:text-base">{{ label }}</p>
@@ -805,37 +807,41 @@ onBeforeUnmount(() => {
                 Press <span class="rounded-lg border border-[rgba(54,83,101,0.12)] bg-surface px-2 py-1 text-[11px] font-black text-primary shadow-sm">Space</span>
                 to {{ status === 'recording' ? `stop after the ${minDurationLabel} minimum` : 'record' }}.
             </p>
-        </div>
-
-        <Teleport defer to="#teleport-audio-review" :disabled="isMobile">
-            <div
-                v-if="audioUrl && shouldShowReviewSubmit"
-                :class="isMobile ? 'learner-audio-review-card mt-6 border-t border-[rgba(54,83,101,0.12)] pt-5' : 'learner-audio-review-card p-4 xl:p-5'"
-                aria-live="polite"
-            >
-                <div class="flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                        <p class="text-base font-black text-text xl:text-lg">{{ hasSubmittedRecording ? 'Answer submitted' : 'Your audio' }}</p>
-                    </div>
-                    <CheckCircle2 v-if="hasSubmittedRecording" class="size-6 text-success xl:size-7" />
-                </div>
-                <LearnerAudioPlayer class="mt-3" :src="audioUrl" :disabled="submitting" @play="stopAgentAudioForPlayback" />
-                <button
-                    v-if="hasPendingRecording"
-                    type="button"
-                    class="learner-submit-audio-button mt-4 inline-flex w-full items-center justify-center gap-2 px-5 py-3.5 text-base font-black transition-all duration-150 disabled:cursor-not-allowed xl:text-lg"
-                    :disabled="submitting || !currentFile"
-                    @click="submitRecording"
-                >
-                    <Send class="size-5 xl:size-6" />
-                    {{ submitting ? 'Checking your answer...' : submitLabel }}
-                </button>
             </div>
-        </Teleport>
-        <Teleport defer to="#teleport-audio-review" :disabled="isMobile">
-            <LearnerAudioPlayer v-if="!shouldShowReviewSubmit && audioUrl" class="mt-4" :src="audioUrl" @play="stopAgentAudioForPlayback" />
-        </Teleport>
-        <p v-if="required && !audioUrl" class="mt-3 text-xs font-bold text-muted">Please record your answer before continuing.</p>
+
+            <Teleport defer to="#teleport-audio-review" :disabled="isMobile">
+                <div
+                    v-if="audioUrl && shouldShowReviewSubmit"
+                    class="learner-audio-review-card"
+                    :class="isMobile ? 'mt-6' : ''"
+                    aria-live="polite"
+                >
+                    <div class="learner-audio-review-face" :class="isMobile ? 'p-4' : 'p-4 xl:p-5'">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                                <p class="text-base font-black text-text xl:text-lg">{{ hasSubmittedRecording ? 'Answer submitted' : 'Your audio' }}</p>
+                            </div>
+                            <CheckCircle2 v-if="hasSubmittedRecording" class="size-6 text-success xl:size-7" />
+                        </div>
+                        <LearnerAudioPlayer class="mt-3" :src="audioUrl" :disabled="submitting" @play="stopAgentAudioForPlayback" />
+                        <button
+                            v-if="hasPendingRecording"
+                            type="button"
+                            class="learner-submit-audio-button mt-4 inline-flex w-full items-center justify-center gap-2 px-5 py-3.5 text-base font-black transition-all duration-150 disabled:cursor-not-allowed xl:text-lg"
+                            :disabled="submitting || !currentFile"
+                            @click="submitRecording"
+                        >
+                            <Send class="size-5 xl:size-6" />
+                            {{ submitting ? 'Checking your answer...' : submitLabel }}
+                        </button>
+                    </div>
+                </div>
+            </Teleport>
+            <Teleport defer to="#teleport-audio-review" :disabled="isMobile">
+                <LearnerAudioPlayer v-if="!shouldShowReviewSubmit && audioUrl" class="mt-4" :src="audioUrl" @play="stopAgentAudioForPlayback" />
+            </Teleport>
+            <p v-if="required && !audioUrl" class="mt-3 text-xs font-bold text-muted">Please record your answer before continuing.</p>
+        </div>
     </div>
 </template>
 
@@ -843,11 +849,28 @@ onBeforeUnmount(() => {
 .assessment-hold-recorder {
     container-type: size;
     overflow: visible;
-    border: 1px solid var(--rd-soft-border);
-    border-radius: 24px;
-    background: linear-gradient(180deg, rgba(255, 253, 247, 0.98), rgba(250, 247, 239, 0.96));
+    border: 2px solid var(--rd-frame-border);
+    border-radius: var(--rd-radius-frame);
+    background: var(--rd-story-surface);
+    padding: 10px 12px 14px;
+    box-shadow: 0 6px 0 var(--rd-lip), 0 8px 0 var(--rd-lip-dark), 0 22px 30px -12px var(--rd-shadow);
+}
+
+.assessment-hold-recorder-face {
+    display: flex;
+    min-block-size: 0;
+    inline-size: 100%;
+    block-size: 100%;
+    flex: 1 1 auto;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: visible;
+    border: 1.5px solid var(--rd-face-border);
+    border-radius: var(--rd-radius-face);
+    background: var(--rd-face-surface);
     padding: clamp(0.45rem, min(3.5cqh, 2.4cqw), 1rem);
-    box-shadow: var(--rd-card-shadow-soft);
+    box-shadow: inset 0 2px 0 var(--rd-highlight), inset 0 -6px 10px var(--rd-inner-shade);
 }
 
 .assessment-button-group {
@@ -895,61 +918,75 @@ onBeforeUnmount(() => {
 
 .learner-audio-recorder,
 .learner-audio-review-card {
-    border: 1px solid var(--rd-soft-border);
-    border-radius: 28px;
-    background: linear-gradient(180deg, rgba(255, 253, 247, 0.98), rgba(250, 247, 239, 0.96));
-    box-shadow: var(--rd-card-shadow-soft);
+    border: 2px solid var(--rd-frame-border);
+    border-radius: var(--rd-radius-frame);
+    background: var(--rd-story-surface);
+    padding: 10px 12px 14px;
+    box-shadow: 0 6px 0 var(--rd-lip), 0 8px 0 var(--rd-lip-dark), 0 22px 30px -12px var(--rd-shadow);
+}
+
+.learner-audio-recorder-face,
+.learner-audio-review-face {
+    min-width: 0;
+    min-height: 0;
+    border: 1.5px solid var(--rd-face-border);
+    border-radius: var(--rd-radius-face);
+    background: var(--rd-face-surface);
+    box-shadow: inset 0 2px 0 var(--rd-highlight), inset 0 -6px 10px var(--rd-inner-shade);
 }
 
 .learner-record-button,
 .learner-stop-button,
 .learner-submit-audio-button {
-    border: 0;
+    border: 2px solid #D9652F;
     border-radius: 999px;
-    color: var(--rd-card-cream);
+    color: #ffffff;
     letter-spacing: 0.04em;
     text-transform: uppercase;
+    box-shadow: 0 7px 0 #B84B24, 0 12px 20px rgba(54, 83, 101, 0.25), inset 0 2px 0 rgba(255, 255, 255, 0.35);
 }
 
-.learner-record-button {
-    background: var(--rd-primary-orange);
-    box-shadow: 0 7px 0 var(--rd-primary-orange-dark), 0 12px 22px rgba(245, 133, 73, 0.24);
+.learner-record-button,
+.learner-submit-audio-button {
+    background: linear-gradient(180deg, #FF8A4C 0%, #F58549 100%);
 }
 
 .learner-record-button:hover:not(:disabled) {
-    background: var(--rd-secondary-orange);
+    background: linear-gradient(180deg, #FF9A5C 0%, #F58549 100%);
 }
 
 .learner-stop-button {
-    background: var(--rd-wrong-red);
+    border-color: var(--rd-wrong-red-dark);
+    background: linear-gradient(180deg, #934026 0%, var(--rd-wrong-red) 100%);
     box-shadow: 0 7px 0 var(--rd-wrong-red-dark), 0 12px 22px rgba(119, 47, 26, 0.2);
 }
 
-.learner-submit-audio-button {
-    background: var(--rd-correct-green);
-    box-shadow: 0 7px 0 var(--rd-correct-green-dark), 0 12px 22px rgba(88, 81, 35, 0.2);
+.learner-submit-audio-button:hover:not(:disabled) {
+    background: linear-gradient(180deg, #FF9A5C 0%, #F58549 100%);
 }
 
 .learner-record-button:active:not(:disabled),
 .learner-stop-button:active:not(:disabled),
 .learner-submit-audio-button:active:not(:disabled) {
     transform: translateY(5px);
-    box-shadow: 0 2px 0 rgba(78, 29, 16, 0.55), 0 6px 12px rgba(35, 55, 70, 0.14);
+    box-shadow: 0 2px 0 #B84B24, 0 6px 12px rgba(54, 83, 101, 0.2);
 }
 
 .learner-record-button:disabled,
 .learner-stop-button:disabled,
 .learner-submit-audio-button:disabled {
     opacity: 0.65;
-    box-shadow: 0 6px 0 rgba(111, 101, 52, 0.35);
+    border-color: rgba(111, 101, 52, 0.18);
+    background: linear-gradient(180deg, #F7D3B0 0%, #F2A65A 100%);
+    box-shadow: 0 5px 0 rgba(111, 101, 52, 0.2), inset 0 2px 0 rgba(255, 255, 255, 0.35);
 }
 
 .learner-retry-button {
-    border: 2px solid rgba(54, 83, 101, 0.14);
+    border: 2px solid var(--rd-story-border-soft);
     border-radius: 999px;
-    background: var(--rd-card-cream);
+    background: var(--rd-story-surface);
     color: var(--rd-text-main);
-    box-shadow: 0 4px 0 rgba(111, 101, 52, 0.18), 0 8px 14px rgba(35, 55, 70, 0.08);
+    box-shadow: 0 4px 0 rgba(111, 101, 52, 0.18), 0 8px 14px rgba(54, 83, 101, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 .learner-retry-button:hover {

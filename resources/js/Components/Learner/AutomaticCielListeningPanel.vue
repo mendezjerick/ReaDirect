@@ -87,55 +87,57 @@ defineExpose({
 </script>
 
 <template>
-    <section class="automatic-listening-recorder flex h-full min-h-0 flex-col items-center justify-center p-4">
-        <div class="automatic-button-group">
-            <AssessmentCircleButton
-                :pulse="isListeningVisual && !session.isPaused.value"
-                :disabled="!session.isActive.value && !canStart"
-                :aria-label="buttonText"
-                @click="handlePrimary"
-            >
-                <Volume2 v-if="isListeningVisual" class="automatic-circle-icon stroke-[2.6]" />
-                <Mic v-else class="automatic-circle-icon stroke-[2.6]" />
-            </AssessmentCircleButton>
+    <section class="automatic-listening-recorder flex h-full min-h-0 flex-col">
+        <div class="automatic-listening-recorder-face">
+            <div class="automatic-button-group">
+                <AssessmentCircleButton
+                    :pulse="isListeningVisual && !session.isPaused.value"
+                    :disabled="!session.isActive.value && !canStart"
+                    :aria-label="buttonText"
+                    @click="handlePrimary"
+                >
+                    <Volume2 v-if="isListeningVisual" class="automatic-circle-icon stroke-[2.6]" />
+                    <Mic v-else class="automatic-circle-icon stroke-[2.6]" />
+                </AssessmentCircleButton>
 
-            <p class="automatic-button-label" aria-live="polite">
-                {{ buttonText }}
+                <p class="automatic-button-label" aria-live="polite">
+                    {{ buttonText }}
+                </p>
+            </div>
+
+            <div v-if="session.isActive.value" class="automatic-listening-meter h-1.5 w-full max-w-36 overflow-hidden rounded-full">
+                <div
+                    class="h-full rounded-full bg-primary transition-all"
+                    :style="{ width: `${Math.min(100, Math.round(session.volumeLevel.value * 1800))}%` }"
+                />
+            </div>
+
+            <p
+                v-if="session.errorMessage.value || !isSupported"
+                class="automatic-helper-text rounded-lg px-3 py-2 text-center text-xs font-black"
+            >
+                {{ helperText }}
             </p>
-        </div>
 
-        <div v-if="session.isActive.value" class="automatic-listening-meter h-1.5 w-full max-w-36 overflow-hidden rounded-full">
-            <div
-                class="h-full rounded-full bg-primary transition-all"
-                :style="{ width: `${Math.min(100, Math.round(session.volumeLevel.value * 1800))}%` }"
-            />
-        </div>
-
-        <p
-            v-if="session.errorMessage.value || !isSupported"
-            class="automatic-helper-text rounded-lg px-3 py-2 text-center text-xs font-black"
-        >
-            {{ helperText }}
-        </p>
-
-        <div class="automatic-secondary-controls flex flex-wrap justify-center gap-2">
-            <button
-                v-if="canStop && session.isActive.value"
-                type="button"
-                class="automatic-secondary-button inline-flex min-h-9 items-center justify-center gap-1.5 px-3 text-xs font-black transition"
-                @click="stop"
-            >
-                <Square class="size-4" />
-                Stop
-            </button>
-            <button
-                type="button"
-                class="automatic-secondary-button inline-flex min-h-9 items-center justify-center gap-1.5 px-3 text-xs font-black transition"
-                @click="emit('fallback-manual')"
-            >
-                <RotateCcw class="size-4" />
-                Manual
-            </button>
+            <div class="automatic-secondary-controls flex flex-wrap justify-center gap-2">
+                <button
+                    v-if="canStop && session.isActive.value"
+                    type="button"
+                    class="automatic-secondary-button inline-flex min-h-9 items-center justify-center gap-1.5 px-3 text-xs font-black transition"
+                    @click="stop"
+                >
+                    <Square class="size-4" />
+                    Stop
+                </button>
+                <button
+                    type="button"
+                    class="automatic-secondary-button inline-flex min-h-9 items-center justify-center gap-1.5 px-3 text-xs font-black transition"
+                    @click="emit('fallback-manual')"
+                >
+                    <RotateCcw class="size-4" />
+                    Manual
+                </button>
+            </div>
         </div>
     </section>
 </template>
@@ -144,11 +146,28 @@ defineExpose({
 .automatic-listening-recorder {
     container-type: size;
     overflow: visible;
-    border: 1px solid var(--rd-soft-border);
-    border-radius: 24px;
-    background: linear-gradient(180deg, rgba(255, 253, 247, 0.98), rgba(250, 247, 239, 0.96));
+    border: 2px solid var(--rd-frame-border);
+    border-radius: var(--rd-radius-frame);
+    background: var(--rd-story-surface);
+    padding: 10px 12px 14px;
+    box-shadow: 0 6px 0 var(--rd-lip), 0 8px 0 var(--rd-lip-dark), 0 22px 30px -12px var(--rd-shadow);
+}
+
+.automatic-listening-recorder-face {
+    display: flex;
+    min-block-size: 0;
+    inline-size: 100%;
+    block-size: 100%;
+    flex: 1 1 auto;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: visible;
+    border: 1.5px solid var(--rd-face-border);
+    border-radius: var(--rd-radius-face);
+    background: var(--rd-face-surface);
     padding: clamp(0.45rem, min(3.5cqh, 2.4cqw), 1rem);
-    box-shadow: var(--rd-card-shadow-soft);
+    box-shadow: inset 0 2px 0 var(--rd-highlight), inset 0 -6px 10px var(--rd-inner-shade);
 }
 
 .automatic-button-group {
@@ -199,11 +218,11 @@ defineExpose({
 }
 
 .automatic-secondary-button {
-    border: 1px solid rgba(54, 83, 101, 0.14);
+    border: 2px solid var(--rd-story-border-soft);
     border-radius: 999px;
-    background: var(--rd-card-cream);
+    background: var(--rd-story-surface);
     color: var(--rd-text-main);
-    box-shadow: 0 3px 0 rgba(111, 101, 52, 0.16), 0 6px 12px rgba(35, 55, 70, 0.08);
+    box-shadow: 0 3px 0 rgba(111, 101, 52, 0.16), 0 6px 12px rgba(54, 83, 101, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 .automatic-secondary-button:hover {
