@@ -1,31 +1,9 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, ref, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { Link, useForm } from '@inertiajs/vue3';
 import {
-    Home,
-    BookOpen,
-    Trophy,
-    HelpCircle,
-    ClipboardList,
-    ChevronDown,
-    Eye,
-    BarChart3,
-    Lock,
-    ArrowRight,
-    Sparkles,
-    MessageCircle,
-    Type,
-    BookMarked,
-    Menu,
-    X,
-    Hand,
-    GraduationCap,
-    Star,
-    Rocket,
-    Smile,
-    Sprout,
-    Mic,
-    Radio,
+    Home, BookOpen, Trophy, HelpCircle, ClipboardList, ChevronDown,
+    Menu, Settings, X, GraduationCap, Star, Mic, Flame, Gift, Target, Check, Lock,
 } from 'lucide-vue-next';
 
 const props = defineProps({
@@ -34,566 +12,686 @@ const props = defineProps({
     latestAttempt:      { type: Object, default: null },
     latestFinalAttempt: { type: Object, default: null },
     flowState:          { type: Object, default: null },
-    listeningMode:      { type: Object, default: () => ({ current: 'manual', default: 'manual', allowed: ['manual'], automatic_mode_available: false }) },
+    listeningMode:      { type: Object, default: () => ({ current: 'manual' }) },
     rewards:            { type: Object, default: () => ({ stars: 0 }) },
 });
 
-/* ── Mobile drawer state ─────────────────────── */
+/* ── Dropdown Menu & Animations ───────────────────────── */
 const sidebarOpen = ref(false);
+const isBurgerAnimating = ref(false);
+const isMounted = ref(false);
 
-/* ── Module display metadata (overrides DB title to user-spec names) ── */
-const moduleMeta = {
-    module_1: {
-        title: 'Letter and Sound Learning',
-        blurb: 'Learn the sounds that letters make and how to say them.',
-    },
-    module_2: {
-        title: 'Word Recognition',
-        blurb: 'Practice reading and recognizing words quickly and clearly.',
-    },
-    module_3: {
-        title: 'Reading Comprehension',
-        blurb: 'Read short passages and answer questions about them.',
-    },
+const openSidebar = () => {
+    if (sidebarOpen.value || isBurgerAnimating.value) return;
+    isBurgerAnimating.value = true;
+    setTimeout(() => {
+        sidebarOpen.value = true;
+        isBurgerAnimating.value = false;
+    }, 450);
 };
-const metaFor = (key) => moduleMeta[key] ?? { title: 'Module', blurb: '' };
 
-/* ── Identity & state ────────────────────────── */
+const closeSidebar = () => {
+    sidebarOpen.value = false;
+};
+
+// Close when clicking outside
+const clickOutsideMenu = (e) => {
+    if (sidebarOpen.value && !e.target.closest('.rd-menu-container')) {
+        closeSidebar();
+    }
+};
+
+onMounted(() => {
+    setTimeout(() => { isMounted.value = true; }, 50);
+    document.addEventListener('mousedown', clickOutsideMenu);
+});
+onUnmounted(() => {
+    document.removeEventListener('mousedown', clickOutsideMenu);
+});
+
+/* ── Identity ───────────────────────────────────── */
 const firstName = computed(() => props.learner?.first_name ?? 'Friend');
 const initial   = computed(() => firstName.value.charAt(0).toUpperCase());
 
-const currentStage = computed(() => props.flowState?.stage ?? props.learner?.current_stage ?? 'new');
-const isDone = computed(() => props.flowState?.diagnostic?.is_completed === true);
-const primaryActionLabel = computed(() => props.flowState?.primary_action_label ?? 'Start Diagnostic');
+const currentStage       = computed(() => props.flowState?.stage ?? props.learner?.current_stage ?? 'new');
+const isDone             = computed(() => props.flowState?.diagnostic?.is_completed === true);
 const primaryActionRoute = computed(() => props.flowState?.primary_action_route ?? '/learner/diagnostic/start');
-const primaryMessage = computed(() => props.flowState?.message ?? 'Begin with your diagnostic reading check.');
-const totalStars = computed(() => Number(props.rewards?.stars ?? 0));
+const totalStars         = computed(() => Number(props.rewards?.stars ?? 0));
 const currentListeningMode = computed(() => props.listeningMode?.current ?? 'manual');
-const listeningModeForm = useForm({
-    listening_mode: currentListeningMode.value,
-});
-const listeningModeOptions = computed(() => [
-    {
-        value: 'manual',
-        title: 'Manual Recording Mode',
-        badge: 'Stable default',
-        description: 'Record, listen, and submit when you are ready.',
-        icon: Mic,
-    },
-    {
-        value: 'automatic_ciel',
-        title: 'Automatic Ciel Listening Mode',
-        badge: 'Optional',
-        description: 'Ciel listens only during supported reading activities after you click Start.',
-        icon: Radio,
-    },
-]);
 
-const assignedKey = computed(() => props.learner?.current_module?.key ?? null);
+const listeningModeForm = useForm({ listening_mode: currentListeningMode.value });
+watch(currentListeningMode, (m) => { listeningModeForm.listening_mode = m; });
+
+/* ── Module meta ───────────────────────────────── */
+const moduleMeta = {
+    module_1: { title: 'Letter and Sound Learning', blurb: 'Learn the sounds that letters make and how to say them.' },
+    module_2: { title: 'Word Recognition',          blurb: 'Practice reading and recognizing words quickly and clearly.' },
+    module_3: { title: 'Reading Comprehension',     blurb: 'Read short passages and answer questions about them.' },
+};
+const metaFor = (key) => moduleMeta[key] ?? { title: 'Module', blurb: '' };
+
+const assignedKey   = computed(() => props.learner?.current_module?.key ?? null);
 const assignedTitle = computed(() => {
     if (assignedKey.value) return metaFor(assignedKey.value).title;
     if (currentStage.value === 'grade_ready') return 'No module needed';
     if (currentStage.value?.startsWith('final_reassessment')) return 'Final reassessment';
-    return props.learner?.current_module?.title ?? 'Take the diagnostic';
+    return 'Take the diagnostic';
 });
 
-/* ── Score helpers (each task is /10) ─────────── */
+/* ── Scores ────────────────────────────────────── */
 const lettersScore   = computed(() => Number(props.latestAttempt?.task_1_score ?? 0));
-const sentencesScore = computed(() => Number(
-    props.latestAttempt?.task_2b_score ?? props.latestAttempt?.task_2a_score ?? 0
-));
+const sentencesScore = computed(() => Number(props.latestAttempt?.task_2b_score ?? props.latestAttempt?.task_2a_score ?? 0));
 const passageScore   = computed(() => {
     const acc = props.latestAttempt?.reading_accuracy;
     if (acc == null) return 0;
-    const num = Number(acc);
-    return Math.round((num <= 1 ? num : num / 100) * 10);
+    const n = Number(acc);
+    return Math.round((n <= 1 ? n : n / 100) * 10);
 });
-
 const overallScore = computed(() => {
     if (!isDone.value) return 0;
-    const total = lettersScore.value + sentencesScore.value + passageScore.value;
-    return Math.round((total / 30) * 100);
+    return Math.round(((lettersScore.value + sentencesScore.value + passageScore.value) / 30) * 100);
 });
 const overallLabel = computed(() => {
-    if (!isDone.value)        return 'Get started!';
+    if (!isDone.value) return 'Get started!';
     if (overallScore.value >= 70) return 'Great Job!';
     if (overallScore.value >= 40) return 'Good Job!';
-    return 'Keep Practicing!';
+    return 'Keep Going!';
 });
 
-const scoreStatus = (score) => {
-    const pct = (score / 10) * 100;
-    return pct >= 70 ? 'Good' : 'Keep Practicing';
-};
-
-/* ── Pre-computed result cards ─────────────────── */
-const results = computed(() => [
-    {
-        title:    'Letters',
-        blurb:    'Identifying letter names and sounds.',
-        score:    lettersScore.value,
-        icon:     Type,
-        iconBg:   'bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-emerald-500/20',
-        titleClr: 'text-slate-800',
-        scoreClr: 'text-slate-800',
-        track:    'bg-slate-200/60',
-        fill:     'bg-gradient-to-r from-emerald-400 to-emerald-500',
-        pillBg:   'bg-emerald-50 border border-emerald-200/60',
-        pillTxt:  'text-emerald-700',
-    },
-    {
-        title:    'Sentences',
-        blurb:    'Reading and understanding simple sentences.',
-        score:    sentencesScore.value,
-        icon:     MessageCircle,
-        iconBg:   'bg-gradient-to-br from-orange-400 to-orange-500 shadow-orange-500/20',
-        titleClr: 'text-slate-800',
-        scoreClr: 'text-slate-800',
-        track:    'bg-slate-200/60',
-        fill:     'bg-gradient-to-r from-orange-400 to-orange-500',
-        pillBg:   'bg-orange-50 border border-orange-200/60',
-        pillTxt:  'text-orange-700',
-    },
-    {
-        title:    'Reading Passage',
-        blurb:    'Reading short passages and answering questions.',
-        score:    passageScore.value,
-        icon:     BookMarked,
-        iconBg:   'bg-gradient-to-br from-violet-400 to-violet-600 shadow-violet-500/20',
-        titleClr: 'text-slate-800',
-        scoreClr: 'text-slate-800',
-        track:    'bg-slate-200/60',
-        fill:     'bg-gradient-to-r from-violet-400 to-violet-500',
-        pillBg:   'bg-violet-50 border border-violet-200/60',
-        pillTxt:  'text-violet-700',
-    },
-]);
-
-/* ── Module card data ──────────────────────────── */
+/* ── Module cards ──────────────────────────────── */
 const moduleCards = computed(() =>
     props.modules.map((m) => {
-        const meta = metaFor(m.key);
-        const assigned = m.key === assignedKey.value && !['grade_ready', 'final_reassessment_pending', 'final_reassessment_in_progress', 'final_reassessment_completed', 'completed'].includes(currentStage.value);
-        return {
-            key:      m.key,
-            sequence: m.sequence,
-            title:    meta.title,
-            blurb:    meta.blurb,
-            assigned,
-            locked:   !assigned,
-        };
+        const meta     = metaFor(m.key);
+        const assigned = m.key === assignedKey.value &&
+            !['grade_ready','final_reassessment_pending','final_reassessment_in_progress','final_reassessment_completed','completed'].includes(currentStage.value);
+        return { key: m.key, sequence: m.sequence, title: meta.title, blurb: meta.blurb, assigned, locked: !assigned };
     })
 );
 
-const lockedModuleMessage = computed(() => {
-    if (currentStage.value === 'new' || currentStage.value === 'diagnostic_in_progress') return 'Finish the diagnostic first';
-    if (currentStage.value === 'grade_ready') return 'No module needed right now';
-    if (currentStage.value?.startsWith('final_reassessment')) return 'Final reassessment is next';
-    if (currentStage.value === 'completed') return 'Journey complete';
-    return 'Complete your current module first';
-});
+/* ── Path nodes ────────────────────────────────── */
+const pathNodes = computed(() => [
+    {
+        id: 'diagnostic', label: 'Start Diagnostic', sub: 'Begin your reading check', emoji: '✨',
+        state: isDone.value ? 'completed'
+             : (currentStage.value === 'new' || currentStage.value === 'diagnostic_in_progress') ? 'current'
+             : 'completed',
+        href: primaryActionRoute.value,
+    },
+    { id: 'letters',   label: 'Letters',         sub: 'Identifying letter names and sounds',                emoji: '🔤', state: isDone.value ? 'completed' : 'locked', href: null },
+    { id: 'sentences', label: 'Sentences',        sub: 'Reading and understanding simple sentences',         emoji: '💬', state: isDone.value ? 'completed' : 'locked', href: null },
+    { id: 'passage',   label: 'Reading Passage',  sub: 'Reading short passages and answering questions',     emoji: '📖', state: isDone.value ? 'completed' : 'locked', href: null },
+    ...moduleCards.value.map((m, i) => ({
+        id: m.key, label: m.title, sub: m.blurb,
+        emoji: i === 0 ? '🔊' : i === 1 ? '🅰️' : '📘',
+        state: m.assigned ? 'current' : m.locked ? 'locked' : 'available',
+        href: m.assigned ? `/learner/modules/${m.key}/start` : null,
+    })),
+]);
 
-watch(currentListeningMode, (mode) => {
-    listeningModeForm.listening_mode = mode;
-});
+/* ── Dynamic mascot positioning ─────────────────── */
+const nodeRefs     = ref([]);
+const mascotStyle  = ref({});
+const pathWrapRef  = ref(null);
 
-const saveListeningMode = (mode) => {
-    if (listeningModeForm.processing || mode === currentListeningMode.value) return;
+const setNodeRef = (el, idx) => { if (el) nodeRefs.value[idx] = el; };
 
-    listeningModeForm.listening_mode = mode;
-    listeningModeForm.patch('/learner/listening-mode', {
-        preserveScroll: true,
-        onError: () => {
-            listeningModeForm.listening_mode = currentListeningMode.value;
-        },
-    });
+const repositionMascot = () => {
+    const currentIdx = pathNodes.value.findIndex(n => n.state === 'current');
+    const idx        = currentIdx >= 0 ? currentIdx : 0;
+    const el         = nodeRefs.value[idx];
+    const wrap       = pathWrapRef.value;
+    if (!el || !wrap) return;
+    const elRect   = el.getBoundingClientRect();
+    const wrapRect = wrap.getBoundingClientRect();
+    const top      = elRect.top - wrapRect.top + elRect.height / 2 - 120;
+    mascotStyle.value = { top: `${Math.max(0, top)}px` };
 };
+
+onMounted(async () => {
+    await nextTick();
+    repositionMascot();
+    window.addEventListener('resize', repositionMascot);
+});
+onUnmounted(() => window.removeEventListener('resize', repositionMascot));
 </script>
 
 <template>
-    <!-- ═════════════════════════════════════════════════
-         Responsive learner dashboard.
-         • Mobile (<lg)  → may scroll, sidebar is a drawer
-         • Desktop (lg+) → fixed viewport, no scroll
-         ═════════════════════════════════════════════════ -->
-    <div class="flex min-h-screen flex-col bg-slate-50 font-sans text-text lg:flex-row">
+    <div class="rd-root" :class="{ 'is-loaded': isMounted }">
 
-        <!-- ════════ Mobile overlay (when drawer open) ════════ -->
-        <Transition name="overlay">
-            <div
-                v-if="sidebarOpen"
-                class="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm lg:hidden"
-                @click="sidebarOpen = false"
-            />
-        </Transition>
+        <!-- ═══ CLASSROOM SCENE ════════════════════════════ -->
+        <div class="rd-scene" aria-hidden="true">
+            <div class="rd-scene-wall" />
+            <div class="rd-scene-floor" />
+            <div class="rd-board">
+                <span class="rd-pin rd-pin-r" /><span class="rd-pin rd-pin-b" /><span class="rd-pin rd-pin-y" />
+                <div class="rd-paper rd-paper-1" /><div class="rd-paper rd-paper-2" /><div class="rd-paper rd-paper-3" />
+            </div>
+            <div class="rd-shelf">
+                <div class="rd-shelf-board" />
+                <div class="rd-book" style="--bh:52px;--bc:#ef4444;left:8px" />
+                <div class="rd-book" style="--bh:42px;--bc:#3b82f6;left:28px" />
+                <div class="rd-book" style="--bh:56px;--bc:#10b981;left:48px" />
+                <div class="rd-book" style="--bh:38px;--bc:#f59e0b;left:68px" />
+                <div class="rd-book" style="--bh:48px;--bc:#8b5cf6;left:88px" />
+                <div class="rd-shelf-plant" />
+            </div>
+            <div class="rd-rug" />
+            <div class="rd-window">
+                <div class="rd-window-pane rd-window-pane-1" />
+                <div class="rd-window-pane rd-window-pane-2" />
+            </div>
+        </div>
 
-        <!-- ════════ SIDEBAR ════════ -->
-        <aside
-            class="fixed inset-y-0 left-0 z-40 flex w-60 shrink-0 flex-col border-r border-slate-200 bg-white transition-transform duration-300 ease-in-out lg:sticky lg:top-0 lg:h-screen lg:w-55 lg:translate-x-0"
-            :class="sidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0'"
-        >
-            <!-- Brand -->
-            <div class="flex h-16 shrink-0 items-center justify-between gap-2 px-5">
-                <div class="flex items-center gap-2">
-                    <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-white shadow-md shadow-primary/20 ring-1 ring-white/20">
-                        <BookOpen :size="18" />
+        <!-- ═══ TOP LEFT CONTROLS (Menu) ═══════════════════ -->
+        <div class="rd-top-left-controls">
+            <!-- Menu Container (Burger + Dropdown) -->
+            <div class="rd-menu-container">
+                <!-- Burger Button -->
+                <button
+                    class="rd-burger"
+                    :class="{ 'is-animating': isBurgerAnimating, 'is-open': sidebarOpen }"
+                    @click="sidebarOpen ? closeSidebar() : openSidebar()"
+                    aria-label="Toggle menu"
+                >
+                    <div class="rd-burger-icon-wrap">
+                        <Menu class="rd-icon-menu" :size="20" />
+                        <Settings class="rd-icon-settings" :size="20" />
                     </div>
-                    <span class="text-lg font-black tracking-tight text-slate-800">ReaDirect</span>
-                </div>
-                <button
-                    class="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-800 lg:hidden"
-                    aria-label="Close menu"
-                    @click="sidebarOpen = false"
-                >
-                    <X :size="18" />
-                </button>
-            </div>
-
-            <!-- Nav -->
-            <nav class="flex-1 space-y-1.5 overflow-y-auto px-4 pt-4">
-                <a
-                    href="/learner/dashboard"
-                    class="flex items-center gap-3 rounded-[16px] bg-primary-light px-4 py-3 text-sm font-black text-primary ring-1 ring-primary/15 transition-all"
-                    @click="sidebarOpen = false"
-                >
-                    <Home :size="18" />
-                    <span>Dashboard</span>
-                </a>
-                <a
-                    href="/learner/modules"
-                    class="flex items-center gap-3 rounded-[16px] px-4 py-3 text-sm font-bold text-slate-500 transition-all hover:bg-slate-50 hover:text-slate-800"
-                    @click="sidebarOpen = false"
-                >
-                    <BookOpen :size="18" />
-                    <span>My Learning</span>
-                </a>
-                <Link
-                    href="/learner/progress"
-                    class="flex items-center gap-3 rounded-[16px] px-4 py-3 text-sm font-bold text-slate-500 transition-all hover:bg-slate-50 hover:text-slate-800"
-                    @click="sidebarOpen = false"
-                >
-                    <ClipboardList :size="18" />
-                    <span>Progress</span>
-                </Link>
-                <Link
-                    href="/learner/rewards"
-                    class="flex items-center gap-3 rounded-[16px] px-4 py-3 text-sm font-bold text-slate-500 transition-all hover:bg-slate-50 hover:text-slate-800"
-                    @click="sidebarOpen = false"
-                >
-                    <Trophy :size="18" />
-                    <span>Rewards</span>
-                </Link>
-                <Link
-                    href="/learner/help"
-                    class="flex items-center gap-3 rounded-[16px] px-4 py-3 text-sm font-bold text-slate-500 transition-all hover:bg-slate-50 hover:text-slate-800"
-                    @click="sidebarOpen = false"
-                >
-                    <HelpCircle :size="18" />
-                    <span>Help</span>
-                </Link>
-            </nav>
-
-            <!-- Mascot card at bottom -->
-            <div class="m-4 rounded-[24px] border border-slate-200/80 bg-slate-50/50 p-4 text-center shadow-sm">
-                <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-white shadow-md shadow-primary/20 ring-1 ring-white/20">
-                    <GraduationCap :size="24" />
-                </div>
-                <p class="mt-3 text-[12px] font-black leading-snug text-slate-600">
-                    Keep learning,<br />keep growing!
-                </p>
-            </div>
-        </aside>
-
-        <!-- ════════ MAIN ════════ -->
-        <div class="flex flex-1 flex-col">
-
-            <!-- Top bar -->
-            <header class="sticky top-0 z-20 flex h-16 shrink-0 items-center justify-between gap-3 border-b border-slate-200/60 bg-white/80 px-4 backdrop-blur-md sm:px-6 xl:h-20 xl:px-8">
-                <!-- Mobile hamburger -->
-                <button
-                    class="rounded-lg p-2 text-slate-600 transition-colors hover:bg-slate-100 lg:hidden"
-                    aria-label="Open menu"
-                    @click="sidebarOpen = true"
-                >
-                    <Menu :size="22" />
                 </button>
 
-                <!-- Spacer (right-align controls on desktop) -->
-                <div class="hidden flex-1 lg:block" />
+                <!-- Animated magic trail to menu -->
+                <div v-if="isBurgerAnimating" class="rd-magic-trail">
+                    <span class="rd-magic-dot d1"></span>
+                    <span class="rd-magic-dot d2"></span>
+                    <span class="rd-magic-dot d3"></span>
+                    <span class="rd-magic-sparkle">✨</span>
+                </div>
 
-                <!-- Right side controls -->
-                <div class="flex items-center gap-3">
-                    <div class="flex items-center gap-2 rounded-full border border-slate-200/80 bg-white py-1 pl-1 pr-4 shadow-sm xl:py-1.5 xl:pl-1.5 xl:pr-5">
-                        <div class="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-black text-white shadow-sm shadow-primary/20 xl:h-9 xl:w-9">
-                            {{ initial }}
+                <!-- Dropdown Menu -->
+                <Transition name="rd-dropdown">
+                    <div v-if="sidebarOpen" class="rd-dropdown-panel">
+                        <div class="rd-dropdown-head">
+                            <span class="rd-dropdown-title">Menu</span>
+                            <button class="rd-dropdown-close" @click="closeSidebar" aria-label="Close">
+                                <X :size="16" />
+                            </button>
                         </div>
-                        <span class="hidden text-sm font-black text-slate-700 sm:inline xl:text-base">{{ firstName }}</span>
-                        <ChevronDown :size="16" class="hidden text-slate-400 sm:block" />
-                    </div>
-                </div>
-            </header>
-
-            <!-- Content (scrollable, natural flow) -->
-            <main class="flex flex-1 flex-col gap-3 p-3 sm:p-4 xl:gap-4">
-
-                <!-- ──── HERO ──── -->
-                <section class="relative shrink-0 overflow-hidden rounded-[36px] bg-gradient-to-br from-primary to-orange-500 p-6 text-white shadow-xl shadow-primary/20 sm:p-8 xl:p-10">
-                    <!-- Decorative blob -->
-                    <div class="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
-                    <div class="pointer-events-none absolute -bottom-10 right-40 h-32 w-32 rounded-full bg-white/5 blur-2xl" />
-
-                    <div class="relative grid items-center gap-6 lg:grid-cols-[1fr_auto_auto] lg:gap-8">
-
-                        <!-- Greeting -->
-                        <div class="min-w-0">
-                            <h1 class="flex flex-wrap items-center gap-3 text-3xl font-black sm:text-4xl xl:text-5xl">
-                                Hi, {{ firstName }}!
-                                <Hand :size="32" class="text-yellow-200" />
-                            </h1>
-                            <p class="mt-3 text-sm font-bold text-white/90 sm:text-base xl:text-lg">
-                                {{ primaryMessage }}
-                            </p>
-                            <p class="mt-1 text-sm font-bold text-white/80 xl:text-base">
-                                Current stage: <span class="capitalize">{{ currentStage.replaceAll('_', ' ') }}</span>
-                            </p>
-                            <Link
-                                :href="primaryActionRoute"
-                                class="mt-6 inline-flex items-center gap-3 rounded-[20px] bg-white px-6 py-3 text-base font-black text-primary shadow-lg shadow-black/5 ring-1 ring-black/5 transition-all duration-200 hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-orange-50 hover:shadow-xl active:scale-[0.98] xl:px-8 xl:py-4 xl:text-lg"
-                            >
-                                <Sparkles :size="20" />
-                                {{ primaryActionLabel }}
-                                <ArrowRight :size="20" class="stroke-[3]" />
+                        <nav class="rd-dropdown-nav">
+                            <a href="/learner/dashboard" class="rd-nav rd-nav--active" @click="closeSidebar">
+                                <Home :size="18" /><span>Dashboard</span>
+                            </a>
+                            <a href="/learner/modules" class="rd-nav" @click="closeSidebar">
+                                <BookOpen :size="18" /><span>My Learning</span>
+                            </a>
+                            <Link href="/learner/progress" class="rd-nav" @click="closeSidebar">
+                                <ClipboardList :size="18" /><span>Progress</span>
                             </Link>
-                        </div>
-
-                        <!-- Trophy (hidden on smaller screens to save space) -->
-                        <div class="hidden h-20 w-20 items-center justify-center rounded-3xl bg-white/15 ring-1 ring-white/30 backdrop-blur-md xl:flex">
-                            <Trophy :size="40" class="text-yellow-200" />
-                        </div>
-
-                        <!-- Stat tiles (responsive) -->
-                        <div class="grid grid-cols-2 gap-3 sm:gap-4 lg:flex lg:flex-nowrap">
-                            <div class="rounded-[24px] bg-white/15 p-4 ring-1 ring-white/30 backdrop-blur-md lg:min-w-36 xl:p-5">
-                                <p class="text-[10px] font-black uppercase tracking-widest text-white/80 xl:text-[11px]">Overall Score</p>
-                                <p class="mt-2 text-3xl font-black leading-none xl:text-4xl">{{ overallScore }}%</p>
-                                <p class="mt-2 text-[12px] font-bold text-white/90">{{ overallLabel }}</p>
-                            </div>
-                            <div class="rounded-[24px] bg-white/15 p-4 ring-1 ring-white/30 backdrop-blur-md lg:min-w-48 xl:p-5">
-                                <p class="text-[10px] font-black uppercase tracking-widest text-white/80 xl:text-[11px]">Assigned Module</p>
-                                <p class="mt-2 truncate text-base font-black leading-tight xl:text-lg">{{ assignedTitle }}</p>
-                                <p class="mt-2 text-[12px] font-bold text-white/90">Your current learning path</p>
-                            </div>
-                            <div class="rounded-[24px] bg-white/15 p-4 ring-1 ring-white/30 backdrop-blur-md lg:min-w-32 xl:p-5">
-                                <p class="text-[10px] font-black uppercase tracking-widest text-white/80 xl:text-[11px]">Stars</p>
-                                <p class="mt-2 flex items-center gap-2 text-3xl font-black leading-none xl:text-4xl">
-                                    <Star :size="28" class="fill-yellow-300 text-yellow-300" />
-                                    {{ totalStars }}
-                                </p>
-                                <p class="mt-2 text-[12px] font-bold text-white/90">Earned rewards</p>
-                            </div>
+                            <Link href="/learner/rewards" class="rd-nav" @click="closeSidebar">
+                                <Trophy :size="18" /><span>Rewards</span>
+                            </Link>
+                            <Link href="/learner/help" class="rd-nav" @click="closeSidebar">
+                                <HelpCircle :size="18" /><span>Help</span>
+                            </Link>
+                        </nav>
+                        <div class="rd-dropdown-footer">
+                            <div class="rd-dropdown-footer-icon"><GraduationCap :size="16" /></div>
+                            <p>Keep learning, keep growing!</p>
                         </div>
                     </div>
-                </section>
+                </Transition>
+            </div>
+        </div>
 
-                <!-- ──── DIAGNOSTIC RESULTS ──── -->
-                <section class="shrink-0 rounded-[32px] border border-slate-200/80 bg-white p-6 shadow-xl shadow-slate-200/30 xl:p-8">
-                    <div class="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                            <h2 class="flex items-center gap-2 text-base font-black text-slate-800 sm:text-lg xl:text-xl">
-                                <Mic :size="24" class="text-primary" />
-                                Recording Mode
-                            </h2>
-                            <p class="mt-1 max-w-3xl text-xs font-semibold leading-snug text-slate-500 sm:text-sm xl:text-base">
-                                Automatic Ciel Listening only uses the microphone inside supported reading activities after you click Start Reading with Ciel.
-                            </p>
-                        </div>
-                        <span class="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-600">
-                            Current: {{ currentListeningMode === 'automatic_ciel' ? 'Automatic Ciel' : 'Manual' }}
-                        </span>
-                    </div>
+        <!-- ═══ TOP RIGHT CONTROLS (Profile) ═══════════════ -->
+        <div class="rd-top-right-controls">
+            <!-- Tester Profile Pill -->
+            <div class="rd-user-pill">
+                <div class="rd-user-avatar">{{ initial }}</div>
+                <span class="rd-user-name">{{ firstName }}</span>
+                <ChevronDown :size="14" class="rd-user-chevron" />
+            </div>
+        </div>
 
-                    <div class="mt-5 grid gap-3 sm:grid-cols-2 xl:gap-4">
-                        <button
-                            v-for="option in listeningModeOptions"
-                            :key="option.value"
-                            type="button"
-                            class="group min-h-[132px] rounded-[24px] border-2 p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-70 xl:p-5"
-                            :class="currentListeningMode === option.value ? 'border-primary bg-orange-50/70 shadow-md shadow-orange-100/50' : 'border-slate-200 bg-slate-50/40'"
-                            :aria-pressed="currentListeningMode === option.value"
-                            :disabled="listeningModeForm.processing"
-                            @click="saveListeningMode(option.value)"
-                        >
-                            <div class="flex items-start justify-between gap-3">
-                                <span
-                                    class="grid size-11 shrink-0 place-items-center rounded-[16px]"
-                                    :class="currentListeningMode === option.value ? 'bg-primary text-white' : 'bg-white text-slate-500 ring-1 ring-slate-200'"
-                                >
-                                    <component :is="option.icon" :size="22" />
-                                </span>
-                                <span
-                                    class="rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-wider"
-                                    :class="option.value === 'manual' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'"
-                                >
-                                    {{ option.badge }}
-                                </span>
-                            </div>
-                            <p class="mt-4 text-base font-black text-slate-800 xl:text-lg">{{ option.title }}</p>
-                            <p class="mt-1 text-sm font-semibold leading-snug text-slate-500">{{ option.description }}</p>
-                        </button>
-                    </div>
+        <!-- ═══ PAGE BODY ══════════════════════════════════ -->
+        <div class="rd-page">
 
-                    <p v-if="listeningModeForm.recentlySuccessful" class="mt-4 rounded-[18px] bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-700 ring-1 ring-emerald-200">
-                        Recording mode saved.
-                    </p>
-                    <p v-if="listeningModeForm.errors.listening_mode" class="mt-4 rounded-[18px] bg-rose-50 px-4 py-3 text-sm font-black text-rose-700 ring-1 ring-rose-200">
-                        {{ listeningModeForm.errors.listening_mode }}
-                    </p>
-                </section>
+            <!-- ── LEFT: Path + Mascot ─────────────────────────── -->
+            <div class="rd-left">
 
-                <section class="shrink-0 rounded-[32px] border border-slate-200/80 bg-white p-6 shadow-xl shadow-slate-200/30 xl:p-8">
-                    <div class="flex flex-wrap items-center justify-between gap-3">
-                        <h2 class="flex items-center gap-2 text-base font-black text-slate-800 sm:text-lg xl:text-xl">
-                            <BarChart3 :size="24" class="text-primary" />
-                            Diagnostic Results
-                        </h2>
-                        <Link
-                            v-if="isDone"
-                            :href="props.flowState?.diagnostic?.is_completed ? '/learner/diagnostic/reading-summary' : primaryActionRoute"
-                            class="flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary-light px-4 py-2 text-sm font-bold text-primary transition-all hover:bg-orange-50"
-                        >
-                            <Eye :size="16" />
-                            <span>View Full Result</span>
-                        </Link>
-                    </div>
-
-                    <div class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4 xl:gap-5">
-                        <article
-                            v-for="r in results"
-                            :key="r.title"
-                            class="rounded-[28px] border border-slate-200/60 bg-slate-50/50 p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md xl:p-6"
-                        >
-                            <div class="flex items-start gap-3 xl:gap-4">
-                                <div :class="['flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-white shadow-md ring-1 ring-white/20 xl:h-14 xl:w-14', r.iconBg]">
-                                    <component :is="r.icon" :size="22" />
-                                </div>
-                                <div class="min-w-0">
-                                    <h3 :class="['text-base font-black leading-tight xl:text-lg', r.titleClr]">{{ r.title }}</h3>
-                                    <p class="mt-1 line-clamp-2 text-xs font-semibold leading-snug text-slate-500 xl:text-sm">{{ r.blurb }}</p>
-                                </div>
-                            </div>
-
-                            <p class="mt-4 xl:mt-5">
-                                <span :class="['text-3xl font-black xl:text-4xl', r.scoreClr]">{{ r.score }}</span>
-                                <span class="text-sm font-bold text-slate-400 xl:text-base"> / 10</span>
-                            </p>
-
-                            <div :class="['mt-3 h-2.5 w-full overflow-hidden rounded-full shadow-inner xl:mt-4', r.track]">
-                                <div
-                                    :class="['h-full rounded-full transition-all duration-500', r.fill]"
-                                    :style="{ width: `${(r.score / 10) * 100}%` }"
-                                />
-                            </div>
-
-                            <div class="mt-3 flex items-center justify-between gap-2 xl:mt-4">
-                                <span :class="['text-sm font-bold xl:text-base', r.scoreClr]">{{ Math.round((r.score / 10) * 100) }}%</span>
-                                <span :class="['inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-black uppercase tracking-wider xl:text-[12px]', r.pillBg, r.pillTxt]">
-                                    <Smile v-if="scoreStatus(r.score) === 'Good'" :size="14" />
-                                    <Sprout v-else :size="14" />
-                                    {{ scoreStatus(r.score) }}
-                                </span>
-                            </div>
-                        </article>
-                    </div>
-                </section>
-
-                <!-- ──── LEARNING MODULES ──── -->
-                <section class="shrink-0 rounded-[32px] border border-slate-200/80 bg-white p-6 shadow-xl shadow-slate-200/30 xl:p-8">
+                <!-- Greeting -->
+                <div class="rd-greeting">
                     <div>
-                        <h2 class="flex items-center gap-2 text-base font-black text-slate-800 sm:text-lg xl:text-xl">
-                            <BookOpen :size="24" class="text-primary" />
-                            My Learning Modules
-                            <Sparkles :size="18" class="text-yellow-400" />
-                        </h2>
-                        <p class="mt-1 text-xs font-semibold text-slate-500 sm:text-sm xl:text-base">
-                            Focus on your current module and have fun learning!
-                        </p>
+                        <h1 class="rd-greeting-title">Hi, {{ firstName }}! 👋</h1>
+                        <p class="rd-greeting-sub">Keep going! Your reading adventure awaits.</p>
+                    </div>
+                    <Link :href="primaryActionRoute" class="rd-primary-btn">
+                        ✨ {{ pathNodes[0]?.state === 'current' ? 'Start Diagnostic' : 'Continue' }}
+                    </Link>
+                </div>
+
+                <!-- Status strip -->
+                <div class="rd-status-strip">
+                    <div class="rd-stat">
+                        <span class="rd-stat-emoji">🏆</span>
+                        <div>
+                            <p class="rd-stat-lbl">Overall Score</p>
+                            <p class="rd-stat-val">{{ overallScore }}%</p>
+                            <p class="rd-stat-hint">{{ overallLabel }}</p>
+                        </div>
+                    </div>
+                    <div class="rd-stat-div" />
+                    <div class="rd-stat">
+                        <span class="rd-stat-emoji">📚</span>
+                        <div>
+                            <p class="rd-stat-lbl">Assigned Module</p>
+                            <p class="rd-stat-val rd-stat-val--sm">{{ assignedTitle }}</p>
+                            <p class="rd-stat-hint">Current path</p>
+                        </div>
+                    </div>
+                    <div class="rd-stat-div" />
+                    <div class="rd-stat">
+                        <span class="rd-stat-emoji">⭐</span>
+                        <div>
+                            <p class="rd-stat-lbl">Stars</p>
+                            <p class="rd-stat-val">{{ totalStars }}</p>
+                            <p class="rd-stat-hint">Earned rewards</p>
+                        </div>
+                    </div>
+                    <div class="rd-stat-div" />
+                    <div class="rd-stat">
+                        <span class="rd-stat-emoji">🎙️</span>
+                        <div>
+                            <p class="rd-stat-lbl">Recording</p>
+                            <p class="rd-stat-val rd-stat-val--sm">{{ currentListeningMode === 'automatic_ciel' ? 'Automatic' : 'Manual' }}</p>
+                            <p class="rd-stat-hint">Current mode</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Map area: Mascot + Path -->
+                <div class="rd-map" ref="pathWrapRef">
+
+                    <!-- Mascot -->
+                    <div class="rd-mascot" :style="mascotStyle">
+                        <img
+                            :src="'/images/mascot/mascot.png'"
+                            alt="ReaDirect Mascot"
+                            class="rd-mascot-img"
+                        />
+                        <div class="rd-speech-bubble">
+                            Let's build your reading skills together!
+                        </div>
                     </div>
 
-                    <div class="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3 xl:gap-5">
+                    <!-- Progress path -->
+                    <div class="rd-path">
+                        <template v-for="(node, idx) in pathNodes" :key="node.id">
+                            <div v-if="idx > 0" class="rd-trail">
+                                <span v-for="d in 4" :key="d" class="rd-dot"
+                                      :class="{ 'rd-dot--completed': pathNodes[idx-1].state === 'completed' }"
+                                      :style="`--dot-idx: ${d}`" />
+                            </div>
 
-                        <template v-for="m in moduleCards" :key="m.key">
-
-                            <!-- Assigned (clickable) -->
-                            <Link
-                                v-if="m.assigned"
-                                :href="`/learner/modules/${m.key}/start`"
-                                class="group relative flex flex-col overflow-hidden rounded-[28px] border-2 border-primary bg-white p-5 text-left shadow-lg shadow-primary/10 transition-all duration-200 hover:-translate-y-1 hover:shadow-xl xl:p-6"
+                            <div
+                                class="rd-node-row"
+                                :class="[ idx % 2 === 0 ? 'rd-node-row--r' : 'rd-node-row--l', `anim-delay-${idx}` ]"
+                                :ref="el => setNodeRef(el, idx)"
                             >
-                                <div class="flex items-start justify-between gap-3">
-                                    <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-orange-500 text-lg font-black text-white shadow-md shadow-primary/20 ring-1 ring-white/20 xl:h-14 xl:w-14 xl:text-xl">
-                                        {{ m.sequence ?? '?' }}
+                                <div
+                                    class="rd-label"
+                                    :class="{
+                                        'rd-label--current':   node.state === 'current',
+                                        'rd-label--completed': node.state === 'completed',
+                                        'rd-label--locked':    node.state === 'locked',
+                                    }"
+                                >
+                                    <div class="rd-label-content">
+                                        <p class="rd-label-title">{{ node.label }}</p>
+                                        <p class="rd-label-sub">{{ node.sub }}</p>
                                     </div>
-                                    <span class="rounded-full bg-primary-light px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-primary xl:text-[11px]">
-                                        Current Module
-                                    </span>
-                                </div>
-
-                                <h3 class="mt-4 text-base font-black leading-tight text-slate-800 xl:text-lg">{{ m.title }}</h3>
-                                <p class="mt-1.5 line-clamp-2 text-xs font-semibold leading-snug text-slate-500 xl:text-sm">{{ m.blurb }}</p>
-
-                                <div class="flex-1 min-h-[1.5rem]" />
-
-                                <div class="mt-4 flex items-center justify-between gap-2 rounded-xl bg-gradient-to-br from-primary to-orange-500 px-4 py-3 text-sm font-black text-white shadow-md shadow-primary/20 transition-all group-hover:scale-[1.02] xl:px-5 xl:py-3.5 xl:text-base">
-                                    <span>Continue Learning</span>
-                                    <ArrowRight :size="18" class="stroke-[3] transition-transform group-hover:translate-x-1" />
-                                </div>
-                            </Link>
-
-                            <!-- Locked -->
-                            <article
-                                v-else
-                                aria-disabled="true"
-                                class="flex cursor-not-allowed flex-col rounded-[28px] border border-slate-200/60 bg-slate-50/50 p-5 opacity-70 xl:p-6"
-                            >
-                                <div class="flex items-start justify-between gap-3">
-                                    <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-200/80 text-lg font-black text-slate-500 shadow-sm xl:h-14 xl:w-14 xl:text-xl">
-                                        {{ m.sequence ?? '?' }}
-                                    </div>
-                                    <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
-                                        <Lock :size="18" />
+                                    <div v-if="node.state === 'locked'" class="rd-tooltip">
+                                        Finish the previous activity first.
                                     </div>
                                 </div>
 
-                                <h3 class="mt-4 text-base font-black leading-tight text-slate-500 xl:text-lg">{{ m.title }}</h3>
-                                <p class="mt-1.5 line-clamp-2 text-xs font-semibold leading-snug text-slate-400 xl:text-sm">{{ m.blurb }}</p>
+                                <component
+                                    :is="node.href ? Link : 'div'"
+                                    :href="node.href || undefined"
+                                    class="rd-node"
+                                    :class="{
+                                        'rd-node--current':   node.state === 'current',
+                                        'rd-node--completed': node.state === 'completed',
+                                        'rd-node--locked':    node.state === 'locked',
+                                        'rd-node--available': node.state === 'available',
+                                        'rd-node--clickable': !!node.href,
+                                    }"
+                                >
+                                    <div v-if="node.state === 'current'" class="rd-node-sparkles">
+                                        <span class="s1">✨</span><span class="s2">✨</span><span class="s3">✨</span>
+                                    </div>
 
-                                <div class="flex-1 min-h-[1.5rem]" />
+                                    <div v-if="node.state === 'completed'" class="rd-star-burst">
+                                        <span class="burst1"></span><span class="burst2"></span>
+                                        <span class="burst3"></span><span class="burst4"></span>
+                                    </div>
 
-                                <div class="mt-4 flex items-center justify-center gap-2 rounded-xl border border-slate-200/80 bg-slate-100 px-4 py-3 text-xs font-bold text-slate-500 shadow-sm xl:px-5 xl:py-3.5 xl:text-sm">
-                                    <Lock :size="14" />
-                                    <span>{{ lockedModuleMessage }}</span>
-                                </div>
-                            </article>
+                                    <div class="rd-node-face">
+                                        <Check v-if="node.state === 'completed'" :size="28" class="rd-check-icon" />
+                                        <div v-else-if="node.state === 'locked'" class="rd-lock-wrap">
+                                            <Lock :size="20" class="rd-lock-icon" />
+                                        </div>
+                                        <span v-else class="rd-node-emoji">{{ node.emoji }}</span>
+                                    </div>
+                                </component>
+                            </div>
                         </template>
                     </div>
-                    <div v-if="['grade_ready', 'final_reassessment_pending', 'final_reassessment_in_progress', 'final_reassessment_completed', 'completed'].includes(currentStage)" class="mt-5 rounded-[24px] border border-primary/20 bg-primary-light px-6 py-4 text-base font-bold text-primary">
-                        {{ primaryMessage }}
-                    </div>
-                </section>
+                </div>
+            </div>
 
-                <!-- ──── BOTTOM ENCOURAGEMENT BAR ──── -->
-                <footer class="flex shrink-0 flex-col items-stretch justify-between gap-3 rounded-[28px] border border-slate-200/80 bg-white p-5 shadow-xl shadow-slate-200/30 sm:flex-row sm:items-center sm:gap-4 xl:p-6">
-                    <p class="flex items-center gap-3 text-sm font-bold text-slate-700 xl:text-base">
-                        <Star :size="24" class="shrink-0 fill-yellow-400 text-yellow-400" />
-                        <span class="min-w-0">You're doing amazing! Keep going and enjoy your learning adventure!</span>
-                        <Rocket :size="20" class="hidden shrink-0 text-primary sm:block" />
-                    </p>
-                    <Link href="/learner/help" class="flex shrink-0 items-center justify-center gap-2 rounded-[20px] bg-primary px-6 py-3 text-base font-black text-white shadow-lg shadow-primary/30 transition-all duration-200 hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-primary-dark xl:text-lg">
-                        <HelpCircle :size="18" />
-                        Need Help?
-                    </Link>
-                </footer>
-            </main>
+            <!-- ── RIGHT: Widgets ──────────────────────────────── -->
+            <aside class="rd-widgets">
+                <div class="rd-widget anim-widget-1">
+                    <div class="rd-widget-hd">
+                        <div class="rd-widget-icon" style="background: linear-gradient(135deg,#fb923c,#f59e0b)"><Flame :size="16" /></div>
+                        <h2 class="rd-widget-title">Your Adventure</h2><span>✨</span>
+                    </div>
+                    <div class="rd-streaks">
+                        <div class="rd-streak"><span class="rd-streak-icon">🔥</span><div><p class="rd-streak-lbl">Current Streak</p><p class="rd-streak-val">0 <span>days</span></p></div></div>
+                        <div class="rd-streak"><span class="rd-streak-icon">🏅</span><div><p class="rd-streak-lbl">Best Streak</p><p class="rd-streak-val">0 <span>days</span></p></div></div>
+                    </div>
+                    <div class="rd-widget-note"><Star :size="13" style="color:#f59e0b;flex-shrink:0;margin-top:1px" /> Complete activities, earn stars, and unlock new lessons!</div>
+                </div>
+
+                <div class="rd-widget anim-widget-2">
+                    <div class="rd-widget-hd">
+                        <div class="rd-widget-icon" style="background: linear-gradient(135deg,#2dd4bf,#0d9488)"><Target :size="16" /></div>
+                        <h2 class="rd-widget-title">Daily Goal</h2>
+                    </div>
+                    <p class="rd-goal-text">Finish 1 activity</p>
+                    <div class="rd-goal-row"><div class="rd-goal-track"><div class="rd-goal-fill" style="width:0%" /></div><span class="rd-goal-cnt">0&thinsp;/&thinsp;1</span></div>
+                </div>
+
+                <div class="rd-widget anim-widget-3">
+                    <div class="rd-widget-hd">
+                        <div class="rd-widget-icon" style="background: linear-gradient(135deg,#fbbf24,#d97706)"><Gift :size="16" /></div>
+                        <h2 class="rd-widget-title">Rewards</h2>
+                    </div>
+                    <p class="rd-rewards-sub">Earn stars to unlock rewards!</p>
+                    <div class="rd-star-row"><Star :size="30" class="rd-star-icon" /><span class="rd-star-count">{{ totalStars }}</span></div>
+                    <Link href="/learner/rewards" class="rd-view-rewards">View Rewards</Link>
+                </div>
+            </aside>
         </div>
     </div>
 </template>
+
+<style scoped>
+/* ════════════════════════════════════════════════
+   FONTS / ROOT
+   ════════════════════════════════════════════════ */
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap');
+
+.rd-root {
+    position: relative; min-height: 100vh;
+    font-family: 'Nunito', system-ui, sans-serif;
+    overflow-x: hidden; background: #c9e4f5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important; animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important; scroll-behavior: auto !important;
+    }
+}
+
+/* ════════════════════════════════════════════════
+   CLASSROOM SCENE
+   ════════════════════════════════════════════════ */
+.rd-scene { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.rd-scene-wall { position: absolute; inset: 0 0 28% 0; background: linear-gradient(175deg, #b8d9f0 0%, #cce8f7 55%, #d8eef8 100%); }
+.rd-scene-floor {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 30%;
+    background: repeating-linear-gradient(90deg, #c8911f 0, #c8911f 58px, #b87d16 58px, #b87d16 60px), linear-gradient(180deg, #d4a118 0%, #9e5e10 100%);
+    background-blend-mode: multiply; border-top: 5px solid #7a4e0c; box-shadow: inset 0 6px 20px rgba(0,0,0,0.15);
+}
+.rd-board { position: absolute; top: 9%; left: 3.5%; width: 150px; height: 115px; background: #7e5435; border-radius: 6px; border: 7px solid #5c3a1e; box-shadow: 3px 5px 18px rgba(0,0,0,0.28), inset 0 1px 3px rgba(255,255,255,0.1); padding: 6px; }
+.rd-pin { position: absolute; top: -7px; width: 14px; height: 14px; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
+.rd-pin-r { left: 18px; background: #ef4444; } .rd-pin-b { left: 58px; background: #3b82f6; } .rd-pin-y { left: 98px; background: #eab308; }
+.rd-paper { position: absolute; background: #fef9c3; border-radius: 2px; box-shadow: 1px 1px 4px rgba(0,0,0,0.18); }
+.rd-paper-1 { width: 44px; height: 40px; top: 14px; left: 6px; transform: rotate(-2deg); }
+.rd-paper-2 { width: 40px; height: 46px; top: 10px; left: 52px; transform: rotate( 3deg); background: #dbeafe; }
+.rd-paper-3 { width: 36px; height: 38px; top: 15px; left: 94px; transform: rotate(-1deg); background: #dcfce7; }
+.rd-shelf { position: absolute; top: 9%; right: 3%; width: 130px; }
+.rd-shelf-board { position: absolute; top: 68px; left: -4px; right: -4px; height: 11px; background: #7e5435; border-radius: 5px; box-shadow: 0 4px 10px rgba(0,0,0,0.22); }
+.rd-book { position: absolute; top: 16px; width: 18px; height: var(--bh); background: var(--bc); border-radius: 3px 3px 0 0; box-shadow: 2px 0 5px rgba(0,0,0,0.18); }
+.rd-shelf-plant { position: absolute; left: 106px; top: 20px; width: 24px; height: 50px; background: radial-gradient(ellipse at 50% 80%, #16a34a 60%, #166534 100%); border-radius: 50% 50% 20% 20%; box-shadow: 0 3px 8px rgba(0,0,0,0.2); }
+.rd-rug { position: absolute; bottom: 6%; left: 22%; width: 180px; height: 80px; background: radial-gradient(ellipse at center, #1d4ed8 20%, #1e3a8a 80%); border-radius: 50%; opacity: 0.55; box-shadow: 0 6px 20px rgba(30,58,138,0.28); }
+.rd-window { position: absolute; top: 6%; left: 50%; transform: translateX(-50%); width: 80px; height: 88px; background: linear-gradient(135deg, #bde4ff, #e0f3ff); border: 6px solid #a0bfd4; border-radius: 6px 6px 0 0; box-shadow: inset 0 0 8px rgba(255,255,255,0.5), 2px 4px 12px rgba(0,0,0,0.15); overflow: hidden; }
+.rd-window-pane { position: absolute; background: rgba(160,191,212,0.6); }
+.rd-window-pane-1 { left: 50%; top: 0; bottom: 0; width: 5px; transform: translateX(-50%); }
+.rd-window-pane-2 { left: 0; right: 0; top: 50%; height: 5px; transform: translateY(-50%); }
+
+/* ════════════════════════════════════════════════
+   TOP CONTROLS
+   ════════════════════════════════════════════════ */
+.rd-top-left-controls { position: fixed; top: 1.25rem; left: 1.25rem; z-index: 50; }
+.rd-top-right-controls { position: fixed; top: 1.25rem; right: 1.25rem; z-index: 50; }
+
+/* Tester Pill */
+.rd-user-pill {
+    display: flex; align-items: center; gap: 0.45rem;
+    padding: 0.22rem 0.9rem 0.22rem 0.22rem;
+    background: rgba(255,255,255,0.95); backdrop-filter: blur(10px);
+    border-radius: 9999px; border: 1px solid rgba(0,0,0,0.07);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+.rd-user-avatar { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: #F58549; color: white; font-size: 0.85rem; font-weight: 900; box-shadow: 0 2px 6px rgba(245,133,73,0.38); }
+.rd-user-name { font-size: 0.88rem; font-weight: 800; color: #1e293b; }
+.rd-user-chevron { color: #94a3b8; }
+
+/* Menu Container */
+.rd-menu-container { position: relative; }
+
+/* Animated Burger */
+.rd-burger {
+    display: grid; place-items: center;
+    width: 44px; height: 44px; border-radius: 12px;
+    background: rgba(255,255,255,0.95); color: #374151;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08); border: 1px solid rgba(0,0,0,0.05);
+    transition: box-shadow 140ms, transform 200ms; cursor: pointer;
+    overflow: hidden; position: relative; z-index: 52;
+}
+.rd-burger:hover { box-shadow: 0 6px 16px rgba(0,0,0,0.12); transform: scale(1.05); }
+.rd-burger-icon-wrap { position: relative; width: 20px; height: 20px; }
+.rd-icon-menu, .rd-icon-settings { position: absolute; inset: 0; transition: opacity 300ms, transform 450ms cubic-bezier(.4,0,.2,1); }
+.rd-icon-menu { opacity: 1; transform: rotate(0deg) scale(1); }
+.rd-icon-settings { opacity: 0; transform: rotate(-90deg) scale(0.5); }
+.rd-burger.is-animating .rd-icon-menu, .rd-burger.is-open .rd-icon-menu { opacity: 0; transform: rotate(90deg) scale(0.5); }
+.rd-burger.is-animating .rd-icon-settings, .rd-burger.is-open .rd-icon-settings { opacity: 1; transform: rotate(0deg) scale(1); color: #F58549; }
+
+/* Magic trail during burger click */
+.rd-magic-trail { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 51; }
+.rd-magic-dot { position: absolute; width: 6px; height: 6px; border-radius: 50%; background: #fcd34d; box-shadow: 0 0 4px #f59e0b; opacity: 0; }
+.rd-magic-trail .d1 { top: -10px; left: 20px; animation: arc1 400ms ease-out forwards; }
+.rd-magic-trail .d2 { top: 10px; left: -5px; animation: arc2 400ms ease-out 50ms forwards; }
+.rd-magic-trail .d3 { top: 30px; left: 10px; animation: arc3 400ms ease-out 100ms forwards; }
+.rd-magic-sparkle { position: absolute; font-size: 14px; opacity: 0; top: 20px; left: 30px; animation: burst 400ms ease-out 150ms forwards; }
+
+@keyframes arc1 { 0% { opacity: 1; transform: translate(0,0) scale(1); } 100% { opacity: 0; transform: translate(15px, 15px) scale(0); } }
+@keyframes arc2 { 0% { opacity: 1; transform: translate(0,0) scale(1); } 100% { opacity: 0; transform: translate(25px, 0) scale(0); } }
+@keyframes arc3 { 0% { opacity: 1; transform: translate(0,0) scale(1); } 100% { opacity: 0; transform: translate(15px, -15px) scale(0); } }
+@keyframes burst { 0% { opacity: 1; transform: scale(0.5) rotate(0deg); } 100% { opacity: 0; transform: scale(1.5) rotate(45deg); } }
+
+/* Dropdown Panel */
+.rd-dropdown-enter-active, .rd-dropdown-leave-active { transition: opacity 250ms, transform 250ms cubic-bezier(.34,1.56,.64,1); transform-origin: top left; }
+.rd-dropdown-enter-from, .rd-dropdown-leave-to { opacity: 0; transform: scale(0.95) translateY(-10px); }
+
+.rd-dropdown-panel {
+    position: absolute; top: calc(100% + 12px); left: 0;
+    width: 240px; background: #fffcf5;
+    border-radius: 18px; box-shadow: 0 10px 40px rgba(0,0,0,0.15), 0 2px 10px rgba(0,0,0,0.05);
+    display: flex; flex-direction: column; overflow: hidden; z-index: 50;
+    border: 1px solid #fde68a55;
+}
+.rd-dropdown-head { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.1rem 0.8rem; border-bottom: 1px solid #fde68a33; }
+.rd-dropdown-title { font-size: 0.95rem; font-weight: 900; color: #1e293b; }
+.rd-dropdown-close { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; color: #64748b; transition: background 140ms; cursor: pointer; border: none; background: transparent; }
+.rd-dropdown-close:hover { background: #f1f5f9; color: #1e293b; }
+.rd-dropdown-nav { display: flex; flex-direction: column; gap: 3px; padding: 0.6rem; }
+.rd-nav { display: flex; align-items: center; gap: 0.7rem; padding: 0.6rem 0.9rem; border-radius: 12px; font-size: 0.88rem; font-weight: 700; color: #64748b; text-decoration: none; transition: background 130ms, color 130ms; }
+.rd-nav:hover { background: #f5f0e8; color: #1e293b; }
+.rd-nav--active { background: #fff0e6; color: #F58549; }
+.rd-dropdown-footer { margin: 0.5rem; padding: 0.8rem; background: linear-gradient(130deg, #fff8f0, #fef3e2); border-radius: 14px; border: 1px solid #fde68a44; display: flex; align-items: center; gap: 0.6rem; }
+.rd-dropdown-footer-icon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; background: #F58549; color: white; box-shadow: 0 4px 10px rgba(245,133,73,0.3); flex-shrink: 0; }
+.rd-dropdown-footer p { font-size: 0.7rem; font-weight: 900; color: #78350f; line-height: 1.3; margin: 0; }
+
+@media (max-width: 768px) {
+    .rd-dropdown-panel { position: fixed; top: 80px; right: 1.25rem; left: 1.25rem; width: auto; max-width: 400px; margin: 0 auto; }
+}
+
+/* ════════════════════════════════════════════════
+   PAGE LAYOUT
+   ════════════════════════════════════════════════ */
+.rd-page {
+    position: relative; z-index: 5; display: grid;
+    grid-template-columns: 1fr 272px; gap: 1.25rem;
+    max-width: 1200px; margin: 0 auto; padding: 2.5rem 1.25rem; /* Increased top padding to accommodate absolute top-right controls */
+}
+@media (max-width: 960px) { .rd-page { grid-template-columns: 1fr; padding-top: 5rem; } }
+
+.rd-left { display: flex; flex-direction: column; gap: 0.85rem; }
+
+/* Greeting */
+.rd-greeting { display: flex; align-items: center; justify-content: space-between; gap: 1rem; background: rgba(255,255,255,0.85); backdrop-filter: blur(12px); border-radius: 18px; padding: 0.9rem 1.2rem; border: 1px solid rgba(255,255,255,0.9); box-shadow: 0 3px 16px rgba(0,0,0,0.07); opacity: 0; transform: translateY(-10px); }
+.is-loaded .rd-greeting { opacity: 1; transform: translateY(0); transition: opacity 0.5s, transform 0.5s; }
+.rd-greeting-title { font-size: clamp(1.25rem, 2.5vw, 1.75rem); font-weight: 900; color: #1e293b; line-height: 1.1; }
+.rd-greeting-sub { font-size: 0.85rem; font-weight: 600; color: #64748b; margin-top: 0.15rem; }
+.rd-primary-btn { flex-shrink: 0; display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.6rem 1.2rem; background: linear-gradient(135deg, #F58549, #f97316); color: white; border-radius: 14px; font-size: 0.85rem; font-weight: 900; text-decoration: none; box-shadow: 0 4px 14px rgba(245,133,73,0.38), 0 2px 0 rgba(0,0,0,0.08); transition: transform 140ms, box-shadow 140ms; white-space: nowrap; }
+.rd-primary-btn:hover { transform: translateY(-2px); box-shadow: 0 7px 20px rgba(245,133,73,0.45); }
+
+/* Status strip */
+.rd-status-strip { display: flex; align-items: center; gap: 0; background: rgba(255,255,255,0.88); backdrop-filter: blur(12px); border-radius: 16px; padding: 0.65rem 1rem; border: 1px solid rgba(255,255,255,0.9); box-shadow: 0 3px 14px rgba(0,0,0,0.06); overflow-x: auto; opacity: 0; transform: translateY(10px); }
+.is-loaded .rd-status-strip { opacity: 1; transform: translateY(0); transition: opacity 0.5s 0.1s, transform 0.5s 0.1s; }
+.rd-stat { display: flex; align-items: center; gap: 0.55rem; flex: 1; min-width: 0; padding: 0 0.5rem; }
+.rd-stat-div { width: 1px; height: 36px; flex-shrink: 0; background: rgba(0,0,0,0.09); margin: 0 0.25rem; }
+.rd-stat-emoji { font-size: 1.4rem; line-height: 1; flex-shrink: 0; }
+.rd-stat-lbl { font-size: 0.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.07em; color: #94a3b8; line-height: 1; }
+.rd-stat-val { font-size: 1rem; font-weight: 900; color: #1e293b; margin-top: 0.08rem; line-height: 1.1; }
+.rd-stat-val--sm { font-size: 0.78rem; }
+.rd-stat-hint { font-size: 0.6rem; font-weight: 600; color: #94a3b8; }
+@media (max-width: 680px) { .rd-status-strip { flex-wrap: wrap; gap: 0.5rem; } .rd-stat-div { display: none; } .rd-stat { flex: 0 0 calc(50% - 0.25rem); padding: 0.4rem 0.5rem; background: rgba(255,255,255,0.6); border-radius: 12px; } }
+
+/* ════════════════════════════════════════════════
+   MAP AREA & ANIMATIONS
+   ════════════════════════════════════════════════ */
+.rd-map { position: relative; display: flex; gap: 1rem; align-items: flex-start; min-height: 480px; }
+.rd-mascot { position: absolute; left: 0; top: 0; transition: top 500ms cubic-bezier(.34, 1.56, .64, 1); display: flex; flex-direction: column; align-items: center; width: clamp(130px, 16vw, 190px); z-index: 3; pointer-events: none; }
+.rd-mascot-img { width: 100%; max-height: 240px; object-fit: contain; filter: drop-shadow(0 6px 14px rgba(0,0,0,0.14)); }
+.rd-speech-bubble { margin-top: 0.4rem; background: white; border-radius: 14px; padding: 0.5rem 0.75rem; font-size: 0.7rem; font-weight: 700; color: #374151; text-align: center; line-height: 1.4; box-shadow: 0 3px 12px rgba(0,0,0,0.1); border: 1px solid rgba(0,0,0,0.06); position: relative; width: 100%; animation: float-bubble 3s ease-in-out infinite; }
+.rd-speech-bubble::before { content: ''; position: absolute; top: -7px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 7px solid transparent; border-right: 7px solid transparent; border-bottom: 7px solid white; }
+@keyframes float-bubble { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+
+.rd-path { margin-left: clamp(140px, 17vw, 200px); flex: 1; display: flex; flex-direction: column; align-items: center; padding: 0.5rem 0 1.5rem; gap: 0; }
+.rd-trail { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 3px 0; }
+.rd-dot { display: block; width: 9px; height: 9px; border-radius: 50%; background: #d1d5db; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1); transition: background 300ms, box-shadow 300ms; }
+.rd-dot--completed { background: #fcd34d; box-shadow: 0 1px 4px rgba(245,158,11,0.4); animation: shimmer-dot 2s infinite ease-in-out; animation-delay: calc(var(--dot-idx) * 0.15s); }
+@keyframes shimmer-dot { 0%, 100% { opacity: 0.6; transform: scale(1); } 50% { opacity: 1; transform: scale(1.15); background: #f59e0b; } }
+
+.rd-node-row { display: flex; align-items: center; gap: 0.9rem; width: 100%; opacity: 0; transform: translateY(20px); }
+.is-loaded .rd-node-row { opacity: 1; transform: translateY(0); }
+.is-loaded .anim-delay-0 { transition: opacity 0.4s 0.1s, transform 0.4s 0.1s cubic-bezier(.34,1.56,.64,1); }
+.is-loaded .anim-delay-1 { transition: opacity 0.4s 0.2s, transform 0.4s 0.2s cubic-bezier(.34,1.56,.64,1); }
+.is-loaded .anim-delay-2 { transition: opacity 0.4s 0.3s, transform 0.4s 0.3s cubic-bezier(.34,1.56,.64,1); }
+.is-loaded .anim-delay-3 { transition: opacity 0.4s 0.4s, transform 0.4s 0.4s cubic-bezier(.34,1.56,.64,1); }
+.is-loaded .anim-delay-4 { transition: opacity 0.4s 0.5s, transform 0.4s 0.5s cubic-bezier(.34,1.56,.64,1); }
+.is-loaded .anim-delay-5 { transition: opacity 0.4s 0.6s, transform 0.4s 0.6s cubic-bezier(.34,1.56,.64,1); }
+.is-loaded .anim-delay-6 { transition: opacity 0.4s 0.7s, transform 0.4s 0.7s cubic-bezier(.34,1.56,.64,1); }
+.rd-node-row--r { flex-direction: row; justify-content: flex-start; padding-left: 8%; }
+.rd-node-row--l { flex-direction: row-reverse; justify-content: flex-start; padding-right: 8%; }
+
+.rd-label { position: relative; background: #FFFDF7; border-radius: 14px; padding: 0.55rem 0.85rem; box-shadow: 0 2px 10px rgba(0,0,0,0.08); border: 2px solid transparent; max-width: 200px; min-width: 150px; transition: box-shadow 200ms, transform 200ms, border-color 200ms; }
+.rd-label-content { position: relative; z-index: 2; }
+.rd-label--current { border-color: #F58549; box-shadow: 0 4px 16px rgba(245,133,73,0.25); }
+.rd-label--completed { border-color: #6ee7b7; }
+.rd-label--locked { opacity: 0.7; filter: grayscale(40%); }
+.rd-label-title { font-size: 0.84rem; font-weight: 900; color: #1e293b; line-height: 1.2; }
+.rd-label-sub { font-size: 0.68rem; font-weight: 600; color: #64748b; margin-top: 0.12rem; line-height: 1.3; }
+.rd-tooltip { position: absolute; bottom: 110%; left: 50%; transform: translateX(-50%) scale(0.9); background: #1e293b; color: white; font-size: 0.65rem; font-weight: 700; padding: 0.4rem 0.6rem; border-radius: 6px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 200ms, transform 200ms; z-index: 10; }
+.rd-tooltip::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border-width: 4px; border-style: solid; border-color: #1e293b transparent transparent transparent; }
+.rd-label--locked:hover .rd-tooltip { opacity: 1; transform: translateX(-50%) scale(1); }
+
+.rd-node { position: relative; flex-shrink: 0; width: 76px; height: 76px; border-radius: 50%; background: linear-gradient(145deg, #fbbf24, #f59e0b); box-shadow: 0 6px 0 #b45309, 0 8px 18px rgba(245,158,11,0.4); display: grid; place-items: center; cursor: default; transition: transform 170ms cubic-bezier(.34,1.56,.64,1), box-shadow 170ms ease; text-decoration: none; }
+.rd-node::after { content: ''; position: absolute; inset: 5px; border-radius: 50%; background: rgba(255,255,255,0.22); pointer-events: none; }
+.rd-node-face { position: relative; z-index: 2; display: grid; place-items: center; }
+.rd-node-emoji { font-size: 1.65rem; line-height: 1; }
+.rd-check-icon { color: white; stroke-width: 3; }
+
+.rd-node--available { cursor: pointer; }
+.rd-node--available:hover { transform: translateY(-5px); box-shadow: 0 11px 0 #b45309, 0 16px 28px rgba(245,158,11,0.5); }
+.rd-node--available:hover + .rd-label, .rd-label:has(+ .rd-node--available:hover) { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.12); }
+
+.rd-node--current { background: linear-gradient(145deg, #fb923c, #F58549); animation: float-node 3s ease-in-out infinite; }
+@keyframes float-node { 0%, 100% { transform: translateY(0); box-shadow: 0 6px 0 #c2410c, 0 8px 22px rgba(245,133,73,0.5), 0 0 0 0 rgba(245,133,73,0.4); } 50% { transform: translateY(-4px); box-shadow: 0 10px 0 #c2410c, 0 14px 34px rgba(245,133,73,0.6), 0 0 0 8px rgba(245,133,73,0); } }
+
+.rd-node-sparkles { position: absolute; inset: -20px; pointer-events: none; z-index: 0; }
+.rd-node-sparkles span { position: absolute; font-size: 12px; opacity: 0; animation: sparkle-pop 2.5s infinite; }
+.rd-node-sparkles .s1 { top: 0; left: 10px; animation-delay: 0s; } .rd-node-sparkles .s2 { bottom: 0; right: 0; font-size: 16px; animation-delay: 0.8s; } .rd-node-sparkles .s3 { top: 30px; right: -10px; font-size: 10px; animation-delay: 1.6s; }
+@keyframes sparkle-pop { 0% { opacity: 0; transform: scale(0) rotate(0deg); } 20% { opacity: 1; transform: scale(1.2) rotate(45deg); } 40% { opacity: 0; transform: scale(0) rotate(90deg); } 100% { opacity: 0; } }
+
+.rd-node--completed { background: linear-gradient(145deg, #6ee7b7, #10b981); box-shadow: 0 6px 0 #059669, 0 8px 18px rgba(16,185,129,0.38); }
+.is-loaded .rd-node--completed .rd-check-icon { animation: check-bounce 0.6s cubic-bezier(.34,1.56,.64,1) backwards; animation-delay: 0.4s; }
+@keyframes check-bounce { 0% { transform: scale(0); } 100% { transform: scale(1); } }
+
+.rd-star-burst { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+.rd-star-burst span { position: absolute; top: 50%; left: 50%; width: 4px; height: 16px; background: #fcd34d; border-radius: 4px; opacity: 0; transform-origin: bottom center; }
+.is-loaded .rd-star-burst span { animation: burst-shoot 0.6s ease-out forwards; animation-delay: 0.4s; }
+.rd-star-burst .burst1 { transform: translate(-50%, -100%) rotate(0deg); } .rd-star-burst .burst2 { transform: translate(-50%, -100%) rotate(90deg); } .rd-star-burst .burst3 { transform: translate(-50%, -100%) rotate(180deg); } .rd-star-burst .burst4 { transform: translate(-50%, -100%) rotate(270deg); }
+@keyframes burst-shoot { 0% { opacity: 1; transform: translate(-50%, -10px) rotate(var(--rot, 0deg)) scaleY(0.5); } 100% { opacity: 0; transform: translate(-50%, -35px) rotate(var(--rot, 0deg)) scaleY(1.5); } }
+.burst1 { --rot: 0deg; } .burst2 { --rot: 90deg; } .burst3 { --rot: 180deg; } .burst4 { --rot: 270deg; }
+
+.rd-node--locked { background: linear-gradient(145deg, #e5e7eb, #d1d5db); box-shadow: 0 5px 0 #9ca3af, 0 7px 14px rgba(0,0,0,0.1); opacity: 0.9; }
+.rd-lock-wrap { width: 32px; height: 32px; border-radius: 50%; background: #9ca3af; display: grid; place-items: center; box-shadow: inset 0 2px 4px rgba(0,0,0,0.15); }
+.rd-lock-icon { color: white; }
+.rd-node--locked:hover { animation: shake-lock 0.4s ease-in-out; }
+@keyframes shake-lock { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-4px) rotate(-4deg); } 75% { transform: translateX(4px) rotate(4deg); } }
+
+@media (max-width: 768px) {
+    .rd-map { flex-direction: column; align-items: center; }
+    .rd-mascot { position: relative; top: 0 !important; width: clamp(120px, 38vw, 170px); margin-bottom: 1rem; pointer-events: auto; }
+    .rd-path { margin-left: 0; width: 100%; }
+    .rd-node-row--r { padding-left: 4%; }
+    .rd-node-row--l { padding-right: 4%; }
+}
+
+/* ════════════════════════════════════════════════
+   RIGHT WIDGETS
+   ════════════════════════════════════════════════ */
+.rd-widgets { display: flex; flex-direction: column; gap: 0.85rem; position: sticky; top: 2.5rem; align-self: start; }
+.rd-widget { background: rgba(255,255,255,0.92); backdrop-filter: blur(12px); border-radius: 18px; padding: 1rem 1.1rem; border: 1px solid rgba(255,255,255,0.9); box-shadow: 0 3px 16px rgba(0,0,0,0.07); opacity: 0; transform: translateX(20px); }
+.is-loaded .anim-widget-1 { opacity: 1; transform: translateX(0); transition: opacity 0.5s 0.3s, transform 0.5s 0.3s cubic-bezier(.34,1.56,.64,1); }
+.is-loaded .anim-widget-2 { opacity: 1; transform: translateX(0); transition: opacity 0.5s 0.4s, transform 0.5s 0.4s cubic-bezier(.34,1.56,.64,1); }
+.is-loaded .anim-widget-3 { opacity: 1; transform: translateX(0); transition: opacity 0.5s 0.5s, transform 0.5s 0.5s cubic-bezier(.34,1.56,.64,1); }
+
+.rd-widget-hd { display: flex; align-items: center; gap: 0.55rem; margin-bottom: 0.8rem; }
+.rd-widget-icon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; color: white; flex-shrink: 0; box-shadow: 0 3px 8px rgba(0,0,0,0.15); }
+.rd-widget-title { font-size: 0.88rem; font-weight: 900; color: #1e293b; flex: 1; }
+.rd-streaks { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.7rem; }
+.rd-streak { display: flex; align-items: center; gap: 0.55rem; }
+.rd-streak-icon { font-size: 1.2rem; line-height: 1; }
+.rd-streak-lbl { font-size: 0.67rem; font-weight: 700; color: #94a3b8; line-height: 1; }
+.rd-streak-val { font-size: 0.82rem; font-weight: 900; color: #1e293b; margin-top: 0.1rem; }
+.rd-streak-val span { font-weight: 600; color: #64748b; }
+.rd-widget-note { display: flex; align-items: flex-start; gap: 0.35rem; font-size: 0.69rem; font-weight: 600; color: #78350f; background: #fef9c3; border-radius: 9px; padding: 0.45rem 0.55rem; line-height: 1.4; }
+.rd-goal-text { font-size: 0.8rem; font-weight: 700; color: #374151; margin-bottom: 0.55rem; }
+.rd-goal-row { display: flex; align-items: center; gap: 0.55rem; }
+.rd-goal-track { flex: 1; height: 9px; background: #e5e7eb; border-radius: 9999px; overflow: hidden; }
+.rd-goal-fill { height: 100%; background: linear-gradient(90deg, #10b981, #6ee7b7); border-radius: 9999px; transition: width 400ms ease; }
+.rd-goal-cnt { font-size: 0.72rem; font-weight: 800; color: #374151; white-space: nowrap; }
+.rd-rewards-sub { font-size: 0.72rem; font-weight: 600; color: #6b7280; margin-bottom: 0.65rem; }
+.rd-star-row { display: flex; align-items: center; gap: 0.45rem; margin-bottom: 0.8rem; }
+.rd-star-icon { color: #fbbf24; fill: #fbbf24; }
+.rd-star-count { font-size: 2rem; font-weight: 900; color: #1e293b; line-height: 1; }
+.rd-view-rewards { display: block; text-align: center; padding: 0.6rem; border-radius: 12px; background: white; color: #F58549; font-size: 0.82rem; font-weight: 900; border: 2px solid #F58549; text-decoration: none; transition: background 140ms, color 140ms; }
+.rd-view-rewards:hover { background: #F58549; color: white; }
+</style>
