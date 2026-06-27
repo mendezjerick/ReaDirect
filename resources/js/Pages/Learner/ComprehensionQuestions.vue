@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { useForm } from '@inertiajs/vue3';
-import { HelpCircle, Star } from 'lucide-vue-next';
+import { HelpCircle, Star, PenTool, BookOpen, Flag } from 'lucide-vue-next';
 import LearnerLayout from '../../Layouts/LearnerLayout.vue';
 import AgentSpeakerPanel from '../../Components/Learner/AgentSpeakerPanel.vue';
 import PrimaryButton from '../../Components/PrimaryButton.vue';
@@ -70,7 +70,7 @@ const handlePrimary = () => {
 </script>
 
 <template>
-    <LearnerLayout :progress="86" diagnostic-step="sentence-reading">
+    <LearnerLayout :progress="86" diagnostic-step="sentence-reading" :has-bottom-bar="false">
         <template #agent>
             <AgentSpeakerPanel
                 agent-type="assessment"
@@ -89,56 +89,62 @@ const handlePrimary = () => {
             <div class="pointer-events-none absolute -left-20 top-0 h-40 w-40 rounded-full bg-primary/5 blur-3xl" aria-hidden="true" />
             <div class="pointer-events-none absolute -right-16 bottom-0 h-40 w-40 rounded-full bg-blue-400/5 blur-3xl" aria-hidden="true" />
 
-            <!-- Progress header -->
-            <div class="anim-fade-down grid gap-3 px-1">
-                <div class="flex items-center justify-between">
-                    <span class="rounded-full bg-primary/5 px-3.5 py-1.5 text-[13px] font-black text-primary ring-1 ring-primary/10">
-                        Question {{ step.currentIndex.value + 1 }} of {{ questions.length }}
-                    </span>
-                    <span class="rounded-full bg-emerald-50 px-3.5 py-1.5 text-[13px] font-black text-emerald-600 ring-1 ring-emerald-200/60">
-                        📝 Comprehension
-                    </span>
+            <!-- Header & Progress -->
+            <div class="mb-3 flex items-center justify-between gap-3 sm:mb-4">
+                <div class="assessment-progress-track flex-1 max-w-[600px] xl:max-w-[700px]">
+                    <div class="assessment-progress-face">
+                        <span class="assessment-progress-marker assessment-progress-marker--start" aria-hidden="true">
+                            <BookOpen class="size-4" stroke-width="2.7" />
+                        </span>
+                        <div class="assessment-progress-fill" :style="{ width: `${step.progressPercent.value}%` }" />
+                        <span class="assessment-progress-marker assessment-progress-marker--end" aria-hidden="true">
+                            <Flag class="size-4" stroke-width="2.7" />
+                        </span>
+                    </div>
                 </div>
-                <div class="h-3.5 overflow-hidden rounded-full bg-slate-100 shadow-inner">
-                    <div class="h-full rounded-full bg-gradient-to-r from-primary to-blue-500 shadow-sm shadow-primary/30 transition-all duration-500 ease-out" :style="{ width: `${step.progressPercent.value}%` }" />
+                <div class="flex items-center gap-2">
+                    <span class="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-black uppercase tracking-wider text-primary sm:text-xs">
+                        <PenTool class="size-3" />
+                        Comprehension
+                    </span>
                 </div>
             </div>
 
             <!-- Question card -->
-            <div :key="step.currentItem.value.id" class="anim-card relative overflow-hidden rounded-[36px] border-[3px] border-primary/10 bg-white p-6 shadow-2xl shadow-primary/10 sm:p-7 xl:p-8">
+            <div :key="step.currentItem.value.id" class="anim-card relative overflow-hidden rounded-[36px] border-[3px] border-primary/10 bg-white p-5 shadow-2xl shadow-primary/10 sm:p-6 xl:p-7">
                 <!-- Question header -->
-                <div class="mb-6 flex items-start gap-4 sm:items-center xl:mb-7 xl:gap-5">
-                    <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-blue-600 text-white shadow-lg shadow-primary/20 xl:h-16 xl:w-16">
-                        <HelpCircle class="size-7 stroke-[2.5] xl:size-9" />
+                <div class="mb-4 flex items-start gap-3 sm:items-center xl:mb-5 xl:gap-4">
+                    <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-blue-600 text-white shadow-lg shadow-primary/20 xl:h-14 xl:w-14">
+                        <HelpCircle class="size-6 stroke-[2.5] xl:size-8" />
                     </span>
-                    <p class="bg-gradient-to-br from-slate-900 to-slate-700 bg-clip-text text-2xl font-black leading-tight text-transparent sm:text-3xl xl:text-[34px]">
+                    <p class="bg-gradient-to-br from-slate-900 to-slate-700 bg-clip-text text-xl font-black leading-tight text-transparent sm:text-2xl xl:text-3xl">
                         {{ step.currentItem.value.question_text }}
                     </p>
                 </div>
 
                 <!-- Answer choices -->
-                <div class="anim-stagger grid gap-3 xl:gap-4">
+                <div class="anim-stagger grid gap-2.5 sm:grid-cols-2 xl:gap-3">
                     <button
                         v-for="(choice, key) in step.currentItem.value.choices"
                         :key="key"
                         type="button"
-                        class="choice-btn group grid min-h-16 grid-cols-[38px_1fr_auto] items-center gap-3 rounded-[20px] border-2 px-5 py-3.5 text-left text-lg font-black transition-all duration-200 sm:min-h-20 sm:grid-cols-[44px_1fr_auto] sm:gap-4 sm:text-xl xl:min-h-22 xl:gap-5 xl:px-6 xl:text-[22px]"
+                        class="choice-btn group grid min-h-12 grid-cols-[32px_1fr_auto] items-center gap-2.5 rounded-[20px] border-2 px-4 py-2.5 text-left text-base font-black transition-all duration-200 sm:min-h-14 sm:grid-cols-[38px_1fr_auto] sm:gap-3 sm:text-lg xl:min-h-16 xl:gap-4 xl:px-5 xl:text-xl"
                         :class="step.answers[step.currentItem.value.id] === key
                             ? 'border-primary bg-primary/5 text-primary shadow-xl shadow-primary/10 ring-1 ring-primary/20'
                             : 'border-slate-200/80 bg-white text-slate-800 shadow-xl shadow-slate-200/30 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10'"
                         @click="choose(key)"
                     >
                         <span
-                            class="grid size-8 place-items-center rounded-full border-[3px] transition-all duration-200 sm:size-9"
+                            class="grid size-7 place-items-center rounded-full border-[3px] transition-all duration-200 sm:size-8"
                             :class="step.answers[step.currentItem.value.id] === key ? 'border-primary' : 'border-slate-200 group-hover:border-primary/50'"
                             aria-hidden="true"
                         >
-                            <span v-if="step.answers[step.currentItem.value.id] === key" class="size-5 rounded-full bg-gradient-to-br from-primary to-blue-600" />
+                            <span v-if="step.answers[step.currentItem.value.id] === key" class="size-4 rounded-full bg-gradient-to-br from-primary to-blue-600" />
                         </span>
                         <span class="min-w-0 break-words">{{ key }}. {{ choice }}</span>
                         <Star
                             v-if="step.answers[step.currentItem.value.id] === key"
-                            class="size-7 fill-primary text-primary sm:size-8"
+                            class="size-6 fill-primary text-primary sm:size-7"
                             aria-hidden="true"
                         />
                     </button>
@@ -149,17 +155,15 @@ const handlePrimary = () => {
                     {{ step.feedback.value }}
                 </p>
             </div>
-        </section>
-
-        <BottomActionBar>
-            <div class="flex w-full items-center justify-between gap-3">
+            
+            <div class="mt-2 flex w-full items-center justify-between gap-3 sm:mt-4">
                 <SecondaryButton v-if="canUseDeveloperJumpControls && !step.isFirst.value" @click="step.goBack">Developer QA: Back</SecondaryButton>
                 <span v-else />
                 <PrimaryButton :disabled="form.processing" :class="{ 'opacity-70': !step.isCurrentAnswered.value }" @click="handlePrimary">
                     {{ step.isLast.value ? 'Check answers' : 'Next' }}
                 </PrimaryButton>
             </div>
-        </BottomActionBar>
+        </section>
     </LearnerLayout>
 </template>
 
@@ -226,5 +230,62 @@ const handlePrimary = () => {
 }
 .choice-btn:active {
     transform: translateY(0);
+}
+
+.assessment-progress-track {
+    position: relative;
+    overflow: visible;
+    border: 2px solid var(--rd-frame-border);
+    border-radius: 26px;
+    background: var(--rd-story-surface);
+    box-shadow: 0 6px 0 var(--rd-lip), 0 8px 0 var(--rd-lip-dark), 0 22px 30px -12px var(--rd-shadow);
+    padding: 8px 14px 12px;
+    height: clamp(2.75rem, 6dvh, 4.6rem);
+}
+.assessment-progress-face {
+    position: relative;
+    display: flex;
+    height: 100%;
+    min-height: 0;
+    align-items: stretch;
+    overflow: hidden;
+    border: 1.5px solid var(--rd-face-border);
+    border-radius: 18px;
+    background: var(--rd-face-surface);
+    box-shadow: inset 0 2px 0 var(--rd-highlight), inset 0 -6px 10px var(--rd-inner-shade);
+}
+.assessment-progress-marker {
+    position: absolute;
+    z-index: 3;
+    top: 50%;
+    display: grid;
+    width: clamp(2.1rem, 4.5dvh, 3.1rem);
+    height: clamp(2.1rem, 4.5dvh, 3.1rem);
+    place-items: center;
+    border: 2px solid rgba(238, 193, 112, 0.7);
+    border-radius: 999px;
+    background: #FFFDF7;
+    color: var(--rd-brown);
+    transform: translateY(-50%);
+    pointer-events: none;
+    box-shadow: 0 3px 0 rgba(111, 101, 52, 0.18), 0 6px 12px rgba(54, 83, 101, 0.12);
+}
+.assessment-progress-marker--start {
+    left: 0.35rem;
+    color: var(--rd-brown);
+}
+.assessment-progress-marker--end {
+    right: 0.35rem;
+    color: var(--rd-brown);
+}
+.assessment-progress-marker--end svg {
+    fill: rgba(238, 193, 112, 0.75);
+}
+.assessment-progress-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #F58549 0%, #F2A65A 100%);
+    box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.24), 0 4px 10px rgba(245, 133, 73, 0.18);
+    transition: width 240ms ease;
 }
 </style>

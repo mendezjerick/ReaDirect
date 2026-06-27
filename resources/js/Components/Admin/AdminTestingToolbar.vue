@@ -6,7 +6,7 @@ const page = usePage();
 </script>
 
 <template>
-    <div v-if="page.props.adminTesting?.enabled" class="rd-admin-testing-shell z-50 flex-none px-4 text-xs text-text">
+    <div v-if="page.props.adminTesting?.enabled" class="rd-admin-testing-shell relative z-50 flex-none px-4 text-xs text-text">
         <div class="rd-admin-testing-bar learner-frame flex min-h-8 items-center justify-between gap-3 px-3 py-1">
             <div class="inline-flex shrink-0 items-center gap-2 font-black text-primary">
                 <BookOpen class="size-4" />

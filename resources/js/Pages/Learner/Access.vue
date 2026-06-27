@@ -1,6 +1,6 @@
 <script setup>
 import { useForm } from '@inertiajs/vue3';
-import { BookOpenCheck, ArrowRight, Sparkles, Star, Loader2 } from 'lucide-vue-next';
+import { ArrowRight, BookOpen, Loader2 } from 'lucide-vue-next';
 import SyncStatusBadge from '../../Components/SyncStatusBadge.vue';
 
 const form = useForm({ learner_code: 'RD-1001' });
@@ -8,145 +8,107 @@ const submit = () => form.post('/learner/access');
 </script>
 
 <template>
-    <div class="access-page relative flex min-h-screen flex-col overflow-hidden bg-gradient-to-b from-blue-50 via-white to-blue-50/50 font-sans text-text">
+    <div class="learner-autumn-shell flex min-h-screen flex-col">
 
-        <!-- ═══ Decorative background elements ═══ -->
-        <div class="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-            <!-- Large soft gradient circles -->
-            <div class="absolute -left-32 -top-32 h-[400px] w-[400px] rounded-full bg-primary/5 blur-3xl" />
-            <div class="absolute -bottom-40 -right-40 h-[500px] w-[500px] rounded-full bg-blue-400/5 blur-3xl" />
-            <div class="absolute left-1/2 top-1/3 h-[300px] w-[300px] -translate-x-1/2 rounded-full bg-violet-400/3 blur-3xl" />
-
-            <!-- Floating stars -->
-            <Star class="absolute left-[12%] top-[22%] size-5 fill-yellow-300/40 text-yellow-300/40 floating-star" />
-            <Star class="absolute right-[15%] top-[18%] size-4 fill-yellow-300/30 text-yellow-300/30 floating-star-delayed" />
-            <Star class="absolute left-[8%] bottom-[30%] size-3 fill-primary/20 text-primary/20 floating-star" />
-            <Star class="absolute right-[10%] bottom-[25%] size-4 fill-blue-400/25 text-blue-400/25 floating-star-delayed" />
-            <Star class="absolute left-[45%] top-[12%] size-3 fill-yellow-400/30 text-yellow-400/30 floating-star" />
-
-            <!-- Soft cloud shapes -->
-            <div class="absolute left-[5%] top-[35%] h-12 w-28 rounded-full bg-white/60 blur-md sm:h-16 sm:w-36" />
-            <div class="absolute right-[8%] top-[45%] h-10 w-24 rounded-full bg-white/50 blur-md sm:h-14 sm:w-32" />
-            <div class="absolute left-[20%] bottom-[15%] h-10 w-20 rounded-full bg-white/40 blur-md" />
-        </div>
-
-        <!-- ═══ Top bar ═══ -->
-        <header class="anim-fade-down sticky top-0 z-20 border-b border-blue-100/60 bg-white/80 backdrop-blur-lg">
-            <div class="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
-                <!-- Logo -->
-                <a href="/" class="group inline-flex items-center gap-2.5 text-xl font-black text-primary transition-all hover:scale-[1.02] sm:text-2xl">
-                    <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-blue-600 text-white shadow-md shadow-primary/20 transition-shadow group-hover:shadow-lg group-hover:shadow-primary/30">
-                        <BookOpenCheck class="size-6" />
-                    </span>
-                    ReaDirect
-                </a>
-
-                <!-- Progress bar (thin, minimal) -->
-                <div class="mx-6 hidden h-2 flex-1 overflow-hidden rounded-full bg-blue-100/60 shadow-inner sm:block">
-                    <div class="h-full w-[10%] rounded-full bg-gradient-to-r from-primary to-blue-500 shadow-sm shadow-primary/30 transition-all duration-500" />
+        <!-- Header: matches assessment header rd-card pattern -->
+        <header class="acc-header sticky top-0 z-20 px-4 pb-2 pt-2">
+            <div class="rd-card mx-auto max-w-5xl">
+                <div class="rd-card__face flex min-h-14 items-center justify-between gap-3 px-5 py-2">
+                    <a href="/" class="inline-flex items-center gap-2.5 text-xl font-black transition hover:scale-[1.02]" style="color: var(--rd-text-main)">
+                        <span class="grid size-10 place-items-center rounded-xl border-2 border-[#D9652F] bg-primary text-sm font-black text-white" style="box-shadow: 0 5px 0 #B84B24, 0 8px 14px rgba(54,83,101,0.18), inset 0 2px 0 rgba(255,255,255,0.35)">
+                            Re
+                        </span>
+                        <span class="hidden sm:inline">ReaDirect</span>
+                    </a>
+                    <SyncStatusBadge />
                 </div>
-
-                <!-- Sync badge -->
-                <SyncStatusBadge />
             </div>
         </header>
 
-        <!-- ═══ Main content ═══ -->
-        <main class="relative z-10 flex flex-1 flex-col items-center justify-center px-4 py-8 sm:py-12">
-            <div class="w-full max-w-lg">
+        <!-- Main: centered vertically -->
+        <main class="relative z-10 flex flex-1 items-center justify-center px-4 py-8">
+            <div class="acc-book rd-card w-full max-w-4xl">
 
-                <!-- Welcome card -->
-                <div class="welcome-card relative overflow-hidden rounded-[40px] border-[3px] border-primary/10 bg-white p-8 text-center shadow-2xl shadow-primary/10 sm:p-10">
-                    <!-- Decorative blobs inside the card -->
-                    <div class="pointer-events-none absolute -left-12 -top-12 h-40 w-40 rounded-full bg-primary/5 blur-3xl" />
-                    <div class="pointer-events-none absolute -bottom-12 -right-12 h-40 w-40 rounded-full bg-violet-400/5 blur-3xl" />
+                <!-- Split book interior -->
+                <div class="acc-book-face">
 
-                    <!-- Sparkle icon -->
-                    <div class="welcome-icon relative mx-auto flex h-16 w-16 items-center justify-center rounded-[22px] bg-gradient-to-br from-primary to-blue-600 text-white shadow-xl shadow-primary/25">
-                        <BookOpenCheck class="size-8" />
-                        <Sparkles class="absolute -right-2 -top-2 size-5 fill-yellow-400 text-yellow-400 animate-pulse" />
+                    <!-- LEFT: Book cover — deep autumn teal -->
+                    <div class="acc-cover">
+                        <!-- Subtle diagonal highlight -->
+                        <div class="acc-cover-glare" aria-hidden="true" />
+
+                        <!-- Ornament -->
+                        <span class="acc-ornament" aria-hidden="true">✦</span>
+
+                        <!-- Brand eyebrow -->
+                        <p class="acc-cover-brand">ReaDirect</p>
+
+                        <!-- Big welcome headline -->
+                        <h1 class="acc-cover-title">
+                            Welcome,<br>Reader.
+                        </h1>
+
+                        <!-- Subtitle -->
+                        <p class="acc-cover-sub">
+                            Enter your learner code to start your reading journey.
+                        </p>
+
+                        <!-- Bottom book icon -->
+                        <div class="acc-cover-icon" aria-hidden="true">
+                            <BookOpen class="size-6" />
+                        </div>
                     </div>
 
-                    <!-- Welcome text -->
-                    <p class="welcome-label relative mt-5 text-[14px] font-black uppercase tracking-[0.2em] text-primary/60">
-                        Welcome reader
-                    </p>
-                    <h1 class="welcome-title relative mt-2 bg-gradient-to-br from-slate-900 to-slate-700 bg-clip-text text-[clamp(2.5rem,6vw,3.5rem)] font-black leading-tight text-transparent">
-                        Ready to read?
-                    </h1>
-                    <p class="welcome-subtitle relative mt-3 text-[15px] font-semibold leading-relaxed text-slate-400">
-                        Enter your learner code to begin your reading journey.
-                    </p>
-                </div>
+                    <!-- RIGHT: Form — warm parchment -->
+                    <div class="acc-form-side">
+                        <form class="acc-form" @submit.prevent="submit">
 
-                <!-- Form card -->
-                <form
-                    class="form-card relative mt-5 overflow-hidden rounded-[32px] border-[3px] bg-white p-6 shadow-xl sm:p-8"
-                    :class="form.errors.learner_code ? 'border-rose-200/60' : 'border-slate-200/60'"
-                    @submit.prevent="submit"
-                >
-                    <div class="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-primary/3 blur-2xl" />
+                            <!-- Label -->
+                            <label for="learner_code" class="acc-form-label">
+                                Your learner code
+                            </label>
 
-                    <!-- Label -->
-                    <label for="learner_code" class="relative flex items-center gap-2 text-[14px] font-black uppercase tracking-widest text-slate-400">
-                        <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-blue-600 text-[10px] font-black text-white shadow-sm">
-                            ID
-                        </span>
-                        Learner code
-                    </label>
+                            <!-- Input -->
+                            <input
+                                id="learner_code"
+                                v-model="form.learner_code"
+                                type="text"
+                                autocomplete="off"
+                                spellcheck="false"
+                                :class="['acc-input', form.errors.learner_code ? 'acc-input--error' : '']"
+                                placeholder="RD-0000"
+                            >
 
-                    <!-- Input -->
-                    <input
-                        id="learner_code"
-                        v-model="form.learner_code"
-                        type="text"
-                        autocomplete="off"
-                        spellcheck="false"
-                        :class="[
-                            'relative mt-3 w-full rounded-[20px] border-[3px] bg-slate-50/50 px-6 py-4 text-2xl font-black uppercase tracking-widest transition-all duration-200 placeholder:text-slate-300 focus:bg-white focus:outline-none focus:ring-4 sm:text-3xl',
-                            form.errors.learner_code
-                                ? 'border-rose-300 text-rose-700 focus:border-rose-400 focus:ring-rose-100'
-                                : 'border-slate-200/80 text-slate-800 focus:border-primary focus:ring-primary/10'
-                        ]"
-                        placeholder="RD-0000"
-                    >
+                            <!-- Error message -->
+                            <Transition name="acc-err">
+                                <div v-if="form.errors.learner_code" class="acc-error">
+                                    <span class="acc-error-dot">!</span>
+                                    <p class="acc-error-msg">{{ form.errors.learner_code }}</p>
+                                </div>
+                            </Transition>
 
-                    <!-- Error message -->
-                    <Transition name="error-slide">
-                        <div v-if="form.errors.learner_code" class="mt-3 flex items-start gap-2 rounded-2xl bg-rose-50 p-3.5 ring-1 ring-rose-200/60">
-                            <span class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-rose-100 text-[10px] font-black text-rose-500">!</span>
-                            <p class="text-[14px] font-bold leading-snug text-rose-600">{{ form.errors.learner_code }}</p>
-                        </div>
-                    </Transition>
+                            <!-- Helper text -->
+                            <p v-if="!form.errors.learner_code" class="acc-helper">
+                                Ask your teacher if you need your learner code.
+                            </p>
 
-                    <!-- Helper text -->
-                    <p v-if="!form.errors.learner_code" class="mt-3 text-center text-[12px] font-semibold text-slate-300">
-                        Ask your teacher if you need your learner code.
-                    </p>
-
-                    <!-- Submit button -->
-                    <button
-                        type="submit"
-                        :disabled="form.processing"
-                        class="submit-btn group relative mt-5 flex w-full items-center justify-center gap-3 overflow-hidden rounded-[20px] bg-gradient-to-r from-primary to-blue-600 px-8 py-5 text-[18px] font-black text-white shadow-xl shadow-primary/20 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:shadow-2xl hover:shadow-primary/30 focus:outline-none focus:ring-4 focus:ring-primary/20 active:scale-[0.98] active:shadow-lg disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:scale-100 disabled:hover:shadow-xl sm:text-[20px]"
-                    >
-                        <!-- Shimmer overlay -->
-                        <span class="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-
-                        <template v-if="form.processing">
-                            <Loader2 class="size-6 animate-spin" />
-                            <span>Checking...</span>
-                        </template>
-                        <template v-else>
-                            <span>Continue</span>
-                            <ArrowRight class="size-5 transition-transform duration-200 group-hover:translate-x-1" />
-                        </template>
-                    </button>
-                </form>
-
-                <!-- Bottom stars -->
-                <div class="bottom-stars mt-6 flex items-center justify-center gap-1.5">
-                    <Star v-for="i in 5" :key="i" class="size-4 fill-yellow-400/50 text-yellow-400/50" />
+                            <!-- Submit -->
+                            <button
+                                type="submit"
+                                :disabled="form.processing"
+                                class="acc-submit rd-submit-button"
+                            >
+                                <template v-if="form.processing">
+                                    <Loader2 class="size-5 animate-spin" />
+                                    <span>Checking…</span>
+                                </template>
+                                <template v-else>
+                                    <span>Continue</span>
+                                    <ArrowRight class="size-5" />
+                                </template>
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </div>
         </main>
@@ -154,100 +116,284 @@ const submit = () => form.post('/learner/access');
 </template>
 
 <style scoped>
-/* ── Welcome card entrance ── */
-.welcome-card {
-    animation: cardSpring 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-}
-@keyframes cardSpring {
-    from { opacity: 0; transform: scale(0.92) translateY(30px); }
-    to { opacity: 1; transform: scale(1) translateY(0); }
+/* ─── Header entrance ────────────────────────────────── */
+.acc-header {
+    animation: accSlide 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* ── Welcome icon bounce ── */
-.welcome-icon {
-    animation: iconBounce 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-    animation-delay: 0.2s;
-    opacity: 0;
-}
-@keyframes iconBounce {
-    from { opacity: 0; transform: scale(0.5) translateY(10px); }
-    to { opacity: 1; transform: scale(1) translateY(0); }
+@keyframes accSlide {
+    from { opacity: 0; transform: translateY(-10px); }
+    to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ── Welcome text stagger ── */
-.welcome-label {
-    animation: textFade 0.5s ease-out forwards;
-    animation-delay: 0.3s;
-    opacity: 0;
-}
-.welcome-title {
-    animation: textFade 0.5s ease-out forwards;
-    animation-delay: 0.4s;
-    opacity: 0;
-}
-.welcome-subtitle {
-    animation: textFade 0.5s ease-out forwards;
-    animation-delay: 0.5s;
-    opacity: 0;
-}
-@keyframes textFade {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+/* ─── Book card entrance ─────────────────────────────── */
+.acc-book {
+    animation: accRise 0.65s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+    animation-delay: 60ms;
 }
 
-/* ── Form card entrance ── */
-.form-card {
-    animation: formSlide 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    animation-delay: 0.3s;
-    opacity: 0;
-}
-@keyframes formSlide {
-    from { opacity: 0; transform: translateY(24px); }
-    to { opacity: 1; transform: translateY(0); }
+@keyframes accRise {
+    from { opacity: 0; transform: translateY(22px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* ── Header entrance ── */
-.anim-fade-down {
-    animation: fadeDown 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-@keyframes fadeDown {
-    from { opacity: 0; transform: translateY(-12px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-/* ── Bottom stars entrance ── */
-.bottom-stars {
-    animation: starsIn 0.6s ease-out forwards;
-    animation-delay: 0.6s;
-    opacity: 0;
-}
-@keyframes starsIn {
-    from { opacity: 0; transform: scale(0.8); }
-    to { opacity: 1; transform: scale(1); }
+/* ─── Split interior ─────────────────────────────────── */
+.acc-book-face {
+    display: grid;
+    grid-template-columns: 1fr;
+    overflow: hidden;
+    border: 1.5px solid var(--rd-face-border);
+    border-radius: var(--rd-radius-face); /* 18px */
 }
 
-/* ── Floating star animations ── */
-.floating-star {
-    animation: floatStar 6s ease-in-out infinite;
-}
-.floating-star-delayed {
-    animation: floatStar 7s ease-in-out infinite;
-    animation-delay: 2s;
-}
-@keyframes floatStar {
-    0%, 100% { transform: translateY(0) rotate(0deg); opacity: 0.4; }
-    50% { transform: translateY(-12px) rotate(15deg); opacity: 0.7; }
+@media (min-width: 580px) {
+    .acc-book-face {
+        grid-template-columns: 1fr 1.15fr;
+        min-height: 400px;
+    }
 }
 
-/* ── Error slide transition ── */
-.error-slide-enter-active {
-    animation: errorIn 0.3s ease-out forwards;
+/* ─── LEFT cover panel ───────────────────────────────── */
+.acc-cover {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.9rem;
+    padding: 2.25rem 1.875rem 2.75rem;
+    background: linear-gradient(155deg, #365365 0%, #2A4557 100%);
+    overflow: hidden;
 }
-.error-slide-leave-active {
-    animation: errorIn 0.2s ease-in reverse forwards;
+
+/* Diagonal highlight shimmer */
+.acc-cover-glare {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(123, 161, 181, 0.18) 0%, transparent 55%);
+    pointer-events: none;
 }
-@keyframes errorIn {
-    from { opacity: 0; transform: translateY(-8px) scale(0.97); }
-    to { opacity: 1; transform: translateY(0) scale(1); }
+
+/* Gold ornament — top right */
+.acc-ornament {
+    position: absolute;
+    top: 1.25rem;
+    right: 1.375rem;
+    font-size: 1.25rem;
+    font-weight: 900;
+    color: rgba(238, 193, 112, 0.5);
+    line-height: 1;
+    pointer-events: none;
+}
+
+.acc-cover-brand {
+    font-size: 0.65rem;
+    font-weight: 900;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: rgba(238, 193, 112, 0.7);
+    animation: accFadeUp 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: 150ms;
+}
+
+.acc-cover-title {
+    font-size: clamp(1.85rem, 4vw, 2.8rem);
+    font-weight: 900;
+    line-height: 1.07;
+    letter-spacing: -0.02em;
+    color: #FFFDF8;
+    animation: accFadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: 210ms;
+}
+
+.acc-cover-sub {
+    font-size: 0.85rem;
+    font-weight: 700;
+    line-height: 1.55;
+    color: rgba(255, 253, 248, 0.62);
+    animation: accFadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: 280ms;
+}
+
+/* Book icon badge — bottom right of cover */
+.acc-cover-icon {
+    position: absolute;
+    bottom: 1.375rem;
+    right: 1.375rem;
+    display: grid;
+    place-items: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 0.75rem;
+    background: rgba(238, 193, 112, 0.12);
+    border: 1.5px solid rgba(238, 193, 112, 0.22);
+    color: rgba(238, 193, 112, 0.65);
+}
+
+/* ─── RIGHT form panel ───────────────────────────────── */
+.acc-form-side {
+    display: flex;
+    align-items: center;
+    padding: 2rem 1.875rem;
+    background: var(--rd-face-surface); /* warm #FFFDF8 */
+}
+
+.acc-form {
+    display: grid;
+    gap: 0.875rem;
+    width: 100%;
+}
+
+.acc-form-label {
+    font-size: 0.7rem;
+    font-weight: 900;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--rd-text-muted);
+    animation: accFadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: 200ms;
+}
+
+.acc-input {
+    width: 100%;
+    padding: 0.875rem 1.25rem;
+    border-radius: 14px;
+    border: 2px solid var(--rd-frame-border);
+    background: #fff;
+    font-size: clamp(1.4rem, 3vw, 1.75rem);
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--rd-text-main);
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+    animation: accFadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: 270ms;
+}
+
+.acc-input::placeholder {
+    color: rgba(95, 111, 120, 0.28);
+    font-weight: 700;
+}
+
+.acc-input:focus {
+    outline: none;
+    border-color: var(--rd-primary-orange);
+    box-shadow: 0 0 0 4px rgba(245, 133, 73, 0.1);
+}
+
+.acc-input--error {
+    border-color: #f87171;
+    color: #b91c1c;
+}
+
+.acc-input--error:focus {
+    border-color: #f87171;
+    box-shadow: 0 0 0 4px rgba(248, 113, 113, 0.1);
+}
+
+/* ─── Error box ──────────────────────────────────────── */
+.acc-error {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.75rem 0.875rem;
+    border-radius: 12px;
+    background: #fff1f2;
+    border: 1px solid rgba(248, 113, 113, 0.3);
+}
+
+.acc-error-dot {
+    display: grid;
+    place-items: center;
+    width: 1.2rem;
+    height: 1.2rem;
+    border-radius: 50%;
+    background: #fee2e2;
+    font-size: 0.6rem;
+    font-weight: 900;
+    color: #ef4444;
+    flex-shrink: 0;
+    margin-top: 0.1rem;
+}
+
+.acc-error-msg {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    line-height: 1.4;
+    color: #dc2626;
+    margin: 0;
+}
+
+/* ─── Helper text ────────────────────────────────────── */
+.acc-helper {
+    font-size: 0.73rem;
+    font-weight: 600;
+    color: var(--rd-text-muted);
+    text-align: center;
+    opacity: 0.65;
+    animation: accFadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: 340ms;
+}
+
+/* ─── Submit button ──────────────────────────────────── */
+/* rd-submit-button provides: gradient, border, shadow, uppercase, font-weight */
+.acc-submit {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.625rem;
+    width: 100%;
+    padding: 0.9rem 1.5rem;
+    font-size: 1rem;
+    animation: accFadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: 340ms;
+}
+
+/* ─── Shared fade-up keyframe ────────────────────────── */
+@keyframes accFadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Error transition ───────────────────────────────── */
+.acc-err-enter-active {
+    animation: accErrIn 0.28s ease-out both;
+}
+.acc-err-leave-active {
+    animation: accErrIn 0.2s ease-in reverse both;
+}
+@keyframes accErrIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Mobile: compact cover ──────────────────────────── */
+@media (max-width: 579px) {
+    .acc-cover {
+        padding: 1.625rem 1.5rem 1.875rem;
+        gap: 0.65rem;
+    }
+
+    .acc-cover-icon {
+        display: none;
+    }
+
+    .acc-form-side {
+        padding: 1.625rem 1.5rem;
+    }
+}
+
+/* ─── Reduced motion ─────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+    .acc-header,
+    .acc-book,
+    .acc-cover-brand,
+    .acc-cover-title,
+    .acc-cover-sub,
+    .acc-form-label,
+    .acc-input,
+    .acc-helper,
+    .acc-submit {
+        animation: none;
+    }
 }
 </style>

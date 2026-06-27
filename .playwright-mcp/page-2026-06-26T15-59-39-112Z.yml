@@ -1,0 +1,42 @@
+- generic [ref=e3]:
+  - generic:
+    - img
+    - img
+    - img
+    - img
+    - img
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - link "ReaDirect" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - img [ref=e8]
+        - text: ReaDirect
+      - generic [ref=e13]:
+        - img [ref=e15]
+        - text: Synced
+  - main [ref=e17]:
+    - generic [ref=e18]:
+      - generic [ref=e19]:
+        - generic [ref=e20]:
+          - img [ref=e21]
+          - img [ref=e24]
+        - paragraph [ref=e27]: Welcome reader
+        - heading "Ready to read?" [level=1] [ref=e28]
+        - paragraph [ref=e29]: Enter your learner code to begin your reading journey.
+      - generic [ref=e30]:
+        - generic [ref=e31]:
+          - generic [ref=e32]: ID
+          - text: Learner code
+        - textbox "ID Learner code" [ref=e33]:
+          - /placeholder: RD-0000
+          - text: RD-1001
+        - paragraph [ref=e34]: Ask your teacher if you need your learner code.
+        - button "Continue" [ref=e35]:
+          - generic [ref=e36]: Continue
+          - img [ref=e37]
+      - generic [ref=e39]:
+        - img [ref=e40]
+        - img [ref=e42]
+        - img [ref=e44]
+        - img [ref=e46]
+        - img [ref=e48]
