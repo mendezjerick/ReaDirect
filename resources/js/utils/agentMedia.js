@@ -177,18 +177,134 @@ export const getAgentActionMedia = (
 
 export const getAgentImage = (agent) => getAgentFallbackMedia(agent).url;
 
-export const getAllAgentMediaUrls = () => {
+const appendMediaUrl = (urls, media) => {
+    if (!media?.path) return;
+
+    urls.add(buildAgentMediaUrl(media.path));
+};
+
+const orderedUnique = (urls) => [...new Set(urls.filter(Boolean))];
+
+export const getAgentCoreMediaUrls = (agent) => {
+    const registry = agentMedia[getAgentName(agent)];
     const urls = new Set();
 
-    Object.values(agentMedia).forEach((registry) => {
-        [registry.idle, registry.fallback]
-            .filter(Boolean)
-            .forEach((media) => urls.add(buildAgentMediaUrl(media.path)));
+    appendMediaUrl(urls, registry.fallback);
+    appendMediaUrl(urls, registry.idle);
 
-        Object.values(registry.actions).forEach((variants) => {
-            variants.forEach((media) => urls.add(buildAgentMediaUrl(media.path)));
-        });
+    return [...urls];
+};
+
+export const getAgentActionMediaUrls = (agent, actions = null) => {
+    const agentName = getAgentName(agent);
+    const registry = agentMedia[agentName];
+    const actionNames = actions?.length
+        ? orderedUnique(actions.map((action) => getAgentActionName(agentName, action, true)))
+        : Object.keys(registry.actions);
+    const urls = new Set();
+
+    actionNames.forEach((actionName) => {
+        registry.actions[actionName]?.forEach((media) => appendMediaUrl(urls, media));
     });
 
     return [...urls];
 };
+
+export const getAgentMediaUrls = (
+    agent,
+    { actions = null, includeCore = true } = {},
+) => orderedUnique([
+    ...(includeCore ? getAgentCoreMediaUrls(agent) : []),
+    ...getAgentActionMediaUrls(agent, actions),
+]);
+
+const stagedAgentMedia = Object.freeze({
+    welcome: Object.freeze([
+        Object.freeze({ agent: 'Vivian', coreOnly: true }),
+        Object.freeze({ agent: 'Ciel', coreOnly: true }),
+        Object.freeze({ agent: 'Estelle', coreOnly: true }),
+    ]),
+    assessment: Object.freeze([
+        Object.freeze({ agent: 'Vivian', actions: Object.freeze(['talk', 'thinking', 'congrats']) }),
+        Object.freeze({ agent: 'Ciel', coreOnly: true }),
+        Object.freeze({ agent: 'Estelle', coreOnly: true }),
+    ]),
+    module: Object.freeze([
+        Object.freeze({
+            agent: 'Ciel',
+            actions: Object.freeze([
+                'talk',
+                'thinking',
+                'thinking_1',
+                'thinking_2',
+                'thinking_3',
+                'happy',
+                'confused',
+                'advise',
+                'clap',
+                'congrats',
+            ]),
+        }),
+        Object.freeze({ agent: 'Vivian', coreOnly: true }),
+        Object.freeze({ agent: 'Estelle', coreOnly: true }),
+    ]),
+    evaluation: Object.freeze([
+        Object.freeze({ agent: 'Estelle', actions: Object.freeze(['talk', 'results', 'congrats']) }),
+        Object.freeze({ agent: 'Ciel', coreOnly: true }),
+        Object.freeze({ agent: 'Vivian', coreOnly: true }),
+    ]),
+});
+
+export const getAgentMediaUrlsForStage = (stage = 'welcome') => {
+    if (stage === 'all') {
+        return getAllAgentMediaUrls();
+    }
+
+    const plan = stagedAgentMedia[stage] ?? stagedAgentMedia.welcome;
+
+    return orderedUnique(plan.flatMap((entry) => entry.coreOnly
+        ? getAgentCoreMediaUrls(entry.agent)
+        : getAgentMediaUrls(entry.agent, { actions: entry.actions })));
+};
+
+export const getAgentMediaStageForRoute = (href = '') => {
+    const path = String(href ?? '').toLowerCase();
+
+    if (
+        path.includes('/summary')
+        || path.includes('/result')
+        || path.includes('/progress')
+        || path.includes('/completion')
+        || path.includes('/crla')
+        || path.includes('/module-placement')
+    ) {
+        return 'evaluation';
+    }
+
+    if (
+        path.includes('/final-assessment')
+        || path.includes('/diagnostic')
+        || path.includes('/learner/access')
+        || path.includes('/story-selection')
+        || path.includes('/task')
+    ) {
+        return 'assessment';
+    }
+
+    if (
+        path.includes('/modules')
+        || path.includes('/module')
+        || path.includes('/reading')
+    ) {
+        return 'module';
+    }
+
+    return 'welcome';
+};
+
+export const getAgentMediaUrlsForRoute = (href = '') =>
+    getAgentMediaUrlsForStage(getAgentMediaStageForRoute(href));
+
+export const getAllAgentMediaUrls = () => orderedUnique(
+    Object.keys(agentMedia).flatMap((agent) => getAgentMediaUrls(agent)),
+);

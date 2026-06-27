@@ -1,11 +1,14 @@
 <script setup>
 import { Link, router, usePage } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { BookOpen, Mic, Trophy } from 'lucide-vue-next';
 import AppLayout from '../Layouts/AppLayout.vue';
 import RewardBadge from '../Components/RewardBadge.vue';
 import ReaDirectBookLoader from '../Components/Loading/ReaDirectBookLoader.vue';
-import { preloadAgentMedia } from '../utils/agentMediaPreloader';
+import {
+    preloadAgentMediaForRoute,
+    scheduleAgentMediaPreload,
+} from '../utils/agentMediaPreloader';
 
 const page = usePage();
 const roles = computed(() => page.props.auth?.roles ?? []);
@@ -24,15 +27,35 @@ const dashboardLink = computed(() => {
 const preparingAgents = ref(false);
 
 const wait = (milliseconds) => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+const enterPreloadTimeoutMs = 2500;
+
+onMounted(() => {
+    scheduleAgentMediaPreload('welcome', {
+        batchSize: 2,
+        timeoutMs: 6000,
+    });
+});
+
 const enterApp = async (event, href) => {
     event?.preventDefault();
     if (preparingAgents.value) return;
 
     preparingAgents.value = true;
-    await Promise.allSettled([
-        preloadAgentMedia(),
-        wait(10000),
+    await Promise.race([
+        preloadAgentMediaForRoute(href, {
+            batchSize: 2,
+            timeoutMs: 7000,
+        }),
+        wait(enterPreloadTimeoutMs),
     ]);
+
+    scheduleAgentMediaPreload('all', {
+        batchSize: 2,
+        delayMs: 1200,
+        idleTimeoutMs: 3000,
+        timeoutMs: 10000,
+    });
+
     router.visit(href);
 };
 </script>

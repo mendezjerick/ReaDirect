@@ -7,6 +7,10 @@ import {
     getAgentIdleMedia,
 } from '../../utils/agentMedia';
 import { resolveAgentInteraction } from '../../utils/agentInteraction';
+import {
+    preloadAgentCoreMedia,
+    preloadAgentMediaUrls,
+} from '../../utils/agentMediaPreloader';
 
 const props = defineProps({
     agent: { type: String, default: 'Ciel' },
@@ -50,6 +54,22 @@ const clearReadyTimer = () => {
     }
 };
 
+const warmIdleMedia = (agent) => {
+    preloadAgentCoreMedia(agent, {
+        batchSize: 2,
+        timeoutMs: 5000,
+    }).catch(() => {});
+};
+
+const warmInteractionMedia = (media) => {
+    if (!media?.url) return;
+
+    preloadAgentMediaUrls([media.url], {
+        batchSize: 1,
+        timeoutMs: 5000,
+    }).catch(() => {});
+};
+
 const resetInteraction = () => {
     clearReadyTimer();
     interactionMedia.value = null;
@@ -63,6 +83,7 @@ const showIdle = (agent = activeAgent.value) => {
     activeAgent.value = agent;
     idleMedia.value = getAgentIdleMedia(agent);
     idleFallback.value = false;
+    warmIdleMedia(agent);
     resetInteraction();
 };
 
@@ -103,6 +124,7 @@ const requestAction = (agent, action, options = {}) => {
         return true;
     }
 
+    warmInteractionMedia(media);
     activeAgent.value = cue.agent;
     activeAction.value = cue.action;
     interactionMedia.value = media;
@@ -171,7 +193,10 @@ watch(
     },
 );
 
-onMounted(() => requestAction(props.agent, props.action));
+onMounted(() => {
+    warmIdleMedia(activeAgent.value);
+    requestAction(props.agent, props.action);
+});
 onBeforeUnmount(clearReadyTimer);
 
 defineExpose({
