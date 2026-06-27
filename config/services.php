@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'ia_graphics' => [
+        'path' => env('IA_GRAPHICS_PATH', base_path('../ReaDirect-IA/assets/graphics')),
+    ],
+
 ];

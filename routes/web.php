@@ -217,10 +217,34 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function (): v
 });
 
 Route::get('/ia-graphics/{filename}', function ($filename) {
-    $path = 'C:\\Users\\balli\\Desktop\\Holder-ReaDirect\\ReaDirect-IA\\assets\\graphics\\'.$filename;
-    if (! file_exists($path)) {
-        abort(404);
+    $roots = array_filter(array_unique([
+        config('services.ia_graphics.path'),
+        base_path('../ReaDirect-IA/assets/graphics'),
+        storage_path('app/public/ia-graphics'),
+        public_path('ia-graphics'),
+    ]));
+
+    foreach ($roots as $rootCandidate) {
+        $root = realpath($rootCandidate);
+
+        if ($root === false || ! is_dir($root)) {
+            continue;
+        }
+
+        $path = realpath($root.DIRECTORY_SEPARATOR.$filename);
+
+        if ($path === false || ! is_file($path)) {
+            continue;
+        }
+
+        $rootWithSeparator = rtrim($root, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR;
+
+        if (! str_starts_with($path, $rootWithSeparator)) {
+            continue;
+        }
+
+        return response()->file($path);
     }
 
-    return response()->file($path);
+    abort(404);
 })->where('filename', '.*');

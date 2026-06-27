@@ -3,7 +3,7 @@ import { computed, ref, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { Link, useForm } from '@inertiajs/vue3';
 import {
     Home, BookOpen, Trophy, HelpCircle, ClipboardList, ChevronDown,
-    Menu, Settings, X, GraduationCap, Star, Mic, Flame, Gift, Target, Check, Lock,
+    Menu, Settings, X, GraduationCap, Star, Flame, Gift, Target, Check, Lock,
 } from 'lucide-vue-next';
 
 const props = defineProps({
