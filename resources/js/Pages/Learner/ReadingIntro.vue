@@ -1,6 +1,6 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
-import { ArrowRight, Sparkles } from 'lucide-vue-next';
+import { ArrowRight, BookOpen, Mic, HelpCircle } from 'lucide-vue-next';
 import LearnerLayout from '../../Layouts/LearnerLayout.vue';
 import AgentSpeakerPanel from '../../Components/Learner/AgentSpeakerPanel.vue';
 import PrimaryButton from '../../Components/PrimaryButton.vue';
@@ -9,63 +9,89 @@ import BottomActionBar from '../../Components/BottomActionBar.vue';
 
 <template>
     <LearnerLayout :progress="70" diagnostic-step="sentence-reading">
-        <template #agent>
-            <AgentSpeakerPanel
-                agent-type="assessment"
-                state="speaking"
-                presentation="reading-intro"
-                message="Choose a story, read it aloud, then answer five questions."
-            />
-        </template>
+        <!-- No #agent slot — landscape layout, full control -->
 
-        <div class="anim-stagger relative mx-auto grid w-full max-w-[980px] gap-6 pb-2">
-            <!-- Sparkle decorations -->
-            <span class="pointer-events-none absolute -left-4 top-12 hidden text-2xl font-black text-primary/5 xl:block" aria-hidden="true">✦</span>
-            <span class="pointer-events-none absolute right-12 top-5 text-4xl font-black text-yellow-500" aria-hidden="true">✦</span>
-            <span class="pointer-events-none absolute right-0 top-28 hidden text-2xl font-black text-primary/5 sm:block" aria-hidden="true">✦</span>
-            <span class="pointer-events-none absolute -right-8 bottom-8 hidden text-3xl font-black text-primary/5 xl:block" aria-hidden="true">✦</span>
+        <div class="ri-landscape">
 
-            <!-- Hero card -->
-            <section class="anim-hero relative overflow-hidden rounded-[36px] border-[3px] border-primary/10 bg-white px-6 py-6 text-center shadow-2xl shadow-primary/10 sm:px-10 sm:py-12">
-                <!-- Decorative blur blobs -->
-                <span class="pointer-events-none absolute -left-10 -top-10 h-40 w-40 rounded-full bg-primary/5 blur-3xl" aria-hidden="true" />
-                <span class="pointer-events-none absolute -bottom-10 -right-10 h-40 w-40 rounded-full bg-blue-400/5 blur-3xl" aria-hidden="true" />
+            <!-- LEFT: Miss Vivian -->
+            <div class="ri-agent ri-anim" style="--ri-delay: 0ms">
+                <AgentSpeakerPanel
+                    agent-type="assessment"
+                    state="speaking"
+                    presentation="routing"
+                    message="Great work on the word check! Now pick a story, read it out loud, and then I'll ask you five questions about it."
+                    show-audio-button
+                />
+            </div>
 
-                <!-- Bottom-left decorative shape -->
-                <span class="absolute bottom-0 left-0 h-16 w-28 rounded-tr-full bg-primary/5" aria-hidden="true" />
-                <!-- Inner sparkles -->
-                <span class="pointer-events-none absolute bottom-8 right-20 text-xl font-black text-yellow-500" aria-hidden="true">✦</span>
-                <span class="pointer-events-none absolute bottom-6 right-10 text-2xl font-black text-primary/5" aria-hidden="true">✦</span>
+            <!-- RIGHT: Assignment -->
+            <div class="ri-content">
 
-                <div class="relative z-10 grid justify-items-center gap-5">
-                    <p class="inline-flex items-center gap-3 text-xl font-black text-primary">
-                        <Sparkles class="size-5 fill-primary/40 text-primary/70" />
-                        Reading passage
-                        <Sparkles class="size-5 fill-primary/40 text-primary/70" />
-                    </p>
-                    <h1 class="anim-text-pop text-5xl font-black leading-tight sm:text-6xl">
-                        <span class="bg-gradient-to-br from-slate-900 to-slate-700 bg-clip-text text-transparent">Read aloud.</span>
+                <!-- Headline -->
+                <header class="ri-headline ri-anim" style="--ri-delay: 60ms">
+                    <p class="ri-eyebrow">Reading Passage</p>
+                    <h1 class="ri-title">
+                        Your reading<br><span class="ri-title-accent">turn.</span>
                     </h1>
-                </div>
-            </section>
+                </header>
 
-            <!-- Agent message card -->
-            <section class="relative overflow-hidden rounded-[28px] border border-slate-200/80 bg-white px-7 py-6 shadow-xl shadow-slate-200/30">
-                <span class="pointer-events-none absolute right-9 top-6 text-4xl font-black text-primary/5" aria-hidden="true">✦</span>
-                <div class="relative z-10">
-                    <p class="text-[14px] font-black uppercase tracking-widest text-primary">Miss Vivian</p>
-                    <p class="mt-4 text-xl font-black leading-relaxed text-slate-800">
-                        Choose a story. Read the passage clearly, then answer five short questions.
-                    </p>
+                <!-- Reading assignment ticket — THE SIGNATURE ELEMENT -->
+                <div class="ri-ticket rd-card">
+                    <div class="ri-ticket-face rd-card__face">
+
+                        <!-- Teal header band -->
+                        <div class="ri-ticket-header">
+                            <p class="ri-ticket-label">Reading assignment</p>
+                            <span class="ri-ticket-ornament" aria-hidden="true">✦</span>
+                        </div>
+
+                        <!-- 3 steps -->
+                        <div class="ri-steps">
+
+                            <div class="ri-step">
+                                <span class="ri-step-icon ri-step-icon--orange">
+                                    <BookOpen class="size-[1.05rem]" />
+                                </span>
+                                <div class="ri-step-body">
+                                    <p class="ri-step-title">Pick a story</p>
+                                    <p class="ri-step-desc">Choose the one you want to read.</p>
+                                </div>
+                            </div>
+
+                            <div class="ri-step-rule" aria-hidden="true" />
+
+                            <div class="ri-step">
+                                <span class="ri-step-icon ri-step-icon--teal">
+                                    <Mic class="size-[1.05rem]" />
+                                </span>
+                                <div class="ri-step-body">
+                                    <p class="ri-step-title">Read it aloud</p>
+                                    <p class="ri-step-desc">Speak clearly into the microphone.</p>
+                                </div>
+                            </div>
+
+                            <div class="ri-step-rule" aria-hidden="true" />
+
+                            <div class="ri-step">
+                                <span class="ri-step-icon ri-step-icon--violet">
+                                    <HelpCircle class="size-[1.05rem]" />
+                                </span>
+                                <div class="ri-step-body">
+                                    <p class="ri-step-title">Answer 5 questions</p>
+                                    <p class="ri-step-desc">Tell me what you understood.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </section>
+            </div>
         </div>
 
         <BottomActionBar>
-            <Link href="/learner/diagnostic/story-selection" class="w-full sm:w-auto">
-                <PrimaryButton class="w-full gap-3 rounded-[22px] px-5 text-base shadow-xl shadow-primary/25 sm:w-auto sm:min-w-[320px] sm:gap-4 sm:px-9 sm:text-lg">
-                    Choose story
-                    <ArrowRight class="size-5 stroke-[3] sm:size-6" />
+            <Link href="/learner/diagnostic/story-selection">
+                <PrimaryButton class="gap-3 px-8 py-4 text-base">
+                    Choose a story
+                    <ArrowRight class="size-5" />
                 </PrimaryButton>
             </Link>
         </BottomActionBar>
@@ -73,36 +99,176 @@ import BottomActionBar from '../../Components/BottomActionBar.vue';
 </template>
 
 <style scoped>
-/* Staggered children */
-.anim-stagger > * {
-    animation: staggerIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+/* ─── Landscape grid ─────────────────────────────────── */
+.ri-landscape {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.75rem;
+    max-width: 68rem;
+    margin-inline: auto;
+    padding-bottom: 2rem;
 }
-.anim-stagger > *:nth-child(1) { animation-delay: 0ms; }
-.anim-stagger > *:nth-child(2) { animation-delay: 150ms; }
-.anim-stagger > *:nth-child(3) { animation-delay: 300ms; }
-.anim-stagger > *:nth-child(4) { animation-delay: 450ms; }
-@keyframes staggerIn {
-    from { opacity: 0; transform: translateY(20px); }
+
+@media (min-width: 768px) {
+    .ri-landscape {
+        grid-template-columns: 1fr 1.1fr;
+        gap: 2.5rem;
+        align-items: center;
+    }
+}
+
+/* ─── Content column ─────────────────────────────────── */
+.ri-content {
+    display: grid;
+    gap: 1.1rem;
+}
+
+/* ─── Headline ───────────────────────────────────────── */
+.ri-eyebrow {
+    font-size: 0.67rem;
+    font-weight: 900;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--rd-primary-orange);
+    opacity: 0.65;
+    margin-bottom: 0.35rem;
+}
+
+.ri-title {
+    font-size: clamp(1.85rem, 3.8vw, 2.7rem);
+    font-weight: 900;
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+    color: var(--rd-text-main);
+}
+
+.ri-title-accent {
+    color: var(--rd-primary-orange);
+}
+
+/* ─── Assignment ticket ───────────────────────────────── */
+/* rd-card provides: warm amber frame, stacked shadow, 28px radius */
+.ri-ticket {
+    animation: riTicket 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+    animation-delay: 140ms;
+}
+
+@keyframes riTicket {
+    from { opacity: 0; transform: translateY(12px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* rd-card__face: parchment interior */
+.ri-ticket-face {
+    overflow: hidden;
+    padding: 0;
+}
+
+/* Deep teal header band — the signature element */
+.ri-ticket-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.8rem 1.25rem;
+    background: linear-gradient(135deg, #365365 0%, #2A4557 100%);
+}
+
+.ri-ticket-label {
+    font-size: 0.63rem;
+    font-weight: 900;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: rgba(238, 193, 112, 0.85);
+}
+
+.ri-ticket-ornament {
+    font-size: 0.75rem;
+    color: rgba(238, 193, 112, 0.4);
+    line-height: 1;
+}
+
+/* ─── Steps ──────────────────────────────────────────── */
+.ri-steps {
+    padding: 1.1rem 1.25rem 1.4rem;
+    display: grid;
+    gap: 0;
+}
+
+.ri-step {
+    display: flex;
+    align-items: center;
+    gap: 0.95rem;
+    padding: 0.75rem 0;
+}
+
+.ri-step-rule {
+    height: 1px;
+    background: var(--rd-face-border);
+}
+
+.ri-step-icon {
+    display: grid;
+    place-items: center;
+    width: 2.1rem;
+    height: 2.1rem;
+    border-radius: 0.55rem;
+    flex-shrink: 0;
+    border: 1.5px solid transparent;
+}
+
+.ri-step-icon--orange {
+    background: linear-gradient(135deg, rgba(245, 133, 73, 0.14), rgba(238, 193, 112, 0.1));
+    border-color: rgba(238, 193, 112, 0.38);
+    color: var(--rd-primary-orange);
+}
+
+.ri-step-icon--teal {
+    background: linear-gradient(135deg, rgba(54, 83, 101, 0.12), rgba(42, 69, 87, 0.08));
+    border-color: rgba(54, 83, 101, 0.22);
+    color: #365365;
+}
+
+.ri-step-icon--violet {
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.14), rgba(139, 92, 246, 0.08));
+    border-color: rgba(167, 139, 250, 0.25);
+    color: #7c3aed;
+}
+
+.ri-step-body {
+    min-width: 0;
+}
+
+.ri-step-title {
+    font-size: 0.92rem;
+    font-weight: 900;
+    color: var(--rd-text-main);
+    line-height: 1.2;
+}
+
+.ri-step-desc {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--rd-text-muted);
+    margin-top: 0.1rem;
+    line-height: 1.3;
+}
+
+/* ─── Shared entrance ────────────────────────────────── */
+.ri-anim {
+    animation: riIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: var(--ri-delay, 0ms);
+}
+
+@keyframes riIn {
+    from { opacity: 0; transform: translateY(14px); }
     to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Hero card spring */
-.anim-hero {
-    animation: heroSpring 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-}
-@keyframes heroSpring {
-    from { opacity: 0; transform: scale(0.92) translateY(20px); }
-    to   { opacity: 1; transform: scale(1) translateY(0); }
-}
-
-/* Title text pop */
-.anim-text-pop {
-    animation: textPop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-    animation-delay: 0.2s;
-    opacity: 0;
-}
-@keyframes textPop {
-    from { opacity: 0; transform: scale(0.7); }
-    to   { opacity: 1; transform: scale(1); }
+/* ─── Reduced motion ─────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+    .ri-anim,
+    .ri-ticket {
+        animation: none;
+    }
 }
 </style>

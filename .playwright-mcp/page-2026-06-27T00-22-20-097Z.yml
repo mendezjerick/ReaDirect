@@ -1,0 +1,59 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e6]:
+      - link "Re ReaDirect" [ref=e7] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e8]: Re
+        - generic [ref=e9]: ReaDirect
+      - generic [ref=e10]:
+        - button "Re" [ref=e12]
+        - link "Home" [ref=e13] [cursor=pointer]:
+          - /url: /learner/dashboard
+          - img [ref=e14]
+  - main [ref=e17]:
+    - generic [ref=e18]:
+      - generic [ref=e19]:
+        - generic [ref=e20]: Read the word in the sentence. Speak clearly when you record.
+        - generic "Miss Vivian" [ref=e25]
+        - generic [ref=e27]:
+          - generic [ref=e28]:
+            - paragraph [ref=e29]: Miss Vivian
+            - paragraph [ref=e30]: Read the word in the sentence. Speak clearly when you record.
+            - paragraph [ref=e31]: Voice is unavailable, but you can read the message here.
+          - generic [ref=e32]:
+            - button "Mute agent voice" [ref=e33]:
+              - img [ref=e34]
+            - button "Replay agent message" [ref=e38]:
+              - img [ref=e39]
+      - generic [ref=e42]:
+        - generic [ref=e44]:
+          - button "Toggle prompt image" [ref=e45]:
+            - img [ref=e46]
+          - generic [ref=e48]:
+            - paragraph [ref=e49]: Read the highlighted word
+            - paragraph [ref=e50]:
+              - text: My
+              - mark [ref=e51]: hat
+              - text: is red.
+        - generic [ref=e55]:
+          - button "Hold to record" [ref=e57]:
+            - img [ref=e58]
+          - paragraph [ref=e61]: Hold to record
+      - region "Assessment progress" [ref=e62]:
+        - generic [ref=e64]:
+          - generic:
+            - img
+          - generic:
+            - img
+        - button "Submit" [disabled] [ref=e66]:
+          - generic [ref=e67]: Submit
+      - generic [ref=e68]:
+        - status [ref=e72]:
+          - img [ref=e74]
+          - generic [ref=e76]:
+            - generic [ref=e77]: Transcript will appear here
+            - generic [ref=e78]: Your spoken answer will be transcribed here.
+        - generic [ref=e82]:
+          - generic [ref=e83]: "Developer QA: Manual Transcript Override"
+          - 'textbox "Developer QA: Manual Transcript Override" [ref=e84]':
+            - /placeholder: Optional QA fallback text

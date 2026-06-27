@@ -14,6 +14,7 @@ const props = defineProps({
     backUrl: { type: String, default: '' },
     backLabel: { type: String, default: 'Back' },
     assessmentTask: { type: Boolean, default: false },
+    hasBottomBar: { type: Boolean, default: true },
 });
 
 const visibleSteps = computed(() => props.steps.length ? props.steps : (props.diagnosticStep ? diagnosticStepsFor(props.diagnosticStep) : []));
@@ -52,7 +53,7 @@ const visibleSteps = computed(() => props.steps.length ? props.steps : (props.di
                 </div>
             </div>
         </header>
-        <header v-else class="anim-header sticky top-0 z-20 border-b border-orange-100/60 bg-white/90 backdrop-blur-lg">
+        <header v-else class="anim-header relative z-20 border-b border-orange-100/60 bg-white/90 backdrop-blur-lg">
             <div class="learner-frame flex items-center gap-3 py-3 md:gap-4">
                 <Link v-if="backUrl" :href="backUrl" class="group flex shrink-0 items-center justify-center rounded-full bg-slate-100 p-2.5 text-slate-500 transition-all hover:bg-slate-200 hover:text-slate-800" :title="backLabel">
                     <ArrowLeft class="size-5 transition-transform group-hover:-translate-x-0.5 md:size-6" />
@@ -112,9 +113,9 @@ const visibleSteps = computed(() => props.steps.length ? props.steps : (props.di
         <main v-if="assessmentTask" class="learner-frame min-h-0 flex-1 py-2">
             <slot />
         </main>
-        <main v-else class="learner-frame learner-stage">
+        <main v-else class="learner-frame learner-stage" :class="!hasBottomBar ? '!pb-2 lg:!pb-4' : ''">
             <div v-if="$slots.agent" class="learner-stage-grid">
-                <aside class="learner-stage-sidebar flex flex-col gap-4 pb-4 lg:sticky lg:top-20 lg:z-10 lg:max-h-[calc(100vh-140px)] lg:overflow-y-auto lg:px-2 lg:-mx-2 lg:pb-8">
+                <aside class="learner-stage-sidebar flex flex-col gap-4 pb-4 lg:sticky lg:top-20 lg:z-10 lg:px-2 lg:-mx-2 lg:pb-8">
                     <slot name="agent" />
                     <div id="teleport-audio-review" class="learner-stage-review empty:hidden"></div>
                 </aside>

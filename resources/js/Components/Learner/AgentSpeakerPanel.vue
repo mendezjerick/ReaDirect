@@ -452,7 +452,7 @@ watch(
     </section>
     <section
         v-else-if="presentation === 'comprehension'"
-        class="grid gap-0 rounded-[28px] bg-surface p-4 shadow-xl shadow-primary/10 sm:p-5"
+        class="grid gap-0 rounded-[24px] bg-surface p-3 shadow-xl shadow-primary/10 sm:p-4"
         :class="isSpeaking ? 'ring-2 ring-primary/20' : ''"
     >
         <AgentSpeakerTTS
@@ -470,34 +470,34 @@ watch(
             @error="handleTtsError"
         />
         <div class="grid justify-items-center">
-            <div class="agent-media-box">
+            <div class="relative flex aspect-square w-32 max-w-full items-end justify-center sm:w-36 xl:w-40">
                 <AgentVideoPlayer
                     :agent="agentType"
                     :action="mediaState"
                     :alt="displayTitle"
                     :allow-congrats="allowCongrats"
-                    class="agent-media-content"
+                    class="h-full w-full object-contain object-bottom"
                     @interaction-ended="emit('interaction-ended', $event)"
                 />
             </div>
         </div>
-        <div class="relative mt-4 rounded-[22px] border border-primary/20 bg-surface p-4 shadow-sm shadow-primary/10 sm:mt-5 sm:p-5 xl:rounded-[26px] xl:p-6">
-            <span class="absolute left-1/2 top-0 size-8 -translate-x-1/2 -translate-y-1/2 rotate-45 border-l border-t border-primary/20 bg-surface" aria-hidden="true" />
-            <div class="flex flex-wrap items-center justify-between gap-3">
-                <div class="flex items-center gap-3">
-                    <span class="grid size-11 place-items-center rounded-full bg-primary-light text-primary">
-                        <GraduationCap class="size-6" />
+        <div class="relative mt-2 rounded-[20px] border border-primary/20 bg-surface p-3 shadow-sm shadow-primary/10 sm:mt-3 sm:p-4 xl:rounded-[24px]">
+            <span class="absolute left-1/2 top-0 size-6 -translate-x-1/2 -translate-y-1/2 rotate-45 border-l border-t border-primary/20 bg-surface" aria-hidden="true" />
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                    <span class="grid size-9 place-items-center rounded-full bg-primary-light text-primary">
+                        <GraduationCap class="size-5" />
                     </span>
                     <div>
-                        <p class="text-lg font-black uppercase text-primary xl:text-xl">{{ displayTitle }}</p>
-                        <p v-if="displaySubtitle" class="text-sm font-black text-muted">{{ displaySubtitle }}</p>
+                        <p class="text-base font-black uppercase text-primary xl:text-lg">{{ displayTitle }}</p>
+                        <p v-if="displaySubtitle" class="text-xs font-black leading-none text-muted">{{ displaySubtitle }}</p>
                     </div>
                 </div>
                 <div class="flex items-center gap-0">
                     <button
                         v-if="ttsEnabled || showAudioButton"
                         type="button"
-                        class="inline-flex items-center gap-2 rounded-l-full rounded-r-none bg-primary-light px-3 py-2 text-sm font-black text-primary transition hover:bg-primary hover:text-white xl:px-4 xl:text-base"
+                        class="inline-flex items-center gap-1.5 rounded-l-full rounded-r-none bg-primary-light px-2.5 py-1.5 text-[11px] font-black uppercase tracking-wider text-primary transition hover:bg-primary hover:text-white xl:px-3 xl:text-xs"
                         :aria-label="isMuted ? 'Unmute agent voice' : 'Mute agent voice'"
                         @click="toggleMute"
                     >
@@ -506,16 +506,16 @@ watch(
                     <button
                         v-if="ttsEnabled || showAudioButton"
                         type="button"
-                        class="grid size-11 place-items-center rounded-r-full bg-primary-light text-primary transition hover:bg-primary hover:text-white"
+                        class="grid size-8 place-items-center rounded-r-full bg-primary-light text-primary transition hover:bg-primary hover:text-white xl:size-9"
                         aria-label="Replay agent message"
                         @click="replayMessage"
                     >
-                        <VolumeX v-if="isMuted" class="size-6" />
-                        <Volume2 v-else class="size-6" />
+                        <VolumeX v-if="isMuted" class="size-4" />
+                        <Volume2 v-else class="size-4" />
                     </button>
                 </div>
             </div>
-            <p class="mt-5 text-xl font-black leading-relaxed text-text xl:mt-7 xl:text-2xl">
+            <p class="mt-3 text-base font-black leading-snug text-text xl:mt-4 xl:text-lg">
                 {{ displayMessage }}
             </p>
             <p v-if="ttsError" class="mt-2 text-xs font-bold text-muted">
