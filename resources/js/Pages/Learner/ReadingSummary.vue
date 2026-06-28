@@ -9,7 +9,7 @@ import AgentSpeakerTTS from '../../Components/Agents/AgentSpeakerTTS.vue';
 const props = defineProps({ attempt: Object });
 
 const evaluatorMessage = computed(() => {
-    return 'I used the final reading score to find your reading level. Tap continue to see your path!';
+    return 'I used your final reading score to find your reading level. Tap continue when you are ready to see your path.';
 });
 
 const isSpeaking = ref(false);
@@ -39,7 +39,7 @@ const loadNaturalVoice = async () => {
                 'Accept': 'application/json',
                 'X-CSRF-TOKEN': csrfToken(),
             },
-            body: JSON.stringify({ agent: 'evaluator', text }),
+            body: JSON.stringify({ agent: 'evaluator', text, line_key: 'estelle.result.reading_summary' }),
         });
 
         if (requestId !== voiceRequestId.value) return;

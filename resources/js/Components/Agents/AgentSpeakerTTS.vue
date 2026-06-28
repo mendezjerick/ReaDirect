@@ -34,8 +34,19 @@ const stopSpeaking = () => {
     emit('speakingEnd');
 };
 
-const speakWithTextFallback = () => {
-    emit('error', 'Kokoro voice is unavailable right now.');
+const playbackErrorMessage = (error = null) => {
+    const name = String(error?.name ?? '').toLowerCase();
+    const message = String(error?.message ?? '').toLowerCase();
+
+    if (name.includes('notallowed') || message.includes('autoplay')) {
+        return 'autoplay blocked';
+    }
+
+    return 'Agent voice audio could not be played.';
+};
+
+const speakWithTextFallback = (reason = 'Agent voice audio is unavailable.') => {
+    emit('error', reason);
     emit('speakingEnd');
 };
 
@@ -52,14 +63,14 @@ const speakWithAudio = async () => {
     };
     audio.onerror = () => {
         activeAudio.value = null;
-        speakWithTextFallback();
+        speakWithTextFallback('Agent voice audio file could not be loaded.');
     };
 
     try {
         await audio.play();
-    } catch {
+    } catch (error) {
         activeAudio.value = null;
-        speakWithTextFallback();
+        speakWithTextFallback(playbackErrorMessage(error));
     }
 };
 

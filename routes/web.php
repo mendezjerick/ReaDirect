@@ -54,6 +54,10 @@ Route::post('/logout', [AuthController::class, 'destroy'])->middleware('auth')->
 Route::get('/agent-voice/{cacheKey}', [AgentVoiceController::class, 'show'])
     ->where('cacheKey', '[a-f0-9]{64}')
     ->name('agent-voice.show');
+Route::get('/agent-voice/generated/{line}/{stage?}', [AgentVoiceController::class, 'showGenerated'])
+    ->whereNumber('line')
+    ->whereIn('stage', ['reference_style', 'kokoro_identity'])
+    ->name('agent-voice.generated');
 Route::post('/agent-voice/synthesize', [AgentVoiceController::class, 'synthesize'])
     ->middleware('throttle:agent-voice')
     ->name('agent-voice.synthesize');
@@ -150,6 +154,7 @@ Route::middleware('auth')->prefix('teacher')->name('teacher.')->group(function (
 Route::middleware('auth')->prefix('admin')->name('admin.')->group(function (): void {
     Route::get('/dashboard', AdminDashboardController::class)->name('dashboard');
     Route::get('/ai-status', [AdminDashboardController::class, 'aiStatus'])->name('ai-status');
+    Route::post('/agent-media-mode', [AdminDashboardController::class, 'updateAgentMediaMode'])->name('agent-media-mode.update');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit')->defaults('layout', 'admin');
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');

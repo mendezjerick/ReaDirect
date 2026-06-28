@@ -88,7 +88,8 @@ class AgentSpeakerPanelStructureTest extends TestCase
 
         $this->assertStringContainsString('new Audio', $component);
         $this->assertStringContainsString('audioUrl', $component);
-        $this->assertStringContainsString('Kokoro voice is unavailable right now.', $component);
+        $this->assertStringContainsString('Agent voice audio file could not be loaded.', $component);
+        $this->assertStringContainsString('autoplay blocked', $component);
         $this->assertStringContainsString('speakingStart', $component);
         $this->assertStringContainsString('speakingEnd', $component);
         $this->assertStringNotContainsString('SpeechSynthesisUtterance', $component);

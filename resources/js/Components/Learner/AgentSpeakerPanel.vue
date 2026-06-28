@@ -17,6 +17,8 @@ const props = defineProps({
     volume: { type: Number, default: 1 },
     rate: { type: Number, default: 1 },
     pitch: { type: Number, default: 1 },
+    intent: { type: String, default: '' },
+    lineKey: { type: String, default: '' },
     presentation: { type: String, default: 'default' },
     allowCongrats: { type: Boolean, default: false },
 });
@@ -27,22 +29,22 @@ const agents = {
     assessment: {
         label: 'Miss Vivian',
         role: 'Assessment Guide',
-        intro: 'Hello! I am Miss Vivian. I will guide you through your reading assessment. Try your best and answer one step at a time.',
+        intro: "Hi, I'm Miss Vivian. I'll guide you through this activity, so listen carefully and take your time.",
     },
     coach_feedback: {
         label: 'Miss Ciel',
         role: 'Reading Coach',
-        intro: 'Hi! I am Miss Ciel. I will help you practice reading. Mistakes are okay. I am here to guide you.',
+        intro: "Hi, I'm Miss Ciel. I'll read with you today, and we'll take each word slowly together.",
     },
     evaluator: {
         label: 'Miss Estelle',
         role: 'Results Guide',
-        intro: 'Hello! I am Miss Estelle. I will help explain your results so you know what to do next.',
+        intro: "Hi, I'm Miss Estelle. I'll help you look at your results in a calm and simple way.",
     },
     evaluator_recommendation: {
         label: 'Miss Estelle',
         role: 'Results Guide',
-        intro: 'Hello! I am Miss Estelle. I will help explain your results so you know what to do next.',
+        intro: "Hi, I'm Miss Estelle. I'll help you look at your results in a calm and simple way.",
     },
 };
 
@@ -162,6 +164,8 @@ const loadNaturalVoice = async () => {
             body: JSON.stringify({
                 agent: props.agentType,
                 text,
+                intent: props.intent || undefined,
+                line_key: props.lineKey || undefined,
             }),
         });
 
@@ -228,7 +232,7 @@ const loadIntroState = () => {
 onMounted(loadIntroState);
 
 watch(
-    () => [props.agentType, displayMessage.value, props.ttsEnabled],
+    () => [props.agentType, displayMessage.value, props.ttsEnabled, props.intent, props.lineKey],
     () => loadNaturalVoice(),
     { immediate: true },
 );

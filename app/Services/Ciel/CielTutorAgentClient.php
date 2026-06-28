@@ -120,36 +120,44 @@ class CielTutorAgentClient
         );
 
         if ($final) {
-            return $this->decision($payload, 'final_assessment_completion', 'c-congrats', 'celebratory', 'You completed the final assessment. Well done. Let\'s see your results.', 'show_results');
+            return $this->decision($payload, 'final_assessment_completion', 'c-congrats', 'celebratory', 'You completed the final assessment. Well done. Let us look at your results together, one step at a time.', 'show_results');
         }
 
         if ($correct) {
-            $message = $expected !== '' ? "Good job. You read {$expected} correctly." : 'Good job. That is correct.';
+            $message = $expected !== ''
+                ? "Nice work! You read {$expected} clearly, and I can hear that you are getting more confident."
+                : 'Nice work! You said that clearly, and I can hear that you are getting more confident.';
 
             return $this->decision($payload, 'correct_praise', 'c-clap', 'positive_praise', $message, 'continue');
         }
 
         if ($lowConfidence) {
-            return $this->decision($payload, 'hint', 'c-thinking-1', 'patient_guidance', 'I could not hear that clearly. Speak clearly and try recording again.', 'retry_recording', 'low_confidence_audio');
+            return $this->decision($payload, 'hint', 'c-thinking-1', 'patient_guidance', 'I could not hear that clearly. That is okay, so take your time and try recording again with your clear voice.', 'retry_recording', 'low_confidence_audio');
         }
 
         if (in_array($errorType, ['word_deletion', 'word_insertion', 'word_boundary_error', 'omission', 'insertion'], true)) {
             $mode = $attempt >= 2 ? 'focus_teach' : 'slow_practice';
-            $message = $expected !== '' ? "Read slowly, one part at a time: {$expected}." : 'Read slowly, one part at a time.';
+            $message = $expected !== ''
+                ? "Read slowly, one part at a time: {$expected}. We can slow it down together."
+                : 'Read slowly, one part at a time. We can slow it down together.';
 
             return $this->decision($payload, $mode, 'c-advise', 'gentle_correction', $message, $mode === 'focus_teach' ? 'listen_then_retry' : 'retry_slowly', $errorType);
         }
 
         if ($errorType === 'letter_confusion' && $expected !== '' && $transcript !== '') {
-            $message = "{$expected} and {$transcript} sound close. Let's listen carefully: {$expected}.";
+            $message = "{$expected} and {$transcript} sound close. Let us listen carefully: {$expected}. Then we can try it again slowly.";
         } elseif (in_array($errorType, ['vowel_confusion', 'vowel_error', 'middle_sound_error'], true)) {
-            $message = $expected !== '' ? 'Listen to the middle sound in '.strtolower($expected).'.' : 'Listen carefully to the middle sound.';
+            $message = $expected !== ''
+                ? 'Listen to the middle sound in '.strtolower($expected).'. Then say it again with a clear voice.'
+                : 'Listen carefully to the middle sound, then say it again with a clear voice.';
         } elseif (in_array($errorType, ['final_sound_missing', 'final_sound_error'], true)) {
-            $message = $expected !== '' ? 'Good start. Let\'s finish '.strtolower($expected).' with the last sound.' : 'Good start. Let\'s finish the word with the last sound.';
+            $message = $expected !== ''
+                ? 'Good start. Let us finish '.strtolower($expected).' with the last sound, then say the whole word clearly.'
+                : 'Good start. Let us finish the word with the last sound, then say the whole word clearly.';
         } else {
             $message = $attempt >= 2
-                ? ($expected !== '' ? "Let's practice {$expected}. Listen carefully. {$expected}." : 'Let\'s practice this together. Listen carefully, then repeat.')
-                : ($expected !== '' ? "Good try. Read {$expected} once more." : 'Good try. Please try once more.');
+                ? ($expected !== '' ? "Let us practice {$expected}. Listen carefully first: {$expected}. Then try it again slowly." : 'Let us practice this together. Listen carefully first, then repeat it slowly.')
+                : ($expected !== '' ? "Good try. Read {$expected} once more, and take your time with each sound." : 'Good try. Please try once more, and take your time with each sound.');
         }
 
         if ($attempt >= 2) {

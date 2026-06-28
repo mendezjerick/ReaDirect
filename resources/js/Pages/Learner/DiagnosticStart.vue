@@ -28,7 +28,8 @@ const startDeveloperRetest = () => retestForm.post('/learner/diagnostic/develope
                 <AgentSpeakerPanel
                     agent-type="assessment"
                     state="speaking"
-                    message="We will do a short reading check together. I will guide each step — just try your best!"
+                    message="Hi, I'm Miss Vivian. I'll guide you through this activity, so listen carefully and take your time."
+                    line-key="vivian.intro.assessment"
                     show-audio-button
                     presentation="routing"
                 />

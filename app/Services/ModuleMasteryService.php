@@ -83,26 +83,26 @@ class ModuleMasteryService
     private function moduleOne(float $score): array
     {
         return match (true) {
-            $score >= 90 => $this->result('move_to_module_2', 'module_2', 'MODULE_1_MASTERY_V1', $score, 'Great work! You are ready for Module 2.'),
-            default => $this->result('repeat_module_1', 'module_1', 'MODULE_1_MASTERY_V1', $score, 'Let us practice Module 1 again to make your sounds stronger.'),
+            $score >= 90 => $this->result('move_to_module_2', 'module_2', 'MODULE_1_MASTERY_V1', $score, 'Great work! You are ready for Module 2, where we will practice reading words one careful step at a time.'),
+            default => $this->result('repeat_module_1', 'module_1', 'MODULE_1_MASTERY_V1', $score, 'Let us practice Module 1 again so your letter sounds can feel stronger.'),
         };
     }
 
     private function moduleTwo(float $score): array
     {
         return match (true) {
-            $score >= 90 => $this->result('move_to_module_3', 'module_3', 'MODULE_2_MASTERY_V1', $score, 'Great work! You are ready for Module 3.'),
-            $score >= 60 => $this->result('repeat_module_2', 'module_2', 'MODULE_2_MASTERY_V1', $score, 'Let us practice these words again so you can feel more confident.'),
-            default => $this->result('return_to_module_1', 'module_1', 'MODULE_2_MASTERY_V1', $score, 'We will go back to letter sounds for more practice. This will help your word reading.'),
+            $score >= 90 => $this->result('move_to_module_3', 'module_3', 'MODULE_2_MASTERY_V1', $score, 'Great job! You are ready for Module 3, where we will practice reading sentences smoothly.'),
+            $score >= 60 => $this->result('repeat_module_2', 'module_2', 'MODULE_2_MASTERY_V1', $score, 'Let us practice these words again so you can feel more confident and steady when you read them.'),
+            default => $this->result('return_to_module_1', 'module_1', 'MODULE_2_MASTERY_V1', $score, 'We will go back to letter sounds for more practice. This will help your word reading become stronger.'),
         };
     }
 
     private function moduleThree(float $score): array
     {
         return match (true) {
-            $score >= 90 => $this->result('proceed_to_reassessment', null, 'MODULE_3_MASTERY_V1', $score, 'You worked hard in your modules. Do your best on your final reading check!'),
-            $score >= 70 => $this->result('repeat_module_3', 'module_3', 'MODULE_3_MASTERY_V1', $score, 'Let us practice sentence reading again so you can read more smoothly.'),
-            default => $this->result('return_to_module_2', 'module_2', 'MODULE_3_MASTERY_V1', $score, 'We will practice words again to help your sentence reading become stronger.'),
+            $score >= 90 => $this->result('proceed_to_reassessment', null, 'MODULE_3_MASTERY_V1', $score, 'You worked hard in your modules. Stay calm, listen carefully, and do your best on your final reading check.'),
+            $score >= 70 => $this->result('repeat_module_3', 'module_3', 'MODULE_3_MASTERY_V1', $score, 'Let us practice sentence reading again so you can read more smoothly and clearly.'),
+            default => $this->result('return_to_module_2', 'module_2', 'MODULE_3_MASTERY_V1', $score, 'We will practice words again to help your sentence reading become stronger and easier.'),
         };
     }
 

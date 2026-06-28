@@ -62,11 +62,11 @@ class CielFocusModeService
             'reward' => null,
             'dialogue_steps' => [
                 [
-                    'text' => "Let's practice reading this {$targetType}.",
+                    'text' => "Let's practice reading this {$targetType} together. Look closely, listen carefully, and take your time.",
                     'action' => 'talk',
                 ],
                 [
-                    'text' => "I will say the {$targetType}, and you listen.",
+                    'text' => "I will say the {$targetType} first, and you can listen before you try it again.",
                     'action' => 'talk',
                 ],
                 [
@@ -74,7 +74,7 @@ class CielFocusModeService
                     'action' => 'talk',
                 ],
                 [
-                    'text' => "Got it? I'll say it again one more time.",
+                    'text' => "Got it? I'll say it again one more time, then you can try it with your clear voice.",
                     'action' => 'talk',
                 ],
                 [
@@ -122,11 +122,11 @@ class CielFocusModeService
             ],
             'dialogue_steps' => [
                 [
-                    'text' => 'Great job! You answered three in a row correctly.',
+                    'text' => 'Great job! You answered three in a row correctly, and your clear voice is getting stronger.',
                     'action' => 'happy',
                 ],
                 [
-                    'text' => 'You earned a star!',
+                    'text' => 'You earned a star! Keep going slowly, and keep trying your best on each reading step.',
                     'action' => 'clap',
                 ],
             ],

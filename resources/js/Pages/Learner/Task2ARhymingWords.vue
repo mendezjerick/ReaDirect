@@ -32,11 +32,7 @@ const currentPayload = computed(() => step.currentItem.value?.payload ?? {});
 const currentAnswer = computed(() => step.answers[step.currentItem.value?.id] ?? '');
 const canUseDeveloperJumpControls = computed(() => props.assessmentMode?.canUseDeveloperJumpControls === true);
 const firstFormError = computed(() => Object.values(form.errors ?? {})[0] ?? '');
-const vivianPrompt = computed(() => {
-    const script = currentPayload.value.vivian_prompt_script ?? currentPayload.value.audio_script ?? step.currentItem.value?.prompt ?? '';
-
-    return String(script).toLowerCase().includes('rhyme') ? script : `${script}. Do these words rhyme?`;
-});
+const vivianPrompt = 'Listen to both words carefully. Then choose Yes if they rhyme, or No if they do not rhyme.';
 
 const selectAnswer = (answer) => {
     step.answers[step.currentItem.value.id] = answer;
@@ -75,6 +71,7 @@ const handlePrimary = () => {
                 state="speaking"
                 presentation="assessment-task"
                 :message="vivianPrompt"
+                line-key="vivian.task2a.rhyme_prompt_intro"
             />
         </template>
 

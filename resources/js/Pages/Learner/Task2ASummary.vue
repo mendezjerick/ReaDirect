@@ -18,7 +18,8 @@ defineProps({
             <AgentSpeakerPanel
                 agent-type="evaluator"
                 state="encouraging"
-                message="Task 2A is saved. Task 2B and passage reading are not administered for this path."
+                message="Task 2A is now saved. Based on this path, the next reading parts will not be given for now."
+                line-key="estelle.result.task2a.saved"
             />
         </template>
 

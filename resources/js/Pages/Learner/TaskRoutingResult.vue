@@ -21,14 +21,7 @@ const requiresTask2A = computed(() => props.route?.requires_task_2a ?? score.val
 const nextHref = computed(() => requiresTask2A.value ? '/learner/diagnostic/task-2a' : '/learner/diagnostic/task-2b');
 const nextLabel = computed(() => requiresTask2A.value ? 'Continue to Task 2A' : 'Continue to Task 2B');
 const nextTitle = computed(() => requiresTask2A.value ? 'Task 2A: Rhyme Recognition' : 'Task 2B: Word in Sentence');
-
-const agentMessage = computed(() => {
-    if (requiresTask2A.value) {
-        return `Good job! You got ${score.value} out of 10. Let's practice some rhymes next!`;
-    }
-
-    return `Excellent work! You got ${score.value} out of 10. You did so well we are going to skip ahead to reading sentences!`;
-});
+const agentMessage = 'You finished the first reading task. Your score helps us decide which reading activity should come next.';
 
 const hasItemResults = computed(() => Array.isArray(props.itemResponses) && props.itemResponses.length > 0);
 const correctCount = computed(() => props.itemResponses.filter((response) => response.is_correct).length);
@@ -59,6 +52,7 @@ const scoreTheme = computed(() => {
                 agent-type="evaluator"
                 state="encouraging"
                 :message="agentMessage"
+                line-key="estelle.result.task1.routing"
             />
         </template>
 

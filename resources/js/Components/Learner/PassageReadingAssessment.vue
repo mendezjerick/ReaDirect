@@ -14,7 +14,7 @@ const props = defineProps({
     assessmentAttemptId: { type: Number, required: true },
     assessmentMode: { type: Object, default: () => ({}) },
     submitUrl: { type: String, required: true },
-    initialAgentMessage: { type: String, default: 'Read the passage aloud. Try your best and speak clearly.' },
+    initialAgentMessage: { type: String, default: 'Take your time before you answer. Listen first, then choose or say the response clearly.' },
     fallbackDiffForIncorrectWords: { type: Boolean, default: false },
 });
 
@@ -33,6 +33,8 @@ const asrResult = ref(null);
 const uploadError = ref('');
 const uploading = ref(false);
 const agentMessage = ref(props.initialAgentMessage);
+const agentLineKey = ref('vivian.instruction.listen_choose_or_say');
+const agentIntent = ref('focused_instruction');
 const agentState = ref('listening');
 const agentSpeaking = ref(false);
 const passageChecked = ref(Boolean(transcript.value || form.audio_file_id));
@@ -260,6 +262,12 @@ const canSubmitForReview = computed(() => {
 });
 const primaryLabel = computed(() => passageChecked.value ? 'Next' : 'Submit');
 const primaryDisabled = computed(() => form.processing || uploading.value || (!passageChecked.value && !canSubmitForReview.value));
+const setAgentPrompt = (message, state = 'speaking', lineKey = '', intent = 'focused_instruction') => {
+    agentMessage.value = message;
+    agentState.value = state;
+    agentLineKey.value = lineKey;
+    agentIntent.value = intent;
+};
 
 const applyIncorrectWordsFromCurrentResult = () => {
     const alignedIncorrectWords = incorrectWordsFromAlignment(wordAlignment.value);
@@ -280,8 +288,7 @@ const uploadTranscript = async (file) => {
 
     uploading.value = true;
     uploadError.value = '';
-    agentMessage.value = 'Checking your reading.';
-    agentState.value = 'thinking';
+    setAgentPrompt('Checking your reading.', 'thinking', 'vivian.processing.checking_reading');
 
     try {
         const payload = new FormData();
@@ -318,8 +325,7 @@ const uploadTranscript = async (file) => {
             wordAlignment.value = asr.wordAlignment;
             applyIncorrectWordsFromCurrentResult();
             passageChecked.value = true;
-            agentMessage.value = `You said: ${transcript.value}`;
-            agentState.value = 'speaking';
+            setAgentPrompt(`You said: ${transcript.value}`, 'speaking', '');
             return true;
         }
 
@@ -328,14 +334,12 @@ const uploadTranscript = async (file) => {
         wordAlignment.value = [];
         passageChecked.value = false;
         uploadError.value = asr.message;
-        agentMessage.value = uploadError.value;
-        agentState.value = 'retry';
+        setAgentPrompt(uploadError.value, 'retry', 'vivian.error.recording_check_failed', 'gentle_reassurance');
         return false;
     } catch (error) {
         passageChecked.value = false;
         uploadError.value = error.message || 'We had trouble checking your reading. Please try again.';
-        agentMessage.value = uploadError.value;
-        agentState.value = 'retry';
+        setAgentPrompt(uploadError.value, 'retry', 'vivian.error.recording_check_failed', 'gentle_reassurance');
         return false;
     } finally {
         uploading.value = false;
@@ -352,8 +356,7 @@ const rememberAudio = (file) => {
     asrResult.value = null;
     uploadError.value = '';
     passageChecked.value = false;
-    agentMessage.value = 'Listen to your reading. If you are happy with it, click Submit.';
-    agentState.value = 'speaking';
+    setAgentPrompt('Listen to your reading. If you are happy with it, click Submit.', 'speaking', 'vivian.passage.after_recording');
 };
 
 const clearAudio = () => {
@@ -388,19 +391,16 @@ const submitCurrentForReview = async () => {
         form.duration_seconds = null;
         passageChecked.value = true;
         uploadError.value = '';
-        agentMessage.value = 'QA override is ready. Click Next to continue.';
-        agentState.value = 'speaking';
+        setAgentPrompt('QA override is ready. Click Next to continue.', 'speaking', 'vivian.continue.thank_you', 'friendly_encouragement');
         return;
     }
 
-    agentMessage.value = 'Hold the orange button to record the passage first.';
-    agentState.value = 'speaking';
+    setAgentPrompt('Hold the orange button to record the passage first.', 'speaking', 'vivian.no_recording.passage_first', 'gentle_reassurance');
 };
 
 const submit = () => {
     if (!passageChecked.value) {
-        agentMessage.value = 'Click Submit first so I can check your reading.';
-        agentState.value = 'speaking';
+        setAgentPrompt('Click Submit first so I can check your reading.', 'speaking', 'vivian.processing.checking_reading');
         return;
     }
 
@@ -413,8 +413,7 @@ const submit = () => {
         forceFormData: true,
         onError: (errors) => {
             const firstError = Object.values(errors ?? {})[0] ?? 'We could not save this reading yet. Please try again.';
-            agentMessage.value = Array.isArray(firstError) ? firstError[0] : firstError;
-            agentState.value = 'retry';
+            setAgentPrompt(Array.isArray(firstError) ? firstError[0] : firstError, 'retry', 'vivian.error.recording_check_failed', 'gentle_reassurance');
         },
     });
 };
@@ -438,6 +437,8 @@ const setAgentSpeaking = (isSpeaking) => {
         <AssessmentTaskWorkspace
             :agent-state="agentState"
             :agent-message="agentMessage"
+            :agent-intent="agentIntent"
+            :agent-line-key="agentLineKey"
             :progress="100"
             :primary-label="primaryLabel"
             :primary-disabled="primaryDisabled"

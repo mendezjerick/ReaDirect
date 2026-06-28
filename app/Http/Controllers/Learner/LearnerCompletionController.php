@@ -16,11 +16,11 @@ use Inertia\Response;
 
 class LearnerCompletionController extends Controller
 {
-    private const MISS_VIVIAN_MESSAGE = 'You did a wonderful job completing your reading assessments. Thank you for trying your best.';
+    private const MISS_VIVIAN_MESSAGE = 'Great work. You completed your reading assessments, and you stayed focused through each step.';
 
-    private const MISS_CIEL_MESSAGE = 'I am proud of your practice. You worked hard and kept going. Great job!';
+    private const MISS_CIEL_MESSAGE = 'Nice work! You practiced carefully, kept going through tricky parts, and used your clear reading voice.';
 
-    private const MISS_ESTELLE_MESSAGE = 'Great job finishing your final reading check. You completed your reading journey.';
+    private const MISS_ESTELLE_MESSAGE = 'Great job finishing your final reading check. Your effort shows what you practiced and what you can keep building next.';
 
     public function show(Request $request, LearnerFlowService $flow, FinalAssessmentComparisonService $comparison): Response|RedirectResponse
     {
@@ -177,8 +177,8 @@ class LearnerCompletionController extends Controller
     {
         $hasImprovement = collect($comparison['deltas'] ?? [])->contains(fn ($value) => is_numeric($value) && (float) $value > 0);
         $estelleResult = $hasImprovement
-            ? 'You made progress from your first reading check to your final reading check.'
-            : 'Here is your final result. It shows your reading check from the beginning and your final reading check.';
+            ? 'You made progress from your first reading check to your final reading check, and that progress can guide your next practice.'
+            : 'Here is your final result. It shows your first reading check and final reading check, so we can understand your next step.';
 
         return [
             [
@@ -206,14 +206,14 @@ class LearnerCompletionController extends Controller
     private function friendlySummary(?string $summary, bool $hasMetrics): string
     {
         if (! $hasMetrics) {
-            return 'Your final reading check has been completed.';
+            return 'Your final reading check has been completed. This result helps show what you practiced and what can come next.';
         }
 
         if ($summary === 'The learner improved in one or more final reassessment areas.') {
-            return 'You made progress from your first reading check to your final reading check.';
+            return 'You made progress from your first reading check to your final reading check, and that progress matters.';
         }
 
-        return 'Your first reading check and final reading check are shown together here.';
+        return 'Your first reading check and final reading check are shown together here, so your progress is easy to understand.';
     }
 
     private function formatValue(string $key, mixed $value): string

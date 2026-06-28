@@ -25,10 +25,13 @@ const bottomMetrics = computed(() => [
 
 const evaluatorMessage = computed(() => {
     if (props.module) {
-        return `Great job! Your reading path is ${moduleTitle.value}. Tap continue to see it on your dashboard.`;
+        return 'Great job. Your reading path is ready, and it will guide the next activities on your dashboard.';
     }
-    return "Wonderful! You're reading at grade level. Tap continue to head to your dashboard.";
+    return 'Wonderful work. You are reading at grade level, so you can continue to your dashboard.';
 });
+const evaluatorLineKey = computed(() => props.module
+    ? 'estelle.result.module_placement'
+    : 'estelle.result.grade_level_placement');
 
 const isSpeaking = ref(false);
 const ttsKey = ref(0);
@@ -57,7 +60,7 @@ const loadNaturalVoice = async () => {
                 'Accept': 'application/json',
                 'X-CSRF-TOKEN': csrfToken(),
             },
-            body: JSON.stringify({ agent: 'evaluator', text }),
+            body: JSON.stringify({ agent: 'evaluator', text, line_key: evaluatorLineKey.value }),
         });
 
         if (requestId !== voiceRequestId.value) return;

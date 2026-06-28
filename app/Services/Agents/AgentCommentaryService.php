@@ -66,42 +66,42 @@ class AgentCommentaryService
     {
         if ($mode === 'assessment_neutral') {
             return match (($context['attempt_number'] ?? 0) % 3) {
-                1 => 'Good effort. Let us go to the next one.',
-                2 => 'I heard your answer. Let us keep going.',
-                default => 'Thank you. Let us continue.',
+                1 => 'Good effort. Keep going, take your time with each item, and remember to listen before you answer.',
+                2 => 'I heard your answer. Stay focused, listen carefully, and answer when you feel ready.',
+                default => 'Thank you. Let us continue one step at a time, with a calm and clear voice.',
             };
         }
 
         if ($mode === 'evaluator_summary') {
             return match ($context['recommended_action'] ?? '') {
-                'move_to_module_2' => 'You are moving to Module 2. Now we will practice reading words.',
-                'move_to_module_3' => 'You are moving to Module 3. Now we will practice sentences.',
-                'repeat_module' => 'Good effort. We will practice this module again.',
-                'extra_drills' => 'We will do extra sound practice to get stronger.',
-                'proceed_to_reassessment' => 'Great work. You are ready for the next reading check.',
-                'no_module_needed' => 'Great work. Your reading path is complete for now.',
-                default => $context['template_feedback'] ?? 'Your next step is ready.',
+                'move_to_module_2' => 'You are moving to Module 2. Now we will practice reading words, one careful step at a time.',
+                'move_to_module_3' => 'You are moving to Module 3. Now we will practice sentences so your reading can sound smoother.',
+                'repeat_module' => 'Good effort. We will practice this module again so the tricky parts can feel easier next time.',
+                'extra_drills' => 'We will do extra sound practice to get stronger, and we will focus on the parts that need more time.',
+                'proceed_to_reassessment' => 'Great work. You are ready for the next reading check, so stay calm and try your best.',
+                'no_module_needed' => 'Great work. Your reading path is complete for now, and your effort helped you finish this step.',
+                default => $context['template_feedback'] ?? 'Your next step is ready. We will use this result to guide what you practice next.',
             };
         }
 
         if ($isCorrect) {
-            return 'Great job! You got it.';
+            return 'Great job! You got that one, and you read it with a nice clear voice.';
         }
 
         if ($similarityLabel === 'very_close' && $errorType === 'final_sound_error') {
-            return 'Good try! That was very close. Listen to the ending sound and try again.';
+            return 'Good try! That was very close. Listen to the ending sound, then say it again a little slower.';
         }
 
         return match ($errorType) {
-            'final_sound_error' => 'Good try! Listen to the ending sound and try again.',
-            'initial_sound_error' => 'Good effort! Let us listen to the first sound.',
-            'vowel_error' => 'Nice try! Let us listen to the middle sound.',
-            'skipped_word' => 'Good effort! Let us read each word from left to right.',
-            'blank' => 'Let us try this one first.',
+            'final_sound_error' => 'Good try! Listen to the ending sound, then say it again when you are ready.',
+            'initial_sound_error' => 'Good effort! Let us listen to the first sound, then try the word again slowly.',
+            'vowel_error' => 'Nice try! Let us listen to the middle sound, then say it again with a clear voice.',
+            'skipped_word' => 'Good effort! Let us read each word from left to right, one careful part at a time.',
+            'blank' => 'Let us try this one first. Take your time, then answer when you feel ready.',
             default => match ($similarityLabel) {
-                'very_close' => 'Good try! That was very close. Let us fix one small sound.',
-                'close', 'somewhat_close' => 'Great effort! You are getting close. Let us try it slowly.',
-                default => 'Good effort! Let us listen again and try one more time.',
+                'very_close' => 'Good try! That was very close. Let us fix one small sound together.',
+                'close', 'somewhat_close' => 'Great effort! You are getting close. Let us try it slowly and clearly.',
+                default => 'Good effort! Let us listen again, slow it down, and try one more time.',
             },
         };
     }

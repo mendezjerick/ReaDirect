@@ -35,7 +35,8 @@ const submit = () => { if (!form.passage_id) return; form.post('/learner/diagnos
                     agent-type="assessment"
                     state="speaking"
                     presentation="routing"
-                    message="Which story do you want to read? Pick the one that sounds most interesting to you!"
+                    message="Choose one story for your final reading passage."
+                    line-key="vivian.assessment.story_choice"
                     show-audio-button
                 />
             </div>

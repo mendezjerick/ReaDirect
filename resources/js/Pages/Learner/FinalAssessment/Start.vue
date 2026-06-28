@@ -13,7 +13,7 @@ const start = () => form.post('/final-assessment/start');
 <template>
     <LearnerLayout :progress="10">
         <template #agent>
-            <AgentSpeakerPanel agent-type="assessment" state="speaking" message="This is your final reading check. Do your best, one step at a time." />
+            <AgentSpeakerPanel agent-type="assessment" state="speaking" message="This is your final reading check. Do your best, one step at a time." line-key="vivian.assessment.final_start" />
         </template>
 
         <section class="mx-auto grid max-w-2xl gap-5 text-center">

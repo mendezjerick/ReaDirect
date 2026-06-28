@@ -28,7 +28,8 @@ const deltaLabel = (value) => {
                 agent-type="evaluator"
                 :state="agentAction"
                 allow-congrats
-                message="Great job finishing your final assessment. Here is how your reading changed."
+                message="Great job finishing your final reading check. Your effort shows what you practiced and what you can keep building next."
+                line-key="estelle.completion.final_check_complete"
                 @interaction-ended="handleAgentInteractionEnded"
             />
         </template>

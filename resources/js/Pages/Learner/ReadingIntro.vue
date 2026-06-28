@@ -19,7 +19,8 @@ import BottomActionBar from '../../Components/BottomActionBar.vue';
                     agent-type="assessment"
                     state="speaking"
                     presentation="routing"
-                    message="Great work on the word check! Now pick a story, read it out loud, and then I'll ask you five questions about it."
+                    message="Choose one story for your final reading passage."
+                    line-key="vivian.assessment.story_choice"
                     show-audio-button
                 />
             </div>

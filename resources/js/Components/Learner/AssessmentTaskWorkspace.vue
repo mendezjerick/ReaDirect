@@ -7,6 +7,8 @@ const props = defineProps({
     agentType: { type: String, default: 'assessment' },
     agentState: { type: String, default: 'listening' },
     agentMessage: { type: String, required: true },
+    agentIntent: { type: String, default: '' },
+    agentLineKey: { type: String, default: '' },
     progress: { type: Number, default: 0 },
     primaryLabel: { type: String, default: 'Submit' },
     primaryDisabled: { type: Boolean, default: false },
@@ -35,6 +37,8 @@ const togglePromptImage = () => {
             :agent-type="agentType"
             :state="agentState"
             :message="agentMessage"
+            :intent="agentIntent"
+            :line-key="agentLineKey"
             presentation="assessment-horizontal"
             @speaking-start="emit('agent-speaking-change', true)"
             @speaking-end="emit('agent-speaking-change', false)"

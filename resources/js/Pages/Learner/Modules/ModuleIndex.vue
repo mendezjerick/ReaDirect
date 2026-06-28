@@ -21,7 +21,13 @@ const steps = [
 <template>
     <LearnerLayout :progress="72" backUrl="/learner/dashboard" backLabel="Back to Learner Dashboard">
         <template #agent>
-            <AgentSpeakerPanel compact agent-type="coach_feedback" state="speaking" message="Your practice path is ready. We will work one step at a time." />
+            <AgentSpeakerPanel
+                compact
+                agent-type="coach_feedback"
+                state="speaking"
+                message="Take your time, then read this one out loud. I'll stay with you, and we can go slowly together."
+                line-key="ciel.friendly.read_slowly_together"
+            />
         </template>
 
         <section class="mx-auto grid max-w-3xl gap-5 xl:gap-6">

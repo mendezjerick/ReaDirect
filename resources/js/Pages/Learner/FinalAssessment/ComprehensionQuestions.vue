@@ -70,6 +70,7 @@ const handlePrimary = () => {
                 state="speaking"
                 presentation="comprehension"
                 message="Choose the best answer based on the story you read."
+                line-key="vivian.assessment.comprehension_choice"
             />
         </template>
 

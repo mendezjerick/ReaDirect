@@ -37,6 +37,7 @@ const submit = () => {
                 state="speaking"
                 presentation="reading-intro"
                 message="Choose one story for your final reading passage."
+                line-key="vivian.assessment.story_choice"
             />
         </template>
 

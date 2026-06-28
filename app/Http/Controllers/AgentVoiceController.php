@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Services\AssessmentModeService;
 use App\Services\TTS\AgentTtsService;
+use App\Models\GeneratedVoiceLine;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class AgentVoiceController extends Controller
@@ -15,12 +17,20 @@ class AgentVoiceController extends Controller
         $validated = $request->validate([
             'agent' => ['required', 'string', 'max:64'],
             'text' => ['required', 'string', 'max:600'],
+            'intent' => ['nullable', 'string', 'max:64'],
+            'line_key' => ['nullable', 'string', 'max:128'],
+            'metadata' => ['nullable', 'array'],
         ]);
 
         $payload = $tts->speechPayload(
             $validated['agent'],
             $validated['text'],
-            $mode->canShowAssessmentDebug($request)
+            $mode->canShowAssessmentDebug($request),
+            [
+                'intent' => $validated['intent'] ?? null,
+                'line_key' => $validated['line_key'] ?? null,
+                'metadata' => $validated['metadata'] ?? [],
+            ]
         );
 
         return response()->json($payload);
@@ -35,6 +45,29 @@ class AgentVoiceController extends Controller
         return response()->file($path, [
             'Content-Type' => 'audio/wav',
             'Cache-Control' => 'public, max-age=604800, immutable',
+        ]);
+    }
+
+    public function showGenerated(GeneratedVoiceLine $line, ?string $stage = null): BinaryFileResponse
+    {
+        $stage = $stage ?: (string) config('readirect.voice_database.active_stage', 'reference_style');
+        $path = $stage === 'kokoro_identity'
+            ? $line->kokoro_identity_audio_path
+            : $line->reference_style_audio_path;
+
+        if (! $path && (bool) config('readirect.voice_database.fallback_to_other_stage', true)) {
+            $path = $stage === 'kokoro_identity'
+                ? $line->reference_style_audio_path
+                : $line->kokoro_identity_audio_path;
+        }
+
+        abort_if(! $path || ! Storage::disk('public')->exists($path), 404);
+
+        return response()->file(Storage::disk('public')->path($path), [
+            'Content-Type' => 'audio/wav',
+            'Cache-Control' => 'public, max-age=604800, immutable',
+            'X-ReaDirect-Voice-Line' => $line->line_key,
+            'X-ReaDirect-Voice-Stage' => $stage,
         ]);
     }
 }

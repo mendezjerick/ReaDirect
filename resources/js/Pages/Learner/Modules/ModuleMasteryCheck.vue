@@ -61,7 +61,9 @@ const seedRetryStates = (items) => {
 seedRetryStates(props.items);
 const hasAnswerOrAudio = (item, answer) => answerFor(item, answer).length > 0 || Boolean(uploadedAudioIds[item?.id]) || Boolean(audioFiles[item?.id]) || Boolean(retryStates[item?.id]?.is_resolved);
 const step = useStepAssessment(props.items, { emptyMessage: 'Try this one before moving on.', isAnswered: hasAnswerOrAudio });
-const agentMessage = ref('This is your mini mastery check. Do your best one item at a time.');
+const agentMessage = ref("This is your mini mastery check. Do your best one item at a time, and I'll stay with you.");
+const agentLineKey = ref('ciel.mastery.start');
+const agentIntent = ref('friendly_encouragement');
 const agentState = ref('speaking');
 const returningToDashboard = ref(false);
 const cielFocusEvent = ref(null);
@@ -119,6 +121,12 @@ const primaryDisabled = computed(() => (
     || focusModeVisible.value
     || (!isCurrentResolved.value && !currentHasSubmittedAnswer.value && !canSubmitCurrent.value)
 ));
+const setAgentPrompt = (message, state = 'speaking', lineKey = '', intent = 'focused_instruction') => {
+    agentMessage.value = message;
+    agentState.value = state;
+    agentLineKey.value = lineKey;
+    agentIntent.value = intent;
+};
 
 watch(
     () => props.items.map((item) => item.id).join('|'),
@@ -138,8 +146,7 @@ watch(
         seedRetryStates(props.items);
         manualRecorderOverride.value = false;
         automaticListeningPanel.value?.stopSession?.();
-        agentMessage.value = 'This is your mini mastery check. Do your best one item at a time.';
-        agentState.value = 'speaking';
+        setAgentPrompt("This is your mini mastery check. Do your best one item at a time, and I'll stay with you.", 'speaking', 'ciel.mastery.start', 'friendly_encouragement');
         cielFocusEvent.value = null;
         form.clearErrors();
     }
@@ -192,8 +199,7 @@ const rememberAudio = (item, file) => {
     delete generatedTranscripts[item.id];
     delete asrResults[item.id];
     delete submittedManualItems[item.id];
-    agentMessage.value = 'Listen to your answer. If you are happy with your answer, click Submit.';
-    agentState.value = 'speaking';
+    setAgentPrompt('Listen to your answer. If you are happy with your answer, click Submit.', 'speaking', 'ciel.instruction.listen_then_say_word');
 };
 
 const clearAudio = (item, resetAgent = true) => {
@@ -213,14 +219,12 @@ const clearAudio = (item, resetAgent = true) => {
 };
 
 const handleRecorderError = (message) => {
-    agentMessage.value = message || 'We could not use that recording. Please try again.';
-    agentState.value = 'error';
+    setAgentPrompt(message || 'We could not use that recording. Please try again.', 'error', 'ciel.module.audio_unclear.try_clear_voice', 'gentle_reassurance');
 };
 
 const uploadAudio = async (item, file) => {
     uploading[item.id] = true;
-    agentMessage.value = 'Checking your recording.';
-    agentState.value = 'thinking';
+    setAgentPrompt('Checking your recording.', 'thinking', 'ciel.module.processing.checking_reading');
 
     try {
         const payload = new FormData();
@@ -258,19 +262,16 @@ const uploadAudio = async (item, file) => {
             generatedTranscripts[item.id] = transcript;
             transcriptSources[item.id] = result.transcript_source ?? 'stt_auto';
             step.feedback.value = '';
-            agentMessage.value = `You said: ${transcript}`;
-            agentState.value = 'speaking';
+            setAgentPrompt(`You said: ${transcript}`, 'speaking', '');
             return true;
         }
 
         uploadErrors[item.id] = asr.message;
-        agentMessage.value = uploadErrors[item.id];
-        agentState.value = 'unclear';
+        setAgentPrompt(uploadErrors[item.id], 'unclear', 'ciel.module.audio_unclear.try_clear_voice', 'gentle_reassurance');
         return false;
     } catch (error) {
         uploadErrors[item.id] = error.message || 'We had trouble checking your answer. Please try again.';
-        agentMessage.value = uploadErrors[item.id];
-        agentState.value = 'error';
+        setAgentPrompt(uploadErrors[item.id], 'error', 'ciel.module.audio_unclear.try_clear_voice', 'gentle_reassurance');
         return false;
     } finally {
         uploading[item.id] = false;
@@ -290,16 +291,14 @@ const checkCurrent = async (automaticContext = null) => {
     }
 
     if (!answerFor(item) && !uploadedAudioIds[item.id]) {
-        agentMessage.value = 'Let us answer this first.';
-        agentState.value = 'encouraging';
+        setAgentPrompt('Let us answer this first.', 'encouraging', 'ciel.instruction.look_listen_read');
         step.feedback.value = 'Record this item before checking.';
         return false;
     }
 
     checking[item.id] = true;
     step.feedback.value = '';
-    agentMessage.value = 'Checking your answer.';
-    agentState.value = 'checking';
+    setAgentPrompt('Checking your answer.', 'checking', 'ciel.module.processing.checking_reading');
 
     try {
         const response = await fetch(`/learner/modules/${props.module.key}/mastery-check/check`, {
@@ -339,22 +338,34 @@ const checkCurrent = async (automaticContext = null) => {
         const cielAgent = result.ciel_agent?.agent === 'ciel' ? result.ciel_agent : null;
 
         if (retryStates[item.id].is_correct) {
-            agentMessage.value = cielAgent?.message ?? agentCue?.message ?? 'That is correct. Go to the next one.';
-            agentState.value = cielAgent?.animation ?? agentCue?.action ?? (step.isLast.value ? 'section_complete' : 'correct');
+            setAgentPrompt(
+                cielAgent?.message ?? agentCue?.message ?? 'That is correct. Go to the next one.',
+                cielAgent?.animation ?? agentCue?.action ?? (step.isLast.value ? 'section_complete' : 'correct'),
+                (cielAgent || agentCue) ? '' : 'ciel.praise.got_that_one',
+                'happy_praise',
+            );
         } else if (retryStates[item.id].can_retry) {
-            agentMessage.value = cielAgent?.message ?? agentCue?.message ?? 'Try this same item again.';
-            agentState.value = cielAgent?.animation ?? agentCue?.action ?? (
-                Number(retryStates[item.id].attempt_count ?? 1) <= 1
-                    ? 'incorrect'
-                    : 'retry'
+            setAgentPrompt(
+                cielAgent?.message ?? agentCue?.message ?? 'Try this same item again.',
+                cielAgent?.animation ?? agentCue?.action ?? (
+                    Number(retryStates[item.id].attempt_count ?? 1) <= 1
+                        ? 'incorrect'
+                        : 'retry'
+                ),
+                (cielAgent || agentCue) ? '' : 'ciel.reassurance.try_one_more_time',
+                'gentle_reassurance',
             );
             clearAudio(item, false);
             if (canUseManualFallback.value) {
                 step.answers[item.id] = '';
             }
         } else {
-            agentMessage.value = cielAgent?.message ?? agentCue?.message ?? 'Good try. Go to the next one.';
-            agentState.value = cielAgent?.animation ?? agentCue?.action ?? 'speaking';
+            setAgentPrompt(
+                cielAgent?.message ?? agentCue?.message ?? 'Good try. Go to the next one.',
+                cielAgent?.animation ?? agentCue?.action ?? 'speaking',
+                (cielAgent || agentCue) ? '' : 'ciel.reassurance.slow_down_together',
+                'gentle_reassurance',
+            );
         }
 
         if (cielAgent?.focus_mode?.enabled) {
@@ -379,8 +390,7 @@ const checkCurrent = async (automaticContext = null) => {
         return retryStates[item.id].is_resolved;
     } catch (error) {
         step.feedback.value = error.message || 'We could not check this item yet.';
-        agentMessage.value = step.feedback.value;
-        agentState.value = 'error';
+        setAgentPrompt(step.feedback.value, 'error', 'ciel.module.audio_unclear.try_clear_voice', 'gentle_reassurance');
         return false;
     } finally {
         checking[item.id] = false;
@@ -426,15 +436,13 @@ const handleAutomaticError = (message) => {
     if (item) {
         uploadErrors[item.id] = message;
     }
-    agentMessage.value = message || 'Ciel stopped listening safely. You can use Manual Recording Mode.';
-    agentState.value = 'error';
+    setAgentPrompt(message || 'Ciel stopped listening safely. You can use Manual Recording Mode.', 'error', 'ciel.automatic.stopped', 'gentle_reassurance');
 };
 
 const fallbackToManualRecorder = () => {
     automaticListeningPanel.value?.stopSession?.();
     manualRecorderOverride.value = true;
-    agentMessage.value = 'Manual Recording Mode is ready.';
-    agentState.value = 'speaking';
+    setAgentPrompt('Manual Recording Mode is ready.', 'speaking', 'ciel.friendly.ready_read_together', 'friendly_encouragement');
 };
 
 const resumeAutomaticListeningIfReady = () => {
@@ -478,8 +486,7 @@ const submitCurrentForReview = async () => {
         transcriptSources[item.id] = 'manual';
         uploadErrors[item.id] = '';
         step.feedback.value = '';
-        agentMessage.value = `You said: ${manualAnswer}`;
-        agentState.value = 'speaking';
+        setAgentPrompt(`You said: ${manualAnswer}`, 'speaking', '');
         return true;
     }
 
@@ -489,8 +496,7 @@ const submitCurrentForReview = async () => {
 
     const file = audioFiles[item.id];
     if (!file) {
-        agentMessage.value = 'Hold the orange button to record your answer first.';
-        agentState.value = 'encouraging';
+        setAgentPrompt('Hold the orange button to record your answer first.', 'encouraging', 'ciel.instruction.say_sound_clearly');
         step.feedback.value = 'Record this item before submitting.';
         return false;
     }
@@ -522,8 +528,7 @@ const handlePrimary = async () => {
     }
 
     step.goNext();
-    agentMessage.value = 'This is your mini mastery check. Do your best one item at a time.';
-    agentState.value = 'speaking';
+    setAgentPrompt("This is your mini mastery check. Do your best one item at a time, and I'll stay with you.", 'speaking', 'ciel.mastery.start', 'friendly_encouragement');
     window.setTimeout(resumeAutomaticListeningIfReady, 300);
 };
 
@@ -534,8 +539,7 @@ const returnToDashboard = () => {
     if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('readirect:stop-agent-speech'));
     }
-    agentMessage.value = 'See you next time!';
-    agentState.value = 'happy';
+    setAgentPrompt('See you next time!', 'happy', 'ciel.module.goodbye', 'playful_friend');
     window.setTimeout(() => {
         window.location.href = '/learner/dashboard';
     }, 1200);
@@ -564,6 +568,8 @@ onBeforeUnmount(() => {
             agent-type="coach_feedback"
             :agent-state="agentState"
             :agent-message="agentMessage"
+            :agent-intent="agentIntent"
+            :agent-line-key="agentLineKey"
             :progress="step.progressPercent.value"
             :primary-label="primaryLabel"
             :primary-disabled="primaryDisabled"

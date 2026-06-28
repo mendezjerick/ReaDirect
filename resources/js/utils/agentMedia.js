@@ -12,6 +12,7 @@ const image = (path) => Object.freeze({ type: 'image', path });
 export const agentMedia = Object.freeze({
     Ciel: Object.freeze({
         idle: video('videos/Ciel/c-idle.mp4'),
+        chibi: image('images/Ciel/cchibi.png'),
         fallback: image('images/Ciel/Ciel.png'),
         actions: Object.freeze({
             thinking: Object.freeze([
@@ -32,6 +33,7 @@ export const agentMedia = Object.freeze({
     }),
     Vivian: Object.freeze({
         idle: video('videos/Vivian/v-idle.mp4'),
+        chibi: image('images/Vivian/vchibi.png'),
         fallback: image('images/Vivian/Vivian.png'),
         actions: Object.freeze({
             talk: Object.freeze([video('videos/Vivian/v-talk.mp4')]),
@@ -41,6 +43,7 @@ export const agentMedia = Object.freeze({
     }),
     Estelle: Object.freeze({
         idle: video('videos/Estelle/e-idle.mp4'),
+        chibi: image('images/Estelle/echibi.png'),
         fallback: image('images/Estelle/Estelle.png'),
         actions: Object.freeze({
             talk: Object.freeze([video('videos/Estelle/e-talk.mp4')]),
@@ -138,6 +141,9 @@ export const getAgentAlt = (agent) => `Miss ${getAgentName(agent)}`;
 export const getAgentFallbackMedia = (agent) =>
     withUrl(agentMedia[getAgentName(agent)].fallback);
 
+export const getAgentChibiMedia = (agent) =>
+    withUrl(agentMedia[getAgentName(agent)].chibi ?? agentMedia[getAgentName(agent)].fallback);
+
 export const getAgentIdleMedia = (agent) => {
     const registry = agentMedia[getAgentName(agent)];
     return withUrl(registry.idle ?? registry.fallback);
@@ -189,6 +195,7 @@ export const getAgentCoreMediaUrls = (agent) => {
     const registry = agentMedia[getAgentName(agent)];
     const urls = new Set();
 
+    appendMediaUrl(urls, registry.chibi);
     appendMediaUrl(urls, registry.fallback);
     appendMediaUrl(urls, registry.idle);
 

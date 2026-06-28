@@ -21,9 +21,12 @@ const topMetrics = computed(() => [
 
 const evaluatorMessage = computed(() => {
     return props.passageEligible
-        ? 'The CRLA tasks are complete. Review your scores, then we will read a short passage.'
-        : 'The CRLA tasks are complete. Passage reading is not administered for this result.';
+        ? 'The CRLA tasks are complete. Review your scores first, then you will continue with a short reading passage.'
+        : 'The CRLA tasks are complete. Passage reading is not needed for this result, so we can move forward.';
 });
+const evaluatorLineKey = computed(() => props.passageEligible
+    ? 'estelle.result.crla.summary_with_passage'
+    : 'estelle.result.crla.summary_no_passage');
 
 const accuracyTone = (percentage) => {
     if (percentage >= 90) return 'text-emerald-600 bg-emerald-50 border-emerald-200';
@@ -59,7 +62,7 @@ const loadNaturalVoice = async () => {
                 'Accept': 'application/json',
                 'X-CSRF-TOKEN': csrfToken(),
             },
-            body: JSON.stringify({ agent: 'evaluator', text }),
+            body: JSON.stringify({ agent: 'evaluator', text, line_key: evaluatorLineKey.value }),
         });
 
         if (requestId !== voiceRequestId.value) return;

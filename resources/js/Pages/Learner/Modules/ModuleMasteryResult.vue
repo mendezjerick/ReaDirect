@@ -24,12 +24,19 @@ const actionHref = (decision, module, nextModule) => {
     if (decision.decision_key === 'proceed_to_reassessment') return '/learner/dashboard';
     return `/learner/modules/${nextModule?.key ?? module.key}/start`;
 };
+
+const masteryVoiceLine = 'Your mastery result is ready. This helps us see what you learned and what you can practice next.';
 </script>
 
 <template>
     <LearnerLayout :progress="100">
         <template #agent>
-            <AgentSpeakerPanel agent-type="evaluator" state="celebrating" :message="resultMessage ?? decision.user_friendly_message" />
+            <AgentSpeakerPanel
+                agent-type="evaluator"
+                state="celebrating"
+                :message="masteryVoiceLine"
+                line-key="estelle.result.mastery_ready"
+            />
         </template>
 
         <section class="mx-auto grid max-w-2xl gap-5 text-center">

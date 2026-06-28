@@ -186,8 +186,15 @@ const handleSpeakingEnd = () => {
     scheduleNext(750);
 };
 
-const handleVoiceError = () => {
+const handleVoiceError = (message = '') => {
     if (focusComplete.value) return;
+
+    if (String(message).toLowerCase().includes('autoplay')) {
+        voiceError.value = '';
+        emit('speaking-end');
+        scheduleNext();
+        return;
+    }
 
     voiceError.value = 'Voice is unavailable. Read the message here.';
     emit('speaking-end');

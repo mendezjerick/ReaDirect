@@ -1,4 +1,6 @@
 <script setup>
+import { computed, ref } from 'vue';
+import { usePage } from '@inertiajs/vue3';
 import AdminLayout from '../../Layouts/AdminLayout.vue';
 import AIServiceStatusBanner from '../../Components/AIServiceStatusBanner.vue';
 import DashboardCard from '../../Components/DashboardCard.vue';
@@ -15,9 +17,44 @@ import {
     ClipboardCheck,
     AlertTriangle,
     Inbox,
+    Image,
+    Video,
 } from 'lucide-vue-next';
 
-const props = defineProps({ dashboard: Object, aiService: Object });
+const props = defineProps({ dashboard: Object, aiService: Object, agentMediaMode: { type: String, default: 'chibi' } });
+const page = usePage();
+const mediaMode = ref(props.agentMediaMode === 'dynamic' ? 'dynamic' : 'chibi');
+const savingMediaMode = ref(false);
+const mediaModeLabel = computed(() => mediaMode.value === 'dynamic' ? 'Dynamic videos' : 'Chibi images');
+
+const csrfToken = () => document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
+
+const setMediaMode = async (mode) => {
+    if (savingMediaMode.value || mediaMode.value === mode) return;
+
+    savingMediaMode.value = true;
+    try {
+        const response = await fetch('/admin/agent-media-mode', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                'X-CSRF-TOKEN': csrfToken(),
+            },
+            body: JSON.stringify({ mode }),
+        });
+
+        if (!response.ok) return;
+        const payload = await response.json();
+        mediaMode.value = payload.mode === 'dynamic' ? 'dynamic' : 'chibi';
+        if (page.props.agentMedia) {
+            page.props.agentMedia.mode = mediaMode.value;
+        }
+    } finally {
+        savingMediaMode.value = false;
+    }
+};
 
 const statusVariant = (status) => {
     if (!status) return 'primary';
@@ -45,6 +82,38 @@ const statusVariant = (status) => {
         />
 
         <!-- ── Stat cards ─────────────────────────────────── -->
+        <DashboardCard class="mb-6">
+            <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                    <h2 class="text-sm font-extrabold text-text">Agent Display Mode</h2>
+                    <p class="mt-1 text-sm font-medium text-muted">Use lightweight chibi images for defense, or switch back to the dynamic talking videos.</p>
+                </div>
+                <div class="inline-grid grid-cols-2 gap-1 rounded-xl bg-background p-1 ring-1 ring-border/70">
+                    <button
+                        type="button"
+                        class="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-extrabold transition"
+                        :class="mediaMode === 'chibi' ? 'bg-white text-primary shadow-sm' : 'text-muted hover:text-text'"
+                        :disabled="savingMediaMode"
+                        @click="setMediaMode('chibi')"
+                    >
+                        <Image :size="16" />
+                        Chibi
+                    </button>
+                    <button
+                        type="button"
+                        class="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-extrabold transition"
+                        :class="mediaMode === 'dynamic' ? 'bg-white text-primary shadow-sm' : 'text-muted hover:text-text'"
+                        :disabled="savingMediaMode"
+                        @click="setMediaMode('dynamic')"
+                    >
+                        <Video :size="16" />
+                        Dynamic
+                    </button>
+                </div>
+            </div>
+            <p class="mt-3 text-xs font-bold text-muted">Current mode: {{ mediaModeLabel }}</p>
+        </DashboardCard>
+
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <ScoreCard label="Total Schools"     :value="dashboard.counts.schools"          :icon="School"        color="blue"   />
             <ScoreCard label="Total Teachers"    :value="dashboard.counts.teachers"         :icon="Users"         color="green"  />

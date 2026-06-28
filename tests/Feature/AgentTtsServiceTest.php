@@ -54,6 +54,7 @@ class AgentTtsServiceTest extends TestCase
 
     public function test_tts_service_unavailable_returns_safe_fallback(): void
     {
+        config()->set('readirect.voice_database.enabled', false);
         config()->set('readirect.tts.enabled', true);
         config()->set('readirect.tts.base_url', 'http://tts.test');
         Http::fake(['http://tts.test/synthesize' => Http::response(['detail' => 'down'], 500)]);
@@ -69,6 +70,7 @@ class AgentTtsServiceTest extends TestCase
     public function test_successful_tts_response_is_cached_and_served_through_laravel_route(): void
     {
         Storage::fake('local');
+        config()->set('readirect.voice_database.enabled', false);
         config()->set('readirect.tts.enabled', true);
         config()->set('readirect.tts.base_url', 'http://tts.test');
         Http::fake(['http://tts.test/synthesize' => Http::response('RIFF-fake-wave', 200, ['Content-Type' => 'audio/wav'])]);
@@ -101,6 +103,7 @@ class AgentTtsServiceTest extends TestCase
 
     public function test_tts_failure_does_not_change_official_learner_state(): void
     {
+        config()->set('readirect.voice_database.enabled', false);
         config()->set('readirect.tts.enabled', true);
         config()->set('readirect.tts.base_url', 'http://tts.test');
         Http::fake(['http://tts.test/synthesize' => Http::response(['detail' => 'down'], 500)]);
@@ -132,6 +135,7 @@ class AgentTtsServiceTest extends TestCase
     public function test_developer_debug_metadata_is_only_returned_when_requested(): void
     {
         Storage::fake('local');
+        config()->set('readirect.voice_database.enabled', false);
         config()->set('readirect.tts.enabled', true);
         config()->set('readirect.tts.base_url', 'http://tts.test');
         Http::fake(['http://tts.test/synthesize' => Http::response('RIFF-fake-wave', 200)]);

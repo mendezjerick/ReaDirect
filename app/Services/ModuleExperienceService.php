@@ -12,22 +12,22 @@ class ModuleExperienceService
             'purpose' => $this->purpose($module->key),
             'guide_message' => $this->guideMessage($module->key),
             'lesson_boxes' => $this->lessonBoxes($module->key, $activityTypes),
-            'goodbye_message' => 'See you next time!',
+            'goodbye_message' => 'See you next time. Keep practicing, keep using your clear voice, and remember that every step helps.',
         ];
     }
 
     public function masteryMessage(string $decisionKey): string
     {
         return match ($decisionKey) {
-            'move_to_module_2' => 'Great work! You are ready for Module 2.',
-            'repeat_module_1' => 'You are doing better. Let us practice Module 1 again to make your sounds stronger.',
-            'move_to_module_3' => 'Great job! You are ready for Module 3.',
-            'repeat_module_2' => 'Let us practice these words again so you can feel more confident.',
-            'return_to_module_1' => 'We will go back to letter sounds for more practice. This will help your word reading.',
-            'proceed_to_reassessment' => 'You worked hard in your modules. Do your best on your final reading check!',
-            'repeat_module_3' => 'Let us practice sentence reading again so you can read more smoothly.',
-            'return_to_module_2' => 'We will practice words again to help your sentence reading become stronger.',
-            default => 'Great effort! Your next reading step is ready.',
+            'move_to_module_2' => 'Great work! You are ready for Module 2, where we will practice reading words one careful step at a time.',
+            'repeat_module_1' => 'You are doing better. Let us practice Module 1 again so your letter sounds can feel stronger.',
+            'move_to_module_3' => 'Great job! You are ready for Module 3, where we will practice reading sentences smoothly.',
+            'repeat_module_2' => 'Let us practice these words again so you can feel more confident and steady when you read them.',
+            'return_to_module_1' => 'We will go back to letter sounds for more practice. This will help your word reading become stronger.',
+            'proceed_to_reassessment' => 'You worked hard in your modules. Stay calm, listen carefully, and do your best on your final reading check.',
+            'repeat_module_3' => 'Let us practice sentence reading again so you can read more smoothly and clearly.',
+            'return_to_module_2' => 'We will practice words again to help your sentence reading become stronger and easier.',
+            default => 'Great effort! Your next reading step is ready, and we will keep moving one step at a time.',
         };
     }
 
@@ -44,10 +44,10 @@ class ModuleExperienceService
     private function guideMessage(string $moduleKey): string
     {
         return match ($moduleKey) {
-            'module_1' => 'Hi! I am Miss Ciel. We will practice letter sounds together. Choose a lesson box to hear what it means.',
-            'module_2' => 'Hi! I am Miss Ciel. We will practice reading words clearly. Choose a lesson box to hear what it means.',
-            'module_3' => 'Hi! I am Miss Ciel. We will practice smooth sentence reading. Choose a lesson box to hear what it means.',
-            default => 'Hi! I am Miss Ciel. I will guide your practice one step at a time.',
+            'module_1' => 'Hi, I am Miss Ciel. We will practice letter sounds together, and you can choose a lesson box when you are ready.',
+            'module_2' => 'Hi, I am Miss Ciel. We will practice reading words clearly, one careful sound at a time.',
+            'module_3' => 'Hi, I am Miss Ciel. We will practice smooth sentence reading, and we will go slowly together.',
+            default => 'Hi, I am Miss Ciel. I will guide your practice one step at a time, and we can go slowly together.',
         };
     }
 

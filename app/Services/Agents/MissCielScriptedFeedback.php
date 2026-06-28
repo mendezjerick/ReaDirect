@@ -5,21 +5,21 @@ namespace App\Services\Agents;
 class MissCielScriptedFeedback
 {
     private const MESSAGES = [
-        'correct' => 'Great job! You answered that well. Keep going!',
-        'incorrect' => 'Good try! Let us practice it again slowly. You can do it!',
-        'partial' => 'Good try! You are very close. Let us fix one small sound.',
-        'retry' => 'Let us try one more time. Speak clearly and do your best.',
-        'encouragement' => 'Keep trying. Every practice step helps you get stronger.',
-        'extra_drills' => 'These practice sounds will help you get stronger. Let us do them together.',
-        'mastery_pass' => 'Great work! You are ready for the next step.',
-        'mastery_repeat' => 'That is okay. More practice will help you become better.',
-        'mastery_return_previous' => 'We will practice an earlier skill again so you can feel stronger.',
-        'module_start' => 'Hi! I am Miss Ciel. I will help you practice reading.',
-        'module_continue' => 'Let us keep practicing one step at a time.',
-        'module_complete' => 'Nice work finishing this module practice.',
-        'final_reassessment_ready' => 'You worked hard in your modules. Do your best on your final reading check!',
-        'goodbye' => 'See you next time! Keep practicing and keep doing your best.',
-        'generic_error' => 'Good effort! Let us try again when you are ready.',
+        'correct' => 'Great job! You said that clearly, and I can hear that you are getting more confident.',
+        'incorrect' => 'That is okay, let us try that one more time. This one can be tricky, but we can slow it down together.',
+        'partial' => 'No worries, you were close. Let us listen carefully, then say it again a little slower.',
+        'retry' => 'When you are ready, say it clearly one more time. We will go slowly, so you do not need to rush.',
+        'encouragement' => 'You can do it. Look at the word first, breathe softly, and then say it when you are ready.',
+        'extra_drills' => 'These practice sounds will help your reading get stronger. We will do them together, one careful step at a time.',
+        'mastery_pass' => 'Great job! You got that part, and you read it with a nice clear voice.',
+        'mastery_repeat' => 'That is okay. We will keep practicing this part so it feels easier and more comfortable next time.',
+        'mastery_return_previous' => 'We will practice an earlier skill again. That will help your reading feel stronger and more steady.',
+        'module_start' => 'Hi, I am Miss Ciel. I will read with you today, and we will take each word slowly together.',
+        'module_continue' => 'Ready? Let us keep practicing together. Go slowly, and just try your best.',
+        'module_complete' => 'Nice work finishing this module practice. Keep your voice clear, and let us move forward carefully.',
+        'final_reassessment_ready' => 'You worked hard in your modules. Stay calm, listen carefully, and do your best on your final reading check.',
+        'goodbye' => 'See you next time. Keep practicing, keep using your clear voice, and remember that every step helps.',
+        'generic_error' => 'Good effort. Let us slow down and try again when you are ready.',
     ];
 
     public function forCategory(string $category): string

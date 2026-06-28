@@ -3,6 +3,7 @@
 namespace App\Services\TTS;
 
 use App\Support\AgentIdentity;
+use App\Services\VoiceLines\VoiceLineService;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -13,6 +14,8 @@ use Throwable;
 class AgentTtsService
 {
     private const CACHE_DIR = 'tts_cache';
+
+    public function __construct(private readonly VoiceLineService $voiceLines) {}
 
     public function voiceProfile(string $agent): array
     {
@@ -31,21 +34,65 @@ class AgentTtsService
         ];
     }
 
-    public function speechPayload(string $agent, string $text, bool $includeDebug = false): array
+    public function speechPayload(string $agent, string $text, bool $includeDebug = false, array $options = []): array
     {
         $profile = $this->voiceProfile($agent);
         $safeText = $this->sanitizeText($text);
         $fallback = $this->fallbackPayload($profile, $safeText);
+        $intent = $this->sanitizeKey($options['intent'] ?? null, 64);
+        $lineKey = $this->sanitizeKey($options['line_key'] ?? null, 128);
+        $metadata = is_array($options['metadata'] ?? null) ? $options['metadata'] : [];
+        $metadataPayload = empty($metadata) ? new \stdClass() : (object) $metadata;
 
-        if (! (bool) config('readirect.tts.enabled') || $safeText === '') {
+        if ($safeText === '') {
             return $fallback;
         }
 
-        $cacheKey = $this->cacheKey($profile, $safeText);
+        $databaseAudio = $this->voiceLines->resolve($profile['agent'], $safeText, $lineKey, $intent);
+        if ($databaseAudio !== null) {
+            $payload = [
+                'agent' => $profile['agent'],
+                'display_name' => $profile['display_name'],
+                'text' => $databaseAudio['text'] ?: $safeText,
+                'voice_enabled' => true,
+                'tts_provider' => 'database',
+                'audio_url' => $databaseAudio['audio_url'],
+                'fallback' => (bool) ($databaseAudio['fallback'] ?? false),
+                'text_fallback_allowed' => true,
+                'active_audio_type' => $databaseAudio['active_audio_type'] ?? null,
+                'active_stage' => $databaseAudio['active_stage'] ?? null,
+                'line_key' => $databaseAudio['line_key'] ?? $lineKey,
+                'duration_seconds' => $databaseAudio['duration_seconds'] ?? null,
+            ];
+
+            return $this->withDebug(
+                $payload,
+                $includeDebug,
+                ($databaseAudio['fallback'] ?? false) ? 'database_other_stage' : null,
+                0,
+                $profile['voice'],
+                true
+            );
+        }
+
+        if (
+            (bool) config('readirect.voice_database.enabled', false)
+            && ! (bool) config('readirect.voice_database.fallback_to_runtime_tts', true)
+        ) {
+            return $this->withDebug($fallback, $includeDebug, 'database_voice_line_missing_runtime_disabled', 0);
+        }
+
+        if (! (bool) config('readirect.tts.enabled')) {
+            return $fallback;
+        }
+
+        $cacheKey = $this->cacheKey($profile, $safeText, $intent, $lineKey);
         $cachePath = self::CACHE_DIR.'/'.$cacheKey.'.wav';
         $started = microtime(true);
 
-        if ((bool) config('readirect.tts.cache_enabled') && Storage::disk('local')->exists($cachePath)) {
+        $cacheEnabled = (bool) config('readirect.tts.cache_enabled') && ! (bool) config('readirect.tts.cache_bypass', false);
+
+        if ($cacheEnabled && Storage::disk('local')->exists($cachePath)) {
             return $this->successPayload($profile, $safeText, $cacheKey, $includeDebug, true, $this->latency($started));
         }
 
@@ -56,14 +103,19 @@ class AgentTtsService
                 ->post(rtrim((string) config('readirect.tts.base_url'), '/').'/synthesize', [
                     'agent' => $profile['agent'],
                     'text' => $safeText,
+                    'intent' => $intent,
+                    'line_key' => $lineKey,
+                    'engine' => (string) config('readirect.tts.engine', 'kokoro'),
+                    'expressive' => (bool) config('readirect.tts.expressive.enabled', false),
                     'voice' => null,
                     'speed' => $profile['speed'],
-                    'cache' => (bool) config('readirect.tts.cache_enabled'),
+                    'cache' => $cacheEnabled,
                     'context' => 'agent_narration',
                     'humanize' => (bool) config('readirect.tts.humanization.text_humanizer_enabled', true),
                     'delivery_control' => (bool) config('readirect.tts.humanization.delivery_control_enabled', true),
                     'audio_humanizer' => (bool) config('readirect.tts.humanization.audio_humanizer_enabled', true),
                     'pause_control' => (bool) config('readirect.tts.humanization.pause_control_enabled', true),
+                    'metadata' => $metadataPayload,
                 ]);
         } catch (ConnectionException $exception) {
             $this->logFailure('connection_failed', $exception->getMessage());
@@ -181,11 +233,30 @@ class AgentTtsService
         return Str::limit($cleaned, 300, '');
     }
 
-    private function cacheKey(array $profile, string $text): string
+    private function sanitizeKey(mixed $value, int $limit): ?string
+    {
+        $cleaned = trim((string) $value);
+        if ($cleaned === '') {
+            return null;
+        }
+
+        $cleaned = preg_replace('/[^A-Za-z0-9_.-]/', '', $cleaned) ?: '';
+
+        return $cleaned === '' ? null : Str::limit($cleaned, $limit, '');
+    }
+
+    private function cacheKey(array $profile, string $text, ?string $intent = null, ?string $lineKey = null): string
     {
         return hash('sha256', implode('|', [
             config('readirect.tts.provider', 'kokoro'),
+            config('readirect.tts.engine', 'kokoro'),
+            (bool) config('readirect.tts.expressive.enabled', false) ? 'expressive:on' : 'expressive:off',
+            config('readirect.tts.expressive.engine', 'index_tts2'),
             config('readirect.tts.humanization.cache_version', 'humanized-v1'),
+            (bool) config('readirect.tts.humanization.auto_prompt_extension_enabled', false) ? 'auto_extend:on' : 'auto_extend:off',
+            (bool) config('readirect.tts.humanization.curated_prompts_enabled', true) ? 'curated:on' : 'curated:off',
+            'curated_target:'.number_format((float) config('readirect.tts.humanization.curated_prompt_target_seconds', 7.0), 1, '.', ''),
+            'reference_weighting:'.((bool) config('readirect.tts.expressive.reference_weighting_enabled', true) ? 'on' : 'off'),
             (bool) config('readirect.tts.humanization.text_humanizer_enabled', true) ? 'humanize:on' : 'humanize:off',
             (bool) config('readirect.tts.humanization.delivery_control_enabled', true) ? 'delivery:on' : 'delivery:off',
             (bool) config('readirect.tts.humanization.audio_humanizer_enabled', true) ? 'audio:on' : 'audio:off',
@@ -193,6 +264,8 @@ class AgentTtsService
             $profile['agent'],
             $profile['voice'],
             number_format((float) $profile['speed'], 2, '.', ''),
+            $intent ?: 'intent:none',
+            $lineKey ?: 'line_key:none',
             $text,
         ]));
     }

@@ -16,7 +16,7 @@ const props = defineProps({
     assessmentAttemptId: { type: Number, required: true },
     assessmentMode: { type: Object, default: () => ({}) },
     submitUrl: { type: String, required: true },
-    initialAgentMessage: { type: String, default: 'Read the word in the sentence. Speak clearly when you record.' },
+    initialAgentMessage: { type: String, default: 'Read the highlighted word in the sentence. When you are ready, record it clearly.' },
     submitErrorMessage: { type: String, default: 'We could not check these sentences yet. Please review them and try again.' },
 });
 
@@ -80,6 +80,8 @@ const hasUsableTranscript = (item, answer) => {
 const hasAnswerOrAudio = (item, answer) => (Boolean(uploadedAudioIds[item?.id]) || hasManualOverride(item)) && hasUsableTranscript(item, answer);
 const step = useStepAssessment(props.items, { emptyMessage: 'Almost there! Finish this item to continue.', initialIndex: props.initialIndex ?? 0, isAnswered: hasAnswerOrAudio });
 const agentMessage = ref(props.initialAgentMessage);
+const agentLineKey = ref('vivian.task2b.word_sentence_start');
+const agentIntent = ref('focused_instruction');
 const agentState = ref('listening');
 const agentSpeaking = ref(false);
 const neutralMessages = ['Thank you. Let us continue.', 'Good effort. Let us go to the next one.', 'I heard your answer. Let us keep going.'];
@@ -96,6 +98,13 @@ const canSubmitCurrent = computed(() => {
 });
 const primaryLabel = computed(() => isCurrentChecked.value ? 'Next' : 'Submit');
 const primaryDisabled = computed(() => form.processing || isCurrentUploading.value || (!isCurrentChecked.value && !canSubmitCurrent.value));
+const continueLineKeyForIndex = (index) => (index % 2 === 0 ? 'vivian.continue.thank_you' : 'vivian.continue.good_effort');
+const setAgentPrompt = (message, state = 'speaking', lineKey = '', intent = 'focused_instruction') => {
+    agentMessage.value = message;
+    agentState.value = state;
+    agentLineKey.value = lineKey;
+    agentIntent.value = intent;
+};
 
 const rememberAudio = (item, file) => {
     audioFiles[item.id] = file;
@@ -107,8 +116,7 @@ const rememberAudio = (item, file) => {
     delete asrResults[item.id];
     delete checkedItems[item.id];
     step.feedback.value = '';
-    agentMessage.value = 'Listen to your answer. If you are happy with your answer, click Submit.';
-    agentState.value = 'speaking';
+    setAgentPrompt('Listen to your answer. If you are happy with your answer, click Submit.', 'speaking', 'vivian.instruction.listen_choose_or_say');
 };
 
 const clearAudio = (item) => {
@@ -135,8 +143,7 @@ const uploadAudio = async (item, file) => {
 
     uploading[item.id] = true;
     uploadErrors[item.id] = '';
-    agentMessage.value = 'Checking your recording.';
-    agentState.value = 'thinking';
+    setAgentPrompt('Checking your recording.', 'thinking', 'vivian.processing.checking_recording');
 
     try {
         const payload = new FormData();
@@ -174,21 +181,18 @@ const uploadAudio = async (item, file) => {
             transcriptSources[item.id] = result.transcript_source ?? 'stt_auto';
             checkedItems[item.id] = true;
             step.feedback.value = '';
-            agentMessage.value = `You said: ${transcript}`;
-            agentState.value = 'speaking';
+            setAgentPrompt(`You said: ${transcript}`, 'speaking', '');
             return true;
         }
 
         delete checkedItems[item.id];
         uploadErrors[item.id] = asr.message;
-        agentMessage.value = uploadErrors[item.id];
-        agentState.value = 'retry';
+        setAgentPrompt(uploadErrors[item.id], 'retry', 'vivian.error.recording_check_failed', 'gentle_reassurance');
         return false;
     } catch (error) {
         delete checkedItems[item.id];
         uploadErrors[item.id] = error.message || 'We had trouble checking your answer. Please try again.';
-        agentMessage.value = uploadErrors[item.id];
-        agentState.value = 'retry';
+        setAgentPrompt(uploadErrors[item.id], 'retry', 'vivian.error.recording_check_failed', 'gentle_reassurance');
         return false;
     } finally {
         uploading[item.id] = false;
@@ -209,15 +213,13 @@ const submitCurrentForReview = async () => {
         checkedItems[item.id] = true;
         uploadErrors[item.id] = '';
         step.feedback.value = '';
-        agentMessage.value = `You said: ${manualAnswer}`;
-        agentState.value = 'speaking';
+        setAgentPrompt(`You said: ${manualAnswer}`, 'speaking', '');
         return;
     }
 
     const file = audioFiles[item.id];
     if (!file) {
-        agentMessage.value = 'Hold the orange button to record the highlighted word first.';
-        agentState.value = 'speaking';
+        setAgentPrompt('Hold the orange button to record the highlighted word first.', 'speaking', 'vivian.task2b.word_sentence_start');
         return;
     }
 
@@ -226,8 +228,7 @@ const submitCurrentForReview = async () => {
 
 const submit = () => {
     if (!step.validateComplete()) {
-        agentMessage.value = 'Almost there. Finish each sentence before checking your words.';
-        agentState.value = 'speaking';
+        setAgentPrompt('Almost there. Finish each sentence before checking your words.', 'speaking', 'vivian.task2b.word_sentence_start');
         return;
     }
 
@@ -244,27 +245,28 @@ const submit = () => {
         onError: (errors) => {
             const firstError = Object.values(errors ?? {})[0] ?? props.submitErrorMessage;
             step.feedback.value = Array.isArray(firstError) ? firstError[0] : firstError;
-            agentMessage.value = step.feedback.value;
-            agentState.value = 'retry';
+            setAgentPrompt(step.feedback.value, 'retry', 'vivian.error.recording_check_failed', 'gentle_reassurance');
         },
     });
 };
 
 const goNextOrFinish = () => {
     if (!isCurrentChecked.value) {
-        agentMessage.value = 'Click Submit first so I can check your answer.';
-        agentState.value = 'speaking';
+        setAgentPrompt('Click Submit first so I can check your answer.', 'speaking', 'vivian.processing.checking_answer');
         return;
     }
 
     if (!step.validateCurrent()) {
-        agentMessage.value = 'Let us answer this first.';
-        agentState.value = 'speaking';
+        setAgentPrompt('Let us answer this first.', 'speaking', 'vivian.task2b.word_sentence_start');
         return;
     }
 
-    agentMessage.value = neutralMessages[step.currentIndex.value % neutralMessages.length];
-    agentState.value = 'speaking';
+    setAgentPrompt(
+        neutralMessages[step.currentIndex.value % neutralMessages.length],
+        'speaking',
+        continueLineKeyForIndex(step.currentIndex.value),
+        'friendly_encouragement',
+    );
 
     if (step.isLast.value) {
         submit();
@@ -293,6 +295,8 @@ const setAgentSpeaking = (isSpeaking) => {
         <AssessmentTaskWorkspace
             :agent-state="agentState"
             :agent-message="agentMessage"
+            :agent-intent="agentIntent"
+            :agent-line-key="agentLineKey"
             :progress="step.progressPercent.value"
             :primary-label="primaryLabel"
             :primary-disabled="primaryDisabled"

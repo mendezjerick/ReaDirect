@@ -1,8 +1,10 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { usePage } from '@inertiajs/vue3';
 import {
     getAgentActionMedia,
     getAgentAlt,
+    getAgentChibiMedia,
     getAgentFallbackMedia,
     getAgentIdleMedia,
 } from '../../utils/agentMedia';
@@ -24,6 +26,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['interaction-ended']);
+const page = usePage();
 
 const initialCue = resolveAgentInteraction({
     agent: props.agent,
@@ -43,9 +46,12 @@ const isBusy = ref(false);
 let readyTimer = null;
 
 const altText = computed(() => props.alt || getAgentAlt(activeAgent.value));
+const mediaMode = computed(() => page.props.agentMedia?.mode === 'dynamic' ? 'dynamic' : 'chibi');
 const visibleIdleMedia = computed(() => idleFallback.value
     ? getAgentFallbackMedia(activeAgent.value)
-    : idleMedia.value);
+    : mediaMode.value === 'chibi'
+        ? getAgentChibiMedia(activeAgent.value)
+        : idleMedia.value);
 
 const clearReadyTimer = () => {
     if (readyTimer !== null) {
@@ -55,6 +61,8 @@ const clearReadyTimer = () => {
 };
 
 const warmIdleMedia = (agent) => {
+    if (mediaMode.value === 'chibi') return;
+
     preloadAgentCoreMedia(agent, {
         batchSize: 2,
         timeoutMs: 5000,
@@ -96,6 +104,11 @@ const requestAction = (agent, action, options = {}) => {
         route: options.route ?? props.route,
         congratsAllowed: options.allowCongrats ?? props.allowCongrats,
     });
+
+    if (mediaMode.value === 'chibi') {
+        showIdle(cue.agent);
+        return true;
+    }
 
     if (isBusy.value) {
         if (props.loopInteraction && !cue.shouldInteract) {
@@ -182,6 +195,7 @@ watch(
             props.route,
             props.allowCongrats,
             props.loopInteraction,
+            mediaMode.value,
     ],
     ([agent, agentType, action, context, route, allowCongrats]) => {
         requestAction(agent, action, {
