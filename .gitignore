@@ -36,3 +36,4 @@ content-bank/work/*
 !content-bank/work/.gitkeep
 tools/
 readirect-whisper-base-en-v1-hf
+link_voice_lines.php

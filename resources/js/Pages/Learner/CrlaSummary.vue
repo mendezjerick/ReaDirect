@@ -164,7 +164,7 @@ const replayVoice = () => {
                 <div class="grid gap-6 lg:grid-cols-[1fr_400px] xl:grid-cols-[1fr_450px]">
                     
                     <!-- Left Column (Module & Scores) -->
-                    <div class="flex flex-col gap-6">
+                    <div class="flex flex-col gap-6 sticky top-6 self-start">
                         <!-- Assigned Module Card (Reused for CRLA Level) -->
                         <div class="group relative overflow-hidden rounded-[28px] border-2 border-slate-100 bg-white p-6 shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-colors hover:border-blue-200">
                             <div class="absolute -right-10 -top-10 h-40 w-40 scale-100 rounded-full bg-blue-50 opacity-50 transition-transform duration-500 group-hover:scale-125" />
@@ -236,13 +236,14 @@ const replayVoice = () => {
                                 <span class="rounded-full bg-orange-100 px-3 py-1 text-xs font-black text-orange-700">{{ taskTwoBReview.average_accuracy_percentage }}% Avg</span>
                             </div>
                             
-                            <div class="mt-4 flex flex-col gap-3">
+                            <!-- Scrollable list of items -->
+                            <div class="mt-4 flex max-h-[400px] flex-col gap-3 overflow-y-auto pr-2 rd-custom-scrollbar">
                                 <div v-for="item in taskTwoBReview.items" :key="item.item_number" class="flex items-center justify-between rounded-xl border border-slate-100 bg-white px-4 py-3 shadow-sm">
                                     <div>
-                                        <p class="text-xs font-black uppercase text-slate-400">Item {{ item.item_number }}</p>
-                                        <p class="text-base font-black text-slate-800">{{ item.prompt }}</p>
+                                        <p class="text-[10px] font-black uppercase text-slate-400">Item {{ item.item_number }}</p>
+                                        <p class="text-[15px] font-black text-slate-800">{{ item.prompt }}</p>
                                     </div>
-                                    <span :class="['rounded-full px-3 py-1 text-sm font-black border', accuracyTone(item.accuracy_percentage)]">
+                                    <span :class="['rounded-full px-3 py-1 text-[13px] font-black border', accuracyTone(item.accuracy_percentage)]">
                                         {{ item.accuracy_percentage }}%
                                     </span>
                                 </div>
@@ -318,6 +319,24 @@ const replayVoice = () => {
     padding-bottom: 0 !important;
     margin-bottom: 0 !important;
     max-width: none !important;
+}
+
+/* Custom Scrollbar for inner elements */
+.rd-custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+}
+.rd-custom-scrollbar::-webkit-scrollbar-track {
+    background: #ffedd5; /* orange-100 */
+    border-radius: 12px;
+    margin: 4px 0;
+}
+.rd-custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #fdba74; /* orange-300 */
+    border-radius: 12px;
+    border: 2px solid #ffedd5;
+}
+.rd-custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #fb923c; /* orange-400 */
 }
 </style>
 

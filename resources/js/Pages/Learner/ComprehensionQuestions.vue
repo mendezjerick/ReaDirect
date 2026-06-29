@@ -1,12 +1,12 @@
 <script setup>
-import { computed } from 'vue';
+import { ref, computed } from 'vue';
 import { useForm } from '@inertiajs/vue3';
-import { HelpCircle, Star, PenTool, BookOpen, Flag } from 'lucide-vue-next';
+import { HelpCircle, Star, PenTool, BookOpen, Flag, Volume2, RotateCcw, ArrowRight } from 'lucide-vue-next';
 import LearnerLayout from '../../Layouts/LearnerLayout.vue';
-import AgentSpeakerPanel from '../../Components/Learner/AgentSpeakerPanel.vue';
 import PrimaryButton from '../../Components/PrimaryButton.vue';
 import SecondaryButton from '../../Components/SecondaryButton.vue';
-import BottomActionBar from '../../Components/BottomActionBar.vue';
+import AgentSpeakerTTS from '../../Components/Agents/AgentSpeakerTTS.vue';
+import AgentVideoPlayer from '../../Components/Agents/AgentVideoPlayer.vue';
 import { useStepAssessment } from '../../Composables/useStepAssessment';
 
 const props = defineProps({
@@ -28,6 +28,10 @@ const step = useStepAssessment(props.questions, {
     emptyMessage: 'Choose one answer before moving on.',
     initialIndex: firstUnansweredIndex === -1 ? Math.max((props.questions ?? []).length - 1, 0) : firstUnansweredIndex,
 });
+
+const isSpeaking = ref(false);
+const ttsKey = ref(0);
+const replayMessage = () => { ttsKey.value += 1; };
 const form = useForm({ assessment_attempt_id: props.assessmentAttemptId, responses: [] });
 Object.entries(savedAnswers).forEach(([id, answer]) => {
     step.answers[id] = answer;
@@ -71,17 +75,55 @@ const handlePrimary = () => {
 
 <template>
     <LearnerLayout :progress="86" diagnostic-step="sentence-reading" :has-bottom-bar="false">
-        <template #agent>
-            <AgentSpeakerPanel
-                agent-type="assessment"
-                state="speaking"
-                presentation="comprehension"
-                message="Choose the best answer based on the story you read."
-                line-key="vivian.assessment.comprehension_choice"
-            />
-        </template>
+        <div class="cq-landscape">
+            
+            <!-- LEFT: Miss Vivian -->
+            <div class="cq-agent flex flex-col items-center">
+                <div class="cq-agent-avatar">
+                    <AgentVideoPlayer
+                        agent="assessment"
+                        :action="isSpeaking ? 'talk' : 'idle'"
+                        alt="Miss Vivian"
+                        class="h-full w-full object-cover"
+                    />
+                </div>
+                
+                <p class="mt-5 text-center text-sm font-black uppercase tracking-widest text-primary">Miss Vivian</p>
+                
+                <div class="mt-2 flex items-center justify-center gap-2">
+                    <span class="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-black text-primary ring-1 ring-primary/20">
+                        <Volume2 class="size-3.5" />
+                        {{ isSpeaking ? 'Speaking' : 'Ready' }}
+                    </span>
+                    <button
+                        type="button"
+                        class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-500 ring-1 ring-slate-200 transition hover:bg-slate-200 hover:text-slate-700"
+                        @click="replayMessage"
+                    >
+                        <RotateCcw class="size-3.5" />
+                        Replay
+                    </button>
+                </div>
 
-        <section class="relative mx-auto grid w-full max-w-[960px] gap-4 sm:gap-5 xl:gap-6">
+                <div class="relative mt-4 w-full max-w-[280px] rounded-2xl border border-slate-200/60 bg-white p-4 shadow-sm text-center">
+                    <span class="absolute left-1/2 top-0 size-4 -translate-x-1/2 -translate-y-1/2 rotate-45 border-l border-t border-slate-200/60 bg-white" aria-hidden="true" />
+                    <p class="text-[14.5px] font-bold text-slate-700">
+                        Choose the best answer based on the story you read.
+                    </p>
+                </div>
+
+                <AgentSpeakerTTS
+                    :key="ttsKey"
+                    agent-type="assessment"
+                    message="Choose the best answer based on the story you read."
+                    line-key="vivian.assessment.comprehension_choice"
+                    @speaking-start="isSpeaking = true"
+                    @speaking-end="isSpeaking = false"
+                />
+            </div>
+
+            <!-- RIGHT: Content -->
+            <div class="cq-content relative w-full grid gap-4 sm:gap-5 xl:gap-6">
             <!-- Sparkle decorations -->
             <span class="pointer-events-none absolute -left-14 top-12 hidden text-4xl font-black text-primary/5 xl:block" aria-hidden="true">✦</span>
             <span class="pointer-events-none absolute -right-8 bottom-12 hidden text-3xl font-black text-primary/5 xl:block" aria-hidden="true">✦</span>
@@ -160,15 +202,83 @@ const handlePrimary = () => {
             <div class="mt-2 flex w-full items-center justify-between gap-3 sm:mt-4">
                 <SecondaryButton v-if="canUseDeveloperJumpControls && !step.isFirst.value" @click="step.goBack">Developer QA: Back</SecondaryButton>
                 <span v-else />
-                <PrimaryButton :disabled="form.processing" :class="{ 'opacity-70': !step.isCurrentAnswered.value }" @click="handlePrimary">
+                <button 
+                    class="rd-cta-pill"
+                    :disabled="form.processing"
+                    :class="{ 'opacity-50 cursor-not-allowed': !step.isCurrentAnswered.value || form.processing }"
+                    @click="handlePrimary"
+                >
                     {{ step.isLast.value ? 'Check answers' : 'Next' }}
-                </PrimaryButton>
+                    <ArrowRight class="ml-2 size-6 stroke-[3]" />
+                </button>
             </div>
-        </section>
+        </div>
+        </div>
     </LearnerLayout>
 </template>
 
 <style scoped>
+/* ─── Landscape grid ─────────────────────────────────── */
+.cq-landscape {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.75rem;
+    max-width: 72rem;
+    margin-inline: auto;
+    min-height: calc(100vh - 130px);
+    align-content: center;
+}
+
+@media (min-width: 1024px) {
+    .cq-landscape {
+        grid-template-columns: 280px minmax(500px, 700px);
+        justify-content: center;
+        gap: 4rem;
+        align-items: center;
+    }
+}
+
+/* ─── Agent Column ──────────────────────────────────── */
+.cq-agent-avatar {
+    width: 230px;
+    height: 230px;
+    border-radius: 28px;
+    overflow: hidden;
+    border: 4px solid white;
+    box-shadow: 0 12px 24px rgba(54, 83, 101, 0.12), 0 4px 8px rgba(54, 83, 101, 0.08);
+    background: #f8fafc;
+    flex-shrink: 0;
+}
+
+/* ─── CTA Pill Button ──────────────────────────────────── */
+.rd-cta-pill {
+    display: inline-flex;
+    min-height: 64px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #F58549 0%, #D9652F 100%);
+    padding: 0 2.5rem;
+    font-size: 1.1rem;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    color: white;
+    text-transform: uppercase;
+    box-shadow: 0 8px 0 #B84B24, 0 12px 24px rgba(217, 101, 47, 0.3);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    border: none;
+    cursor: pointer;
+}
+.rd-cta-pill:not(:disabled):hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 0 #B84B24, 0 16px 32px rgba(217, 101, 47, 0.4);
+    filter: brightness(1.05);
+}
+.rd-cta-pill:not(:disabled):active {
+    transform: translateY(6px);
+    box-shadow: 0 2px 0 #B84B24, 0 4px 12px rgba(217, 101, 47, 0.2);
+}
+
 /* Card spring entrance */
 .anim-card {
     animation: cardSpring 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;

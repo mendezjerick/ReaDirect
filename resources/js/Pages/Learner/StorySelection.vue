@@ -1,16 +1,23 @@
 <script setup>
-import { computed } from 'vue';
+import { ref, computed } from 'vue';
 import { useForm } from '@inertiajs/vue3';
-import { ArrowRight, Check } from 'lucide-vue-next';
+import { ArrowRight, Check, Volume2, RotateCcw } from 'lucide-vue-next';
 import LearnerLayout from '../../Layouts/LearnerLayout.vue';
-import AgentSpeakerPanel from '../../Components/Learner/AgentSpeakerPanel.vue';
 import PrimaryButton from '../../Components/PrimaryButton.vue';
-import BottomActionBar from '../../Components/BottomActionBar.vue';
+import AgentSpeakerTTS from '../../Components/Agents/AgentSpeakerTTS.vue';
+import AgentVideoPlayer from '../../Components/Agents/AgentVideoPlayer.vue';
 
 const props = defineProps({
     stories: Array,
     assessmentAttemptId: Number,
 });
+
+const isSpeaking = ref(false);
+const ttsKey = ref(0);
+
+const replayMessage = () => {
+    ttsKey.value += 1;
+};
 
 const form = useForm({
     assessment_attempt_id: props.assessmentAttemptId,
@@ -24,20 +31,54 @@ const submit = () => { if (!form.passage_id) return; form.post('/learner/diagnos
 </script>
 
 <template>
-    <LearnerLayout :progress="76" diagnostic-step="sentence-reading">
+    <LearnerLayout :progress="76" diagnostic-step="sentence-reading" :has-bottom-bar="false">
         <!-- No #agent slot — landscape layout -->
 
         <div class="ss-landscape">
 
             <!-- LEFT: Miss Vivian -->
-            <div class="ss-agent ss-anim" style="--ss-delay: 0ms">
-                <AgentSpeakerPanel
+            <div class="ss-agent ss-anim flex flex-col items-center" style="--ss-delay: 0ms">
+                <!-- Avatar -->
+                <div class="ss-agent-avatar">
+                    <AgentVideoPlayer
+                        agent="assessment"
+                        :action="isSpeaking ? 'talk' : 'idle'"
+                        alt="Miss Vivian"
+                        class="h-full w-full object-cover"
+                    />
+                </div>
+                
+                <p class="mt-5 text-center text-sm font-black uppercase tracking-widest text-primary">Miss Vivian</p>
+                
+                <div class="mt-2 flex items-center justify-center gap-2">
+                    <span class="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-black text-primary ring-1 ring-primary/20">
+                        <Volume2 class="size-3.5" />
+                        {{ isSpeaking ? 'Speaking' : 'Ready' }}
+                    </span>
+                    <button
+                        type="button"
+                        class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-500 ring-1 ring-slate-200 transition hover:bg-slate-200 hover:text-slate-700"
+                        @click="replayMessage"
+                    >
+                        <RotateCcw class="size-3.5" />
+                        Replay
+                    </button>
+                </div>
+
+                <div class="relative mt-4 w-full max-w-[280px] rounded-2xl border border-slate-200/60 bg-white p-4 shadow-sm text-center">
+                    <span class="absolute left-1/2 top-0 size-4 -translate-x-1/2 -translate-y-1/2 rotate-45 border-l border-t border-slate-200/60 bg-white" aria-hidden="true" />
+                    <p class="text-[14.5px] font-bold text-slate-700">
+                        Choose one story for your final reading passage.
+                    </p>
+                </div>
+
+                <AgentSpeakerTTS
+                    :key="ttsKey"
                     agent-type="assessment"
-                    state="speaking"
-                    presentation="routing"
                     message="Choose one story for your final reading passage."
                     line-key="vivian.assessment.story_choice"
-                    show-audio-button
+                    @speaking-start="isSpeaking = true"
+                    @speaking-end="isSpeaking = false"
                 />
             </div>
 
@@ -96,19 +137,22 @@ const submit = () => { if (!form.passage_id) return; form.post('/learner/diagnos
                 <p v-if="form.errors.passage_id" class="ss-error">
                     {{ form.errors.passage_id }}
                 </p>
+
+                <!-- CTA Button -->
+                <div class="mt-4 ss-anim" style="--ss-delay: 200ms">
+                    <button 
+                        class="rd-cta-pill w-full"
+                        :disabled="form.processing || !selectedStory"
+                        @click="submit"
+                        :class="{'opacity-50 cursor-not-allowed': form.processing || !selectedStory}"
+                    >
+                        Start story {{ selectedStory?.story_number ?? '' }}
+                        <ArrowRight class="ml-2 size-6 stroke-[3]" />
+                    </button>
+                </div>
             </div>
         </div>
 
-        <BottomActionBar>
-            <PrimaryButton
-                :disabled="form.processing || !selectedStory"
-                class="gap-3 px-8 py-4 text-base"
-                @click="submit"
-            >
-                Start story {{ selectedStory?.story_number ?? '' }}
-                <ArrowRight class="size-5" />
-            </PrimaryButton>
-        </BottomActionBar>
     </LearnerLayout>
 </template>
 
@@ -120,15 +164,29 @@ const submit = () => { if (!form.passage_id) return; form.post('/learner/diagnos
     gap: 1.75rem;
     max-width: 68rem;
     margin-inline: auto;
-    padding-bottom: 2rem;
+    min-height: calc(100vh - 130px);
+    align-content: center;
 }
 
 @media (min-width: 768px) {
     .ss-landscape {
-        grid-template-columns: 1fr 1.1fr;
-        gap: 2.5rem;
+        grid-template-columns: 280px minmax(400px, 500px);
+        justify-content: center;
+        gap: 3.5rem;
         align-items: center;
     }
+}
+
+/* ─── Agent Column ──────────────────────────────────── */
+.ss-agent-avatar {
+    width: 230px;
+    height: 230px;
+    border-radius: 28px;
+    overflow: hidden;
+    border: 4px solid white;
+    box-shadow: 0 12px 24px rgba(54, 83, 101, 0.12), 0 4px 8px rgba(54, 83, 101, 0.08);
+    background: #f8fafc;
+    flex-shrink: 0;
 }
 
 /* ─── Content column ─────────────────────────────────── */
@@ -334,5 +392,34 @@ const submit = () => { if (!form.passage_id) return; form.post('/learner/diagnos
         animation: none;
         transition: none;
     }
+}
+
+/* ─── CTA Pill Button ──────────────────────────────────── */
+.rd-cta-pill {
+    display: inline-flex;
+    min-height: 64px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #F58549 0%, #D9652F 100%);
+    padding: 0 2.5rem;
+    font-size: 1.1rem;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    color: white;
+    text-transform: uppercase;
+    box-shadow: 0 8px 0 #B84B24, 0 12px 24px rgba(217, 101, 47, 0.3);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    border: none;
+    cursor: pointer;
+}
+.rd-cta-pill:not(:disabled):hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 0 #B84B24, 0 16px 32px rgba(217, 101, 47, 0.4);
+    filter: brightness(1.05);
+}
+.rd-cta-pill:not(:disabled):active {
+    transform: translateY(6px);
+    box-shadow: 0 2px 0 #B84B24, 0 4px 12px rgba(217, 101, 47, 0.2);
 }
 </style>
