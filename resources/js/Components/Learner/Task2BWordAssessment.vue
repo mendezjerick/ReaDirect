@@ -401,8 +401,8 @@ const setAgentSpeaking = (isSpeaking) => {
                 />
             </template>
 
-            <template #status>
-                <p v-if="uploadErrors[step.currentItem.value.id]" class="rounded-lg bg-rose-50 px-3 py-2 text-sm font-black text-rose-600 ring-1 ring-rose-200/60">
+            <template v-if="uploadErrors[step.currentItem.value.id]" #status>
+                <p class="rounded-lg bg-rose-50 px-3 py-2 text-sm font-black text-rose-600 ring-1 ring-rose-200/60">
                     {{ uploadErrors[step.currentItem.value.id] }}
                 </p>
             </template>

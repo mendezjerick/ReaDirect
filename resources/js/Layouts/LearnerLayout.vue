@@ -28,7 +28,7 @@ const visibleSteps = computed(() => props.steps.length ? props.steps : (props.di
         <AdminTestingToolbar />
         <header
             v-if="assessmentTask"
-            class="anim-header z-20 flex-none px-4 pb-2 pt-1"
+            class="anim-header z-20 flex-none pb-2 pt-1"
         >
             <div class="learner-frame rd-learner-assessment-header">
                 <div class="rd-learner-assessment-header-face flex min-h-16 items-center gap-3 px-5 py-2">

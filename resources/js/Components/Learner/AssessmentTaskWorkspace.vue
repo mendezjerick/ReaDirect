@@ -35,7 +35,13 @@ const togglePromptImage = () => {
 </script>
 
 <template>
-    <section class="assessment-task-workspace">
+    <section
+        class="assessment-task-workspace"
+        :class="{
+            'assessment-task-workspace--has-lower-section': $slots.transcript || $slots.status || $slots.qa,
+            'assessment-task-workspace--has-qa': $slots.qa,
+        }"
+    >
         <AgentSpeakerPanel
             compact
             :agent-type="agentType"
@@ -152,7 +158,7 @@ const togglePromptImage = () => {
 
 <style scoped>
 .assessment-task-workspace {
-    --assessment-gap: clamp(0.55rem, 1.25dvh, 1rem);
+    --assessment-gap: 1rem;
     --assessment-agent-row: clamp(8rem, 17dvh, 11.4rem);
     --assessment-progress-row: clamp(2.75rem, 6dvh, 4.6rem);
     --assessment-transcript-row: clamp(7rem, 16dvh, 10rem);
@@ -166,10 +172,21 @@ const togglePromptImage = () => {
     grid-template-rows:
         var(--assessment-agent-row)
         minmax(8.5rem, 1fr)
-        var(--assessment-progress-row)
-        auto;
+        var(--assessment-progress-row);
     gap: var(--assessment-gap);
     overflow: visible;
+    padding-bottom: 0;
+}
+
+.assessment-task-workspace--has-lower-section {
+    grid-template-rows:
+        var(--assessment-agent-row)
+        minmax(8.5rem, 1fr)
+        var(--assessment-progress-row)
+        auto;
+}
+
+.assessment-task-workspace--has-qa {
     padding-bottom: calc(var(--assessment-qa-strip-height) + var(--assessment-qa-strip-gap));
 }
 
@@ -177,7 +194,8 @@ const togglePromptImage = () => {
     display: grid;
     min-height: 0;
     grid-template-columns: minmax(0, 1fr) minmax(15rem, clamp(18rem, 30vw, 28rem));
-    gap: clamp(0.75rem, 1.35vw, 1.1rem);
+    column-gap: clamp(0.75rem, 1.35vw, 1.1rem);
+    row-gap: var(--assessment-gap);
 }
 
 .assessment-prompt-panel,
@@ -302,7 +320,8 @@ const togglePromptImage = () => {
     display: grid;
     min-height: 0;
     grid-template-columns: minmax(0, 4fr) minmax(8rem, 1fr);
-    gap: clamp(0.75rem, 1.2vw, 1.1rem);
+    column-gap: clamp(0.75rem, 1.2vw, 1.1rem);
+    row-gap: var(--assessment-gap);
     overflow: visible;
     border: 0;
     border-radius: 999px;
@@ -592,7 +611,6 @@ const togglePromptImage = () => {
 
 @media (max-height: 720px) {
     .assessment-task-workspace {
-        --assessment-gap: clamp(0.3rem, 0.75dvh, 0.5rem);
         --assessment-agent-row: clamp(6.25rem, 15dvh, 8.5rem);
         --assessment-progress-row: clamp(2.45rem, 5.4dvh, 3.4rem);
         --assessment-transcript-row: clamp(6.5rem, 17dvh, 8rem);
@@ -610,6 +628,13 @@ const togglePromptImage = () => {
 @media (max-width: 760px) {
     .assessment-task-workspace {
         overflow-y: auto;
+        grid-template-rows:
+            auto
+            auto
+            auto;
+    }
+
+    .assessment-task-workspace--has-lower-section {
         grid-template-rows:
             auto
             auto
