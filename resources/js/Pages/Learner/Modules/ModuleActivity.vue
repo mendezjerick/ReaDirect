@@ -58,6 +58,80 @@ const recorderPromptType = computed(() => {
 
     return 'word';
 });
+const initialModuleCues = {
+    letter: [
+        { text: 'Look at the letter below and say its sound clearly.', lineKey: 'ciel.module1.before_recording.letter_01' },
+        { text: 'Say the displayed letter sound slowly.', lineKey: 'ciel.module1.before_recording.letter_02' },
+        { text: 'Read the letter sound below carefully.', lineKey: 'ciel.module1.before_recording.letter_03' },
+    ],
+    word: [
+        { text: 'Read the displayed word below carefully.', lineKey: 'ciel.module2.before_recording.word_01' },
+        { text: 'Read the word below slowly.', lineKey: 'ciel.module2.before_recording.word_02' },
+        { text: 'Look at the word below and say it clearly.', lineKey: 'ciel.module2.before_recording.word_03' },
+    ],
+    sentence: [
+        { text: 'Read the sentence below clearly and naturally.', lineKey: 'ciel.module3.before_recording.sentence_01' },
+        { text: 'Read the displayed sentence at a steady pace.', lineKey: 'ciel.module3.before_recording.sentence_02' },
+        { text: 'Read the sentence below carefully from start to finish.', lineKey: 'ciel.module3.before_recording.sentence_03' },
+    ],
+};
+const afterRecordingCues = [
+    { text: 'Listen to your recording, then click Submit when you are ready.', lineKey: 'ciel.module.after_recording.review_submit_01' },
+    { text: 'You can review your audio first, then press Submit.', lineKey: 'ciel.module.after_recording.review_submit_02' },
+    { text: 'Play your recording if you want to check it, then submit your answer.', lineKey: 'ciel.module.after_recording.review_submit_03' },
+];
+const noRecordingCues = {
+    letter: { text: 'Please record the letter sound first.', lineKey: 'ciel.module1.validation.record_letter_first' },
+    word: { text: 'Please record the word first.', lineKey: 'ciel.module2.validation.record_word_first' },
+    sentence: { text: 'Please record the sentence first.', lineKey: 'ciel.module3.validation.record_sentence_first' },
+};
+const praiseCues = [
+    { text: "Nice work! You said that clearly, and I can hear that you're getting more confident.", lineKey: 'ciel.praise.clear_confident' },
+    { text: 'Great job! You got that one, and you read it with a nice clear voice.', lineKey: 'ciel.praise.got_that_one' },
+    { text: "Good job, that was clear. Let's keep going while you're doing so well.", lineKey: 'ciel.praise.keep_going_clear' },
+];
+const moduleCueTypeFor = (item = null) => {
+    const moduleKey = String(item?.payload?.module_key ?? props.module?.key ?? '');
+    const activity = String(item?.activity_type ?? props.activityType ?? '');
+
+    if (moduleKey === 'module_1') return 'letter';
+    if (moduleKey === 'module_3' || activity.includes('sentence') || activity.includes('paragraph')) return 'sentence';
+
+    return 'word';
+};
+const cycleIndexForItem = (item = null) => {
+    const directSequence = Number(item?.sequence);
+    const listIndex = (props.items ?? []).findIndex((candidate) => candidate?.id === item?.id);
+    const sequence = Number.isFinite(directSequence) && directSequence > 0
+        ? directSequence
+        : Math.max(listIndex + 1, 1);
+
+    return (sequence - 1) % 3;
+};
+const cycleCueForItem = (cues, item = null) => cues[cycleIndexForItem(item)] ?? cues[0];
+const initialCueForItem = (item = null) => cycleCueForItem(initialModuleCues[moduleCueTypeFor(item)] ?? initialModuleCues.word, item);
+const afterRecordingCueForItem = (item = null) => cycleCueForItem(afterRecordingCues, item);
+const noRecordingCueForItem = (item = null) => noRecordingCues[moduleCueTypeFor(item)] ?? noRecordingCues.word;
+const praiseCueForItem = (item = null) => cycleCueForItem(praiseCues, item);
+const correctEchoForItem = (item = null) => {
+    const echo = item?.echo?.correct;
+
+    return echo?.text && echo?.line_key ? echo : null;
+};
+const focusEchoStepsForItem = (item = null, fallbackText = '', fallbackAction = 'talk') => {
+    const echo = correctEchoForItem(item);
+
+    if (!echo) {
+        return [{ text: fallbackText || 'Listen carefully, then try it again.', action: fallbackAction || 'talk' }];
+    }
+
+    return [
+        { text: "I'll say it first, listen carefully.", action: 'talk', line_key: 'ciel.focus.echo_intro', intent: 'focused_instruction' },
+        { text: echo.text, action: 'talk', line_key: echo.line_key, intent: echo.intent ?? 'module_echo_correct' },
+        { text: "I'll repeat it one more time, listen closely.", action: 'talk', line_key: 'ciel.focus.echo_repeat', intent: 'focused_instruction' },
+        { text: echo.text, action: 'talk', line_key: echo.line_key, intent: echo.intent ?? 'module_echo_correct' },
+    ];
+};
 const promptDisplaySize = computed(() => (recorderPromptType.value === 'letter'
     ? 'letter'
     : (recorderPromptType.value === 'sentence' ? 'sentence' : 'word')));
@@ -76,8 +150,9 @@ const seedRetryStates = (items) => {
 seedRetryStates(props.items);
 const hasAnswerOrAudio = (item, answer) => answerFor(item, answer).length > 0 || Boolean(uploadedAudioIds[item?.id]) || Boolean(audioFiles[item?.id]) || Boolean(retryStates[item?.id]?.is_resolved);
 const step = useStepAssessment(props.items, { emptyMessage: 'Try this one before moving on.', isAnswered: hasAnswerOrAudio });
-const coachMessage = ref('Read the prompt, then record your voice. I will help you practice.');
-const coachLineKey = ref('ciel.instruction.look_listen_read');
+const firstCoachCue = initialCueForItem(props.items?.[0] ?? null);
+const coachMessage = ref(firstCoachCue.text);
+const coachLineKey = ref(firstCoachCue.lineKey);
 const coachIntent = ref('focused_instruction');
 const coachState = ref('speaking');
 const returningToDashboard = ref(false);
@@ -146,6 +221,14 @@ const setCoachPrompt = (message, state = 'speaking', lineKey = '', intent = 'foc
     coachLineKey.value = lineKey;
     coachIntent.value = intent;
 };
+const setInitialCoachPrompt = (item = step.currentItem.value) => {
+    const cue = initialCueForItem(item);
+    setCoachPrompt(cue.text, 'speaking', cue.lineKey);
+};
+const setNoRecordingPrompt = (item = step.currentItem.value) => {
+    const cue = noRecordingCueForItem(item);
+    setCoachPrompt(cue.text, 'encouraging', cue.lineKey);
+};
 watch(
     () => props.items.map((item) => item.id).join('|'),
     () => {
@@ -164,7 +247,7 @@ watch(
         seedRetryStates(props.items);
         manualRecorderOverride.value = false;
         automaticListeningPanel.value?.stopSession?.();
-        setCoachPrompt('Read the prompt, then record your voice. I will help you practice.', 'speaking', 'ciel.instruction.look_listen_read');
+        setInitialCoachPrompt(props.items?.[0] ?? null);
         cielFocusEvent.value = null;
         form.clearErrors();
     }
@@ -217,7 +300,8 @@ const rememberAudio = (item, file) => {
     delete generatedTranscripts[item.id];
     delete asrResults[item.id];
     delete submittedManualItems[item.id];
-    setCoachPrompt('Listen to your answer. If you are happy with your answer, click Submit.', 'speaking', 'ciel.instruction.listen_then_say_word');
+    const cue = afterRecordingCueForItem(item);
+    setCoachPrompt(cue.text, 'speaking', cue.lineKey);
 };
 
 const clearAudio = (item, resetAgent = true) => {
@@ -232,7 +316,7 @@ const clearAudio = (item, resetAgent = true) => {
     delete submittedManualItems[item.id];
     recorderResetKeys[item.id] = (recorderResetKeys[item.id] ?? 0) + 1;
     if (resetAgent) {
-        coachState.value = 'speaking';
+        setInitialCoachPrompt(item);
     }
 };
 
@@ -280,7 +364,7 @@ const uploadAudio = async (item, file) => {
             generatedTranscripts[item.id] = transcript;
             transcriptSources[item.id] = result.transcript_source ?? 'stt_auto';
             step.feedback.value = '';
-            setCoachPrompt(`You said: ${transcript}`, 'speaking', '');
+            setCoachPrompt("I heard your answer clearly. Let's check it together and keep going.", 'speaking', 'ciel.asr.success_generic', 'friendly_encouragement');
             return true;
         }
 
@@ -309,7 +393,7 @@ const checkCurrent = async (automaticContext = null) => {
     }
 
     if (!answerFor(item) && !uploadedAudioIds[item.id]) {
-        setCoachPrompt('Let us answer this first.', 'encouraging', 'ciel.instruction.look_listen_read');
+        setNoRecordingPrompt(item);
         step.feedback.value = 'Record this item before checking.';
         return false;
     }
@@ -356,10 +440,11 @@ const checkCurrent = async (automaticContext = null) => {
         const cielAgent = result.ciel_agent?.agent === 'ciel' ? result.ciel_agent : null;
 
         if (retryStates[item.id].is_correct) {
+            const praiseCue = praiseCueForItem(item);
             setCoachPrompt(
-                cielAgent?.message ?? agentCue?.message ?? 'That is correct. Go to the next one.',
+                praiseCue.text,
                 cielAgent?.animation ?? agentCue?.action ?? (step.isLast.value ? 'section_complete' : 'correct'),
-                (cielAgent || agentCue) ? '' : 'ciel.praise.got_that_one',
+                praiseCue.lineKey,
                 'happy_praise',
             );
         } else if (retryStates[item.id].can_retry) {
@@ -390,16 +475,11 @@ const checkCurrent = async (automaticContext = null) => {
             cielFocusEvent.value = {
                 enabled: true,
                 mode: 'teaching',
-                target_type: props.module?.key === 'module_1' ? 'letter' : 'word',
-                target_text: cielAgent.display_target,
+                target_type: item.echo?.target_type ?? moduleCueTypeFor(item),
+                target_text: item.echo?.target_text ?? cielAgent.display_target,
                 reason: cielAgent.teaching_focus ?? 'agent_focus_teach',
                 reward: null,
-                dialogue_steps: [
-                    {
-                        text: cielAgent.message,
-                        action: cielAgent.animation,
-                    },
-                ],
+                dialogue_steps: focusEchoStepsForItem(item, cielAgent.message, cielAgent.animation),
             };
         } else if (result.ciel_focus_event?.enabled) {
             cielFocusEvent.value = result.ciel_focus_event;
@@ -504,7 +584,7 @@ const submitCurrentForReview = async () => {
         transcriptSources[item.id] = 'manual';
         uploadErrors[item.id] = '';
         step.feedback.value = '';
-        setCoachPrompt(`You said: ${manualAnswer}`, 'speaking', '');
+        setCoachPrompt("I heard your answer clearly. Let's check it together and keep going.", 'speaking', 'ciel.asr.success_generic', 'friendly_encouragement');
         return true;
     }
 
@@ -514,7 +594,7 @@ const submitCurrentForReview = async () => {
 
     const file = audioFiles[item.id];
     if (!file) {
-        setCoachPrompt('Hold the orange button to record your answer first.', 'encouraging', 'ciel.instruction.say_sound_clearly');
+        setNoRecordingPrompt(item);
         step.feedback.value = 'Record this item before submitting.';
         return false;
     }
@@ -546,7 +626,7 @@ const handlePrimary = async () => {
     }
 
     step.goNext();
-    setCoachPrompt('Read the prompt, then record your voice. I will help you practice.', 'speaking', 'ciel.instruction.look_listen_read');
+    setInitialCoachPrompt(step.currentItem.value);
     window.setTimeout(resumeAutomaticListeningIfReady, 300);
 };
 
@@ -599,7 +679,7 @@ onBeforeUnmount(() => {
                 <AssessmentPromptText
                     :key="step.currentItem.value.id"
                     :label="activityLabel"
-                    :prompt="step.currentItem.value.prompt"
+                    :prompt="step.currentItem.value.display_prompt ?? step.currentItem.value.prompt"
                     :highlight-targets="currentHighlightTargets"
                     :size="promptDisplaySize"
                 />

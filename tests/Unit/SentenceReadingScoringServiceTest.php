@@ -97,7 +97,7 @@ class SentenceReadingScoringServiceTest extends TestCase
 
     public function test_fluency_score_with_no_pauses(): void
     {
-        $result = (new SentenceReadingScoringService())->evaluate('the red hen', 'the red hen', 3, [
+        $result = (new SentenceReadingScoringService())->evaluate('the red hen', 'the red hen', 2, [
             'pause_metrics' => [
                 'pause_count' => 0,
                 'long_pause_count' => 0,
@@ -113,7 +113,7 @@ class SentenceReadingScoringServiceTest extends TestCase
         $this->assertTrue($result['pause_metrics_available']);
     }
 
-    public function test_fluency_score_with_long_pauses(): void
+    public function test_wcpm_stays_numeric_fluency_when_long_pauses_are_present(): void
     {
         $service = new SentenceReadingScoringService();
         $withoutPauses = $service->evaluate('the red hen', 'the red hen', 3);
@@ -129,8 +129,33 @@ class SentenceReadingScoringServiceTest extends TestCase
         ]);
 
         $this->assertLessThan(100, $withLongPauses['pause_score']);
-        $this->assertLessThan($withoutPauses['fluency_score'], $withLongPauses['fluency_score']);
+        $this->assertSame($withoutPauses['wcpm'], $withLongPauses['wcpm']);
+        $this->assertSame($withoutPauses['wcpm'], $withLongPauses['fluency_score']);
         $this->assertNotNull($withLongPauses['long_pause_warning']);
+    }
+
+    public function test_module_timing_targets_classify_pace_without_changing_wcpm(): void
+    {
+        $service = new SentenceReadingScoringService();
+        $targets = [
+            'target_read_time_seconds' => 2.0,
+            'min_fluent_time_seconds' => 1.0,
+            'max_fluent_time_seconds' => 3.0,
+            'target_wcpm' => 120.0,
+        ];
+
+        $fluent = $service->evaluate('I see a cat.', 'I see a cat.', 2.0, [], $targets);
+        $tooFast = $service->evaluate('I see a cat.', 'I see a cat.', 0.75, [], $targets);
+        $tooSlow = $service->evaluate('I see a cat.', 'I see a cat.', 3.5, [], $targets);
+
+        $this->assertSame(4, $fluent['total_words_read']);
+        $this->assertSame(0, $fluent['errors']);
+        $this->assertSame(4, $fluent['correct_words']);
+        $this->assertSame(120.0, $fluent['wcpm']);
+        $this->assertSame(120.0, $fluent['fluency_score']);
+        $this->assertSame('fluent', $fluent['pace_label']);
+        $this->assertSame('too_fast', $tooFast['pace_label']);
+        $this->assertSame('too_slow', $tooSlow['pace_label']);
     }
 
     public function test_missing_duration_does_not_crash(): void

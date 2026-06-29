@@ -94,7 +94,10 @@ class ModuleItemRetryService
             ]);
         }
 
-        $score = $this->scoring->scoreAnswer($item, $answer);
+        $durationSeconds = isset($submitted['duration_seconds'])
+            ? (float) $submitted['duration_seconds']
+            : $audioFile?->duration_seconds;
+        $score = $this->scoring->scoreAnswer($item, $answer, $durationSeconds, $resolved['ai_response'] ?? null);
         if ($this->analysis->acceptedForShortPrompt($resolved['ai_response'] ?? null)) {
             $score['is_correct'] = true;
             $score['score'] = $score['possible_score'];
@@ -116,6 +119,10 @@ class ModuleItemRetryService
             'transcript_source' => $resolved['source'],
             'audio_file_id' => $audioFile?->id,
             'error_type' => $score['error_type'],
+            'wcpm' => $score['wcpm'] ?? null,
+            'pace_label' => $score['pace_label'] ?? null,
+            'correct_words' => $score['sentence_evaluation']['correct_words'] ?? null,
+            'errors' => $score['sentence_evaluation']['errors'] ?? null,
             'checked_at' => now()->toDateTimeString(),
         ];
 
@@ -146,7 +153,10 @@ class ModuleItemRetryService
             'phoneme_errors' => $aiResponse['phoneme_errors'] ?? [],
             'uncertain' => $aiResponse['uncertain'] ?? null,
             'retry_required' => $aiResponse['retry_required'] ?? null,
-            'audio_duration_seconds' => isset($submitted['duration_seconds']) ? (float) $submitted['duration_seconds'] : null,
+            'audio_duration_seconds' => $durationSeconds,
+            'pace_label' => $score['pace_label'] ?? null,
+            'wcpm' => $score['wcpm'] ?? null,
+            'sentence_scoring' => $score['sentence_evaluation'] ?? null,
             'listening_mode' => $submitted['listening_mode'] ?? null,
             'session_mode' => $submitted['session_mode'] ?? null,
             'automatic_session_id' => $submitted['automatic_session_id'] ?? null,
@@ -166,6 +176,9 @@ class ModuleItemRetryService
         ];
         $agentCue = $this->ciel->decide($cielEvent);
         $cielAgent = $this->cielTutorAgent->decide($cielEvent);
+        if (in_array((string) ($score['error_type'] ?? ''), ['pace_too_fast', 'pace_too_slow', 'pace_unknown'], true)) {
+            $cielAgent = null;
+        }
         $feedbackMessage = $cielAgent['message'] ?? $agentCue['message'] ?? $templateFeedback;
 
         $metadata = array_merge($existing?->metadata_json ?? [], [
@@ -174,6 +187,7 @@ class ModuleItemRetryService
             'max_attempts' => self::MAX_ATTEMPTS,
             'ciel_agent' => $cielAgent,
             'automatic_listening' => $this->automaticListeningMetadata($submitted),
+            'module_scoring' => $score['sentence_evaluation'] ?? null,
             'asr_scoring_debug' => $this->asrScoringDebug($attempt, $item, $module, $activityType, $isMastery, $score['expected_answer'], $answer, $displayedAnswer, $score['score'], $audioFile, $resolved),
         ]);
 
@@ -228,6 +242,7 @@ class ModuleItemRetryService
             'agent_cue' => $agentCue,
             'ciel_agent' => $cielAgent,
             'ciel_focus_event' => $focusEvent,
+            'scoring' => $score['sentence_evaluation'] ?? null,
         ];
     }
 

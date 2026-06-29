@@ -37,6 +37,18 @@ class CielDialogueCatalog
             'Almost. Pause a little between the words, then keep your voice clear and steady.',
             'Good try. Say each word clearly, one at a time, without rushing.',
         ],
+        'ciel.module.pace.too_fast' => [
+            'Slow down a little so each word is clear.',
+            'Good reading. Try that again a little slower, so every word has time to sound clear.',
+        ],
+        'ciel.module.pace.too_slow' => [
+            'Try reading it a little smoother without long pauses.',
+            'Good effort. Let us try again with a smoother voice and fewer long pauses.',
+        ],
+        'ciel.module.pace.unknown' => [
+            'Let us try that sentence again with a clear, steady reading voice.',
+            'Good try. Read the whole sentence again so I can hear your pace clearly.',
+        ],
         'ciel.module.close_retry.generic' => [
             'Almost there. Try again slowly and clearly, and I will stay with you while you read.',
             'Good effort. Let us try one more time, taking each part step by step.',

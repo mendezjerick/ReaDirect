@@ -17,6 +17,7 @@ use App\Services\ModuleExperienceService;
 use App\Services\ModuleItemRetryService;
 use App\Services\ModuleMasteryService;
 use App\Services\ModuleScoringService;
+use App\Services\VoiceLines\ModuleEchoLineFactory;
 use App\Support\CurrentLearner;
 use App\Support\LearnerStage;
 use App\Support\SubmittedItemSet;
@@ -31,6 +32,8 @@ use Inertia\Response;
 
 class ModuleMasteryController extends Controller
 {
+    public function __construct(private readonly ModuleEchoLineFactory $moduleEchoLines) {}
+
     public function show(
         Request $request,
         Module $module,
@@ -127,13 +130,15 @@ class ModuleMasteryController extends Controller
             $mode->canShowManualFallback($request, $attempt, $learner),
         );
 
-        return response()->json([
+        $payload = [
             'retry_state' => $result['retry_state'],
             'message' => $result['message'],
             'agent_cue' => $result['agent_cue'] ?? null,
             'ciel_agent' => $result['ciel_agent'] ?? null,
             'ciel_focus_event' => $result['ciel_focus_event'] ?? null,
-        ]);
+        ];
+
+        return response()->json($this->withScoringPayload($payload, $result['scoring'] ?? null));
     }
 
     public function store(
@@ -283,11 +288,65 @@ class ModuleMasteryController extends Controller
             'source_csv_id' => $item->source_csv_id,
             'activity_type' => $item->activity_type,
             'prompt' => $item->prompt_snapshot['prompt'] ?? '',
+            'display_prompt' => $this->displayPromptFor($item),
             'accepted_answers' => $item->prompt_snapshot['accepted_answers'] ?? [],
             'payload' => $item->prompt_snapshot['payload'] ?? [],
+            'echo' => $this->moduleEchoLines->forAttemptItem($item),
             'is_mastery_item' => $item->is_mastery_item,
             'retry_state' => $retry->stateForItem($item),
         ])->values()->all();
+    }
+
+    private function displayPromptFor(ModuleAttemptItem $item): string
+    {
+        $snapshot = $item->prompt_snapshot ?? [];
+        $payload = $snapshot['payload'] ?? [];
+        $display = trim((string) (
+            $payload['display_text']
+            ?? $payload['target_sentence']
+            ?? $payload['target_word']
+            ?? $payload['expected_answer']
+            ?? $snapshot['prompt']
+            ?? ''
+        ));
+
+        if ($display === '') {
+            return (string) ($snapshot['prompt'] ?? '');
+        }
+
+        $moduleKey = (string) ($payload['module_key'] ?? '');
+        if ($moduleKey === 'module_2' && preg_match('/^[a-z][a-z0-9\'-]*$/', $display)) {
+            return ucfirst($display);
+        }
+
+        return $display;
+    }
+
+    private function withScoringPayload(array $payload, mixed $scoring): array
+    {
+        if (! is_array($scoring)) {
+            return $payload;
+        }
+
+        $payload['scoring'] = $scoring;
+
+        foreach ([
+            'total_words_read',
+            'errors',
+            'correct_words',
+            'duration_seconds',
+            'wcpm',
+            'pace_label',
+            'target_read_time_seconds',
+            'min_fluent_time_seconds',
+            'max_fluent_time_seconds',
+        ] as $key) {
+            if (array_key_exists($key, $scoring)) {
+                $payload[$key] = $scoring[$key];
+            }
+        }
+
+        return $payload;
     }
 
     private function responseRules(int $requiredCount): array

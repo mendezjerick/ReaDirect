@@ -4,9 +4,9 @@ These CSV files are development item banks for the Phase 3 learning module flow.
 
 ## Files
 
-- `module1_letter_sound_activities.csv` contains Module 1 letter and sound practice plus mastery-check items.
-- `module2_word_reading_activities.csv` contains Module 2 word reading practice plus mastery-check items.
-- `module3_sentence_fluency_activities.csv` contains Module 3 sentence reading and fluency practice plus mastery-check items.
+- `module1_letter_sound_activities_adaptive_v2.csv` contains the active Module 1 letter and sound v2 bank. Isolated `P`, `D`, `B`, and `Z` rows remain inactive.
+- `module2_word_reading_activities_adaptive_v2.csv` contains the active Module 2 word reading v2 bank.
+- `module3_sentence_fluency_activities_adaptive_v2.csv` contains the active Module 3 sentence reading and fluency v2 bank, including WCPM timing targets.
 - `module_feedback_templates.csv` contains reusable, child-friendly Miss Ciel feedback templates.
 - `module_activity_selection_rules.csv` defines how many active items to lock per activity type and how many mastery-check items to lock.
 

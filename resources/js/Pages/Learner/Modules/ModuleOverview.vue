@@ -79,12 +79,12 @@ const pauseForHoverSpam = () => {
     clearGuideTimers();
     stopAgentSpeech();
     guideState.value = 'encouraging';
-    guideMessage.value = 'Let us slow down and choose one lesson at a time.';
+    guideMessage.value = "Ready? Let's go slowly and give this one a try. I'll be right here with you.";
 
     readyTimer.value = window.setTimeout(() => {
         if (messageSequence.value !== sequence) return;
 
-        guideMessage.value = 'Are you ready to choose one lesson without rushing?';
+        guideMessage.value = "Let's try this one together. Look closely, smile a little, and say it when you're ready.";
         guideState.value = 'speaking';
     }, 3000);
 };
@@ -129,7 +129,7 @@ const returnToDashboard = () => {
     if (returning.value) return;
     returning.value = true;
     stopAgentSpeech();
-    guideMessage.value = props.goodbyeMessage ?? 'See you next time!';
+    guideMessage.value = props.goodbyeMessage ?? 'See you next time. Keep practicing, keep using your clear voice, and remember that every step helps.';
     guideState.value = 'happy';
     window.setTimeout(() => {
         window.location.href = '/learner/dashboard';

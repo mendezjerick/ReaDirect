@@ -27,6 +27,7 @@ const evaluatorMessage = computed(() => {
 const evaluatorLineKey = computed(() => props.passageEligible
     ? 'estelle.result.crla.summary_with_passage'
     : 'estelle.result.crla.summary_no_passage');
+const spokenEvaluatorMessage = computed(() => String(voicePayload.value?.text ?? '').trim() || evaluatorMessage.value);
 
 const accuracyTone = (percentage) => {
     if (percentage >= 90) return 'text-emerald-600 bg-emerald-50 border-emerald-200';
@@ -120,7 +121,7 @@ const replayVoice = () => {
                         v-if="!voiceLoading"
                         :key="ttsKey"
                         agent-type="evaluator"
-                        :message="evaluatorMessage"
+                        :message="spokenEvaluatorMessage"
                         :mute="isMuted"
                         :audio-url="voicePayload?.audio_url"
                         @speaking-start="isSpeaking = true"

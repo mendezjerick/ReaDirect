@@ -6,9 +6,12 @@ use App\Models\LearnerReward;
 use App\Models\Module;
 use App\Models\ModuleAttempt;
 use App\Models\ModuleAttemptItem;
+use App\Services\VoiceLines\ModuleEchoLineFactory;
 
 class CielFocusModeService
 {
+    public function __construct(private readonly ModuleEchoLineFactory $moduleEchoLines) {}
+
     public const MODES = [
         'teaching',
         'reward',
@@ -29,7 +32,7 @@ class CielFocusModeService
         int $correctStreak,
     ): ?array {
         if (! $isCorrect && $attemptNumber === 2) {
-            return $this->teachingEvent($module, $activityType, $targetText);
+            return $this->teachingEvent($item, $module, $activityType, $targetText);
         }
 
         if ($isCorrect && $correctStreak >= 3 && $correctStreak % 3 === 0) {
@@ -47,11 +50,16 @@ class CielFocusModeService
             ->sum('amount');
     }
 
-    private function teachingEvent(Module $module, string $activityType, ?string $targetText): array
+    private function teachingEvent(ModuleAttemptItem $item, Module $module, string $activityType, ?string $targetText): array
     {
-        $targetType = $this->targetType($module, $activityType);
-        $target = trim((string) $targetText);
-        $spokenTarget = $this->spokenTarget($target);
+        $echo = $this->moduleEchoLines->forAttemptItem($item);
+        $targetType = $echo['target_type'] ?? $this->targetType($module, $activityType);
+        $target = trim((string) ($echo['target_text'] ?? $targetText ?? ''));
+        $correctEcho = $echo['correct'] ?? [
+            'text' => $this->spokenTarget($target),
+            'line_key' => null,
+            'intent' => ModuleEchoLineFactory::CORRECT_INTENT,
+        ];
 
         return [
             'enabled' => true,
@@ -62,24 +70,28 @@ class CielFocusModeService
             'reward' => null,
             'dialogue_steps' => [
                 [
-                    'text' => "Let's practice reading this {$targetType} together. Look closely, listen carefully, and take your time.",
+                    'text' => "I'll say it first, listen carefully.",
                     'action' => 'talk',
+                    'line_key' => 'ciel.focus.echo_intro',
+                    'intent' => ModuleEchoLineFactory::FOCUS_SUPPORT_INTENT,
                 ],
                 [
-                    'text' => "I will say the {$targetType} first, and you can listen before you try it again.",
+                    'text' => $correctEcho['text'],
                     'action' => 'talk',
+                    'line_key' => $correctEcho['line_key'],
+                    'intent' => $correctEcho['intent'] ?? ModuleEchoLineFactory::CORRECT_INTENT,
                 ],
                 [
-                    'text' => $spokenTarget,
+                    'text' => "I'll repeat it one more time, listen closely.",
                     'action' => 'talk',
+                    'line_key' => 'ciel.focus.echo_repeat',
+                    'intent' => ModuleEchoLineFactory::FOCUS_SUPPORT_INTENT,
                 ],
                 [
-                    'text' => "Got it? I'll say it again one more time, then you can try it with your clear voice.",
+                    'text' => $correctEcho['text'],
                     'action' => 'talk',
-                ],
-                [
-                    'text' => $spokenTarget,
-                    'action' => 'talk',
+                    'line_key' => $correctEcho['line_key'],
+                    'intent' => $correctEcho['intent'] ?? ModuleEchoLineFactory::CORRECT_INTENT,
                 ],
             ],
         ];

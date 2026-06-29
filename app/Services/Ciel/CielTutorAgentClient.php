@@ -69,6 +69,8 @@ class CielTutorAgentClient
             'activity_id' => $event['activity_id'] ?? null,
             'is_final_assessment_completion' => (bool) ($event['is_final_assessment_completion'] ?? false),
             'audio_duration_seconds' => $this->nullableFloat($event['audio_duration_seconds'] ?? null),
+            'pace_label' => $event['pace_label'] ?? $ai['pace_label'] ?? $ai['pacing_label'] ?? null,
+            'wcpm' => $this->nullableFloat($event['wcpm'] ?? $ai['wcpm'] ?? null),
             'audio_too_short' => (bool) ($event['audio_too_short'] ?? false),
             'retry_required' => (bool) ($event['retry_required'] ?? $ai['retry_required'] ?? false),
             'uncertain' => (bool) ($event['uncertain'] ?? $ai['uncertain'] ?? false),
@@ -129,6 +131,14 @@ class CielTutorAgentClient
                 : 'Nice work! You said that clearly, and I can hear that you are getting more confident.';
 
             return $this->decision($payload, 'correct_praise', 'c-clap', 'positive_praise', $message, 'continue');
+        }
+
+        if ($errorType === 'pace_too_fast' || $payload['pace_label'] === 'too_fast') {
+            return $this->decision($payload, 'slow_practice', 'c-advise', 'gentle_correction', 'Slow down a little so each word is clear.', 'retry_slowly', 'pace_too_fast');
+        }
+
+        if ($errorType === 'pace_too_slow' || $payload['pace_label'] === 'too_slow') {
+            return $this->decision($payload, 'smooth_practice', 'c-advise', 'gentle_correction', 'Try reading it a little smoother without long pauses.', 'retry_smoothly', 'pace_too_slow');
         }
 
         if ($lowConfidence) {

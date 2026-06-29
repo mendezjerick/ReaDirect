@@ -32,6 +32,7 @@ const evaluatorMessage = computed(() => {
 const evaluatorLineKey = computed(() => props.module
     ? 'estelle.result.module_placement'
     : 'estelle.result.grade_level_placement');
+const spokenEvaluatorMessage = computed(() => String(voicePayload.value?.text ?? '').trim() || evaluatorMessage.value);
 
 const isSpeaking = ref(false);
 const ttsKey = ref(0);
@@ -118,7 +119,7 @@ const replayVoice = () => {
                         v-if="!voiceLoading"
                         :key="ttsKey"
                         agent-type="evaluator"
-                        :message="evaluatorMessage"
+                        :message="spokenEvaluatorMessage"
                         :mute="isMuted"
                         :audio-url="voicePayload?.audio_url"
                         @speaking-start="isSpeaking = true"

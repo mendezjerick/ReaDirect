@@ -15,6 +15,7 @@ class GeneratedVoiceLine extends Model
         'source_file',
         'source_hash',
         'text',
+        'synthesis_text',
         'text_hash',
         'voice_id',
         'engine',

@@ -19,9 +19,9 @@ class ModuleContentSeeder extends Seeder
 
     public function run(): void
     {
-        $this->seedModuleActivities('module1_letter_sound_activities.csv');
-        $this->seedModuleActivities('module2_word_reading_activities.csv');
-        $this->seedModuleActivities('module3_sentence_fluency_activities.csv');
+        $this->seedModuleActivities('module1_letter_sound_activities_adaptive_v2.csv');
+        $this->seedModuleActivities('module2_word_reading_activities_adaptive_v2.csv');
+        $this->seedModuleActivities('module3_sentence_fluency_activities_adaptive_v2.csv');
         $this->seedFeedbackTemplates();
         $this->seedSelectionRules();
     }
@@ -36,12 +36,14 @@ class ModuleContentSeeder extends Seeder
                 'module_key' => $row['module_key'],
                 'activity_type' => $row['activity_type'],
                 'sequence' => $this->sequence($row, $metadata),
+                'display_text' => $row['display_text'] ?? $metadata['display_text'] ?? null,
                 'expected_answer' => $this->expectedAnswer($row, $metadata),
                 'target_word' => $row['target_word'] ?? $metadata['target_word'] ?? $this->expectedAnswer($row, $metadata),
+                'target_sentence' => $row['target_sentence'] ?? $metadata['target_sentence'] ?? null,
                 'word_family' => $row['word_family'] ?? null,
                 'points' => $this->points($row, $metadata),
                 'is_mastery_item' => $this->active($row['is_mastery_item']),
-            ];
+            ] + $this->fluencyPayload($row, $metadata);
             $enrichment = $this->rowEnrichment($row) + $this->enrichmentFor($this->rowId($row));
 
             $content = $this->updateLearningContent(
@@ -210,6 +212,7 @@ class ModuleContentSeeder extends Seeder
     private function rowEnrichment(array $row): array
     {
         $fields = [
+            'display_text',
             'expected_phonemes',
             'initial_phoneme',
             'vowel_phonemes',
@@ -225,11 +228,60 @@ class ModuleContentSeeder extends Seeder
             'adaptive_bucket',
             'recommended_for_error_type',
             'needs_manual_review',
+            'fluency_metric_rule',
+            'target_read_time_seconds',
+            'min_fluent_time_seconds',
+            'max_fluent_time_seconds',
+            'target_wcpm',
+            'min_expected_wcpm',
+            'max_expected_wcpm',
+            'pace_feedback_rule',
+            'pace_mastery_required',
         ];
 
         return collect($row)
             ->only($fields)
             ->all();
+    }
+
+    private function fluencyPayload(array $row, array $metadata): array
+    {
+        return [
+            'fluency_metric_rule' => $this->nullableText($row['fluency_metric_rule'] ?? $metadata['fluency_metric_rule'] ?? null),
+            'target_read_time_seconds' => $this->nullableFloat($row['target_read_time_seconds'] ?? $metadata['target_read_time_seconds'] ?? null),
+            'min_fluent_time_seconds' => $this->nullableFloat($row['min_fluent_time_seconds'] ?? $metadata['min_fluent_time_seconds'] ?? null),
+            'max_fluent_time_seconds' => $this->nullableFloat($row['max_fluent_time_seconds'] ?? $metadata['max_fluent_time_seconds'] ?? null),
+            'target_wcpm' => $this->nullableFloat($row['target_wcpm'] ?? $metadata['target_wcpm'] ?? null),
+            'min_expected_wcpm' => $this->nullableFloat($row['min_expected_wcpm'] ?? $metadata['min_expected_wcpm'] ?? null),
+            'max_expected_wcpm' => $this->nullableFloat($row['max_expected_wcpm'] ?? $metadata['max_expected_wcpm'] ?? null),
+            'pace_feedback_rule' => $this->nullableText($row['pace_feedback_rule'] ?? $metadata['pace_feedback_rule'] ?? null),
+            'pace_mastery_required' => $this->nullableBool($row['pace_mastery_required'] ?? $metadata['pace_mastery_required'] ?? null),
+        ];
+    }
+
+    private function nullableText(mixed $value): ?string
+    {
+        $text = trim((string) ($value ?? ''));
+
+        return $text === '' ? null : $text;
+    }
+
+    private function nullableFloat(mixed $value): ?float
+    {
+        return is_numeric($value) ? (float) $value : null;
+    }
+
+    private function nullableBool(mixed $value): ?bool
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
     }
 
     private function enrichmentIndex(): array

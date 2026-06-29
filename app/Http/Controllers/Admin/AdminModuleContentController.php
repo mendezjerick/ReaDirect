@@ -23,7 +23,7 @@ class AdminModuleContentController extends Controller
             'module' => trim($request->string('module')->toString()),
             'activity_type' => trim($request->string('activity_type')->toString()),
             'is_mastery_item' => in_array($request->string('is_mastery_item')->toString(), ['all', 'practice', 'mastery'], true) ? $request->string('is_mastery_item')->toString() : 'all',
-            'status' => $options->activeValue($request->string('status')->toString()),
+            'status' => $request->has('status') ? $options->activeValue($request->string('status')->toString()) : 'active',
         ];
 
         $moduleKeys = collect($options->moduleOptions())->pluck('value')->all();

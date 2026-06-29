@@ -129,6 +129,18 @@ class CielCoachDecisionService
                 'ciel.module.close_retry.word_boundary',
                 'WORD_BOUNDARY_ERROR',
             ],
+            'pace_too_fast' => [
+                'ciel.module.pace.too_fast',
+                'PACE_TOO_FAST',
+            ],
+            'pace_too_slow' => [
+                'ciel.module.pace.too_slow',
+                'PACE_TOO_SLOW',
+            ],
+            'pace_unknown' => [
+                'ciel.module.pace.unknown',
+                'PACE_UNKNOWN',
+            ],
             default => ['ciel.module.close_retry.generic', null],
         };
     }

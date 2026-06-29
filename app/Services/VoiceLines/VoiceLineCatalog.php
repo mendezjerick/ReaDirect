@@ -4,31 +4,17 @@ namespace App\Services\VoiceLines;
 
 class VoiceLineCatalog
 {
+    private readonly ModuleEchoLineFactory $moduleEchoLines;
+
+    public function __construct(?ModuleEchoLineFactory $moduleEchoLines = null)
+    {
+        $this->moduleEchoLines = $moduleEchoLines ?? new ModuleEchoLineFactory();
+    }
+
     private const DURATION = [
         'target' => 7.0,
         'min' => 6.0,
         'max' => 9.0,
-    ];
-
-    private const DEFENSE_VALUES = [
-        'cat',
-        'dog',
-        'sun',
-        'map',
-        'pen',
-        'red',
-        'log',
-        'cup',
-        'fish',
-        'leaf',
-        'kite',
-        'seed',
-        'mat',
-        'sit',
-        'run',
-        'read',
-        'Rosa',
-        'Lena',
     ];
 
     public function staticLines(): array
@@ -47,6 +33,18 @@ class VoiceLineCatalog
             $this->line('ciel.instruction.listen_then_say_word', 'ciel', 'focused_instruction', "Listen carefully first, then say the word after me. Take your time and speak clearly when you're ready.", 'Hear-and-repeat instruction', 'ReaDirect-TTS/curated_agent_lines.py'),
             $this->line('ciel.instruction.look_listen_read', 'ciel', 'focused_instruction', 'Look at the word, listen to the sound, and then read it out loud in your own voice.', 'Displayed word instruction', 'ReaDirect-TTS/curated_agent_lines.py'),
             $this->line('ciel.instruction.say_sound_clearly', 'ciel', 'focused_instruction', "When you're ready, say the sound clearly. We'll go slowly, so you don't need to rush.", 'Sound practice instruction', 'ReaDirect-TTS/curated_agent_lines.py'),
+            $this->line('ciel.module1.before_recording.letter_01', 'ciel', 'focused_instruction', 'Look at the letter below and say its sound clearly.', 'Module 1 letter-sound instruction cycle 1', 'resources/js/Pages/Learner/Modules/ModuleActivity.vue'),
+            $this->line('ciel.module1.before_recording.letter_02', 'ciel', 'focused_instruction', 'Say the displayed letter sound slowly.', 'Module 1 letter-sound instruction cycle 2', 'resources/js/Pages/Learner/Modules/ModuleActivity.vue'),
+            $this->line('ciel.module1.before_recording.letter_03', 'ciel', 'focused_instruction', 'Read the letter sound below carefully.', 'Module 1 letter-sound instruction cycle 3', 'resources/js/Pages/Learner/Modules/ModuleActivity.vue'),
+            $this->line('ciel.module2.before_recording.word_01', 'ciel', 'focused_instruction', 'Read the displayed word below carefully.', 'Module 2 word-reading instruction cycle 1', 'resources/js/Pages/Learner/Modules/ModuleActivity.vue'),
+            $this->line('ciel.module2.before_recording.word_02', 'ciel', 'focused_instruction', 'Read the word below slowly.', 'Module 2 word-reading instruction cycle 2', 'resources/js/Pages/Learner/Modules/ModuleActivity.vue'),
+            $this->line('ciel.module2.before_recording.word_03', 'ciel', 'focused_instruction', 'Look at the word below and say it clearly.', 'Module 2 word-reading instruction cycle 3', 'resources/js/Pages/Learner/Modules/ModuleActivity.vue'),
+            $this->line('ciel.module3.before_recording.sentence_01', 'ciel', 'focused_instruction', 'Read the sentence below clearly and naturally.', 'Module 3 sentence-reading instruction cycle 1', 'resources/js/Pages/Learner/Modules/ModuleActivity.vue'),
+            $this->line('ciel.module3.before_recording.sentence_02', 'ciel', 'focused_instruction', 'Read the displayed sentence at a steady pace.', 'Module 3 sentence-reading instruction cycle 2', 'resources/js/Pages/Learner/Modules/ModuleActivity.vue'),
+            $this->line('ciel.module3.before_recording.sentence_03', 'ciel', 'focused_instruction', 'Read the sentence below carefully from start to finish.', 'Module 3 sentence-reading instruction cycle 3', 'resources/js/Pages/Learner/Modules/ModuleActivity.vue'),
+            $this->line('ciel.module1.validation.record_letter_first', 'ciel', 'focused_instruction', 'Please record the letter sound first.', 'Module 1 missing recording prompt', 'resources/js/Pages/Learner/Modules/ModuleActivity.vue'),
+            $this->line('ciel.module2.validation.record_word_first', 'ciel', 'focused_instruction', 'Please record the word first.', 'Module 2 missing recording prompt', 'resources/js/Pages/Learner/Modules/ModuleActivity.vue'),
+            $this->line('ciel.module3.validation.record_sentence_first', 'ciel', 'focused_instruction', 'Please record the sentence first.', 'Module 3 missing recording prompt', 'resources/js/Pages/Learner/Modules/ModuleActivity.vue'),
             $this->line('ciel.playful.go_slowly_try', 'ciel', 'playful_friend', "Ready? Let's go slowly and give this one a try. I'll be right here with you.", 'Friendly module transition', 'ReaDirect-TTS/curated_agent_lines.py'),
             $this->line('ciel.playful.try_together_smile', 'ciel', 'playful_friend', "Let's try this one together. Look closely, smile a little, and say it when you're ready.", 'Light module guidance', 'ReaDirect-TTS/curated_agent_lines.py'),
             $this->line('ciel.playful.next_one_clear', 'ciel', 'playful_friend', "Nice, let's move to the next one. Keep your voice clear and take your time.", 'Transition after item completion', 'ReaDirect-TTS/curated_agent_lines.py'),
@@ -54,6 +52,9 @@ class VoiceLineCatalog
             $this->line('ciel.asr.transcript_unknown', 'ciel', 'gentle_reassurance', "You said your answer clearly. Let's continue with the next reading step.", 'Module ASR transcript fallback', 'resources/js/Pages/Learner/Modules/ModuleActivity.vue'),
             $this->line('ciel.mastery.start', 'ciel', 'friendly_encouragement', "This is your mini mastery check. Do your best one item at a time, and I'll stay with you.", 'Mini mastery start prompt', 'resources/js/Pages/Learner/Modules/ModuleMasteryCheck.vue'),
             $this->line('ciel.automatic.stopped', 'ciel', 'gentle_reassurance', 'Ciel stopped listening safely. You can use Manual Recording Mode and keep practicing at your own pace.', 'Automatic listening stopped fallback', 'resources/js/Pages/Learner/Modules/ModuleActivity.vue'),
+            $this->line('ciel.module.after_recording.review_submit_01', 'ciel', 'focused_instruction', 'Listen to your recording, then click Submit when you are ready.', 'Module recording review prompt cycle 1', 'resources/js/Pages/Learner/Modules/ModuleActivity.vue'),
+            $this->line('ciel.module.after_recording.review_submit_02', 'ciel', 'focused_instruction', 'You can review your audio first, then press Submit.', 'Module recording review prompt cycle 2', 'resources/js/Pages/Learner/Modules/ModuleActivity.vue'),
+            $this->line('ciel.module.after_recording.review_submit_03', 'ciel', 'focused_instruction', 'Play your recording if you want to check it, then submit your answer.', 'Module recording review prompt cycle 3', 'resources/js/Pages/Learner/Modules/ModuleActivity.vue'),
 
             $this->line('ciel.module.processing.checking_reading', 'ciel', 'focused_instruction', 'I am checking your reading now. Please wait a moment while I listen carefully.', 'Module processing status', 'ReaDirect-IA/dialogue/ciel.yaml'),
             $this->line('ciel.module.audio_unclear.try_clear_voice', 'ciel', 'gentle_reassurance', 'I could not hear that clearly. That is okay, so please try again with your clear reading voice.', 'Unclear recording retry', 'ReaDirect-IA/dialogue/ciel.yaml'),
@@ -124,38 +125,20 @@ class VoiceLineCatalog
         return [
             $this->template('asr_echo.generic', 'vivian', 'focused_instruction', 'I heard: {transcript}.', 'ASR transcript echo template'),
             $this->template('learner_echo.generic', 'vivian', 'focused_instruction', 'You said: {transcript}.', 'Learner transcript echo template'),
-            $this->template('target_word_echo.generic', 'ciel', 'focused_instruction', 'The word is {target_word}.', 'Target word echo template'),
-            $this->template('try_again_with_target.generic', 'ciel', 'gentle_reassurance', "That's okay, let's try {target_word} one more time.", 'Targeted retry template'),
-            $this->template('correct_word_support.generic', 'ciel', 'focused_instruction', "The correct word is {target_word}. Let's say it slowly together.", 'Correct word support template'),
         ];
     }
 
     public function defenseFixtures(): array
     {
-        $fixtures = [];
-        foreach ($this->dynamicTemplates() as $template) {
-            foreach (self::DEFENSE_VALUES as $value) {
-                $field = str_contains($template['text'], '{transcript}') ? 'transcript' : 'target_word';
-                $text = str_replace('{'.$field.'}', $value, $template['text']);
-                $fixtures[] = $this->line(
-                    $template['line_key'].'.'.strtolower($value),
-                    $template['agent'],
-                    $template['intent'],
-                    $text,
-                    'Defense fixture for '.$template['line_key'],
-                    'voice_line_dynamic_fixture',
-                    isDefenseDemo: true
-                );
-            }
-        }
-
-        return $fixtures;
+        return [];
     }
 
     public function allSeedLines(): array
     {
         return [
             ...$this->staticLines(),
+            ...$this->moduleEchoLines->supportLines(),
+            ...$this->moduleEchoLines->moduleLines(),
             ...$this->dynamicTemplates(),
             ...$this->defenseFixtures(),
         ];
@@ -211,4 +194,5 @@ class VoiceLineCatalog
             'generate_two_stage' => false,
         ];
     }
+
 }

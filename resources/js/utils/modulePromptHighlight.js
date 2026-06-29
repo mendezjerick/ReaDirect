@@ -6,7 +6,7 @@ const isWordLike = (value) => /^[A-Za-z0-9'-]+$/.test(textValue(value));
 
 export const highlightTargetsForModuleItem = (item) => {
     const payload = item?.payload ?? {};
-    const prompt = textValue(item?.prompt ?? payload.prompt_text);
+    const prompt = textValue(item?.display_prompt ?? item?.prompt ?? payload.prompt_text);
     const expectedAnswer = textValue(payload.expected_answer);
     const targetWord = textValue(payload.target_word);
 

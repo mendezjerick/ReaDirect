@@ -75,6 +75,15 @@ const isMuted = ref(storedMutedPreference());
 const agent = computed(() => agents[props.agentType] ?? agents.assessment);
 const introStorageKey = computed(() => `readirect-agent-intro-seen-${props.agentType}`);
 const displayMessage = computed(() => showIntro.value ? agent.value.intro : props.message);
+const resolvedDisplayMessage = computed(() => {
+    if (showIntro.value) {
+        return displayMessage.value;
+    }
+
+    const resolvedText = String(voicePayload.value?.text ?? '').trim();
+
+    return resolvedText || displayMessage.value;
+});
 const effectiveState = computed(() => (isSpeaking.value ? 'speaking' : (props.state || 'idle')));
 const mediaState = computed(() => {
     const requestedState = props.state || 'idle';
@@ -248,7 +257,7 @@ watch(
             v-if="ttsEnabled && !voiceLoading"
             :key="ttsKey"
             :agent-type="agentType"
-            :message="displayMessage"
+            :message="resolvedDisplayMessage"
             :mute="isMuted"
             :volume="volume"
             :rate="rate"
@@ -299,7 +308,7 @@ watch(
         </div>
         <div class="relative mt-6 rounded-[24px] border border-slate-200/60 bg-slate-50/80 p-5 shadow-sm">
             <p class="text-lg font-black leading-relaxed text-slate-800">
-                {{ displayMessage }}
+                {{ resolvedDisplayMessage }}
             </p>
             <p v-if="ttsError" class="mt-2 text-xs font-bold text-slate-500">
                 {{ ttsError }}
@@ -315,7 +324,7 @@ watch(
             v-if="ttsEnabled && !voiceLoading"
             :key="ttsKey"
             :agent-type="agentType"
-            :message="displayMessage"
+            :message="resolvedDisplayMessage"
             :mute="isMuted"
             :volume="volume"
             :rate="rate"
@@ -379,7 +388,7 @@ watch(
             </div>
             <div class="relative mt-5">
                 <p class="text-base font-bold leading-relaxed text-slate-800 xl:text-lg">
-                    {{ displayMessage }}
+                    {{ resolvedDisplayMessage }}
                 </p>
                 <p v-if="ttsError" class="mt-2 text-xs font-bold text-slate-500">
                     {{ ttsError }}
@@ -396,7 +405,7 @@ watch(
             v-if="ttsEnabled && !voiceLoading"
             :key="ttsKey"
             :agent-type="agentType"
-            :message="displayMessage"
+            :message="resolvedDisplayMessage"
             :mute="isMuted"
             :volume="volume"
             :rate="rate"
@@ -447,7 +456,7 @@ watch(
         </div>
         <div class="relative mt-6 rounded-[24px] border border-slate-200/60 bg-slate-50/80 p-5 shadow-sm">
             <p class="text-[16px] font-bold leading-relaxed text-slate-800">
-                {{ displayMessage }}
+                {{ resolvedDisplayMessage }}
             </p>
             <p v-if="ttsError" class="mt-2 text-xs font-bold text-slate-500">
                 {{ ttsError }}
@@ -463,7 +472,7 @@ watch(
             v-if="ttsEnabled && !voiceLoading"
             :key="ttsKey"
             :agent-type="agentType"
-            :message="displayMessage"
+            :message="resolvedDisplayMessage"
             :mute="isMuted"
             :volume="volume"
             :rate="rate"
@@ -520,7 +529,7 @@ watch(
                 </div>
             </div>
             <p class="mt-3 text-base font-black leading-snug text-text xl:mt-4 xl:text-lg">
-                {{ displayMessage }}
+                {{ resolvedDisplayMessage }}
             </p>
             <p v-if="ttsError" class="mt-2 text-xs font-bold text-muted">
                 {{ ttsError }}
@@ -536,7 +545,7 @@ watch(
             v-if="ttsEnabled && !voiceLoading"
             :key="ttsKey"
             :agent-type="agentType"
-            :message="displayMessage"
+            :message="resolvedDisplayMessage"
             :mute="isMuted"
             :volume="volume"
             :rate="rate"
@@ -600,7 +609,7 @@ watch(
             </div>
             <div class="relative mt-5">
                 <p class="text-base font-bold leading-relaxed text-slate-800 xl:text-lg">
-                    {{ displayMessage }}
+                    {{ resolvedDisplayMessage }}
                 </p>
                 <p v-if="ttsError" class="mt-2 text-xs font-bold text-slate-500">
                     {{ ttsError }}
@@ -616,7 +625,7 @@ watch(
             v-if="ttsEnabled && !voiceLoading"
             :key="ttsKey"
             :agent-type="agentType"
-            :message="displayMessage"
+            :message="resolvedDisplayMessage"
             :mute="isMuted"
             :volume="volume"
             :rate="rate"
@@ -647,7 +656,7 @@ watch(
                 <div class="assessment-agent-dialogue-copy">
                     <p class="assessment-agent-dialogue-name">{{ displayTitle }}</p>
                     <p class="assessment-agent-dialogue-text">
-                        {{ displayMessage }}
+                        {{ resolvedDisplayMessage }}
                     </p>
                     <p v-if="ttsError" class="assessment-agent-dialogue-error">
                         {{ ttsError }}
@@ -686,7 +695,7 @@ watch(
             v-if="ttsEnabled && !voiceLoading"
             :key="ttsKey"
             :agent-type="agentType"
-            :message="displayMessage"
+            :message="resolvedDisplayMessage"
             :mute="isMuted"
             :volume="volume"
             :rate="rate"
@@ -735,7 +744,7 @@ watch(
             </div>
             <div class="mt-4 rounded-[20px] border border-slate-200/60 bg-slate-50/80 p-4 shadow-sm">
                 <p class="text-[15px] font-bold leading-relaxed text-slate-800">
-                    {{ displayMessage }}
+                    {{ resolvedDisplayMessage }}
                 </p>
             </div>
         </div>
@@ -745,7 +754,7 @@ watch(
             v-if="ttsEnabled && !voiceLoading"
             :key="ttsKey"
             :agent-type="agentType"
-            :message="displayMessage"
+            :message="resolvedDisplayMessage"
             :mute="isMuted"
             :volume="volume"
             :rate="rate"
@@ -799,7 +808,7 @@ watch(
                 </div>
             </div>
             <p class="font-bold leading-relaxed text-slate-800" :class="compact ? 'mt-3 text-sm md:text-base' : 'mt-4 text-base xl:text-lg'">
-                {{ displayMessage }}
+                {{ resolvedDisplayMessage }}
             </p>
             <p v-if="ttsError" class="mt-2 text-xs font-bold text-slate-500">
                 {{ ttsError }}

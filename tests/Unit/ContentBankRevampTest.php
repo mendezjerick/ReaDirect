@@ -69,29 +69,30 @@ class ContentBankRevampTest extends TestCase
         $this->assertCount(5, $byPassage['PASS-002'] ?? []);
     }
 
-    public function test_active_module_content_uses_easy_inventory_and_keeps_mastery_counts(): void
+    public function test_active_module_content_uses_adaptive_v2_inventory_and_timing_targets(): void
     {
-        $easyWords = [
-            'cat', 'bat', 'hat', 'mat', 'sat', 'dog', 'log', 'sun', 'run', 'pen', 'hen',
-            'cup', 'pup', 'bug', 'bed', 'red', 'hop', 'top', 'tap', 'map', 'pin', 'pan', 'sit', 'lip',
-        ];
-        $hardWords = ['fish', 'box', 'tree', 'car', 'hand', 'rock', 'duck', 'book', 'moon'];
+        $module1Rows = $this->csv('module1_letter_sound_activities_adaptive_v2.csv');
+        $module1 = $this->activeRows($module1Rows);
+        $inactiveHardLetters = array_filter($module1Rows, fn (array $row): bool => in_array($row['expected_text'], ['P', 'D', 'B', 'Z'], true)
+            && ! in_array(strtolower((string) ($row['is_active'] ?? '')), ['1', 'true', 'yes'], true));
 
-        $module2 = $this->activeRows($this->csv('module2_word_reading_activities.csv'));
-        $this->assertCount(50, $module2);
-        $this->assertCount(10, array_filter($module2, fn (array $row): bool => $row['activity_type'] === 'mastery_check'));
+        $this->assertCount(110, $module1);
+        $this->assertCount(20, $inactiveHardLetters);
 
-        foreach ($module2 as $row) {
-            $this->assertContains($row['expected_text'], $easyWords);
-            $this->assertNotContains($row['expected_text'], $hardWords);
-        }
+        $module2 = $this->activeRows($this->csv('module2_word_reading_activities_adaptive_v2.csv'));
+        $this->assertCount(164, $module2);
+        $this->assertCount(25, array_filter($module2, fn (array $row): bool => $row['activity_type'] === 'mastery_check'));
 
-        $module3 = $this->activeRows($this->csv('module3_sentence_fluency_activities.csv'));
-        $this->assertCount(60, $module3);
-        $this->assertCount(10, array_filter($module3, fn (array $row): bool => $row['activity_type'] === 'mastery_check'));
+        $module3 = $this->activeRows($this->csv('module3_sentence_fluency_activities_adaptive_v2.csv'));
+        $this->assertCount(241, $module3);
+        $this->assertCount(36, array_filter($module3, fn (array $row): bool => $row['activity_type'] === 'mastery_check'));
 
         foreach ($module3 as $row) {
-            $this->assertLessThanOrEqual(6, $this->wordCount($row['expected_text']));
+            $this->assertNotSame('', trim((string) ($row['target_read_time_seconds'] ?? '')));
+            $this->assertNotSame('', trim((string) ($row['min_fluent_time_seconds'] ?? '')));
+            $this->assertNotSame('', trim((string) ($row['max_fluent_time_seconds'] ?? '')));
+            $this->assertNotSame('', trim((string) ($row['target_wcpm'] ?? '')));
+            $this->assertSame('True', (string) ($row['pace_mastery_required'] ?? ''));
         }
     }
 

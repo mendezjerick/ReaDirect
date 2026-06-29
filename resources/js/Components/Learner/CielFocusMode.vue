@@ -31,6 +31,11 @@ const mediaAction = computed(() => focusComplete.value ? 'c-idle' : (currentStep
 const targetLabel = computed(() => props.targetText ? String(props.targetText) : '');
 const progressLabel = computed(() => `${currentIndex.value + 1} / ${steps.value.length}`);
 const naturalAudioUrl = computed(() => audioPayload.value?.audio_url ?? null);
+const resolvedStepText = computed(() => {
+    const resolvedText = String(audioPayload.value?.text ?? '').trim();
+
+    return resolvedText || String(currentStep.value?.text ?? '');
+});
 const isReward = computed(() => props.mode === 'reward' && props.reward);
 
 const clearStepTimer = () => {
@@ -120,6 +125,8 @@ const loadNaturalVoice = async () => {
             body: JSON.stringify({
                 agent: 'coach_feedback',
                 text,
+                intent: currentStep.value?.intent || undefined,
+                line_key: currentStep.value?.line_key || undefined,
             }),
         });
 
@@ -160,7 +167,7 @@ watch(
 );
 
 watch(
-    () => currentStep.value?.text,
+    () => [currentStep.value?.text, currentStep.value?.line_key, currentStep.value?.intent],
     () => {
         if (!props.visible || focusComplete.value) {
             return;
@@ -224,7 +231,7 @@ onBeforeUnmount(() => {
                 v-if="!voiceLoading && !focusComplete"
                 :key="`${currentIndex}-${naturalAudioUrl ?? 'text'}`"
                 agent-type="coach_feedback"
-                :message="currentStep.text"
+                :message="resolvedStepText"
                 :audio-url="naturalAudioUrl"
                 :mute="false"
                 @speaking-start="handleSpeakingStart"
@@ -259,7 +266,7 @@ onBeforeUnmount(() => {
 
                     <div class="ciel-focus__dialogue">
                         <div class="ciel-focus__rule" />
-                        <p class="ciel-focus__text">{{ currentStep.text }}</p>
+                        <p class="ciel-focus__text">{{ resolvedStepText }}</p>
                         <p v-if="voiceError" class="ciel-focus__voice-error">{{ voiceError }}</p>
                         <button
                             type="button"

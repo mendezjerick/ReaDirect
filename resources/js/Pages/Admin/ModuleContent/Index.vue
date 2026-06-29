@@ -10,6 +10,24 @@ import { ArrowRight, BookOpen, Eye, Filter, Layers, Loader2, Plus, RotateCcw, Se
 defineProps({ activities: Object, filters: Object, modules: Array, filterOptions: Object });
 const filtering = ref(false);
 const filter = (event) => { filtering.value = true; router.get('/admin/module-content', Object.fromEntries(new FormData(event.target).entries()), { preserveState: true, onFinish: () => { filtering.value = false; } }); };
+const payloadFor = (activity) => activity?.learning_content?.payload ?? {};
+const displayItemFor = (activity) => {
+    const payload = payloadFor(activity);
+    const value = payload.display_text
+        ?? payload.target_sentence
+        ?? payload.target_word
+        ?? payload.expected_answer
+        ?? activity?.learning_content?.prompt
+        ?? activity?.title
+        ?? '';
+
+    if (payload.module_key === 'module_2' && /^[a-z][a-z0-9'-]*$/.test(String(value))) {
+        return String(value).charAt(0).toUpperCase() + String(value).slice(1);
+    }
+
+    return String(value);
+};
+const fullPromptFor = (activity) => activity?.learning_content?.prompt ?? activity?.title ?? '';
 </script>
 
 <template>
@@ -74,7 +92,7 @@ const filter = (event) => { filtering.value = true; router.get('/admin/module-co
                     <thead><tr class="bg-background">
                         <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-muted">Module</th>
                         <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-muted">Type</th>
-                        <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-muted">Title</th>
+                        <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-muted">Display Item</th>
                         <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-muted text-center">Seq</th>
                         <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-muted">Status</th>
                         <th class="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-muted text-right">Action</th>
@@ -88,7 +106,10 @@ const filter = (event) => { filtering.value = true; router.get('/admin/module-co
                                 </div>
                             </td>
                             <td class="px-4 py-3"><span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-600">{{ activity.activity_type }}</span></td>
-                            <td class="px-4 py-3 font-semibold text-text group-hover:text-primary transition-colors">{{ activity.title }}</td>
+                            <td class="px-4 py-3">
+                                <p class="font-semibold text-text group-hover:text-primary transition-colors">{{ displayItemFor(activity) }}</p>
+                                <p class="mt-0.5 max-w-[28rem] truncate text-[11px] font-medium text-muted">{{ fullPromptFor(activity) }}</p>
+                            </td>
                             <td class="px-4 py-3 text-center"><span class="inline-flex items-center justify-center rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-600 min-w-[28px]">{{ activity.sequence }}</span></td>
                             <td class="px-4 py-3"><StatusBadge :status="(activity.configuration?.is_active ?? activity.learning_content?.is_active ?? true) ? 'Active' : 'Inactive'" :variant="(activity.configuration?.is_active ?? activity.learning_content?.is_active ?? true) ? 'success' : 'danger'" /></td>
                             <td class="px-4 py-3 text-right"><Link :href="`/admin/module-content/${activity.id}`" class="group/link inline-flex items-center gap-1.5 text-[13px] font-bold text-primary transition-colors hover:text-primary-dark"><Eye class="size-3.5" />View<ArrowRight class="size-3 transition-transform duration-200 group-hover/link:translate-x-0.5" /></Link></td>
@@ -102,7 +123,7 @@ const filter = (event) => { filtering.value = true; router.get('/admin/module-co
                     <div class="min-w-0 flex items-center gap-3">
                         <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-500"><BookOpen class="size-4" /></div>
                         <div class="min-w-0">
-                            <p class="font-semibold text-sm text-text truncate group-hover:text-primary transition-colors">{{ activity.title }}</p>
+                            <p class="font-semibold text-sm text-text truncate group-hover:text-primary transition-colors">{{ displayItemFor(activity) }}</p>
                             <p class="mt-0.5 text-[11px] text-muted font-medium truncate">{{ activity.module?.title }} · {{ activity.activity_type }}</p>
                         </div>
                     </div>

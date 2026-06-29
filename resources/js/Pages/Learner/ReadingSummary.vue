@@ -11,6 +11,7 @@ const props = defineProps({ attempt: Object });
 const evaluatorMessage = computed(() => {
     return 'I used your final reading score to find your reading level. Tap continue when you are ready to see your path.';
 });
+const spokenEvaluatorMessage = computed(() => String(voicePayload.value?.text ?? '').trim() || evaluatorMessage.value);
 
 const isSpeaking = ref(false);
 const ttsKey = ref(0);
@@ -98,7 +99,7 @@ const replayVoice = () => {
                         v-if="!voiceLoading"
                         :key="ttsKey"
                         agent-type="evaluator"
-                        :message="evaluatorMessage"
+                        :message="spokenEvaluatorMessage"
                         :mute="isMuted"
                         :audio-url="voicePayload?.audio_url"
                         @speaking-start="isSpeaking = true"

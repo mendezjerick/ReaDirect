@@ -33,7 +33,10 @@ const asrResult = ref(null);
 const uploadError = ref('');
 const uploading = ref(false);
 const agentMessage = ref(props.initialAgentMessage);
-const agentLineKey = ref('vivian.instruction.listen_choose_or_say');
+const initialAgentLineKey = String(props.initialAgentMessage ?? '').toLowerCase().includes('final')
+    ? 'vivian.assessment.final_start'
+    : 'vivian.instruction.listen_choose_or_say';
+const agentLineKey = ref(initialAgentLineKey);
 const agentIntent = ref('focused_instruction');
 const agentState = ref('listening');
 const agentSpeaking = ref(false);
@@ -288,7 +291,7 @@ const uploadTranscript = async (file) => {
 
     uploading.value = true;
     uploadError.value = '';
-    setAgentPrompt('Checking your reading.', 'thinking', 'vivian.processing.checking_reading');
+    setAgentPrompt('I am checking your reading now. This may take a moment, so please wait.', 'thinking', 'vivian.processing.checking_reading');
 
     try {
         const payload = new FormData();
@@ -334,12 +337,12 @@ const uploadTranscript = async (file) => {
         wordAlignment.value = [];
         passageChecked.value = false;
         uploadError.value = asr.message;
-        setAgentPrompt(uploadError.value, 'retry', 'vivian.error.recording_check_failed', 'gentle_reassurance');
+        setAgentPrompt("Something went wrong while checking your recording. That's okay, please try again with a clear voice.", 'retry', 'vivian.error.recording_check_failed', 'gentle_reassurance');
         return false;
     } catch (error) {
         passageChecked.value = false;
         uploadError.value = error.message || 'We had trouble checking your reading. Please try again.';
-        setAgentPrompt(uploadError.value, 'retry', 'vivian.error.recording_check_failed', 'gentle_reassurance');
+        setAgentPrompt("Something went wrong while checking your recording. That's okay, please try again with a clear voice.", 'retry', 'vivian.error.recording_check_failed', 'gentle_reassurance');
         return false;
     } finally {
         uploading.value = false;
@@ -356,7 +359,7 @@ const rememberAudio = (file) => {
     asrResult.value = null;
     uploadError.value = '';
     passageChecked.value = false;
-    setAgentPrompt('Listen to your reading. If you are happy with it, click Submit.', 'speaking', 'vivian.passage.after_recording');
+    setAgentPrompt('Listen to your reading first. If you are happy with it, you can submit your answer.', 'speaking', 'vivian.passage.after_recording');
 };
 
 const clearAudio = () => {
@@ -391,16 +394,16 @@ const submitCurrentForReview = async () => {
         form.duration_seconds = null;
         passageChecked.value = true;
         uploadError.value = '';
-        setAgentPrompt('QA override is ready. Click Next to continue.', 'speaking', 'vivian.continue.thank_you', 'friendly_encouragement');
+        setAgentPrompt("Thank you. Let's continue to the next item when you are ready.", 'speaking', 'vivian.continue.thank_you', 'friendly_encouragement');
         return;
     }
 
-    setAgentPrompt('Hold the orange button to record the passage first.', 'speaking', 'vivian.no_recording.passage_first', 'gentle_reassurance');
+    setAgentPrompt('Hold the orange button to record the passage first, then submit when you are ready.', 'speaking', 'vivian.no_recording.passage_first', 'gentle_reassurance');
 };
 
 const submit = () => {
     if (!passageChecked.value) {
-        setAgentPrompt('Click Submit first so I can check your reading.', 'speaking', 'vivian.processing.checking_reading');
+        setAgentPrompt('I am checking your reading now. This may take a moment, so please wait.', 'speaking', 'vivian.processing.checking_reading');
         return;
     }
 
@@ -413,7 +416,7 @@ const submit = () => {
         forceFormData: true,
         onError: (errors) => {
             const firstError = Object.values(errors ?? {})[0] ?? 'We could not save this reading yet. Please try again.';
-            setAgentPrompt(Array.isArray(firstError) ? firstError[0] : firstError, 'retry', 'vivian.error.recording_check_failed', 'gentle_reassurance');
+            setAgentPrompt("Something went wrong while checking your recording. That's okay, please try again with a clear voice.", 'retry', 'vivian.error.recording_check_failed', 'gentle_reassurance');
         },
     });
 };

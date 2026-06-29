@@ -123,9 +123,10 @@ class SentenceReadingScoringService
         ];
     }
 
-    public function evaluate(string $expectedSentence, string $actualTranscript, ?float $durationSeconds = null, ?array $aiSignals = null): array
+    public function evaluate(string $expectedSentence, string $actualTranscript, ?float $durationSeconds = null, ?array $aiSignals = null, ?array $timingTargets = null): array
     {
         $aiSignals ??= [];
+        $timingTargets = $this->timingTargets($timingTargets ?? $aiSignals['timing_targets'] ?? []);
         $alignment = $this->align($expectedSentence, $actualTranscript);
         $alignment = $this->alignmentFromAiSignals($expectedSentence, $actualTranscript, $aiSignals) ?? $alignment;
         $expectedWords = $alignment['expected_words'];
@@ -139,6 +140,9 @@ class SentenceReadingScoringService
                 'score_ten' => 0.0,
                 'matched_words' => 0,
                 'total_words' => 0,
+                'total_words_read' => 0,
+                'errors' => 0,
+                'word_errors' => 0,
                 'missing_words' => 0,
                 'correct_words' => 0,
                 'total_expected_words' => 0,
@@ -150,9 +154,12 @@ class SentenceReadingScoringService
                 'alignment' => [],
                 'wpm' => null,
                 'wcpm' => null,
+                'duration_seconds' => $durationSeconds,
                 'words_per_second' => null,
+                'pace_label' => 'unknown',
                 'pacing_label' => 'unknown',
                 'pacing_warning' => 'Reading duration is missing, so pacing could not be calculated.',
+                ...$this->timingTargetFields($timingTargets),
                 'feedback_label' => self::RIGHT_WORDS_BUT_UNCLEAR,
                 'is_rushed' => false,
                 'is_slow' => false,
@@ -162,8 +169,8 @@ class SentenceReadingScoringService
                 'pause_metrics_available' => false,
                 'pause_score' => 100,
                 'long_pause_warning' => null,
-                'fluency_score' => 0,
-                'fluency_label' => $retry['retry_required'] ? 'retry_needed' : 'needs_practice',
+                'fluency_score' => null,
+                'fluency_label' => 'unknown',
                 'fluency_components' => $this->emptyFluencyComponents(),
                 'warnings' => ['Expected sentence has no words after normalization.'],
                 ...$retry,
@@ -171,8 +178,9 @@ class SentenceReadingScoringService
         }
 
         $totalWords = count($expectedWords);
-        $correctWords = $alignment['correct'];
-        $matchedWords = $correctWords;
+        $errors = max(0, (int) $alignment['substitutions'] + (int) $alignment['deletions'] + (int) $alignment['insertions']);
+        $correctWords = max($totalWords - $errors, 0);
+        $matchedWords = $alignment['correct'];
         $missingWords = $alignment['deletions'];
         $wer = $alignment['wer'];
 
@@ -249,11 +257,11 @@ class SentenceReadingScoringService
             $accuracy = max(80, $accuracy);
         }
 
-        $timing = $this->timingMetrics($actualWords, $correctWords, $durationSeconds);
+        $timing = $this->timingMetrics($actualWords, $correctWords, $durationSeconds, $errors, $totalWords);
         $wordsPerSecond = $timing['words_per_second'];
         $warnings = array_merge($warnings, $timing['warnings']);
 
-        $pacing = $this->pacingMetrics($wordsPerSecond, $textAccuracy, $compactSentenceMatch);
+        $pacing = $this->pacingMetrics($durationSeconds, $timingTargets, $wordsPerSecond, $textAccuracy, $compactSentenceMatch && ! $exactSentenceMatch);
 
         $partialButPronouncedClearly = $matchedWords > 0
             && $matchedWords < $totalWords
@@ -299,7 +307,7 @@ class SentenceReadingScoringService
             accuracyPercentage: $accuracy,
             pauseScore: $pause['pause_score'],
             pauseMetricsAvailable: $pause['pause_metrics_available'],
-            pacingLabel: $pacing['pacing_label'],
+            pacingLabel: $pacing['pace_label'],
             completionScore: $this->completionScore($totalWords, $alignment['deletions']),
             retryRequired: $retry['retry_required'],
         );
@@ -310,6 +318,9 @@ class SentenceReadingScoringService
             'text_accuracy_percentage' => $textAccuracy,
             'matched_words' => $matchedWords,
             'total_words' => $totalWords,
+            'total_words_read' => $totalWords,
+            'errors' => $errors,
+            'word_errors' => $errors,
             'missing_words' => $missingWords,
             'correct_words' => $correctWords,
             'total_expected_words' => $totalWords,
@@ -324,9 +335,12 @@ class SentenceReadingScoringService
             'cer' => $aiSignals['corrected_cer'] ?? $aiSignals['raw_cer'] ?? null,
             'wpm' => $timing['wpm'],
             'wcpm' => $timing['wcpm'],
+            'duration_seconds' => $timing['duration_seconds'],
             'words_per_second' => $wordsPerSecond,
-            'pacing_label' => $pacing['pacing_label'],
+            'pace_label' => $pacing['pace_label'],
+            'pacing_label' => $pacing['pace_label'],
             'pacing_warning' => $pacing['pacing_warning'],
+            ...$this->timingTargetFields($timingTargets),
             'feedback_label' => $feedbackLabel,
             'is_rushed' => $isRushed,
             'is_slow' => $isSlow,
@@ -403,12 +417,13 @@ class SentenceReadingScoringService
         return trim($normalized);
     }
 
-    private function timingMetrics(array $actualWords, int $correctWords, ?float $durationSeconds): array
+    private function timingMetrics(array $actualWords, int $correctWords, ?float $durationSeconds, int $errors, int $totalWordsRead): array
     {
         if (! $durationSeconds || $durationSeconds <= 0) {
             return [
                 'wpm' => null,
                 'wcpm' => null,
+                'duration_seconds' => $durationSeconds,
                 'words_per_second' => null,
                 'warnings' => ['Reading duration is missing or invalid, so WPM and WCPM were not calculated.'],
             ];
@@ -416,22 +431,63 @@ class SentenceReadingScoringService
 
         $minutes = $durationSeconds / 60;
         $actualWordCount = count($actualWords);
+        $formulaCorrectWords = max($totalWordsRead - $errors, 0);
 
         return [
             'wpm' => round($actualWordCount / $minutes, 2),
-            'wcpm' => round($correctWords / $minutes, 2),
+            'wcpm' => round($formulaCorrectWords / $minutes, 2),
+            'duration_seconds' => round($durationSeconds, 3),
             'words_per_second' => round($actualWordCount / $durationSeconds, 2),
             'warnings' => [],
         ];
     }
 
-    private function pacingMetrics(?float $wordsPerSecond, int $textAccuracy, bool $compactSentenceMatch): array
+    private function pacingMetrics(?float $durationSeconds, array $timingTargets, ?float $wordsPerSecond, int $textAccuracy, bool $compactSentenceMatch): array
     {
+        if (! $durationSeconds || $durationSeconds <= 0) {
+            return [
+                'rushed' => false,
+                'slow' => false,
+                'pace_label' => 'unknown',
+                'pacing_warning' => 'Reading duration is missing, so pacing could not be calculated.',
+            ];
+        }
+
+        if (($timingTargets['min_fluent_time_seconds'] ?? null) !== null && ($timingTargets['max_fluent_time_seconds'] ?? null) !== null) {
+            $min = (float) $timingTargets['min_fluent_time_seconds'];
+            $max = (float) $timingTargets['max_fluent_time_seconds'];
+
+            if ($durationSeconds < $min) {
+                return [
+                    'rushed' => true,
+                    'slow' => false,
+                    'pace_label' => 'too_fast',
+                    'pacing_warning' => 'Slow down a little so each word is clear.',
+                ];
+            }
+
+            if ($durationSeconds > $max) {
+                return [
+                    'rushed' => false,
+                    'slow' => true,
+                    'pace_label' => 'too_slow',
+                    'pacing_warning' => 'Try reading it a little smoother without long pauses.',
+                ];
+            }
+
+            return [
+                'rushed' => false,
+                'slow' => false,
+                'pace_label' => 'fluent',
+                'pacing_warning' => 'Great pace. You read it clearly and smoothly.',
+            ];
+        }
+
         if ($wordsPerSecond === null) {
             return [
                 'rushed' => false,
                 'slow' => false,
-                'pacing_label' => 'unknown',
+                'pace_label' => 'unknown',
                 'pacing_warning' => 'Reading duration is missing, so pacing could not be calculated.',
             ];
         }
@@ -445,8 +501,8 @@ class SentenceReadingScoringService
             return [
                 'rushed' => true,
                 'slow' => false,
-                'pacing_label' => 'too_fast',
-                'pacing_warning' => 'This pacing heuristic suggests the sentence may have been read too quickly.',
+                'pace_label' => 'too_fast',
+                'pacing_warning' => 'Slow down a little so each word is clear.',
             ];
         }
 
@@ -454,16 +510,16 @@ class SentenceReadingScoringService
             return [
                 'rushed' => false,
                 'slow' => true,
-                'pacing_label' => 'too_slow',
-                'pacing_warning' => 'This pacing heuristic suggests the sentence may have been read too slowly.',
+                'pace_label' => 'too_slow',
+                'pacing_warning' => 'Try reading it a little smoother without long pauses.',
             ];
         }
 
         return [
             'rushed' => false,
             'slow' => false,
-            'pacing_label' => 'appropriate',
-            'pacing_warning' => null,
+            'pace_label' => 'fluent',
+            'pacing_warning' => 'Great pace. You read it clearly and smoothly.',
         ];
     }
 
@@ -521,52 +577,20 @@ class SentenceReadingScoringService
         int $completionScore,
         bool $retryRequired
     ): array {
-        $weights = $this->setting('readirect_ai.sentence_fluency.weights', [
-            'wcpm' => 0.35,
-            'accuracy' => 0.35,
-            'pacing' => 0.15,
-            'pause' => 0.10,
-            'completion' => 0.05,
-        ]);
-
-        $targetWcpm = (float) $this->setting('readirect_ai.sentence_fluency.target_wcpm', 20);
-        $wcpmScore = $wcpm === null ? 0 : (int) round(min(100, ($wcpm / max(1, $targetWcpm)) * 100));
-        $pacingScore = match ($pacingLabel) {
-            'appropriate' => 100,
-            'too_fast', 'too_slow' => 70,
-            default => 80,
-        };
-
         $components = [
-            'wcpm_score' => $wcpmScore,
-            'accuracy_score' => max(0, min(100, $accuracyPercentage)),
-            'pacing_score' => $pacingScore,
+            'wcpm' => $wcpm,
+            'wpm' => $wpm,
+            'accuracy_percentage' => max(0, min(100, $accuracyPercentage)),
+            'pace_label' => $pacingLabel,
             'pause_score' => $pauseScore,
             'completion_score' => $completionScore,
         ];
 
-        $score = round(
-            ($components['wcpm_score'] * (float) ($weights['wcpm'] ?? 0.35))
-            + ($components['accuracy_score'] * (float) ($weights['accuracy'] ?? 0.35))
-            + ($components['pacing_score'] * (float) ($weights['pacing'] ?? 0.15))
-            + ($components['pause_score'] * (float) ($weights['pause'] ?? 0.10))
-            + ($components['completion_score'] * (float) ($weights['completion'] ?? 0.05)),
-            1
-        );
-
-        $label = match (true) {
-            $retryRequired => 'retry_needed',
-            $score >= 85 => 'fluent',
-            $score >= 70 => 'developing',
-            $score >= 50 => 'needs_practice',
-            default => 'retry_needed',
-        };
-
         return [
-            'fluency_score' => $score,
-            'fluency_label' => $label,
+            'fluency_score' => $wcpm,
+            'fluency_label' => $retryRequired ? 'retry_needed' : $pacingLabel,
             'fluency_components' => $components,
-            'fluency_weights' => $weights,
+            'fluency_weights' => ['metric' => 'wcpm_only', 'pacing' => 'separate_feedback_signal'],
             'pause_metrics_available' => $pauseMetricsAvailable,
             'wpm' => $wpm,
         ];
@@ -595,12 +619,32 @@ class SentenceReadingScoringService
     private function emptyFluencyComponents(): array
     {
         return [
-            'wcpm_score' => 0,
-            'accuracy_score' => 0,
-            'pacing_score' => 80,
+            'wcpm' => null,
+            'wpm' => null,
+            'accuracy_percentage' => 0,
+            'pace_label' => 'unknown',
             'pause_score' => 100,
             'completion_score' => 0,
         ];
+    }
+
+    private function timingTargets(array $targets): array
+    {
+        return [
+            'target_read_time_seconds' => $this->nullableFloat($targets['target_read_time_seconds'] ?? null),
+            'min_fluent_time_seconds' => $this->nullableFloat($targets['min_fluent_time_seconds'] ?? null),
+            'max_fluent_time_seconds' => $this->nullableFloat($targets['max_fluent_time_seconds'] ?? null),
+            'target_wcpm' => $this->nullableFloat($targets['target_wcpm'] ?? null),
+            'min_expected_wcpm' => $this->nullableFloat($targets['min_expected_wcpm'] ?? null),
+            'max_expected_wcpm' => $this->nullableFloat($targets['max_expected_wcpm'] ?? null),
+            'pace_feedback_rule' => $this->nullableText($targets['pace_feedback_rule'] ?? null),
+            'pace_mastery_required' => $this->nullableBool($targets['pace_mastery_required'] ?? null),
+        ];
+    }
+
+    private function timingTargetFields(array $targets): array
+    {
+        return array_filter($targets, static fn ($value): bool => $value !== null);
     }
 
     private function setting(string $key, mixed $default): mixed
@@ -625,6 +669,31 @@ class SentenceReadingScoringService
         }
 
         return (int) round(max(0, min(1, (float) $value)) * 100);
+    }
+
+    private function nullableFloat(mixed $value): ?float
+    {
+        return is_numeric($value) ? (float) $value : null;
+    }
+
+    private function nullableText(mixed $value): ?string
+    {
+        $text = trim((string) ($value ?? ''));
+
+        return $text === '' ? null : $text;
+    }
+
+    private function nullableBool(mixed $value): ?bool
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
     }
 
     private function alignmentFromAiSignals(string $expectedSentence, string $actualTranscript, array $aiSignals): ?array

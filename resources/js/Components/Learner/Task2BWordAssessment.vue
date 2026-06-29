@@ -84,7 +84,7 @@ const agentLineKey = ref('vivian.task2b.word_sentence_start');
 const agentIntent = ref('focused_instruction');
 const agentState = ref('listening');
 const agentSpeaking = ref(false);
-const neutralMessages = ['Thank you. Let us continue.', 'Good effort. Let us go to the next one.', 'I heard your answer. Let us keep going.'];
+const neutralMessages = ["Thank you. Let's continue to the next item when you are ready.", "Good effort. Let's go to the next one and keep doing our best."];
 const isCurrentUploading = computed(() => Boolean(uploading[step.currentItem.value?.id]));
 const currentTranscript = computed(() => String(generatedTranscripts[step.currentItem.value?.id] ?? '').trim());
 const currentWordImage = computed(() => getWordImage(step.currentItem.value?.payload?.target_word));
@@ -116,7 +116,7 @@ const rememberAudio = (item, file) => {
     delete asrResults[item.id];
     delete checkedItems[item.id];
     step.feedback.value = '';
-    setAgentPrompt('Listen to your answer. If you are happy with your answer, click Submit.', 'speaking', 'vivian.instruction.listen_choose_or_say');
+    setAgentPrompt('Take your time before you answer. Listen first, then choose or say the response clearly.', 'speaking', 'vivian.instruction.listen_choose_or_say');
 };
 
 const clearAudio = (item) => {
@@ -143,7 +143,7 @@ const uploadAudio = async (item, file) => {
 
     uploading[item.id] = true;
     uploadErrors[item.id] = '';
-    setAgentPrompt('Checking your recording.', 'thinking', 'vivian.processing.checking_recording');
+    setAgentPrompt('I am checking your recording now. Please wait a moment while I listen carefully.', 'thinking', 'vivian.processing.checking_recording');
 
     try {
         const payload = new FormData();
@@ -187,12 +187,12 @@ const uploadAudio = async (item, file) => {
 
         delete checkedItems[item.id];
         uploadErrors[item.id] = asr.message;
-        setAgentPrompt(uploadErrors[item.id], 'retry', 'vivian.error.recording_check_failed', 'gentle_reassurance');
+        setAgentPrompt("Something went wrong while checking your recording. That's okay, please try again with a clear voice.", 'retry', 'vivian.error.recording_check_failed', 'gentle_reassurance');
         return false;
     } catch (error) {
         delete checkedItems[item.id];
         uploadErrors[item.id] = error.message || 'We had trouble checking your answer. Please try again.';
-        setAgentPrompt(uploadErrors[item.id], 'retry', 'vivian.error.recording_check_failed', 'gentle_reassurance');
+        setAgentPrompt("Something went wrong while checking your recording. That's okay, please try again with a clear voice.", 'retry', 'vivian.error.recording_check_failed', 'gentle_reassurance');
         return false;
     } finally {
         uploading[item.id] = false;
@@ -219,7 +219,7 @@ const submitCurrentForReview = async () => {
 
     const file = audioFiles[item.id];
     if (!file) {
-        setAgentPrompt('Hold the orange button to record the highlighted word first.', 'speaking', 'vivian.task2b.word_sentence_start');
+        setAgentPrompt('Read the highlighted word in the sentence. When you are ready, record it clearly.', 'speaking', 'vivian.task2b.word_sentence_start');
         return;
     }
 
@@ -228,7 +228,7 @@ const submitCurrentForReview = async () => {
 
 const submit = () => {
     if (!step.validateComplete()) {
-        setAgentPrompt('Almost there. Finish each sentence before checking your words.', 'speaking', 'vivian.task2b.word_sentence_start');
+        setAgentPrompt('Read the highlighted word in the sentence. When you are ready, record it clearly.', 'speaking', 'vivian.task2b.word_sentence_start');
         return;
     }
 
@@ -245,19 +245,19 @@ const submit = () => {
         onError: (errors) => {
             const firstError = Object.values(errors ?? {})[0] ?? props.submitErrorMessage;
             step.feedback.value = Array.isArray(firstError) ? firstError[0] : firstError;
-            setAgentPrompt(step.feedback.value, 'retry', 'vivian.error.recording_check_failed', 'gentle_reassurance');
+            setAgentPrompt("Something went wrong while checking your recording. That's okay, please try again with a clear voice.", 'retry', 'vivian.error.recording_check_failed', 'gentle_reassurance');
         },
     });
 };
 
 const goNextOrFinish = () => {
     if (!isCurrentChecked.value) {
-        setAgentPrompt('Click Submit first so I can check your answer.', 'speaking', 'vivian.processing.checking_answer');
+        setAgentPrompt('I am checking your answer now. Please wait while I review it.', 'speaking', 'vivian.processing.checking_answer');
         return;
     }
 
     if (!step.validateCurrent()) {
-        setAgentPrompt('Let us answer this first.', 'speaking', 'vivian.task2b.word_sentence_start');
+        setAgentPrompt('Read the highlighted word in the sentence. When you are ready, record it clearly.', 'speaking', 'vivian.task2b.word_sentence_start');
         return;
     }
 

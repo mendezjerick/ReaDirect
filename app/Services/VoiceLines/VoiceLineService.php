@@ -14,27 +14,6 @@ class VoiceLineService
     public const REFERENCE_STYLE = 'reference_style';
     public const KOKORO_IDENTITY = 'kokoro_identity';
 
-    private const DEFENSE_VALUES = [
-        'cat',
-        'dog',
-        'sun',
-        'map',
-        'pen',
-        'red',
-        'log',
-        'cup',
-        'fish',
-        'leaf',
-        'kite',
-        'seed',
-        'mat',
-        'sit',
-        'run',
-        'read',
-        'rosa',
-        'lena',
-    ];
-
     private const TEXT_ALIASES = [
         'vivian' => [
             'we will do a short reading check together i will guide each step just try your best' => 'vivian.intro.assessment',
@@ -68,15 +47,31 @@ class VoiceLineService
         ],
         'ciel' => [
             'your practice path is ready we will work one step at a time' => 'ciel.friendly.read_slowly_together',
-            'read the prompt then record your voice i will help you practice' => 'ciel.instruction.look_listen_read',
-            'listen to your answer if you are happy with your answer click submit' => 'ciel.instruction.listen_then_say_word',
+            'read the prompt then record your voice i will help you practice' => 'ciel.module2.before_recording.word_01',
+            'look at the letter below and say its sound clearly' => 'ciel.module1.before_recording.letter_01',
+            'say the displayed letter sound slowly' => 'ciel.module1.before_recording.letter_02',
+            'read the letter sound below carefully' => 'ciel.module1.before_recording.letter_03',
+            'read the displayed word below carefully' => 'ciel.module2.before_recording.word_01',
+            'read the word below slowly' => 'ciel.module2.before_recording.word_02',
+            'look at the word below and say it clearly' => 'ciel.module2.before_recording.word_03',
+            'read the sentence below clearly and naturally' => 'ciel.module3.before_recording.sentence_01',
+            'read the displayed sentence at a steady pace' => 'ciel.module3.before_recording.sentence_02',
+            'read the sentence below carefully from start to finish' => 'ciel.module3.before_recording.sentence_03',
+            'listen to your answer if you are happy with your answer click submit' => 'ciel.module.after_recording.review_submit_01',
+            'listen to your answer first if you are happy with it click submit and i will check your reading' => 'ciel.module.after_recording.review_submit_01',
+            'listen to your recording then click submit when you are ready' => 'ciel.module.after_recording.review_submit_01',
+            'you can review your audio first then press submit' => 'ciel.module.after_recording.review_submit_02',
+            'play your recording if you want to check it then submit your answer' => 'ciel.module.after_recording.review_submit_03',
             'checking your recording' => 'ciel.module.processing.checking_reading',
             'checking your reading' => 'ciel.module.processing.checking_reading',
             'checking your answer' => 'ciel.module.processing.checking_reading',
             'we could not use that recording please try again' => 'ciel.module.audio_unclear.try_clear_voice',
-            'hold the orange button to record your answer first' => 'ciel.instruction.say_sound_clearly',
-            'click submit first so i can check your answer' => 'ciel.instruction.look_listen_read',
-            'let us answer this first' => 'ciel.instruction.look_listen_read',
+            'hold the orange button to record your answer first' => 'ciel.module2.validation.record_word_first',
+            'please record the letter sound first' => 'ciel.module1.validation.record_letter_first',
+            'please record the word first' => 'ciel.module2.validation.record_word_first',
+            'please record the sentence first' => 'ciel.module3.validation.record_sentence_first',
+            'click submit first so i can check your answer' => 'ciel.module2.validation.record_word_first',
+            'let us answer this first' => 'ciel.module2.validation.record_word_first',
             'that is correct go to the next one' => 'ciel.praise.got_that_one',
             'try this same item again' => 'ciel.reassurance.try_one_more_time',
             'good try go to the next one' => 'ciel.reassurance.slow_down_together',
@@ -323,12 +318,6 @@ class VoiceLineService
                 '/\AI heard:\s*(.+?)\.?\z/i' => 'asr_echo.generic.',
                 '/\AYou said:\s*(.+?)\.?\z/i' => 'learner_echo.generic.',
             ],
-            'ciel' => [
-                '/\AYou said:\s*(.+?)\.?\z/i' => 'ciel_asr_echo.',
-                '/\AThe word is\s+(.+?)\.?\z/i' => 'target_word_echo.generic.',
-                '/\AThat\'s okay,\s*let\'s try\s+(.+?)\s+one more time\.?\z/i' => 'try_again_with_target.generic.',
-                '/\AThe correct word is\s+(.+?)\.\s*Let\'s say it slowly together\.?\z/i' => 'correct_word_support.generic.',
-            ],
         ];
 
         foreach ($patterns[$agent] ?? [] as $pattern => $prefix) {
@@ -336,21 +325,12 @@ class VoiceLineService
                 continue;
             }
 
-            $value = Str::lower(trim($matches[1]));
-            if (in_array($value, self::DEFENSE_VALUES, true)) {
-                if ($prefix === 'ciel_asr_echo.') {
-                    return 'ciel.asr.success_generic';
-                }
-
-                return $prefix.$value;
+            if ($agent === 'ciel') {
+                return $prefix;
             }
 
             if ($agent === 'vivian' && str_contains($prefix, 'generic.')) {
                 return 'vivian.asr.unknown_transcript';
-            }
-
-            if ($agent === 'ciel' && $prefix === 'ciel_asr_echo.') {
-                return 'ciel.asr.transcript_unknown';
             }
         }
 

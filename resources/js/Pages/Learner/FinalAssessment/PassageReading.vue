@@ -14,6 +14,6 @@ defineProps({
         :assessment-attempt-id="assessmentAttemptId"
         :assessment-mode="assessmentMode"
         submit-url="/final-assessment/passage/submit"
-        initial-agent-message="This is your final reading check. Read the passage aloud and try your best."
+        initial-agent-message="This is your final reading check. Do your best, one step at a time."
     />
 </template>
