@@ -23,7 +23,7 @@ const visibleSteps = computed(() => props.steps.length ? props.steps : (props.di
 <template>
     <div
         class="text-text"
-        :class="assessmentTask ? 'learner-autumn-shell flex h-screen flex-col overflow-hidden' : 'min-h-screen bg-gradient-to-b from-slate-50 to-orange-50/30'"
+        :class="assessmentTask ? 'learner-activity-shell flex h-screen flex-col overflow-hidden' : 'min-h-screen bg-gradient-to-b from-slate-50 to-orange-50/30'"
     >
         <AdminTestingToolbar />
         <header

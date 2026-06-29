@@ -158,30 +158,6 @@ onUnmounted(() => window.removeEventListener('resize', repositionMascot));
 <template>
     <div class="rd-root" :class="{ 'is-loaded': isMounted }">
 
-        <!-- ═══ CLASSROOM SCENE ════════════════════════════ -->
-        <div class="rd-scene" aria-hidden="true">
-            <div class="rd-scene-wall" />
-            <div class="rd-scene-floor" />
-            <div class="rd-board">
-                <span class="rd-pin rd-pin-r" /><span class="rd-pin rd-pin-b" /><span class="rd-pin rd-pin-y" />
-                <div class="rd-paper rd-paper-1" /><div class="rd-paper rd-paper-2" /><div class="rd-paper rd-paper-3" />
-            </div>
-            <div class="rd-shelf">
-                <div class="rd-shelf-board" />
-                <div class="rd-book" style="--bh:52px;--bc:#ef4444;left:8px" />
-                <div class="rd-book" style="--bh:42px;--bc:#3b82f6;left:28px" />
-                <div class="rd-book" style="--bh:56px;--bc:#10b981;left:48px" />
-                <div class="rd-book" style="--bh:38px;--bc:#f59e0b;left:68px" />
-                <div class="rd-book" style="--bh:48px;--bc:#8b5cf6;left:88px" />
-                <div class="rd-shelf-plant" />
-            </div>
-            <div class="rd-rug" />
-            <div class="rd-window">
-                <div class="rd-window-pane rd-window-pane-1" />
-                <div class="rd-window-pane rd-window-pane-2" />
-            </div>
-        </div>
-
         <!-- ═══ TOP LEFT CONTROLS (Menu) ═══════════════════ -->
         <div class="rd-top-left-controls">
             <!-- Menu Container (Burger + Dropdown) -->
@@ -435,7 +411,13 @@ onUnmounted(() => window.removeEventListener('resize', repositionMascot));
 .rd-root {
     position: relative; min-height: 100vh;
     font-family: 'Nunito', system-ui, sans-serif;
-    overflow-x: hidden; background: #c9e4f5;
+    overflow-x: hidden;
+    background-color: #f4e0ba;
+    background-image: url('/images/backgrounds/learner-dashboard-desktop.png');
+    background-attachment: fixed;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -444,33 +426,6 @@ onUnmounted(() => window.removeEventListener('resize', repositionMascot));
         transition-duration: 0.01ms !important; scroll-behavior: auto !important;
     }
 }
-
-/* ════════════════════════════════════════════════
-   CLASSROOM SCENE
-   ════════════════════════════════════════════════ */
-.rd-scene { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
-.rd-scene-wall { position: absolute; inset: 0 0 28% 0; background: linear-gradient(175deg, #b8d9f0 0%, #cce8f7 55%, #d8eef8 100%); }
-.rd-scene-floor {
-    position: absolute; bottom: 0; left: 0; right: 0; height: 30%;
-    background: repeating-linear-gradient(90deg, #c8911f 0, #c8911f 58px, #b87d16 58px, #b87d16 60px), linear-gradient(180deg, #d4a118 0%, #9e5e10 100%);
-    background-blend-mode: multiply; border-top: 5px solid #7a4e0c; box-shadow: inset 0 6px 20px rgba(0,0,0,0.15);
-}
-.rd-board { position: absolute; top: 9%; left: 3.5%; width: 150px; height: 115px; background: #7e5435; border-radius: 6px; border: 7px solid #5c3a1e; box-shadow: 3px 5px 18px rgba(0,0,0,0.28), inset 0 1px 3px rgba(255,255,255,0.1); padding: 6px; }
-.rd-pin { position: absolute; top: -7px; width: 14px; height: 14px; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
-.rd-pin-r { left: 18px; background: #ef4444; } .rd-pin-b { left: 58px; background: #3b82f6; } .rd-pin-y { left: 98px; background: #eab308; }
-.rd-paper { position: absolute; background: #fef9c3; border-radius: 2px; box-shadow: 1px 1px 4px rgba(0,0,0,0.18); }
-.rd-paper-1 { width: 44px; height: 40px; top: 14px; left: 6px; transform: rotate(-2deg); }
-.rd-paper-2 { width: 40px; height: 46px; top: 10px; left: 52px; transform: rotate( 3deg); background: #dbeafe; }
-.rd-paper-3 { width: 36px; height: 38px; top: 15px; left: 94px; transform: rotate(-1deg); background: #dcfce7; }
-.rd-shelf { position: absolute; top: 9%; right: 3%; width: 130px; }
-.rd-shelf-board { position: absolute; top: 68px; left: -4px; right: -4px; height: 11px; background: #7e5435; border-radius: 5px; box-shadow: 0 4px 10px rgba(0,0,0,0.22); }
-.rd-book { position: absolute; top: 16px; width: 18px; height: var(--bh); background: var(--bc); border-radius: 3px 3px 0 0; box-shadow: 2px 0 5px rgba(0,0,0,0.18); }
-.rd-shelf-plant { position: absolute; left: 106px; top: 20px; width: 24px; height: 50px; background: radial-gradient(ellipse at 50% 80%, #16a34a 60%, #166534 100%); border-radius: 50% 50% 20% 20%; box-shadow: 0 3px 8px rgba(0,0,0,0.2); }
-.rd-rug { position: absolute; bottom: 6%; left: 22%; width: 180px; height: 80px; background: radial-gradient(ellipse at center, #1d4ed8 20%, #1e3a8a 80%); border-radius: 50%; opacity: 0.55; box-shadow: 0 6px 20px rgba(30,58,138,0.28); }
-.rd-window { position: absolute; top: 6%; left: 50%; transform: translateX(-50%); width: 80px; height: 88px; background: linear-gradient(135deg, #bde4ff, #e0f3ff); border: 6px solid #a0bfd4; border-radius: 6px 6px 0 0; box-shadow: inset 0 0 8px rgba(255,255,255,0.5), 2px 4px 12px rgba(0,0,0,0.15); overflow: hidden; }
-.rd-window-pane { position: absolute; background: rgba(160,191,212,0.6); }
-.rd-window-pane-1 { left: 50%; top: 0; bottom: 0; width: 5px; transform: translateX(-50%); }
-.rd-window-pane-2 { left: 0; right: 0; top: 50%; height: 5px; transform: translateY(-50%); }
 
 /* ════════════════════════════════════════════════
    TOP CONTROLS

@@ -1,13 +1,15 @@
 <script setup>
-import { computed, reactive, ref } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import LearnerLayout from '../../Layouts/LearnerLayout.vue';
 import AssessmentTaskWorkspace from './AssessmentTaskWorkspace.vue';
 import AudioRecorder from './AudioRecorder.vue';
 import AsrTranscriptVisualizer from './AsrTranscriptVisualizer.vue';
+import { useAsrVisualization } from '../../Composables/useAsrVisualization';
 import { useStepAssessment } from '../../Composables/useStepAssessment';
 import { appendAudioMetadata, normalizeAsrResponse } from '../../utils/asrResponse';
 import { RESULT_TONE_ASSESSMENT, letterPairDisplay, resultColorForTone } from '../../utils/assessmentDisplay';
+import { vivianAsrReceivedCueForItem } from '../../utils/vivianAsrVoiceLines';
 
 const props = defineProps({
     items: { type: Array, default: () => [] },
@@ -40,6 +42,8 @@ const checkedItems = reactive(Object.fromEntries((props.items ?? [])
 const asrResults = reactive({});
 const uploadErrors = reactive({});
 const uploading = reactive({});
+const asrVisualizationPending = reactive({});
+const { enabled: asrVisualizationEnabled } = useAsrVisualization();
 const canUseManualFallback = computed(() => props.assessmentMode?.canUseManualFallback === true);
 const canUseDeveloperJumpControls = computed(() => props.assessmentMode?.canUseDeveloperJumpControls === true);
 const manualAnswerFor = (item) => canUseManualFallback.value ? String(step.answers[item?.id] ?? '').trim() : '';
@@ -61,6 +65,7 @@ const agentSpeaking = ref(false);
 const isCurrentUploading = computed(() => Boolean(uploading[step.currentItem.value?.id]));
 const isCurrentChecked = computed(() => Boolean(checkedItems[step.currentItem.value?.id]) && hasAnswerOrAudio(step.currentItem.value));
 const currentTranscript = computed(() => String(generatedTranscripts[step.currentItem.value?.id] ?? '').trim());
+const currentAsrVisualizationPending = computed(() => Boolean(asrVisualizationPending[step.currentItem.value?.id]));
 const currentLetterDisplay = computed(() => {
     const item = step.currentItem.value;
 
@@ -72,7 +77,7 @@ const currentLetterDisplay = computed(() => {
     );
 });
 const currentDisplayState = computed(() => {
-    if (isCurrentUploading.value) return 'processing';
+    if (asrVisualizationEnabled.value && (isCurrentUploading.value || (currentAsrVisualizationPending.value && isCurrentChecked.value))) return 'processing';
     if (isCurrentChecked.value) return 'result';
 
     return 'item';
@@ -87,7 +92,7 @@ const canSubmitCurrent = computed(() => {
     return Boolean(audioFiles[item.id]) || manualAnswerFor(item).length > 0;
 });
 const primaryLabel = computed(() => isCurrentChecked.value ? 'Next' : 'Submit');
-const primaryDisabled = computed(() => form.processing || isCurrentUploading.value || (!isCurrentChecked.value && !canSubmitCurrent.value));
+const primaryDisabled = computed(() => form.processing || isCurrentUploading.value || currentAsrVisualizationPending.value || (!isCurrentChecked.value && !canSubmitCurrent.value));
 const continueLineKeyForIndex = (index) => (index % 2 === 0 ? 'vivian.continue.thank_you' : 'vivian.continue.good_effort');
 const setAgentPrompt = (message, state = 'speaking', lineKey = '', intent = 'focused_instruction') => {
     agentMessage.value = message;
@@ -95,6 +100,30 @@ const setAgentPrompt = (message, state = 'speaking', lineKey = '', intent = 'foc
     agentLineKey.value = lineKey;
     agentIntent.value = intent;
 };
+const setVivianAsrReceivedPrompt = (item) => {
+    const cue = vivianAsrReceivedCueForItem(item, props.items);
+
+    setAgentPrompt(cue.text, 'speaking', cue.lineKey, 'friendly_encouragement');
+};
+const clearAsrVisualizationPending = (item) => {
+    if (item?.id) {
+        delete asrVisualizationPending[item.id];
+    }
+};
+const markAsrVisualizationPending = (item) => {
+    if (item?.id && asrVisualizationEnabled.value) {
+        asrVisualizationPending[item.id] = true;
+    }
+};
+const clearAllAsrVisualizationPending = () => {
+    Object.keys(asrVisualizationPending).forEach((key) => delete asrVisualizationPending[key]);
+};
+
+watch(asrVisualizationEnabled, (enabled) => {
+    if (!enabled) {
+        clearAllAsrVisualizationPending();
+    }
+});
 
 const rememberAudio = (item, file) => {
     audioFiles[item.id] = file;
@@ -105,6 +134,7 @@ const rememberAudio = (item, file) => {
     delete generatedTranscripts[item.id];
     delete asrResults[item.id];
     delete checkedItems[item.id];
+    clearAsrVisualizationPending(item);
     setAgentPrompt('Take your time before you answer. Listen first, then choose or say the response clearly.', 'speaking', 'vivian.instruction.listen_choose_or_say');
 };
 
@@ -118,6 +148,7 @@ const clearAudio = (item) => {
     delete uploadErrors[item.id];
     delete uploading[item.id];
     delete checkedItems[item.id];
+    clearAsrVisualizationPending(item);
 };
 
 const setAnswer = (item, value) => {
@@ -130,6 +161,7 @@ const uploadAudio = async (item, file) => {
     }
 
     uploading[item.id] = true;
+    markAsrVisualizationPending(item);
     uploadErrors[item.id] = '';
     setAgentPrompt('I am checking your recording now. Please wait a moment while I listen carefully.', 'thinking', 'vivian.processing.checking_recording');
 
@@ -168,16 +200,18 @@ const uploadAudio = async (item, file) => {
             generatedTranscripts[item.id] = transcript;
             transcriptSources[item.id] = result.transcript_source ?? 'stt_auto';
             checkedItems[item.id] = true;
-            setAgentPrompt(`You said: ${transcript}`, 'speaking', '');
+            setVivianAsrReceivedPrompt(item);
             return true;
         }
 
         delete checkedItems[item.id];
+        clearAsrVisualizationPending(item);
         uploadErrors[item.id] = asr.message;
         setAgentPrompt("Something went wrong while checking your recording. That's okay, please try again with a clear voice.", 'retry', 'vivian.error.recording_check_failed', 'gentle_reassurance');
         return false;
     } catch (error) {
         delete checkedItems[item.id];
+        clearAsrVisualizationPending(item);
         uploadErrors[item.id] = error.message || 'We had trouble checking your answer. Please try again.';
         setAgentPrompt("Something went wrong while checking your recording. That's okay, please try again with a clear voice.", 'retry', 'vivian.error.recording_check_failed', 'gentle_reassurance');
         return false;
@@ -199,6 +233,7 @@ const submitCurrentForReview = async () => {
         transcriptSources[item.id] = 'manual';
         checkedItems[item.id] = true;
         uploadErrors[item.id] = '';
+        clearAsrVisualizationPending(item);
         setAgentPrompt(`You said: ${manualAnswer}`, 'speaking', '');
         return;
     }
@@ -318,7 +353,6 @@ const setAgentSpeaking = (isSpeaking) => {
 
             <template #processing>
                 <AsrTranscriptVisualizer
-                    visualization-enabled
                     :transcript="currentTranscript"
                     :expected-text="step.currentItem.value.payload?.expected_answer ?? step.currentItem.value.prompt"
                     :asr-result="asrResults[step.currentItem.value.id]"
@@ -326,6 +360,8 @@ const setAgentSpeaking = (isSpeaking) => {
                     :error="uploadErrors[step.currentItem.value.id] ?? ''"
                     placeholder="Transcript will appear here"
                     box-class="min-h-0 h-full w-full flex-1 resize-none overflow-y-auto rounded-lg border border-slate-200 bg-white p-4 text-2xl font-black leading-tight text-slate-800 transition placeholder:text-slate-300 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
+                    @sequence-started="markAsrVisualizationPending(step.currentItem.value)"
+                    @sequence-finished="clearAsrVisualizationPending(step.currentItem.value)"
                 />
             </template>
 

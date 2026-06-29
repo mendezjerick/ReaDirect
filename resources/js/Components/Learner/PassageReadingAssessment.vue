@@ -1,12 +1,14 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import LearnerLayout from '../../Layouts/LearnerLayout.vue';
 import AssessmentTaskWorkspace from './AssessmentTaskWorkspace.vue';
 import AudioRecorder from './AudioRecorder.vue';
 import AsrTranscriptVisualizer from './AsrTranscriptVisualizer.vue';
+import { useAsrVisualization } from '../../Composables/useAsrVisualization';
 import { appendAudioMetadata, normalizeAsrResponse } from '../../utils/asrResponse';
 import { getPassageImage } from '../../utils/readingIllustrations';
+import { vivianAsrReceivedCueForItem } from '../../utils/vivianAsrVoiceLines';
 
 const props = defineProps({
     passage: { type: Object, required: true },
@@ -31,6 +33,8 @@ const wordAlignment = ref(Array.isArray(savedPassageResponse.word_alignment) ? s
 const asrResult = ref(null);
 const uploadError = ref('');
 const uploading = ref(false);
+const asrVisualizationPending = ref(false);
+const { enabled: asrVisualizationEnabled } = useAsrVisualization();
 const agentMessage = ref(props.initialAgentMessage);
 const initialAgentLineKey = String(props.initialAgentMessage ?? '').toLowerCase().includes('final')
     ? 'vivian.assessment.final_start'
@@ -43,7 +47,7 @@ const passageChecked = ref(Boolean(transcript.value || form.audio_file_id));
 const canUseManualFallback = computed(() => props.assessmentMode?.canUseManualFallback === true);
 const passageImage = computed(() => getPassageImage(props.passage?.source_csv_id));
 const displayState = computed(() => {
-    if (uploading.value) return 'processing';
+    if (asrVisualizationEnabled.value && (uploading.value || (asrVisualizationPending.value && passageChecked.value && transcript.value.trim() !== ''))) return 'processing';
     if (passageChecked.value && transcript.value.trim() !== '') return 'result';
 
     return 'item';
@@ -269,13 +273,32 @@ const canSubmitForReview = computed(() => {
     return canUseManualFallback.value && hasIncorrectWords();
 });
 const primaryLabel = computed(() => passageChecked.value ? 'Next' : 'Submit');
-const primaryDisabled = computed(() => form.processing || uploading.value || (!passageChecked.value && !canSubmitForReview.value));
+const primaryDisabled = computed(() => form.processing || uploading.value || asrVisualizationPending.value || (!passageChecked.value && !canSubmitForReview.value));
 const setAgentPrompt = (message, state = 'speaking', lineKey = '', intent = 'focused_instruction') => {
     agentMessage.value = message;
     agentState.value = state;
     agentLineKey.value = lineKey;
     agentIntent.value = intent;
 };
+const setVivianAsrReceivedPrompt = () => {
+    const cue = vivianAsrReceivedCueForItem(props.passage, [props.passage]);
+
+    setAgentPrompt(cue.text, 'speaking', cue.lineKey, 'friendly_encouragement');
+};
+const markAsrVisualizationPending = () => {
+    if (asrVisualizationEnabled.value) {
+        asrVisualizationPending.value = true;
+    }
+};
+const clearAsrVisualizationPending = () => {
+    asrVisualizationPending.value = false;
+};
+
+watch(asrVisualizationEnabled, (enabled) => {
+    if (!enabled) {
+        clearAsrVisualizationPending();
+    }
+});
 
 const applyIncorrectWordsFromCurrentResult = () => {
     const alignedIncorrectWords = incorrectWordsFromAlignment(wordAlignment.value);
@@ -295,6 +318,7 @@ const uploadTranscript = async (file) => {
     }
 
     uploading.value = true;
+    markAsrVisualizationPending();
     uploadError.value = '';
     setAgentPrompt('I am checking your reading now. This may take a moment, so please wait.', 'thinking', 'vivian.processing.checking_reading');
 
@@ -333,7 +357,7 @@ const uploadTranscript = async (file) => {
             wordAlignment.value = asr.wordAlignment;
             applyIncorrectWordsFromCurrentResult();
             passageChecked.value = true;
-            setAgentPrompt(`You said: ${transcript.value}`, 'speaking', '');
+            setVivianAsrReceivedPrompt();
             return true;
         }
 
@@ -341,11 +365,13 @@ const uploadTranscript = async (file) => {
         transcript.value = '';
         wordAlignment.value = [];
         passageChecked.value = false;
+        clearAsrVisualizationPending();
         uploadError.value = asr.message;
         setAgentPrompt("Something went wrong while checking your recording. That's okay, please try again with a clear voice.", 'retry', 'vivian.error.recording_check_failed', 'gentle_reassurance');
         return false;
     } catch (error) {
         passageChecked.value = false;
+        clearAsrVisualizationPending();
         uploadError.value = error.message || 'We had trouble checking your reading. Please try again.';
         setAgentPrompt("Something went wrong while checking your recording. That's okay, please try again with a clear voice.", 'retry', 'vivian.error.recording_check_failed', 'gentle_reassurance');
         return false;
@@ -364,6 +390,7 @@ const rememberAudio = (file) => {
     asrResult.value = null;
     uploadError.value = '';
     passageChecked.value = false;
+    clearAsrVisualizationPending();
     setAgentPrompt('Listen to your reading first. If you are happy with it, you can submit your answer.', 'speaking', 'vivian.passage.after_recording');
 };
 
@@ -377,6 +404,7 @@ const clearAudio = () => {
     asrResult.value = null;
     uploadError.value = '';
     passageChecked.value = false;
+    clearAsrVisualizationPending();
 };
 
 const submitCurrentForReview = async () => {
@@ -486,7 +514,6 @@ const setAgentSpeaking = (isSpeaking) => {
 
             <template #processing>
                 <AsrTranscriptVisualizer
-                    visualization-enabled
                     :transcript="transcript"
                     :expected-text="passage?.prompt ?? ''"
                     :asr-result="asrResult"
@@ -495,6 +522,8 @@ const setAgentSpeaking = (isSpeaking) => {
                     normal-mode="div"
                     placeholder="Transcript will appear here"
                     box-class="min-h-0 h-full w-full flex-1 overflow-y-auto rounded-lg border border-slate-200 bg-white p-4 text-xl font-black leading-tight text-slate-800 transition"
+                    @sequence-started="markAsrVisualizationPending"
+                    @sequence-finished="clearAsrVisualizationPending"
                 />
             </template>
 
@@ -503,7 +532,12 @@ const setAgentSpeaking = (isSpeaking) => {
                     <p v-if="passage?.title" class="passage-title">{{ passage.title }}</p>
                     <p class="passage-text">
                         <template v-for="(token, index) in highlightedPassageTokens" :key="index">
-                            <span>{{ token.text }}</span>
+                            <span
+                                :class="{
+                                    'passage-token-correct': token.status === 'correct',
+                                    'passage-token-incorrect': ['incorrect', 'missing', 'semantic'].includes(token.status),
+                                }"
+                            >{{ token.text }}</span>
                         </template>
                     </p>
                 </div>
@@ -566,9 +600,12 @@ const setAgentSpeaking = (isSpeaking) => {
     word-break: normal;
 }
 
-.passage-prompt--result .passage-title,
 .passage-prompt--result .passage-text {
-    color: var(--rd-assessment-neutral, #2563eb);
+    color: var(--rd-result-correct, #4c563f);
+}
+
+.passage-token-correct {
+    color: var(--rd-result-correct, #4c563f);
 }
 
 .passage-token-incorrect {

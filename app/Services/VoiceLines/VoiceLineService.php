@@ -35,7 +35,9 @@ class VoiceLineService
             'checking your reading' => 'vivian.processing.checking_reading',
             'thank you let us continue' => 'vivian.continue.thank_you',
             'good effort let us go to the next one' => 'vivian.continue.good_effort',
-            'i heard your answer let us keep going' => 'vivian.asr.unknown_transcript',
+            'i heard your answer let us keep going' => 'vivian.asr.received_01',
+            'your answer came through let us continue to the next item' => 'vivian.asr.received_02',
+            'thank you i received your answer so let us move forward' => 'vivian.asr.received_03',
             'hold the orange button to record your answer first' => 'vivian.task1.normal_start',
             'hold the orange button to record the highlighted word first' => 'vivian.instruction.listen_then_say_sound',
             'hold the orange button to record the passage first' => 'vivian.no_recording.passage_first',
@@ -330,7 +332,7 @@ class VoiceLineService
             }
 
             if ($agent === 'vivian' && str_contains($prefix, 'generic.')) {
-                return 'vivian.asr.unknown_transcript';
+                return 'vivian.asr.received_01';
             }
         }
 

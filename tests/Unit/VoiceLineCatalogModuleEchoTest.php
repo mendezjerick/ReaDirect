@@ -29,10 +29,14 @@ class VoiceLineCatalogModuleEchoTest extends TestCase
             'ciel.module1.validation.record_letter_first',
             'ciel.module2.validation.record_word_first',
             'ciel.module3.validation.record_sentence_first',
+            'vivian.asr.received_01',
+            'vivian.asr.received_02',
+            'vivian.asr.received_03',
         ] as $lineKey) {
             $this->assertContains($lineKey, $lineKeys);
         }
 
+        $this->assertNotContains('vivian.asr.unknown_transcript', $lineKeys);
         $this->assertNotContains('ciel.module.after_recording.listen_submit', $lineKeys);
         $this->assertNotContains('ciel.module1.instruction.look_letter_sound', $lineKeys);
         $this->assertNotContains('ciel.module2.instruction.look_read_word', $lineKeys);

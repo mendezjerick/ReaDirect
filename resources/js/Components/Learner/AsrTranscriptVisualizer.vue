@@ -23,9 +23,12 @@ const props = defineProps({
     playOnResult: { type: Boolean, default: false },
 });
 
+const emit = defineEmits(['sequence-started', 'sequence-finished']);
+
 const { enabled } = useAsrVisualization();
 const effectiveEnabled = computed(() => props.visualizationEnabled ?? enabled.value);
 const visualizing = ref(false);
+const sequenceRunning = ref(false);
 const stageTitle = ref('ASR Process');
 const displayText = ref('');
 const progress = ref(0);
@@ -35,8 +38,10 @@ let runId = 0;
 let timers = [];
 const animatedResultKey = ref('');
 
-const SCRAMBLES_PER_CHARACTER = 10;
-const TICK_INTERVAL_MS = 45;
+const SCRAMBLES_PER_CHARACTER = 12;
+const TICK_INTERVAL_MS = 50;
+const STAGE_DWELL_MS = 280;
+const FINAL_DWELL_MS = 480;
 const scrambleCharacters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#@$%&*+=?';
 const reduceMotion = typeof window !== 'undefined'
     && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
@@ -349,6 +354,7 @@ const buildStages = () => {
 const showError = () => {
     runId += 1;
     clearTimers();
+    sequenceRunning.value = false;
     visualizing.value = true;
     stageTitle.value = 'ASR Error';
     stageNumber.value = 0;
@@ -366,52 +372,62 @@ const showTraceWaiting = () => {
 
 const playSequence = async () => {
     if (!effectiveEnabled.value) return;
+    if (sequenceRunning.value) return;
 
     runId += 1;
     const currentRunId = runId;
     clearTimers();
+    sequenceRunning.value = true;
     visualizing.value = true;
     progress.value = 0;
+    emit('sequence-started');
 
-    if (!traceReady.value && props.isProcessing) {
+    try {
+        if (!traceReady.value && props.isProcessing) {
+            let waitCycles = 0;
+
+            while (currentRunId === runId && !props.error && props.isProcessing && !traceReady.value && waitCycles < 80) {
+                showTraceWaiting();
+                waitCycles += 1;
+                await sleep(120);
+            }
+        }
+
+        if (currentRunId !== runId || props.error) return;
+
+        const stageCount = buildStages().length;
+
+        for (let index = 0; index < stageCount - 1; index += 1) {
+            if (currentRunId !== runId || props.error) return;
+
+            await revealStage(buildStages()[index], index, currentRunId);
+            if (currentRunId !== runId || props.error) return;
+            await sleep(STAGE_DWELL_MS);
+        }
+
         let waitCycles = 0;
-
-        while (currentRunId === runId && !props.error && props.isProcessing && !traceReady.value && waitCycles < 80) {
-            showTraceWaiting();
+        while (currentRunId === runId && !props.error && !finalTranscript.value && waitCycles < 40) {
+            stageTitle.value = 'Final Transcript';
+            stageNumber.value = totalStages;
+            progress.value = 88;
+            displayText.value = 'Waiting for ASR result...';
             waitCycles += 1;
             await sleep(120);
         }
-    }
 
-    if (currentRunId !== runId || props.error) return;
-
-    const stageCount = buildStages().length;
-
-    for (let index = 0; index < stageCount - 1; index += 1) {
         if (currentRunId !== runId || props.error) return;
 
-        await revealStage(buildStages()[index], index, currentRunId);
-        if (currentRunId !== runId || props.error) return;
-        await sleep(95);
-    }
+        await revealStage(buildStages()[stageCount - 1], stageCount - 1, currentRunId);
+        await sleep(FINAL_DWELL_MS);
 
-    let waitCycles = 0;
-    while (currentRunId === runId && !props.error && !finalTranscript.value && waitCycles < 40) {
-        stageTitle.value = 'Final Transcript';
-        stageNumber.value = totalStages;
-        progress.value = 88;
-        displayText.value = 'Waiting for ASR result...';
-        waitCycles += 1;
-        await sleep(120);
-    }
-
-    if (currentRunId !== runId || props.error) return;
-
-    await revealStage(buildStages()[stageCount - 1], stageCount - 1, currentRunId);
-    await sleep(220);
-
-    if (currentRunId === runId) {
-        visualizing.value = false;
+        if (currentRunId === runId) {
+            visualizing.value = false;
+            emit('sequence-finished');
+        }
+    } finally {
+        if (currentRunId === runId) {
+            sequenceRunning.value = false;
+        }
     }
 };
 
@@ -455,6 +471,7 @@ watch(effectiveEnabled, (value) => {
     if (!value) {
         runId += 1;
         clearTimers();
+        sequenceRunning.value = false;
         visualizing.value = false;
     } else if (props.isProcessing) {
         playSequence();

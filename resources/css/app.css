@@ -166,14 +166,11 @@ tbody tr:hover {
     background: var(--color-muted);
 }
 
-.learner-autumn-shell {
+.learner-autumn-shell,
+.learner-activity-shell {
     position: relative;
     isolation: isolate;
     overflow-x: hidden;
-    background:
-        linear-gradient(180deg, rgba(123, 161, 181, 0.1), rgba(54, 83, 101, 0.22)),
-        url('/images/backgrounds/autumn-learning-bg.png'),
-        linear-gradient(180deg, #7BA1B5 0%, #8DAFBE 48%, #7BA1B5 100%);
     background-attachment: fixed;
     background-position: center;
     background-repeat: no-repeat;
@@ -181,8 +178,22 @@ tbody tr:hover {
     color: var(--rd-text-main);
 }
 
+.learner-autumn-shell {
+    background:
+        linear-gradient(180deg, rgba(123, 161, 181, 0.1), rgba(54, 83, 101, 0.22)),
+        url('/images/backgrounds/autumn-learning-bg.png'),
+        linear-gradient(180deg, #7BA1B5 0%, #8DAFBE 48%, #7BA1B5 100%);
+}
+
+.learner-activity-shell {
+    background-color: #f4e0ba;
+    background-image: url('/images/backgrounds/learner-desktop.png');
+}
+
 .learner-autumn-shell::before,
-.learner-autumn-shell::after {
+.learner-autumn-shell::after,
+.learner-activity-shell::before,
+.learner-activity-shell::after {
     content: '';
     position: fixed;
     inset: 0;
@@ -190,7 +201,8 @@ tbody tr:hover {
     pointer-events: none;
 }
 
-.learner-autumn-shell::before {
+.learner-autumn-shell::before,
+.learner-activity-shell::before {
     display: none;
 }
 
@@ -198,7 +210,12 @@ tbody tr:hover {
     background: linear-gradient(180deg, rgba(123, 161, 181, 0.08), rgba(54, 83, 101, 0.16));
 }
 
-.learner-autumn-shell > * {
+.learner-activity-shell::after {
+    display: none;
+}
+
+.learner-autumn-shell > *,
+.learner-activity-shell > * {
     position: relative;
     z-index: 1;
 }

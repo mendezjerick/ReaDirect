@@ -8,6 +8,7 @@ import AudioRecorder from '../../../Components/Learner/AudioRecorder.vue';
 import AsrTranscriptVisualizer from '../../../Components/Learner/AsrTranscriptVisualizer.vue';
 import AutomaticCielListeningPanel from '../../../Components/Learner/AutomaticCielListeningPanel.vue';
 import CielFocusMode from '../../../Components/Learner/CielFocusMode.vue';
+import { useAsrVisualization } from '../../../Composables/useAsrVisualization';
 import { useStepAssessment } from '../../../Composables/useStepAssessment';
 import { appendAudioMetadata, normalizeAsrResponse } from '../../../utils/asrResponse';
 import { acceptedFromRetryState, latestRetryAttempt, letterPairDisplay, resultToneForAccepted } from '../../../utils/assessmentDisplay';
@@ -39,6 +40,8 @@ const checking = reactive({});
 const retryStates = reactive({});
 const recorderResetKeys = reactive({});
 const submittedManualItems = reactive({});
+const asrVisualizationPending = reactive({});
+const { enabled: asrVisualizationEnabled } = useAsrVisualization();
 const automaticListeningPanel = ref(null);
 const manualRecorderOverride = ref(false);
 const agentSpeaking = ref(false);
@@ -195,8 +198,9 @@ const currentWordImage = computed(() => {
 const currentRetryState = computed(() => retryStates[step.currentItem.value?.id] ?? defaultRetryState());
 const isCurrentResolved = computed(() => currentRetryState.value.is_resolved === true);
 const currentHasCheckResult = computed(() => Number(currentRetryState.value.attempt_count ?? 0) > 0 || isCurrentResolved.value);
+const currentAsrVisualizationPending = computed(() => Boolean(asrVisualizationPending[step.currentItem.value?.id]));
 const currentDisplayState = computed(() => {
-    if (isCurrentUploading.value) return 'processing';
+    if (asrVisualizationEnabled.value && (isCurrentUploading.value || (currentAsrVisualizationPending.value && currentTranscript.value && currentHasSubmittedAnswer.value))) return 'processing';
     if (currentTranscript.value && (currentHasSubmittedAnswer.value || currentRetryState.value.attempt_count > 0 || isCurrentResolved.value)) return 'result';
 
     return 'item';
@@ -246,6 +250,7 @@ const canSubmitCurrent = computed(() => {
 const primaryDisabled = computed(() => (
     form.processing
     || isCurrentUploading.value
+    || currentAsrVisualizationPending.value
     || isCurrentChecking.value
     || focusModeVisible.value
     || (!isCurrentResolved.value && !currentHasSubmittedAnswer.value && !canSubmitCurrent.value)
@@ -255,6 +260,19 @@ const setCoachPrompt = (message, state = 'speaking', lineKey = '', intent = 'foc
     coachState.value = state;
     coachLineKey.value = lineKey;
     coachIntent.value = intent;
+};
+const clearAsrVisualizationPending = (item) => {
+    if (item?.id) {
+        delete asrVisualizationPending[item.id];
+    }
+};
+const markAsrVisualizationPending = (item) => {
+    if (item?.id && asrVisualizationEnabled.value) {
+        asrVisualizationPending[item.id] = true;
+    }
+};
+const clearAllAsrVisualizationPending = () => {
+    Object.keys(asrVisualizationPending).forEach((key) => delete asrVisualizationPending[key]);
 };
 const setInitialCoachPrompt = (item = step.currentItem.value) => {
     const cue = initialCueForItem(item);
@@ -279,6 +297,7 @@ watch(
         Object.keys(checking).forEach((key) => delete checking[key]);
         Object.keys(recorderResetKeys).forEach((key) => delete recorderResetKeys[key]);
         Object.keys(submittedManualItems).forEach((key) => delete submittedManualItems[key]);
+        clearAllAsrVisualizationPending();
         seedRetryStates(props.items);
         manualRecorderOverride.value = false;
         automaticListeningPanel.value?.stopSession?.();
@@ -287,6 +306,12 @@ watch(
         form.clearErrors();
     }
 );
+
+watch(asrVisualizationEnabled, (enabled) => {
+    if (!enabled) {
+        clearAllAsrVisualizationPending();
+    }
+});
 
 watch(
     () => props.listeningMode?.current,
@@ -335,6 +360,7 @@ const rememberAudio = (item, file) => {
     delete generatedTranscripts[item.id];
     delete asrResults[item.id];
     delete submittedManualItems[item.id];
+    clearAsrVisualizationPending(item);
     const cue = afterRecordingCueForItem(item);
     setCoachPrompt(cue.text, 'speaking', cue.lineKey);
 };
@@ -349,6 +375,7 @@ const clearAudio = (item, resetAgent = true) => {
     delete uploadErrors[item.id];
     delete uploading[item.id];
     delete submittedManualItems[item.id];
+    clearAsrVisualizationPending(item);
     recorderResetKeys[item.id] = (recorderResetKeys[item.id] ?? 0) + 1;
     if (resetAgent) {
         setInitialCoachPrompt(item);
@@ -361,6 +388,7 @@ const handleRecorderError = (message) => {
 
 const uploadAudio = async (item, file) => {
     uploading[item.id] = true;
+    markAsrVisualizationPending(item);
     setCoachPrompt('Checking your recording.', 'thinking', 'ciel.module.processing.checking_reading');
 
     try {
@@ -404,10 +432,12 @@ const uploadAudio = async (item, file) => {
         }
 
         uploadErrors[item.id] = asr.message;
+        clearAsrVisualizationPending(item);
         setCoachPrompt(uploadErrors[item.id], 'unclear', 'ciel.module.audio_unclear.try_clear_voice', 'gentle_reassurance');
         return false;
     } catch (error) {
         uploadErrors[item.id] = error.message || 'We had trouble checking your answer. Please try again.';
+        clearAsrVisualizationPending(item);
         setCoachPrompt(uploadErrors[item.id], 'error', 'ciel.module.audio_unclear.try_clear_voice', 'gentle_reassurance');
         return false;
     } finally {
@@ -619,6 +649,7 @@ const submitCurrentForReview = async () => {
         transcriptSources[item.id] = 'manual';
         uploadErrors[item.id] = '';
         step.feedback.value = '';
+        clearAsrVisualizationPending(item);
         setCoachPrompt("I heard your answer clearly. Let's check it together and keep going.", 'speaking', 'ciel.asr.success_generic', 'friendly_encouragement');
         return true;
     }
@@ -755,7 +786,6 @@ onBeforeUnmount(() => {
 
             <template #processing>
                 <AsrTranscriptVisualizer
-                    visualization-enabled
                     :transcript="currentTranscript"
                     :expected-text="step.currentItem.value.payload?.expected_answer ?? step.currentItem.value.prompt"
                     :asr-result="asrResults[step.currentItem.value.id]"
@@ -763,6 +793,8 @@ onBeforeUnmount(() => {
                     :error="uploadErrors[step.currentItem.value.id] ?? ''"
                     placeholder="Transcript will appear here"
                     box-class="min-h-0 h-full w-full flex-1 resize-none overflow-y-auto rounded-lg border border-slate-200 bg-white p-4 text-2xl font-black leading-tight text-slate-800 transition placeholder:text-slate-300 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
+                    @sequence-started="markAsrVisualizationPending(step.currentItem.value)"
+                    @sequence-finished="clearAsrVisualizationPending(step.currentItem.value)"
                 />
             </template>
 
