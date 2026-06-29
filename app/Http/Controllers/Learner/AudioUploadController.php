@@ -89,6 +89,8 @@ class AudioUploadController extends Controller
             $transcriptionMessage = $analysis->completionFailureMessage($resolved, $context);
         }
 
+        $displayAccepted = $this->acceptedForDisplay($resolved);
+
         $audioFile->update([
             'transcript' => $transcript !== '' ? $transcript : null,
             'stt_confidence' => $resolved['confidence'] ?? null,
@@ -116,6 +118,7 @@ class AudioUploadController extends Controller
             'message' => $transcriptionMessage,
             'transcript' => $resolved['transcript'],
             'displayed_transcript' => $displayedTranscript,
+            'accepted' => $displayAccepted,
             'can_submit' => $canComplete,
             'retry_required' => (bool) ($resolved['ai_response']['retry_required'] ?? false),
             'learner_retry_message' => $resolved['ai_response']['learner_retry_message'] ?? null,
@@ -148,7 +151,7 @@ class AudioUploadController extends Controller
             'corrected_cer' => $resolved['ai_response']['corrected_cer'] ?? null,
             'phonetic_similarity_score' => $resolved['ai_response']['phonetic_similarity_score'] ?? null,
             'composite_score' => $resolved['ai_response']['composite_score'] ?? null,
-            'accepted' => $resolved['ai_response']['accepted'] ?? null,
+            'accepted' => $displayAccepted,
             'normalization_applied' => $resolved['ai_response']['normalization_applied'] ?? false,
             'normalization_reason' => $resolved['ai_response']['normalization_reason'] ?? null,
             'correction_strategy_used' => $resolved['ai_response']['correction_strategy_used'] ?? null,
@@ -188,6 +191,43 @@ class AudioUploadController extends Controller
             'trace' => $resolved['ai_response']['trace'] ?? [],
             'trace_notes' => $resolved['ai_response']['trace_notes'] ?? [],
         ]));
+    }
+
+    private function acceptedForDisplay(array $resolved): ?bool
+    {
+        foreach ([
+            data_get($resolved, 'ai_response.accepted'),
+            data_get($resolved, 'ai_response.is_correct'),
+            data_get($resolved, 'ai_response.is_accepted'),
+            data_get($resolved, 'ai_response.final_correctness'),
+            data_get($resolved, 'ai_response.final_correctness_result'),
+            data_get($resolved, 'ai_response.scoring.accepted'),
+            data_get($resolved, 'ai_response.scoring.is_correct'),
+            data_get($resolved, 'ai_response.expected_centric.match'),
+            data_get($resolved, 'ai_response.trace.expected_centric.match'),
+        ] as $value) {
+            if ($value === true || $value === 1 || $value === '1') {
+                return true;
+            }
+
+            if ($value === false || $value === 0 || $value === '0') {
+                return false;
+            }
+
+            if (is_string($value)) {
+                $normalized = strtolower(trim($value));
+
+                if (in_array($normalized, ['true', 'correct', 'accepted'], true)) {
+                    return true;
+                }
+
+                if (in_array($normalized, ['false', 'incorrect', 'wrong', 'rejected'], true)) {
+                    return false;
+                }
+            }
+        }
+
+        return null;
     }
 
     private function extendAudioRequestTime(): void

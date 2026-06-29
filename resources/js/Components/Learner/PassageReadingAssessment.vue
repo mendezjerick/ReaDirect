@@ -1,7 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { useForm } from '@inertiajs/vue3';
-import { MessageSquareText } from 'lucide-vue-next';
 import LearnerLayout from '../../Layouts/LearnerLayout.vue';
 import AssessmentTaskWorkspace from './AssessmentTaskWorkspace.vue';
 import AudioRecorder from './AudioRecorder.vue';
@@ -43,6 +42,12 @@ const agentSpeaking = ref(false);
 const passageChecked = ref(Boolean(transcript.value || form.audio_file_id));
 const canUseManualFallback = computed(() => props.assessmentMode?.canUseManualFallback === true);
 const passageImage = computed(() => getPassageImage(props.passage?.source_csv_id));
+const displayState = computed(() => {
+    if (uploading.value) return 'processing';
+    if (passageChecked.value && transcript.value.trim() !== '') return 'result';
+
+    return 'item';
+});
 
 const canonicalGroups = [
     ['small', 'little'],
@@ -446,6 +451,7 @@ const setAgentSpeaking = (isSpeaking) => {
             :primary-label="primaryLabel"
             :primary-disabled="primaryDisabled"
             :prompt-image="passageImage"
+            :display-state="displayState"
             @primary="handlePrimary"
             @agent-speaking-change="setAgentSpeaking"
         >
@@ -454,12 +460,7 @@ const setAgentSpeaking = (isSpeaking) => {
                     <p v-if="passage?.title" class="passage-title">{{ passage.title }}</p>
                     <p class="passage-text">
                         <template v-for="(token, index) in highlightedPassageTokens" :key="index">
-                            <span
-                                :class="{
-                                    'passage-token-incorrect': token.status === 'incorrect' || token.status === 'missing',
-                                    'passage-token-semantic': token.status === 'semantic',
-                                }"
-                            >{{ token.text }}</span>
+                            <span>{{ token.text }}</span>
                         </template>
                     </p>
                 </div>
@@ -483,8 +484,9 @@ const setAgentSpeaking = (isSpeaking) => {
                 />
             </template>
 
-            <template #transcript>
+            <template #processing>
                 <AsrTranscriptVisualizer
+                    visualization-enabled
                     :transcript="transcript"
                     :expected-text="passage?.prompt ?? ''"
                     :asr-result="asrResult"
@@ -493,38 +495,21 @@ const setAgentSpeaking = (isSpeaking) => {
                     normal-mode="div"
                     placeholder="Transcript will appear here"
                     box-class="min-h-0 h-full w-full flex-1 overflow-y-auto rounded-lg border border-slate-200 bg-white p-4 text-xl font-black leading-tight text-slate-800 transition"
-                >
-                    <template #normal="{ placeholder }">
-                        <div class="passage-transcript-words">
-                            <span v-if="transcript">
-                                <template v-for="(word, index) in diff.actualWords" :key="`${word.index}-${index}`">
-                                    <span
-                                        class="passage-transcript-token"
-                                        :class="{
-                                            'passage-transcript-token--incorrect': diff.actualStatus[index] === 'incorrect' || diff.actualStatus[index] === 'extra',
-                                            'passage-transcript-token--semantic': diff.actualStatus[index] === 'semantic',
-                                        }"
-                                    >{{ word.raw }}</span>
-                                </template>
-                            </span>
-                            <span v-else class="passage-transcript-empty">
-                                <span class="passage-transcript-empty-icon" aria-hidden="true">
-                                    <MessageSquareText class="size-5" />
-                                </span>
-                                <span class="passage-transcript-empty-copy">
-                                    <span class="passage-transcript-empty-title">{{ placeholder }}</span>
-                                    <span class="passage-transcript-empty-helper">Your spoken answer will be transcribed here.</span>
-                                </span>
-                            </span>
-                        </div>
-                    </template>
-                </AsrTranscriptVisualizer>
+                />
+            </template>
+
+            <template #result>
+                <div class="passage-prompt passage-prompt--result" aria-label="Reading passage result">
+                    <p v-if="passage?.title" class="passage-title">{{ passage.title }}</p>
+                    <p class="passage-text">
+                        <template v-for="(token, index) in highlightedPassageTokens" :key="index">
+                            <span>{{ token.text }}</span>
+                        </template>
+                    </p>
+                </div>
             </template>
 
             <template #status>
-                <p v-if="diff.semanticCount > 0" class="rounded-lg bg-amber-50 px-3 py-2 text-sm font-black text-amber-700 ring-1 ring-amber-200/60">
-                    {{ diff.semanticCount }} meaning-preserving word {{ diff.semanticCount === 1 ? 'swap was' : 'swaps were' }} understood and not counted as a full mismatch.
-                </p>
                 <p v-if="uploadError" class="rounded-lg bg-rose-50 px-3 py-2 text-sm font-black text-rose-600 ring-1 ring-rose-200/60">
                     {{ uploadError }}
                 </p>
@@ -566,13 +551,13 @@ const setAgentSpeaking = (isSpeaking) => {
     text-align: center;
     font-size: clamp(0.8rem, 1.6dvh, 1rem);
     font-weight: 900;
-    color: rgb(37 99 235);
+    color: #000000;
 }
 
 .passage-text {
     margin: 0;
     max-width: 100%;
-    color: rgb(30 41 59);
+    color: #000000;
     font-size: clamp(0.85rem, min(9cqh, 2.35cqw), 1.5rem);
     font-weight: 900;
     line-height: 1.35;
@@ -581,11 +566,16 @@ const setAgentSpeaking = (isSpeaking) => {
     word-break: normal;
 }
 
+.passage-prompt--result .passage-title,
+.passage-prompt--result .passage-text {
+    color: var(--rd-assessment-neutral, #2563eb);
+}
+
 .passage-token-incorrect {
     border-radius: 0.4rem;
     background: rgb(255 241 242);
     padding: 0 0.18rem;
-    color: rgb(225 29 72);
+    color: var(--rd-result-wrong, #692721);
     box-shadow: inset 0 0 0 1px rgb(254 205 211);
 }
 

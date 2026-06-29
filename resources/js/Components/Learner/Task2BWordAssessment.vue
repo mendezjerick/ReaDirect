@@ -8,6 +8,7 @@ import AudioRecorder from './AudioRecorder.vue';
 import AsrTranscriptVisualizer from './AsrTranscriptVisualizer.vue';
 import { useStepAssessment } from '../../Composables/useStepAssessment';
 import { appendAudioMetadata, normalizeAsrResponse } from '../../utils/asrResponse';
+import { RESULT_TONE_ASSESSMENT } from '../../utils/assessmentDisplay';
 import { getWordImage } from '../../utils/readingIllustrations';
 
 const props = defineProps({
@@ -89,6 +90,13 @@ const isCurrentUploading = computed(() => Boolean(uploading[step.currentItem.val
 const currentTranscript = computed(() => String(generatedTranscripts[step.currentItem.value?.id] ?? '').trim());
 const currentWordImage = computed(() => getWordImage(step.currentItem.value?.payload?.target_word));
 const isCurrentChecked = computed(() => Boolean(checkedItems[step.currentItem.value?.id]) && hasAnswerOrAudio(step.currentItem.value, answerFor(step.currentItem.value)));
+const currentDisplayState = computed(() => {
+    if (isCurrentUploading.value) return 'processing';
+    if (isCurrentChecked.value) return 'result';
+
+    return 'item';
+});
+const currentResultTone = computed(() => RESULT_TONE_ASSESSMENT);
 const canSubmitCurrent = computed(() => {
     const item = step.currentItem.value;
 
@@ -301,6 +309,7 @@ const setAgentSpeaking = (isSpeaking) => {
             :primary-label="primaryLabel"
             :primary-disabled="primaryDisabled"
             :prompt-image="currentWordImage"
+            :display-state="currentDisplayState"
             @primary="handlePrimary"
             @agent-speaking-change="setAgentSpeaking"
         >
@@ -334,8 +343,9 @@ const setAgentSpeaking = (isSpeaking) => {
                 />
             </template>
 
-            <template #transcript>
+            <template #processing>
                 <AsrTranscriptVisualizer
+                    visualization-enabled
                     :transcript="currentTranscript"
                     :expected-text="step.currentItem.value.payload?.target_word ?? step.currentItem.value.payload?.expected_answer ?? step.currentItem.value.prompt"
                     :asr-result="asrResults[step.currentItem.value.id]"
@@ -343,6 +353,15 @@ const setAgentSpeaking = (isSpeaking) => {
                     :error="uploadErrors[step.currentItem.value.id] ?? ''"
                     placeholder="Transcript will appear here"
                     box-class="min-h-0 h-full w-full flex-1 resize-none overflow-y-auto rounded-lg border border-slate-200 bg-white p-4 text-2xl font-black leading-tight text-slate-800 transition placeholder:text-slate-300 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
+                />
+            </template>
+
+            <template #result>
+                <AssessmentPromptText
+                    :key="`${step.currentItem.value.id}-${currentTranscript}`"
+                    :prompt="currentTranscript"
+                    size="sentence"
+                    :tone="currentResultTone"
                 />
             </template>
 

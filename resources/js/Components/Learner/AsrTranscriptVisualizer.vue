@@ -424,6 +424,7 @@ watch(
             playSequence();
         }
     },
+    { immediate: true },
 );
 
 watch(

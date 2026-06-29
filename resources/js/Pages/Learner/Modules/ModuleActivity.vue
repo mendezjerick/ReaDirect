@@ -10,6 +10,7 @@ import AutomaticCielListeningPanel from '../../../Components/Learner/AutomaticCi
 import CielFocusMode from '../../../Components/Learner/CielFocusMode.vue';
 import { useStepAssessment } from '../../../Composables/useStepAssessment';
 import { appendAudioMetadata, normalizeAsrResponse } from '../../../utils/asrResponse';
+import { acceptedFromRetryState, latestRetryAttempt, letterPairDisplay, resultToneForAccepted } from '../../../utils/assessmentDisplay';
 import { AUTOMATIC_CIEL_LISTENING_MODE, AUTOMATIC_CIEL_LISTENING_STATES } from '../../../Composables/useAutomaticCielListeningSession';
 import { highlightTargetsForModuleItem } from '../../../utils/modulePromptHighlight';
 import { getWordImage } from '../../../utils/readingIllustrations';
@@ -163,6 +164,27 @@ const isCurrentChecking = computed(() => Boolean(checking[step.currentItem.value
 const currentHasSubmittedAudio = computed(() => Boolean(uploadedAudioIds[step.currentItem.value?.id]) && !uploadErrors[step.currentItem.value?.id]);
 const currentHasSubmittedManual = computed(() => Boolean(submittedManualItems[step.currentItem.value?.id]) && manualAnswerFor(step.currentItem.value).length > 0);
 const currentHasSubmittedAnswer = computed(() => currentHasSubmittedAudio.value || currentHasSubmittedManual.value);
+const currentTranscript = computed(() => {
+    const item = step.currentItem.value;
+
+    return String(generatedTranscripts[item?.id] ?? latestRetryAttempt(retryStates[item?.id])?.answer ?? '').trim();
+});
+const promptDisplayText = computed(() => {
+    const item = step.currentItem.value;
+
+    if (promptDisplaySize.value === 'letter') {
+        return letterPairDisplay(
+            item?.payload?.expected_answer,
+            item?.payload?.target_letter,
+            item?.payload?.letter,
+            item?.display_prompt,
+            item?.prompt,
+        ) || String(item?.display_prompt ?? item?.prompt ?? '');
+    }
+
+    return String(item?.display_prompt ?? item?.prompt ?? '');
+});
+const promptDisplayLabel = computed(() => (promptDisplaySize.value === 'letter' ? '' : props.activityLabel));
 const currentHighlightTargets = computed(() => highlightTargetsForModuleItem(step.currentItem.value));
 const currentWordImage = computed(() => {
     const item = step.currentItem.value;
@@ -171,6 +193,20 @@ const currentWordImage = computed(() => {
     return getWordImage(word);
 });
 const currentRetryState = computed(() => retryStates[step.currentItem.value?.id] ?? defaultRetryState());
+const isCurrentResolved = computed(() => currentRetryState.value.is_resolved === true);
+const currentHasCheckResult = computed(() => Number(currentRetryState.value.attempt_count ?? 0) > 0 || isCurrentResolved.value);
+const currentDisplayState = computed(() => {
+    if (isCurrentUploading.value) return 'processing';
+    if (currentTranscript.value && (currentHasSubmittedAnswer.value || currentRetryState.value.attempt_count > 0 || isCurrentResolved.value)) return 'result';
+
+    return 'item';
+});
+const currentResultAccepted = computed(() => {
+    if (!currentHasCheckResult.value) return null;
+
+    return acceptedFromRetryState(currentRetryState.value);
+});
+const currentResultTone = computed(() => (currentHasCheckResult.value ? resultToneForAccepted(currentResultAccepted.value) : 'item'));
 const currentAttemptSlots = computed(() => Array.from({ length: currentRetryState.value.max_attempts ?? 3 }, (_, index) => {
     const attemptNumber = index + 1;
     const attempt = currentRetryState.value.attempts?.find((entry) => Number(entry.attempt) === attemptNumber);
@@ -180,7 +216,6 @@ const currentAttemptSlots = computed(() => Array.from({ length: currentRetryStat
         status: attempt?.status ?? 'unused',
     };
 }));
-const isCurrentResolved = computed(() => currentRetryState.value.is_resolved === true);
 const automaticListeningDisabled = computed(() => (
     form.processing
     || isCurrentUploading.value
@@ -672,14 +707,15 @@ onBeforeUnmount(() => {
             :primary-label="primaryLabel"
             :primary-disabled="primaryDisabled"
             :prompt-image="currentWordImage"
+            :display-state="currentDisplayState"
             @primary="handlePrimary"
             @agent-speaking-change="handleWorkspaceAgentSpeakingChange"
         >
             <template #prompt>
                 <AssessmentPromptText
                     :key="step.currentItem.value.id"
-                    :label="activityLabel"
-                    :prompt="step.currentItem.value.display_prompt ?? step.currentItem.value.prompt"
+                    :label="promptDisplayLabel"
+                    :prompt="promptDisplayText"
                     :highlight-targets="currentHighlightTargets"
                     :size="promptDisplaySize"
                 />
@@ -717,15 +753,25 @@ onBeforeUnmount(() => {
                 />
             </template>
 
-            <template #transcript>
+            <template #processing>
                 <AsrTranscriptVisualizer
-                    :transcript="generatedTranscripts[step.currentItem.value.id] ?? ''"
+                    visualization-enabled
+                    :transcript="currentTranscript"
                     :expected-text="step.currentItem.value.payload?.expected_answer ?? step.currentItem.value.prompt"
                     :asr-result="asrResults[step.currentItem.value.id]"
                     :is-processing="isCurrentUploading"
                     :error="uploadErrors[step.currentItem.value.id] ?? ''"
                     placeholder="Transcript will appear here"
                     box-class="min-h-0 h-full w-full flex-1 resize-none overflow-y-auto rounded-lg border border-slate-200 bg-white p-4 text-2xl font-black leading-tight text-slate-800 transition placeholder:text-slate-300 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
+                />
+            </template>
+
+            <template #result>
+                <AssessmentPromptText
+                    :key="`${step.currentItem.value.id}-${currentTranscript}`"
+                    :prompt="currentTranscript"
+                    :size="promptDisplaySize"
+                    :tone="currentResultTone"
                 />
             </template>
 

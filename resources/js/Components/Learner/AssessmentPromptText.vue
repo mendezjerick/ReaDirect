@@ -1,11 +1,13 @@
 <script setup>
 import { computed } from 'vue';
+import { resultColorForTone } from '../../utils/assessmentDisplay';
 
 const props = defineProps({
     label: { type: String, default: '' },
     prompt: { type: String, required: true },
     highlightTargets: { type: Array, default: () => [] },
     size: { type: String, default: 'word' },
+    tone: { type: String, default: 'item' },
 });
 
 const normalizeTarget = (target) => {
@@ -85,10 +87,14 @@ const promptDensity = computed(() => {
 
     return 'short';
 });
+
+const toneStyle = computed(() => ({
+    '--assessment-prompt-text-color': resultColorForTone(props.tone),
+}));
 </script>
 
 <template>
-    <div class="assessment-prompt-text" :class="[`assessment-prompt-text--${size}`, `assessment-prompt-text--${promptDensity}`]">
+    <div class="assessment-prompt-text" :class="[`assessment-prompt-text--${size}`, `assessment-prompt-text--${promptDensity}`, `assessment-prompt-text--${tone}`]" :style="toneStyle">
         <p v-if="label" class="assessment-prompt-text-label">{{ label }}</p>
         <p class="assessment-prompt-text-body">
             <template v-for="(segment, index) in promptSegments" :key="index">
@@ -101,6 +107,8 @@ const promptDensity = computed(() => {
 
 <style scoped>
 .assessment-prompt-text {
+    --assessment-prompt-text-color: #000000;
+
     display: grid;
     width: min(100%, 58rem);
     height: 100%;
@@ -127,13 +135,21 @@ const promptDensity = computed(() => {
     margin: 0;
     max-width: 100%;
     min-width: 0;
-    color: var(--rd-text-main);
+    color: var(--assessment-prompt-text-color);
     font-size: var(--prompt-font-size);
     font-weight: 900;
     line-height: 1.12;
     overflow-wrap: anywhere;
     text-wrap: balance;
     word-break: normal;
+}
+
+.assessment-prompt-text--result-correct {
+    --assessment-prompt-text-color: var(--rd-result-correct, #4c563f);
+}
+
+.assessment-prompt-text--result-wrong {
+    --assessment-prompt-text-color: var(--rd-result-wrong, #692721);
 }
 
 .assessment-prompt-text--letter .assessment-prompt-text-body {
@@ -165,7 +181,7 @@ const promptDensity = computed(() => {
     border-radius: 0.75rem;
     background: rgba(238, 193, 112, 0.42);
     padding: 0 0.32em;
-    color: var(--rd-text-main);
+    color: inherit;
     box-shadow: inset 0 0 0 1px rgba(238, 193, 112, 0.62);
 }
 </style>

@@ -7,6 +7,7 @@ import AudioRecorder from './AudioRecorder.vue';
 import AsrTranscriptVisualizer from './AsrTranscriptVisualizer.vue';
 import { useStepAssessment } from '../../Composables/useStepAssessment';
 import { appendAudioMetadata, normalizeAsrResponse } from '../../utils/asrResponse';
+import { RESULT_TONE_ASSESSMENT, letterPairDisplay, resultColorForTone } from '../../utils/assessmentDisplay';
 
 const props = defineProps({
     items: { type: Array, default: () => [] },
@@ -59,6 +60,25 @@ const agentState = ref('listening');
 const agentSpeaking = ref(false);
 const isCurrentUploading = computed(() => Boolean(uploading[step.currentItem.value?.id]));
 const isCurrentChecked = computed(() => Boolean(checkedItems[step.currentItem.value?.id]) && hasAnswerOrAudio(step.currentItem.value));
+const currentTranscript = computed(() => String(generatedTranscripts[step.currentItem.value?.id] ?? '').trim());
+const currentLetterDisplay = computed(() => {
+    const item = step.currentItem.value;
+
+    return letterPairDisplay(
+        item?.payload?.expected_answer,
+        item?.payload?.target_letter,
+        item?.payload?.letter,
+        item?.prompt,
+    );
+});
+const currentDisplayState = computed(() => {
+    if (isCurrentUploading.value) return 'processing';
+    if (isCurrentChecked.value) return 'result';
+
+    return 'item';
+});
+const currentResultTone = computed(() => RESULT_TONE_ASSESSMENT);
+const currentResultColor = computed(() => resultColorForTone(currentResultTone.value));
 const canSubmitCurrent = computed(() => {
     const item = step.currentItem.value;
 
@@ -266,12 +286,13 @@ const setAgentSpeaking = (isSpeaking) => {
             :progress="step.progressPercent.value"
             :primary-label="primaryLabel"
             :primary-disabled="primaryDisabled"
+            :display-state="currentDisplayState"
             @primary="handlePrimary"
             @agent-speaking-change="setAgentSpeaking"
         >
             <template #prompt>
                 <div :key="step.currentItem.value.id" class="letter-prompt">
-                    {{ step.currentItem.value.prompt }}
+                    {{ currentLetterDisplay || step.currentItem.value.prompt }}
                 </div>
             </template>
 
@@ -295,9 +316,10 @@ const setAgentSpeaking = (isSpeaking) => {
                 />
             </template>
 
-            <template #transcript>
+            <template #processing>
                 <AsrTranscriptVisualizer
-                    :transcript="generatedTranscripts[step.currentItem.value.id] ?? ''"
+                    visualization-enabled
+                    :transcript="currentTranscript"
                     :expected-text="step.currentItem.value.payload?.expected_answer ?? step.currentItem.value.prompt"
                     :asr-result="asrResults[step.currentItem.value.id]"
                     :is-processing="isCurrentUploading"
@@ -305,6 +327,17 @@ const setAgentSpeaking = (isSpeaking) => {
                     placeholder="Transcript will appear here"
                     box-class="min-h-0 h-full w-full flex-1 resize-none overflow-y-auto rounded-lg border border-slate-200 bg-white p-4 text-2xl font-black leading-tight text-slate-800 transition placeholder:text-slate-300 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
                 />
+            </template>
+
+            <template #result>
+                <div
+                    :key="`${step.currentItem.value.id}-${currentTranscript}`"
+                    class="letter-prompt letter-result"
+                    :class="`letter-result--${currentResultTone}`"
+                    :style="{ color: currentResultColor }"
+                >
+                    {{ currentTranscript }}
+                </div>
             </template>
 
             <template #status>
@@ -348,7 +381,15 @@ const setAgentSpeaking = (isSpeaking) => {
     font-size: clamp(6rem, min(70cqh, 18cqw), 11rem);
     font-weight: 900;
     line-height: 0.9;
-    color: var(--rd-text-main);
+    color: #000000;
     text-shadow: 0 3px 0 rgba(255, 255, 255, 0.8), 0 6px 14px rgba(54, 83, 101, 0.18);
+}
+
+.letter-result--result-correct {
+    color: var(--rd-result-correct, #4c563f);
+}
+
+.letter-result--result-wrong {
+    color: var(--rd-result-wrong, #692721);
 }
 </style>

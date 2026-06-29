@@ -1015,6 +1015,7 @@ class DiagnosticAssessmentController extends Controller
                 'displayed_transcript' => $savedResponse->response_text,
                 'audio_file_id' => $savedResponse->audio_file_id,
                 'transcript_source' => $savedResponse->transcript_source,
+                'is_correct' => $savedResponse->is_correct,
                 'word_alignment' => data_get($savedResponse->metadata_json, 'word_alignment', data_get($savedResponse->metadata_json, 'asr.word_alignment', [])),
             ] : null,
         ];

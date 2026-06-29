@@ -41,6 +41,9 @@
     --rd-correct-green-dark: #3F3A19;
     --rd-wrong-red: #772F1A;
     --rd-wrong-red-dark: #4E1D10;
+    --rd-result-correct: #4c563f;
+    --rd-result-wrong: #692721;
+    --rd-assessment-neutral: #2563eb;
     --rd-text-main: #233746;
     --rd-text-muted: #5F6F78;
     --rd-frame-top: #F7F0E0;

@@ -13,6 +13,7 @@ const props = defineProps({
     primaryLabel: { type: String, default: 'Submit' },
     primaryDisabled: { type: Boolean, default: false },
     promptImage: { type: String, default: '' },
+    displayState: { type: String, default: 'item' },
 });
 
 const emit = defineEmits(['primary', 'agent-speaking-change']);
@@ -20,6 +21,9 @@ const emit = defineEmits(['primary', 'agent-speaking-change']);
 const showPromptImage = ref(false);
 const hasPromptImage = computed(() => String(props.promptImage ?? '').trim().length > 0);
 const progressWidth = computed(() => `${Math.max(0, Math.min(100, Number(props.progress) || 0))}%`);
+const normalizedDisplayState = computed(() => (
+    ['item', 'processing', 'result'].includes(props.displayState) ? props.displayState : 'item'
+));
 
 const togglePromptImage = () => {
     if (!hasPromptImage.value) {
@@ -58,13 +62,44 @@ const togglePromptImage = () => {
                         <ChevronRight class="size-5 transition-transform" :class="showPromptImage ? 'rotate-180' : ''" />
                     </button>
 
-                    <img
-                        v-if="showPromptImage && hasPromptImage"
-                        :src="promptImage"
-                        alt=""
-                        class="h-full max-h-full w-full object-contain"
-                    >
-                    <slot v-else name="prompt" />
+                    <Transition name="assessment-display-fade" mode="out-in">
+                        <div
+                            v-if="showPromptImage && hasPromptImage"
+                            key="image"
+                            class="assessment-display-layer assessment-display-layer--image"
+                        >
+                            <img
+                                :src="promptImage"
+                                alt=""
+                                class="h-full max-h-full w-full object-contain"
+                            >
+                        </div>
+                        <div
+                            v-else-if="normalizedDisplayState === 'processing'"
+                            key="processing"
+                            class="assessment-display-layer assessment-display-layer--processing"
+                        >
+                            <slot name="processing">
+                                <slot name="transcript" />
+                            </slot>
+                        </div>
+                        <div
+                            v-else-if="normalizedDisplayState === 'result'"
+                            key="result"
+                            class="assessment-display-layer assessment-display-layer--result"
+                        >
+                            <slot name="result">
+                                <slot name="transcript" />
+                            </slot>
+                        </div>
+                        <div
+                            v-else
+                            key="item"
+                            class="assessment-display-layer assessment-display-layer--item"
+                        >
+                            <slot name="prompt" />
+                        </div>
+                    </Transition>
                 </div>
             </div>
 
@@ -95,14 +130,16 @@ const togglePromptImage = () => {
             </button>
         </section>
 
-        <section class="assessment-transcript-section">
-            <div class="assessment-transcript-panel">
+        <section v-if="$slots.transcript || $slots.status || $slots.qa" class="assessment-transcript-section">
+            <div v-if="$slots.transcript" class="assessment-transcript-panel">
                 <div class="assessment-transcript-face">
                     <div class="assessment-transcript-content">
                         <slot name="transcript" />
                     </div>
-                    <slot name="status" />
                 </div>
+            </div>
+            <div v-if="$slots.status" class="assessment-status-row">
+                <slot name="status" />
             </div>
             <div v-if="$slots.qa" class="assessment-qa-row">
                 <div class="assessment-qa-face learner-frame">
@@ -130,7 +167,7 @@ const togglePromptImage = () => {
         var(--assessment-agent-row)
         minmax(8.5rem, 1fr)
         var(--assessment-progress-row)
-        var(--assessment-transcript-row);
+        auto;
     gap: var(--assessment-gap);
     overflow: visible;
     padding-bottom: calc(var(--assessment-qa-strip-height) + var(--assessment-qa-strip-gap));
@@ -182,6 +219,37 @@ const togglePromptImage = () => {
     padding: clamp(0.55rem, 1.7dvh, 1.35rem);
 }
 
+.assessment-display-layer {
+    display: grid;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.assessment-display-layer--item,
+.assessment-display-layer--result,
+.assessment-display-layer--image {
+    place-items: center;
+}
+
+.assessment-display-layer--processing {
+    align-content: start;
+    justify-items: stretch;
+    padding: clamp(0.45rem, 1.35dvh, 0.95rem);
+}
+
+.assessment-display-fade-enter-active,
+.assessment-display-fade-leave-active {
+    transition: opacity 180ms ease;
+}
+
+.assessment-display-fade-enter-from,
+.assessment-display-fade-leave-to {
+    opacity: 0;
+}
+
 .assessment-record-panel {
     display: flex;
     min-height: 0;
@@ -210,7 +278,7 @@ const togglePromptImage = () => {
     overflow-wrap: anywhere;
     word-break: normal;
     font-size: clamp(6rem, min(70cqh, 18cqw), 13rem);
-    color: var(--rd-text-main);
+    color: #000000;
     text-shadow: 0 3px 0 rgba(255, 255, 255, 0.8), 0 6px 14px rgba(54, 83, 101, 0.18);
 }
 
@@ -359,9 +427,13 @@ const togglePromptImage = () => {
     display: grid;
     width: 100%;
     min-height: 0;
-    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto auto;
     gap: clamp(0.35rem, 0.75dvh, 0.5rem);
     overflow: visible;
+}
+
+.assessment-transcript-section:empty {
+    display: none;
 }
 
 .assessment-transcript-panel {
@@ -384,6 +456,12 @@ const togglePromptImage = () => {
     flex: 1 1 auto;
     overflow-y: auto;
     overscroll-behavior: contain;
+}
+
+.assessment-status-row {
+    display: grid;
+    min-width: 0;
+    gap: clamp(0.3rem, 0.65dvh, 0.5rem);
 }
 
 .assessment-qa-row {
@@ -488,6 +566,30 @@ const togglePromptImage = () => {
     resize: none;
 }
 
+.assessment-display-layer--processing :deep(.asr-visualizer-box) {
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    min-height: 0;
+    overflow-y: auto;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+}
+
+.assessment-display-layer--processing :deep(.asr-visualizer-text) {
+    min-height: 0;
+    font-size: clamp(0.72rem, min(3.2cqh, 1.45cqw), 0.95rem);
+    line-height: 1.32;
+}
+
+.assessment-display-layer--processing :deep(.asr-visualizer-box > div),
+.assessment-display-layer--processing :deep(.asr-visualizer-box > p) {
+    max-width: 100%;
+}
+
 @media (max-height: 720px) {
     .assessment-task-workspace {
         --assessment-gap: clamp(0.3rem, 0.75dvh, 0.5rem);
@@ -512,7 +614,7 @@ const togglePromptImage = () => {
             auto
             auto
             auto
-            minmax(7rem, auto);
+            auto;
     }
 
     .assessment-prompt-record-grid {
