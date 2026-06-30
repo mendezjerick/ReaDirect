@@ -101,7 +101,7 @@ class FinalAssessmentTest extends TestCase
 
         $this->withSession(['learner_id' => $learner->id, 'final_assessment_attempt_id' => $final->id, 'admin_testing_mode' => true])
             ->post(route('final-assessment.task.submit', 'task-2a'), ['responses' => $taskTwoAResponses])
-            ->assertRedirect(route('learner.completion'));
+            ->assertRedirect(route('final-assessment.summary'));
 
         $final->refresh();
         $this->assertSame('final_reassessment_completed', $final->status);
@@ -309,6 +309,24 @@ class FinalAssessmentTest extends TestCase
                 ->where('agentMessages.2.message', 'Great job finishing your final reading check. Your effort shows what you practiced and what you can keep building next.')
                 ->missing('comparison_summary')
                 ->missing('attempt_id')
+            );
+    }
+
+    public function test_final_assessment_summary_renders_completed_final_attempt(): void
+    {
+        [$learner] = $this->learnerWithCompletedFinal();
+
+        $this->withSession(['learner_id' => $learner->id])
+            ->get(route('final-assessment.summary'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Learner/FinalAssessment/Summary')
+                ->where('attempt.crla_total_score', 24)
+                ->where('attempt.final_reading_score', 81)
+                ->where('comparison.summary', 'The learner improved in one or more final reassessment areas.')
+                ->has('comparison.deltas')
+                ->missing('attempt.id')
+                ->missing('attempt.learner_id')
             );
     }
 

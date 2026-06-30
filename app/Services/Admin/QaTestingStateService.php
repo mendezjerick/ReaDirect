@@ -134,14 +134,55 @@ class QaTestingStateService
                 return $this->prepareFinalJump($request, $tester, $target);
             }
 
-            return match ($target) {
-                'learner-dashboard' => [
-                    'learner' => $tester,
-                    'redirect' => route('learner.dashboard'),
-                ],
-                default => abort(404),
-            };
+            return $this->prepareLearnerJump($request, $tester, $target);
         });
+    }
+
+    private function prepareLearnerJump(Request $request, Learner $tester, string $target): array
+    {
+        return match ($target) {
+            'learner-dashboard' => $this->redirect($tester, route('learner.dashboard')),
+            'learner-progress' => $this->preparePlacedLearnerPage($tester, route('learner.progress')),
+            'learner-rewards' => $this->preparePlacedLearnerPage($tester, route('learner.rewards')),
+            'learner-help' => $this->preparePlacedLearnerPage($tester, route('learner.help')),
+            'learner-modules' => $this->preparePlacedLearnerPage($tester, route('learner.modules.index')),
+            'learner-completion' => $this->prepareCompletionJump($request, $tester),
+            default => abort(404),
+        };
+    }
+
+    private function preparePlacedLearnerPage(Learner $tester, string $url): array
+    {
+        if (Module::where('key', 'module_1')->exists()) {
+            $this->seedDiagnosticForModule($tester, 'module_1');
+        }
+
+        return $this->redirect($tester->fresh(['currentModule']), $url);
+    }
+
+    private function prepareCompletionJump(Request $request, Learner $tester): array
+    {
+        $baseline = $this->seedReadyForFinalAssessment($tester);
+
+        $attempt = AssessmentAttempt::create([
+            'learner_id' => $tester->id,
+            'baseline_assessment_attempt_id' => $baseline->id,
+            'attempt_type' => 'final_reassessment',
+            'status' => 'task_1',
+            'is_sandbox' => true,
+            'started_at' => now(),
+        ]);
+
+        $request->session()->put('final_assessment_attempt_id', $attempt->id);
+        $request->session()->put('admin_testing_assessment_attempt_id', $attempt->id);
+        $this->seedFinalComplete($attempt, 2, 4);
+
+        $tester->update([
+            'current_module_id' => null,
+            'current_stage' => LearnerStage::FINAL_REASSESSMENT_COMPLETED,
+        ]);
+
+        return $this->redirect($tester->fresh(['currentModule']), route('learner.completion'));
     }
 
     private function prepareDiagnosticJump(Request $request, Learner $tester, string $target): array
@@ -158,12 +199,30 @@ class QaTestingStateService
                 $this->redirect($tester, route('learner.diagnostic.task-1')),
                 fn () => $this->assessmentItems->selectTask1LettersForAttempt($attempt)
             ),
+            'diagnostic-task-routing' => tap(
+                $this->redirect($tester, route('learner.diagnostic.task-routing')),
+                function () use ($request, $attempt): void {
+                    $route = $this->crla->routeTaskOne(5);
+                    $attempt->update([
+                        'task_1_score' => 5,
+                        'task_2a_score' => $route['assigned_task_2a_score'],
+                        'status' => 'task_1_completed',
+                        'rule_applied' => $route['rule_applied'],
+                        'decision_reason' => 'Task 1 score is 0-6, so Task 2A is required.',
+                    ]);
+                    $request->session()->put('task_one_route', $route);
+                }
+            ),
             'diagnostic-task-2a' => tap(
                 $this->redirect($tester, route('learner.diagnostic.task-2a')),
                 function () use ($attempt): void {
                     $attempt->update(['task_1_score' => 5, 'task_2a_score' => null, 'status' => 'task_1_completed']);
                     $this->assessmentItems->selectTask2ARhymingPromptsForAttempt($attempt);
                 }
+            ),
+            'diagnostic-task-2a-summary' => tap(
+                $this->redirect($tester, route('learner.diagnostic.task-2a-summary')),
+                fn () => $this->seedLowTaskTwoASummary($attempt)
             ),
             'diagnostic-task-2b' => tap(
                 $this->redirect($tester, route('learner.diagnostic.task-2b')),
@@ -178,6 +237,10 @@ class QaTestingStateService
             ),
             'diagnostic-reading-intro' => tap(
                 $this->redirect($tester, route('learner.diagnostic.reading-intro')),
+                fn () => $this->seedCrlaComplete($attempt, 8, 10, 8)
+            ),
+            'diagnostic-story-selection' => tap(
+                $this->redirect($tester, route('learner.diagnostic.story-selection')),
                 fn () => $this->seedCrlaComplete($attempt, 8, 10, 8)
             ),
             'diagnostic-passage' => tap(
@@ -297,6 +360,10 @@ class QaTestingStateService
                     $this->assessmentItems->selectTask2BWordSentenceItemsForAttempt($attempt);
                 }
             ),
+            'final-story-selection' => tap(
+                $this->redirect($tester->fresh(), route('final-assessment.task', 'story-selection')),
+                fn () => $this->seedCrlaComplete($attempt, 8, 10, 8)
+            ),
             'final-passage' => tap(
                 $this->redirect($tester->fresh(), route('final-assessment.task', 'passage')),
                 function () use ($attempt): void {
@@ -386,6 +453,15 @@ class QaTestingStateService
             'crla_classification' => $this->crla->classifyTotalScore($total),
             'status' => 'crla_completed',
         ]);
+    }
+
+    private function seedLowTaskTwoASummary(AssessmentAttempt $attempt): void
+    {
+        $attempt->update(array_merge([
+            'task_1_score' => 5,
+            'task_2a_score' => 6,
+            'status' => 'crla_completed',
+        ], $this->crla->completeWithoutTask2BOrPassage(5, 6)));
     }
 
     private function seedPassageComplete(AssessmentAttempt $attempt, int $incorrectWords): void

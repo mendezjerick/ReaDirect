@@ -1,11 +1,8 @@
 <script setup>
 import { computed } from 'vue';
 import { useForm } from '@inertiajs/vue3';
-import { BookOpen, ArrowRight } from 'lucide-vue-next';
-import LearnerLayout from '../../../Layouts/LearnerLayout.vue';
-import AgentSpeakerPanel from '../../../Components/Learner/AgentSpeakerPanel.vue';
-import BottomActionBar from '../../../Components/BottomActionBar.vue';
-import PrimaryButton from '../../../Components/PrimaryButton.vue';
+import { ArrowRight, Check } from 'lucide-vue-next';
+import GuideLayout from '../../../Components/Learner/GuideLayout.vue';
 
 const props = defineProps({
     stories: Array,
@@ -30,47 +27,61 @@ const submit = () => {
 </script>
 
 <template>
-    <LearnerLayout :progress="72">
-        <template #agent>
-            <AgentSpeakerPanel
-                agent-type="assessment"
-                state="speaking"
-                presentation="reading-intro"
-                message="Choose one story for your final reading passage."
-                line-key="vivian.assessment.story_choice"
-            />
+    <GuideLayout
+        :progress="72"
+        eyebrow="Story Selection"
+        divider-label="Choose one"
+        agent-message="Choose one story for your final reading passage."
+        agent-line-key="vivian.assessment.story_choice"
+        :primary-label="`Start story ${selectedStory?.story_number ?? ''}`"
+        :primary-disabled="form.processing || !selectedStory"
+        @primary="submit"
+    >
+        <template #primary-icon>
+            <ArrowRight class="size-5" />
         </template>
 
-        <section class="mx-auto grid w-full max-w-[880px] gap-5">
-            <div class="grid gap-3 sm:grid-cols-2">
-                <button
-                    v-for="story in stories"
-                    :key="story.id"
-                    type="button"
-                    class="grid min-h-56 content-center gap-4 rounded-[28px] border-2 bg-white p-6 text-left shadow-xl shadow-slate-200/30 transition"
-                    :class="form.passage_id === story.id ? 'border-primary text-primary ring-4 ring-primary/10' : 'border-slate-200 text-slate-800 hover:border-primary/40'"
-                    @click="chooseStory(story)"
-                >
-                    <span class="inline-flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                        <BookOpen class="size-8 stroke-[2.5]" />
-                    </span>
-                    <span class="grid gap-2">
-                        <span class="text-3xl font-black">Story {{ story.story_number }}</span>
-                        <span class="text-xl font-black text-slate-700">{{ story.title }}</span>
-                    </span>
-                </button>
-            </div>
+        <template #title>
+            Choose your <span class="guide-title-accent">story.</span>
+        </template>
 
-            <p v-if="form.errors.passage_id" class="rounded-2xl bg-rose-50 px-4 py-3 text-sm font-black text-rose-600 ring-1 ring-rose-200/60">
-                {{ form.errors.passage_id }}
-            </p>
-        </section>
+        <div class="guide-story-grid">
+            <button
+                v-for="(story, index) in stories"
+                :key="story.id"
+                type="button"
+                class="guide-story-option guide-anim"
+                :class="{ 'guide-story-option--selected': form.passage_id === story.id }"
+                :style="`--guide-delay: ${200 + index * 85}ms`"
+                @click="chooseStory(story)"
+            >
+                <div class="rd-card">
+                    <div class="rd-card__face guide-story-card">
+                        <span
+                            class="guide-story-check"
+                            :class="{ 'guide-story-check--on': form.passage_id === story.id }"
+                            aria-hidden="true"
+                        >
+                            <Check class="size-3.5 stroke-[3.5]" />
+                        </span>
+                        <span class="guide-story-badge">{{ story.story_number }}</span>
+                        <span class="guide-story-body">
+                            <span class="guide-story-label">Story {{ story.story_number }}</span>
+                            <span class="guide-story-title">{{ story.title }}</span>
+                        </span>
+                        <span
+                            class="guide-story-cue"
+                            :class="{ 'guide-story-cue--active': form.passage_id === story.id }"
+                        >
+                            {{ form.passage_id === story.id ? 'Selected' : 'Tap to select' }}
+                        </span>
+                    </div>
+                </div>
+            </button>
+        </div>
 
-        <BottomActionBar>
-            <PrimaryButton :disabled="form.processing || !selectedStory" class="ml-auto gap-3" @click="submit">
-                Start Story {{ selectedStory?.story_number ?? '' }}
-                <ArrowRight class="size-5 stroke-[3]" />
-            </PrimaryButton>
-        </BottomActionBar>
-    </LearnerLayout>
+        <p v-if="form.errors.passage_id" class="guide-status guide-status--error">
+            {{ form.errors.passage_id }}
+        </p>
+    </GuideLayout>
 </template>

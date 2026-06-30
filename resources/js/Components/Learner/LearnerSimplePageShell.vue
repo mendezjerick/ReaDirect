@@ -1,7 +1,18 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { Link } from '@inertiajs/vue3';
-import { BookOpen, ChevronLeft, ClipboardList, HelpCircle, Home, Menu, Trophy, X } from 'lucide-vue-next';
+import {
+    BookOpen,
+    BookOpenCheck,
+    ChevronDown,
+    ClipboardList,
+    HelpCircle,
+    Home,
+    Menu,
+    Trophy,
+    UserRound,
+    X,
+} from 'lucide-vue-next';
 import AsrVisualizationToggle from '../AsrVisualizationToggle.vue';
 
 const props = defineProps({
@@ -9,9 +20,10 @@ const props = defineProps({
     title: { type: String, required: true },
     subtitle: { type: String, default: '' },
     active: { type: String, default: '' },
+    showHeader: { type: Boolean, default: true },
 });
 
-const sidebarOpen = ref(false);
+const menuOpen = ref(false);
 const firstName = computed(() => props.learner?.first_name ?? 'Friend');
 const initial = computed(() => firstName.value.charAt(0).toUpperCase());
 
@@ -22,103 +34,494 @@ const navItems = [
     { key: 'rewards', label: 'Rewards', href: '/learner/rewards', icon: Trophy },
     { key: 'help', label: 'Help', href: '/learner/help', icon: HelpCircle },
 ];
+
+const closeMenu = () => {
+    menuOpen.value = false;
+};
+
+const handleOutsideClick = (event) => {
+    if (menuOpen.value && !event.target.closest('.learner-hub-menu')) {
+        closeMenu();
+    }
+};
+
+onMounted(() => {
+    document.addEventListener('mousedown', handleOutsideClick);
+});
+
+onUnmounted(() => {
+    document.removeEventListener('mousedown', handleOutsideClick);
+});
 </script>
 
 <template>
-    <div class="flex min-h-screen bg-gradient-to-br from-slate-50 to-orange-50/30 text-slate-800 lg:flex-row">
-        <Transition name="overlay">
-            <button
-                v-if="sidebarOpen"
-                type="button"
-                class="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm lg:hidden"
-                aria-label="Close menu"
-                @click="sidebarOpen = false"
-            />
-        </Transition>
-
-        <aside
-            class="fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 flex-col border-r border-slate-200/80 bg-white shadow-lg shadow-slate-200/20 transition-transform duration-300 ease-in-out lg:sticky lg:top-0 lg:h-screen lg:w-60 lg:translate-x-0 lg:shadow-none"
-            :class="sidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0'"
-        >
-            <div class="flex h-16 shrink-0 items-center justify-between gap-2 px-5">
-                <Link href="/learner/dashboard" class="flex items-center gap-2.5" @click="sidebarOpen = false">
-                    <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-white shadow-md shadow-primary/20">
-                        <BookOpen :size="18" stroke-width="2.5" />
-                    </span>
-                    <span class="text-lg font-black tracking-tight text-slate-800">ReaDirect</span>
-                </Link>
+    <div class="learner-hub-shell">
+        <div class="learner-hub-topbar">
+            <div class="learner-hub-menu">
                 <button
                     type="button"
-                    class="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 lg:hidden"
-                    aria-label="Close menu"
-                    @click="sidebarOpen = false"
+                    class="learner-hub-menu-button"
+                    :aria-label="menuOpen ? 'Close menu' : 'Open menu'"
+                    :aria-expanded="menuOpen"
+                    @click="menuOpen = !menuOpen"
                 >
-                    <X :size="18" />
+                    <X v-if="menuOpen" class="size-5" stroke-width="3" />
+                    <Menu v-else class="size-5" stroke-width="3" />
                 </button>
-            </div>
 
-            <nav class="flex-1 space-y-1 overflow-y-auto px-3 pt-3">
-                <Link
-                    v-for="item in navItems"
-                    :key="item.key"
-                    :href="item.href"
-                    class="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold transition-all duration-200"
-                    :class="active === item.key
-                        ? 'bg-primary-light font-black text-primary shadow-sm ring-1 ring-primary/20'
-                        : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'"
-                    @click="sidebarOpen = false"
-                >
-                    <component :is="item.icon" :size="18" stroke-width="2.5" />
-                    <span>{{ item.label }}</span>
-                </Link>
-            </nav>
-
-            <div class="m-3 rounded-[24px] border border-slate-200/60 bg-slate-50/80 p-4 shadow-sm">
-                <p class="text-[11px] font-black uppercase tracking-widest text-primary">Signed in as</p>
-                <div class="mt-2.5 flex items-center gap-3">
-                    <span class="grid size-10 place-items-center rounded-2xl bg-primary text-sm font-black text-white shadow-sm shadow-primary/20">{{ initial }}</span>
-                    <div class="min-w-0">
-                        <p class="truncate text-sm font-black text-slate-800">{{ firstName }}</p>
-                        <p class="truncate text-xs font-semibold text-slate-400">{{ learner?.learner_code ?? 'Learner' }}</p>
-                    </div>
-                </div>
-            </div>
-        </aside>
-
-        <div class="flex min-w-0 flex-1 flex-col">
-            <header class="sticky top-0 z-20 flex h-16 shrink-0 items-center justify-between gap-3 border-b border-slate-200/60 bg-white/80 px-4 shadow-sm backdrop-blur-md sm:px-6">
-                <div class="flex min-w-0 items-center gap-3">
-                    <button
-                        type="button"
-                        class="rounded-xl p-2 text-primary transition-colors hover:bg-primary-light lg:hidden"
-                        aria-label="Open menu"
-                        @click="sidebarOpen = true"
-                    >
-                        <Menu :size="20" />
-                    </button>
-                    <Link href="/learner/dashboard" class="hidden items-center gap-2 rounded-full bg-primary-light px-3.5 py-2 text-xs font-black text-primary ring-1 ring-primary/20 transition-all hover:bg-surface sm:inline-flex">
-                        <ChevronLeft :size="14" stroke-width="3" />
-                        Dashboard
-                    </Link>
-                    <div class="min-w-0">
-                        <h1 class="truncate text-xl font-black text-slate-800 sm:text-2xl">{{ title }}</h1>
-                        <p v-if="subtitle" class="truncate text-xs font-semibold text-slate-400 sm:text-sm">{{ subtitle }}</p>
-                    </div>
-                </div>
-                <div class="flex items-center gap-2">
-                    <AsrVisualizationToggle />
-                    <div class="flex items-center gap-2 rounded-full bg-white py-1 pl-1 pr-3 shadow-sm ring-1 ring-slate-200/80">
-                        <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-sm font-black text-white">
-                            {{ initial }}
+                <Transition name="learner-hub-menu-pop">
+                    <div v-if="menuOpen" class="learner-hub-menu-panel">
+                        <div class="learner-hub-menu-head">
+                            <Link href="/learner/dashboard" class="learner-hub-menu-brand" @click="closeMenu">
+                                <span class="learner-hub-brand-mark">
+                                    <BookOpenCheck class="size-5" stroke-width="2.7" />
+                                </span>
+                                <span>ReaDirect</span>
+                            </Link>
+                            <button
+                                type="button"
+                                class="learner-hub-menu-close"
+                                aria-label="Close menu"
+                                @click="closeMenu"
+                            >
+                                <X class="size-4" stroke-width="3" />
+                            </button>
                         </div>
-                        <span class="hidden text-sm font-bold text-slate-700 sm:inline">{{ firstName }}</span>
+
+                        <nav class="learner-hub-menu-nav" aria-label="Learner navigation">
+                            <Link
+                                v-for="item in navItems"
+                                :key="item.key"
+                                :href="item.href"
+                                class="learner-hub-menu-link"
+                                :class="{ 'learner-hub-menu-link--active': active === item.key }"
+                                @click="closeMenu"
+                            >
+                                <component :is="item.icon" class="size-5" stroke-width="2.6" />
+                                <span>{{ item.label }}</span>
+                            </Link>
+                        </nav>
+
+                        <div class="learner-hub-menu-card">
+                            <span class="learner-hub-menu-card-icon">
+                                <UserRound class="size-4" stroke-width="2.8" />
+                            </span>
+                            <span>
+                                <span class="learner-hub-menu-card-kicker">Signed in as</span>
+                                <span class="learner-hub-menu-card-name">{{ firstName }}</span>
+                            </span>
+                        </div>
                     </div>
+                </Transition>
+            </div>
+
+            <div class="learner-hub-profile">
+                <AsrVisualizationToggle />
+                <div class="learner-hub-user-pill">
+                    <span class="learner-hub-user-initial">{{ initial }}</span>
+                    <span class="learner-hub-user-name">{{ firstName }}</span>
+                    <ChevronDown class="size-4 text-[var(--rd-text-muted)]" stroke-width="3" />
                 </div>
+            </div>
+        </div>
+
+        <main class="learner-hub-main">
+            <header v-if="showHeader" class="learner-hub-page-head">
+                <p class="learner-hub-kicker">Learner space</p>
+                <h1 class="learner-hub-page-title">{{ title }}</h1>
+                <p v-if="subtitle" class="learner-hub-page-subtitle">{{ subtitle }}</p>
             </header>
 
-            <main class="flex-1 p-4 sm:p-6 xl:p-8">
-                <slot />
-            </main>
-        </div>
+            <slot />
+        </main>
     </div>
 </template>
+
+<style>
+.learner-hub-shell {
+    position: relative;
+    min-height: 100vh;
+    overflow-x: hidden;
+    background:
+        linear-gradient(180deg, rgba(255, 253, 247, 0), rgba(250, 247, 239, 0)),
+        url('/images/backgrounds/learner-dashboard-desktop.png'),
+        linear-gradient(180deg, #f4e0ba 0%, #faf7ef 100%);
+    background-attachment: fixed;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+    color: var(--rd-text-main);
+}
+
+.learner-hub-topbar {
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    right: 1rem;
+    z-index: 50;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    pointer-events: none;
+}
+
+.learner-hub-menu,
+.learner-hub-profile {
+    pointer-events: auto;
+}
+
+.learner-hub-menu {
+    position: relative;
+}
+
+.learner-hub-menu-button,
+.learner-hub-menu-close {
+    display: grid;
+    place-items: center;
+    border: 2px solid var(--rd-story-border-soft);
+    background: var(--rd-story-surface);
+    color: var(--rd-text-main);
+    box-shadow:
+        0 4px 0 rgba(111, 101, 52, 0.16),
+        0 8px 14px rgba(54, 83, 101, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.learner-hub-menu-button {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 1rem;
+}
+
+.learner-hub-menu-button:hover,
+.learner-hub-menu-close:hover {
+    color: var(--rd-primary-orange);
+    transform: translateY(-1px);
+}
+
+.learner-hub-menu-close {
+    width: 2.15rem;
+    height: 2.15rem;
+    border-radius: 0.75rem;
+}
+
+.learner-hub-menu-pop-enter-active,
+.learner-hub-menu-pop-leave-active {
+    transform-origin: top left;
+    transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.learner-hub-menu-pop-enter-from,
+.learner-hub-menu-pop-leave-to {
+    opacity: 0;
+    transform: translateY(-0.5rem) scale(0.97);
+}
+
+.learner-hub-menu-panel {
+    position: absolute;
+    top: calc(100% + 0.8rem);
+    left: 0;
+    width: min(19rem, calc(100vw - 2rem));
+    overflow: hidden;
+    border: 2px solid var(--rd-story-border);
+    border-radius: 1.25rem;
+    background: var(--rd-story-surface);
+    box-shadow:
+        0 5px 0 var(--rd-lip),
+        0 7px 0 var(--rd-lip-dark),
+        0 18px 28px -10px var(--rd-shadow);
+}
+
+.learner-hub-menu-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    border-bottom: 1.5px solid var(--rd-face-border);
+    background: var(--rd-face-surface);
+    padding: 0.8rem;
+}
+
+.learner-hub-menu-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    color: var(--rd-text-main);
+    font-size: 1rem;
+    font-weight: 900;
+    text-decoration: none;
+}
+
+.learner-hub-brand-mark,
+.learner-hub-user-initial,
+.learner-hub-menu-card-icon {
+    display: grid;
+    place-items: center;
+    background: linear-gradient(180deg, var(--rd-action-button-light), var(--rd-action-button));
+    color: #fff;
+    box-shadow: 0 3px 0 #b84b24, 0 7px 12px rgba(245, 133, 73, 0.2);
+}
+
+.learner-hub-brand-mark {
+    width: 2.35rem;
+    height: 2.35rem;
+    border-radius: 0.85rem;
+}
+
+.learner-hub-menu-nav {
+    display: grid;
+    gap: 0.45rem;
+    padding: 0.8rem;
+}
+
+.learner-hub-menu-link {
+    display: flex;
+    min-height: 3rem;
+    align-items: center;
+    gap: 0.75rem;
+    border: 1.5px solid transparent;
+    border-radius: 0.95rem;
+    padding: 0.65rem 0.85rem;
+    color: var(--rd-text-muted);
+    font-size: 0.88rem;
+    font-weight: 900;
+    text-decoration: none;
+}
+
+.learner-hub-menu-link:hover,
+.learner-hub-menu-link--active {
+    border-color: rgba(245, 133, 73, 0.28);
+    background: rgba(245, 133, 73, 0.1);
+    color: var(--rd-primary-orange);
+}
+
+.learner-hub-menu-card {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    margin: 0 0.8rem 0.8rem;
+    border: 1.5px solid var(--rd-face-border);
+    border-radius: 1rem;
+    background: var(--rd-face-surface);
+    padding: 0.75rem;
+}
+
+.learner-hub-menu-card-icon {
+    width: 2.2rem;
+    height: 2.2rem;
+    flex-shrink: 0;
+    border-radius: 0.75rem;
+}
+
+.learner-hub-menu-card-kicker,
+.learner-hub-kicker {
+    display: block;
+    color: var(--rd-primary-orange);
+    font-size: 0.68rem;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+}
+
+.learner-hub-menu-card-name {
+    display: block;
+    margin-top: 0.1rem;
+    color: var(--rd-text-main);
+    font-size: 0.9rem;
+    font-weight: 900;
+}
+
+.learner-hub-profile {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.learner-hub-user-pill {
+    display: inline-flex;
+    min-height: 3rem;
+    align-items: center;
+    gap: 0.55rem;
+    border: 2px solid var(--rd-story-border-soft);
+    border-radius: 999px;
+    background: var(--rd-story-surface);
+    padding: 0.35rem 0.85rem 0.35rem 0.35rem;
+    box-shadow:
+        0 4px 0 rgba(111, 101, 52, 0.16),
+        0 8px 14px rgba(54, 83, 101, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.learner-hub-user-initial {
+    width: 2.1rem;
+    height: 2.1rem;
+    border-radius: 999px;
+    font-size: 0.86rem;
+    font-weight: 900;
+}
+
+.learner-hub-user-name {
+    max-width: 8rem;
+    overflow: hidden;
+    color: var(--rd-text-main);
+    font-size: 0.88rem;
+    font-weight: 900;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.learner-hub-main {
+    width: min(100% - 2rem, 74rem);
+    margin: 0 auto;
+    padding: 5.9rem 0 3rem;
+}
+
+.learner-hub-page-head {
+    margin-bottom: 1.2rem;
+}
+
+.learner-hub-page-title {
+    margin-top: 0.25rem;
+    color: var(--rd-text-main);
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 900;
+    letter-spacing: 0;
+    line-height: 1.02;
+}
+
+.learner-hub-page-subtitle {
+    margin-top: 0.35rem;
+    max-width: 42rem;
+    color: var(--rd-text-muted);
+    font-size: 0.98rem;
+    font-weight: 800;
+    line-height: 1.45;
+}
+
+.learner-hub-panel,
+.learner-hub-card {
+    border: 2px solid var(--rd-story-border);
+    background: var(--rd-story-surface);
+    box-shadow:
+        0 5px 0 var(--rd-lip),
+        0 7px 0 var(--rd-lip-dark),
+        0 16px 22px -8px var(--rd-shadow);
+}
+
+.learner-hub-panel {
+    border-radius: 1.35rem;
+    padding: clamp(1rem, 3vw, 1.45rem);
+}
+
+.learner-hub-card {
+    border-radius: 1.15rem;
+    padding: 1rem;
+}
+
+.learner-hub-face {
+    border: 1.5px solid var(--rd-face-border);
+    border-radius: 1rem;
+    background: var(--rd-face-surface);
+    box-shadow: inset 0 2px 0 var(--rd-highlight), inset 0 -6px 10px var(--rd-inner-shade);
+}
+
+.learner-hub-section-title {
+    color: var(--rd-text-main);
+    font-size: clamp(1.25rem, 2.4vw, 1.7rem);
+    font-weight: 900;
+    line-height: 1.12;
+}
+
+.learner-hub-section-copy {
+    color: var(--rd-text-muted);
+    font-size: 0.9rem;
+    font-weight: 800;
+    line-height: 1.45;
+}
+
+.learner-hub-primary-link,
+.learner-hub-secondary-link {
+    display: inline-flex;
+    min-height: 3.4rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.65rem;
+    border-radius: 999px;
+    padding: 0.75rem 1.35rem;
+    font-size: 0.92rem;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    text-decoration: none;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.learner-hub-primary-link {
+    border: 2px solid #d9652f;
+    background: linear-gradient(180deg, var(--rd-action-button-light) 0%, var(--rd-action-button) 100%);
+    color: #fff;
+    box-shadow:
+        0 7px 0 #b84b24,
+        0 12px 20px rgba(54, 83, 101, 0.22),
+        inset 0 2px 0 rgba(255, 255, 255, 0.35);
+}
+
+.learner-hub-primary-link:hover {
+    background: linear-gradient(180deg, var(--rd-action-button-light) 0%, var(--rd-action-button) 100%);
+    color: #fff;
+    transform: translateY(-1px);
+}
+
+.learner-hub-primary-link:active {
+    transform: translateY(5px);
+    box-shadow: 0 2px 0 #b84b24, 0 6px 12px rgba(54, 83, 101, 0.2);
+}
+
+.learner-hub-secondary-link {
+    border: 2px solid rgba(54, 83, 101, 0.14);
+    background: var(--rd-face-surface);
+    color: var(--rd-text-main);
+    box-shadow: 0 4px 0 rgba(111, 101, 52, 0.12);
+}
+
+.learner-hub-secondary-link:hover {
+    border-color: rgba(245, 133, 73, 0.36);
+    color: var(--rd-primary-orange);
+}
+
+.learner-hub-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    border-radius: 999px;
+    background: rgba(245, 133, 73, 0.1);
+    padding: 0.4rem 0.75rem;
+    color: var(--rd-primary-orange);
+    font-size: 0.74rem;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.learner-hub-grid {
+    display: grid;
+    gap: 1rem;
+}
+
+@media (max-width: 640px) {
+    .learner-hub-main {
+        width: min(100% - 1.25rem, 74rem);
+        padding-top: 5.4rem;
+    }
+
+    .learner-hub-topbar {
+        top: 0.75rem;
+        left: 0.75rem;
+        right: 0.75rem;
+    }
+
+    .learner-hub-user-name {
+        display: none;
+    }
+}
+</style>

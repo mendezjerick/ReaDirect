@@ -650,4 +650,172 @@ const togglePromptImage = () => {
         grid-template-columns: minmax(0, 1fr);
     }
 }
+
+@media (max-width: 600px) and (orientation: portrait) {
+    .assessment-task-workspace {
+        --mobile-page-padding: 16px;
+        --mobile-section-gap: 12px;
+        --mobile-card-gap: 14px;
+        --assessment-gap: var(--mobile-section-gap);
+        --assessment-agent-row: clamp(118px, 32vw, 132px);
+        --assessment-progress-row: auto;
+
+        align-content: start;
+        grid-template-rows: auto auto auto;
+        gap: var(--mobile-section-gap);
+        overscroll-behavior: contain;
+        padding-inline: 0;
+    }
+
+    .assessment-task-workspace--has-lower-section {
+        grid-template-rows: auto auto auto auto;
+    }
+
+    .assessment-prompt-record-grid {
+        grid-template-columns: minmax(0, 1fr);
+        gap: var(--mobile-card-gap);
+    }
+
+    .assessment-prompt-panel {
+        width: 100%;
+        min-height: clamp(130px, 34vw, 190px);
+    }
+
+    .assessment-prompt-face {
+        min-height: inherit;
+        padding: clamp(0.55rem, 2.8vw, 0.9rem);
+    }
+
+    .assessment-prompt-face :deep(.letter-prompt),
+    .assessment-prompt-face :deep(.assessment-prompt-text--letter .assessment-prompt-text-body) {
+        font-size: clamp(4rem, min(56cqh, 17cqw), 6.5rem);
+    }
+
+    .assessment-prompt-face :deep(.assessment-prompt-text--word .assessment-prompt-text-body) {
+        font-size: clamp(1.7rem, min(30cqh, 9cqw), 3rem);
+    }
+
+    .assessment-prompt-face :deep(.assessment-prompt-text--sentence .assessment-prompt-text-body),
+    .assessment-prompt-face :deep(.assessment-prompt-text--medium .assessment-prompt-text-body) {
+        font-size: clamp(1.05rem, min(15cqh, 4.8cqw), 2rem);
+    }
+
+    .assessment-prompt-face :deep(.assessment-prompt-text--long .assessment-prompt-text-body) {
+        font-size: clamp(0.85rem, min(10cqh, 3.5cqw), 1.35rem);
+    }
+
+    .assessment-record-panel {
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        min-height: 0;
+    }
+
+    .assessment-record-panel :deep(.assessment-hold-recorder),
+    .assessment-record-panel :deep(.automatic-listening-recorder) {
+        width: 100%;
+        height: 100%;
+        min-height: 0;
+    }
+
+    .assessment-progress-row {
+        width: 100%;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 11px;
+    }
+
+    .assessment-progress-track {
+        width: 100%;
+        min-height: clamp(3.25rem, 12vw, 4rem);
+    }
+
+    .assessment-primary-action {
+        width: 100%;
+        min-height: clamp(3.25rem, 13vw, 4rem);
+        padding-inline: 1rem;
+        font-size: clamp(0.95rem, 4vw, 1.05rem);
+    }
+}
+
+:global(body[data-qa-viewport='mobile-vertical'] .assessment-task-workspace) {
+    --mobile-page-padding: 16px;
+    --mobile-section-gap: 12px;
+    --mobile-card-gap: 14px;
+    --assessment-gap: var(--mobile-section-gap);
+    --assessment-agent-row: 124px;
+    --assessment-progress-row: auto;
+
+    align-content: start;
+    grid-template-rows: auto auto auto;
+    gap: var(--mobile-section-gap);
+    overscroll-behavior: contain;
+    padding-inline: 0;
+}
+
+:global(body[data-qa-viewport='mobile-vertical'] .assessment-task-workspace--has-lower-section) {
+    grid-template-rows: auto auto auto auto;
+}
+
+:global(body[data-qa-viewport='mobile-vertical'] .assessment-prompt-record-grid) {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--mobile-card-gap);
+}
+
+:global(body[data-qa-viewport='mobile-vertical'] .assessment-prompt-panel) {
+    width: 100%;
+    min-height: 133px;
+}
+
+:global(body[data-qa-viewport='mobile-vertical'] .assessment-prompt-face) {
+    min-height: inherit;
+    padding: clamp(0.55rem, 2.8vw, 0.9rem);
+}
+
+:global(body[data-qa-viewport='mobile-vertical'] .assessment-prompt-face .letter-prompt),
+:global(body[data-qa-viewport='mobile-vertical'] .assessment-prompt-face .assessment-prompt-text--letter .assessment-prompt-text-body) {
+    font-size: clamp(4rem, min(56cqh, 17cqw), 6.5rem);
+}
+
+:global(body[data-qa-viewport='mobile-vertical'] .assessment-prompt-face .assessment-prompt-text--word .assessment-prompt-text-body) {
+    font-size: clamp(1.7rem, min(30cqh, 9cqw), 3rem);
+}
+
+:global(body[data-qa-viewport='mobile-vertical'] .assessment-prompt-face .assessment-prompt-text--sentence .assessment-prompt-text-body),
+:global(body[data-qa-viewport='mobile-vertical'] .assessment-prompt-face .assessment-prompt-text--medium .assessment-prompt-text-body) {
+    font-size: clamp(1.05rem, min(15cqh, 4.8cqw), 2rem);
+}
+
+:global(body[data-qa-viewport='mobile-vertical'] .assessment-prompt-face .assessment-prompt-text--long .assessment-prompt-text-body) {
+    font-size: clamp(0.85rem, min(10cqh, 3.5cqw), 1.35rem);
+}
+
+:global(body[data-qa-viewport='mobile-vertical'] .assessment-record-panel) {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    min-height: 0;
+}
+
+:global(body[data-qa-viewport='mobile-vertical'] .assessment-record-panel .assessment-hold-recorder),
+:global(body[data-qa-viewport='mobile-vertical'] .assessment-record-panel .automatic-listening-recorder) {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+}
+
+:global(body[data-qa-viewport='mobile-vertical'] .assessment-progress-row) {
+    width: 100%;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 11px;
+}
+
+:global(body[data-qa-viewport='mobile-vertical'] .assessment-progress-track) {
+    width: 100%;
+    min-height: 3.25rem;
+}
+
+:global(body[data-qa-viewport='mobile-vertical'] .assessment-primary-action) {
+    width: 100%;
+    min-height: 3.25rem;
+    padding-inline: 1rem;
+    font-size: 1rem;
+}
 </style>

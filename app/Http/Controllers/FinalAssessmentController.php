@@ -191,7 +191,27 @@ class FinalAssessmentController extends Controller
             return $attempt;
         }
 
-        return redirect()->route('learner.completion');
+        $attempt->loadMissing('baselineAssessment');
+        $comparisonSummary = $attempt->comparison_summary ?: $comparison->compareAttempts($attempt->baselineAssessment, $attempt);
+
+        return Inertia::render('Learner/FinalAssessment/Summary', [
+            'attempt' => $attempt->only([
+                'task_1_score',
+                'task_2a_score',
+                'task_2b_score',
+                'crla_total_score',
+                'crla_classification',
+                'reading_accuracy',
+                'comprehension_percentage',
+                'final_reading_score',
+                'reading_classification',
+                'incorrect_words',
+                'comprehension_correct_count',
+                'status',
+                'completed_at',
+            ]),
+            'comparison' => $comparisonSummary,
+        ]);
     }
 
     private function submitTaskOne(
@@ -252,7 +272,7 @@ class FinalAssessmentController extends Controller
 
         $this->completeFinalAttempt($attempt, $comparison, $exports);
 
-        return redirect()->route('learner.completion');
+        return redirect()->route('final-assessment.summary');
     }
 
     private function submitTaskTwoB(
@@ -289,7 +309,7 @@ class FinalAssessmentController extends Controller
             ]));
             $this->completeFinalAttempt($attempt, $comparison, $exports);
 
-            return redirect()->route('learner.completion');
+            return redirect()->route('final-assessment.summary');
         }
 
         $attempt->update($fields);
@@ -486,7 +506,7 @@ class FinalAssessmentController extends Controller
 
         $this->completeFinalAttempt($attempt, $comparison, $exports);
 
-        return redirect()->route('learner.completion');
+        return redirect()->route('final-assessment.summary');
     }
 
     private function scoreTextResponses(

@@ -510,7 +510,9 @@ class AdminAreaTest extends TestCase
                 ->component('Admin/Testing/FlowJump')
                 ->where('learner.learner_code', 'QA-TESTER')
                 ->where('targets.0.group', 'Learner')
-                ->where('targets.18.group', 'Modules')
+                ->where('targets.4.target', 'learner-completion')
+                ->where('targets.26.group', 'Modules')
+                ->where('targets.26.target', 'learner-modules')
             );
 
         $this->actingAs($admin)
@@ -601,7 +603,7 @@ class AdminAreaTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/Testing/FlowJump')
-                ->has('targets', 30)
+                ->has('targets', 39)
             );
 
         $targets = $flowJump->viewData('page')['props']['targets'];
@@ -614,9 +616,20 @@ class AdminAreaTest extends TestCase
             $destination = $jump->headers->get('Location');
             $opened = $this->actingAs($admin)->get($destination);
 
+            if ($target['target'] === 'learner-completion') {
+                $opened->assertOk()
+                    ->assertInertia(fn (Assert $page) => $page
+                        ->component('Learner/Completion')
+                    );
+
+                continue;
+            }
+
             if ($target['target'] === 'final-summary') {
-                $opened->assertRedirect(route('learner.completion'));
-                $this->actingAs($admin)->get(route('learner.completion'))->assertOk();
+                $opened->assertOk()
+                    ->assertInertia(fn (Assert $page) => $page
+                        ->component('Learner/FinalAssessment/Summary')
+                    );
 
                 continue;
             }

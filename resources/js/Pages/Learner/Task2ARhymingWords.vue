@@ -1,12 +1,9 @@
 <script setup>
 import { computed } from 'vue';
 import { useForm } from '@inertiajs/vue3';
-import { Check, Volume2, X } from 'lucide-vue-next';
-import LearnerLayout from '../../Layouts/LearnerLayout.vue';
-import AgentSpeakerPanel from '../../Components/Learner/AgentSpeakerPanel.vue';
-import PrimaryButton from '../../Components/PrimaryButton.vue';
+import { Check, Music2, X } from 'lucide-vue-next';
+import GuideLayout from '../../Components/Learner/GuideLayout.vue';
 import SecondaryButton from '../../Components/SecondaryButton.vue';
-import BottomActionBar from '../../Components/BottomActionBar.vue';
 import { useStepAssessment } from '../../Composables/useStepAssessment';
 
 const props = defineProps({
@@ -62,88 +59,72 @@ const handlePrimary = () => {
 </script>
 
 <template>
-    <LearnerLayout :progress="58" diagnostic-step="task-2a">
-        <template #agent>
-            <AgentSpeakerPanel
-                compact
-                show-audio-button
-                agent-type="assessment"
-                state="speaking"
-                presentation="assessment-task"
-                :message="vivianPrompt"
-                line-key="vivian.task2a.rhyme_prompt_intro"
-            />
+    <GuideLayout
+        :progress="50"
+        diagnostic-step="task-2a"
+        eyebrow="Task 2A"
+        divider-label="Rhyme decision"
+        :agent-message="vivianPrompt"
+        agent-line-key="vivian.task2a.rhyme_prompt_intro"
+        :primary-label="step.isLast.value ? 'Save answers' : 'Next'"
+        :primary-disabled="form.processing || !step.isCurrentAnswered.value"
+        @primary="handlePrimary"
+    >
+        <template v-if="canUseDeveloperJumpControls && !step.isFirst.value" #secondary-action>
+            <SecondaryButton @click="step.goBack">Developer QA: Back</SecondaryButton>
         </template>
 
-        <section class="mx-auto grid w-full max-w-2xl gap-5">
-            <div class="grid gap-3">
-                <div class="flex flex-wrap items-center justify-between gap-3 px-1">
-                    <p class="inline-flex items-center gap-2 text-[15px] font-black text-slate-700">
-                        <span class="grid size-8 place-items-center rounded-lg bg-primary text-sm font-black text-white">
-                            {{ step.currentIndex.value + 1 }}
-                        </span>
-                        Task 2A item {{ step.currentIndex.value + 1 }} of {{ items.length }}
-                    </p>
-                    <p class="inline-flex items-center gap-2 rounded-full bg-primary/5 px-3 py-1.5 text-[13px] font-black text-primary ring-1 ring-primary/10">
-                        <Volume2 class="size-4" />
-                        Vivian prompt
-                    </p>
-                </div>
-                <div class="h-3 overflow-hidden rounded-full bg-slate-100 shadow-inner">
-                    <div class="h-full rounded-full bg-primary transition-all duration-300" :style="{ width: `${step.progressPercent.value}%` }" />
-                </div>
+        <template #title>
+            Do they <span class="guide-title-accent">rhyme?</span>
+        </template>
+
+        <div class="guide-progress-card guide-anim" style="--guide-delay: 200ms">
+            <div class="guide-progress-meta">
+                <span class="guide-pill">Pair {{ step.currentIndex.value + 1 }} of {{ items.length }}</span>
+                <span class="guide-pill guide-pill--muted">Choose Yes or No</span>
+            </div>
+            <div class="guide-progress-track" aria-hidden="true">
+                <span class="guide-progress-fill" :style="{ width: `${step.progressPercent.value}%` }" />
+            </div>
+        </div>
+
+        <div class="guide-question-card guide-anim" style="--guide-delay: 285ms">
+            <div class="guide-question-header">
+                <span class="guide-question-icon"><Music2 class="size-6" /></span>
+                <p class="guide-question-text">Listen to the word pair, then choose your answer.</p>
             </div>
 
-            <div class="rounded-[28px] border border-slate-200/80 bg-white p-6 text-center shadow-xl shadow-slate-200/30">
-                <p class="text-[13px] font-black uppercase tracking-widest text-slate-400">Word pair</p>
-                <div class="mt-5 grid gap-3 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
-                    <span class="rounded-2xl bg-slate-50 px-5 py-5 text-4xl font-black text-slate-800 ring-1 ring-slate-200/70">
-                        {{ currentPayload.word_1 }}
-                    </span>
-                    <span class="text-2xl font-black text-slate-300">/</span>
-                    <span class="rounded-2xl bg-slate-50 px-5 py-5 text-4xl font-black text-slate-800 ring-1 ring-slate-200/70">
-                        {{ currentPayload.word_2 }}
-                    </span>
+            <div class="guide-word-pair">
+                <div class="guide-word-row">
+                    <span class="guide-word">{{ currentPayload.word_1 }}</span>
+                    <span class="guide-word-divider">/</span>
+                    <span class="guide-word">{{ currentPayload.word_2 }}</span>
                 </div>
-            </div>
 
-            <div class="grid gap-4 sm:grid-cols-2">
-                <button
-                    type="button"
-                    class="grid min-h-36 place-items-center rounded-[24px] border-2 bg-white p-6 text-3xl font-black shadow-lg transition"
-                    :class="currentAnswer === 'yes' ? 'border-emerald-500 text-emerald-700 ring-4 ring-emerald-100' : 'border-slate-200 text-slate-700 hover:border-emerald-300'"
-                    @click="selectAnswer('yes')"
-                >
-                    <span class="grid justify-items-center gap-3">
-                        <Check class="size-12 stroke-[3]" />
+                <div class="guide-rhyme-options">
+                    <button
+                        type="button"
+                        class="guide-rhyme-button guide-rhyme-button--yes"
+                        :class="{ 'guide-rhyme-button--selected': currentAnswer === 'yes' }"
+                        @click="selectAnswer('yes')"
+                    >
+                        <span class="guide-rhyme-icon"><Check class="size-6 stroke-[4]" /></span>
                         Yes
-                    </span>
-                </button>
-                <button
-                    type="button"
-                    class="grid min-h-36 place-items-center rounded-[24px] border-2 bg-white p-6 text-3xl font-black shadow-lg transition"
-                    :class="currentAnswer === 'no' ? 'border-rose-500 text-rose-700 ring-4 ring-rose-100' : 'border-slate-200 text-slate-700 hover:border-rose-300'"
-                    @click="selectAnswer('no')"
-                >
-                    <span class="grid justify-items-center gap-3">
-                        <X class="size-12 stroke-[3]" />
+                    </button>
+                    <button
+                        type="button"
+                        class="guide-rhyme-button guide-rhyme-button--no"
+                        :class="{ 'guide-rhyme-button--selected': currentAnswer === 'no' }"
+                        @click="selectAnswer('no')"
+                    >
+                        <span class="guide-rhyme-icon"><X class="size-6 stroke-[4]" /></span>
                         No
-                    </span>
-                </button>
+                    </button>
+                </div>
             </div>
 
-            <p v-if="firstFormError" class="rounded-2xl bg-rose-50 px-4 py-3 text-sm font-black text-rose-600 ring-1 ring-rose-200/60">{{ firstFormError }}</p>
-            <p v-if="step.feedback.value" class="rounded-2xl bg-amber-50 px-4 py-3 text-sm font-black text-amber-700 ring-1 ring-amber-200/60">{{ step.feedback.value }}</p>
-        </section>
-
-        <BottomActionBar>
-            <div class="flex w-full items-center justify-between gap-3">
-                <SecondaryButton v-if="canUseDeveloperJumpControls && !step.isFirst.value" @click="step.goBack">Developer QA: Back</SecondaryButton>
-                <span v-else />
-                <PrimaryButton :disabled="form.processing || !step.isCurrentAnswered.value" :class="{ 'opacity-70': !step.isCurrentAnswered.value }" @click="handlePrimary">
-                    {{ step.isLast.value ? 'Save answers' : 'Next' }}
-                </PrimaryButton>
-            </div>
-        </BottomActionBar>
-    </LearnerLayout>
+            <p v-if="firstFormError" class="guide-status guide-status--error mt-4">{{ firstFormError }}</p>
+            <p v-if="step.feedback.value" class="guide-status guide-status--warning mt-4">{{ step.feedback.value }}</p>
+        </div>
+    </GuideLayout>
 </template>

@@ -1,11 +1,7 @@
 <script setup>
-import { onBeforeUnmount, ref } from 'vue';
-import { Link } from '@inertiajs/vue3';
-import LearnerLayout from '../../../Layouts/LearnerLayout.vue';
-import AgentSpeakerPanel from '../../../Components/Learner/AgentSpeakerPanel.vue';
-import PrimaryButton from '../../../Components/PrimaryButton.vue';
-import BottomActionBar from '../../../Components/BottomActionBar.vue';
-import { PlayCircle, ArrowRight } from 'lucide-vue-next';
+import { computed, onBeforeUnmount, ref } from 'vue';
+import { ArrowRight, BookOpen, PlayCircle, Sparkles } from 'lucide-vue-next';
+import GuideLayout from '../../../Components/Learner/GuideLayout.vue';
 
 const props = defineProps({
     module: Object,
@@ -20,13 +16,22 @@ const props = defineProps({
 });
 
 const label = (value) => value.replaceAll('_', ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+const lessons = computed(() => props.lessonBoxes ?? []);
+const moduleTitle = computed(() => props.module?.title ?? 'Module Overview');
+const moduleDescription = computed(() => props.purpose ?? props.module?.description ?? 'Practice one reading skill at a time.');
+const resolvedActionHref = computed(() => props.resumeRoute ?? (
+    props.module?.key && props.firstActivityType
+        ? `/learner/modules/${props.module.key}/activity/${props.firstActivityType}`
+        : '/learner/dashboard'
+));
+const resolvedActionLabel = computed(() => props.actionLabel ?? 'Start Module');
+
 const activeLessonKey = ref(null);
-const guideMessage = ref(props.guideMessage ?? `Welcome to ${props.module.title}. I will guide your practice one activity at a time.`);
+const guideMessage = ref(props.guideMessage ?? `Welcome to ${moduleTitle.value}. I will guide your practice one activity at a time.`);
 const guideState = ref('speaking');
 const hoverTimer = ref(null);
 const transitionTimer = ref(null);
 const readyTimer = ref(null);
-const returning = ref(false);
 const hoverHistory = ref([]);
 const hoverPausedUntil = ref(0);
 const messageSequence = ref(0);
@@ -125,199 +130,146 @@ const explainLesson = (lesson) => {
     }, 250);
 };
 
-const returnToDashboard = () => {
-    if (returning.value) return;
-    returning.value = true;
-    stopAgentSpeech();
-    guideMessage.value = props.goodbyeMessage ?? 'See you next time. Keep practicing, keep using your clear voice, and remember that every step helps.';
-    guideState.value = 'happy';
-    window.setTimeout(() => {
-        window.location.href = '/learner/dashboard';
-    }, 1200);
-};
-
 onBeforeUnmount(() => {
     clearGuideTimers();
 });
 </script>
 
 <template>
-    <LearnerLayout :progress="76" backUrl="/learner/dashboard" backLabel="Back to Learner Dashboard">
-        <template #agent>
-            <AgentSpeakerPanel agent-type="coach_feedback" :state="guideState" :message="guideMessage" />
+    <GuideLayout
+        :progress="76"
+        back-url="/learner/dashboard"
+        back-label="Back to Learner Dashboard"
+        agent-type="coach_feedback"
+        :agent-state="guideState"
+        :agent-message="guideMessage"
+        eyebrow="Module Overview"
+        divider-label="Choose lesson"
+        :primary-label="resolvedActionLabel"
+        :primary-href="resolvedActionHref"
+    >
+        <template #primary-icon>
+            <ArrowRight class="size-5" />
         </template>
 
-        <section class="module-overview-shell mx-auto grid w-full gap-5 xl:gap-6">
-            <div class="module-overview-card relative overflow-hidden rounded-[36px] bg-gradient-to-br from-sky-400 to-blue-600 p-6 text-white shadow-xl shadow-blue-500/20 sm:p-8 xl:p-10">
-                <!-- Decorative blobs -->
-                <div class="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
-                <div class="pointer-events-none absolute -bottom-10 right-40 h-32 w-32 rounded-full bg-white/5 blur-2xl" />
+        <template #title>
+            {{ moduleTitle }}
+        </template>
 
-                <div class="relative z-10 min-w-0">
-                    <span class="inline-block rounded-full bg-white/20 px-4 py-2 text-xs font-black uppercase tracking-widest text-white ring-1 ring-white/30 backdrop-blur-md xl:text-sm">Module Overview</span>
-                    <h1 class="module-overview-title mt-4 font-black leading-tight">{{ module.title }}</h1>
-                    <p class="module-overview-purpose mt-3 font-bold leading-relaxed text-white/90">{{ purpose ?? module.description }}</p>
-                </div>
-                <p class="relative z-10 rounded-[24px] bg-white/15 px-6 py-5 text-sm font-black text-white ring-1 ring-white/30 backdrop-blur-md xl:text-base">
-                    Choose a lesson box. Miss Ciel will tell you what it means.
-                </p>
+        <section class="module-overview-shell">
+            <div class="guide-progress-card guide-anim module-overview-intro" style="--guide-delay: 200ms">
+                <span class="guide-pill">
+                    <BookOpen class="size-4" />
+                    Practice plan
+                </span>
+                <p class="module-overview-purpose">{{ moduleDescription }}</p>
+                <p class="module-overview-hint">Choose a lesson box. Miss Ciel will tell you what it means.</p>
             </div>
 
-            <div class="module-lesson-panel grid min-h-0 gap-4" :class="{ 'module-lesson-panel-many': lessonBoxes.length > 4 }">
+            <div class="module-lesson-panel" :class="{ 'module-lesson-panel-many': lessons.length > 4 }">
                 <button
-                    v-for="lesson in lessonBoxes"
+                    v-for="(lesson, index) in lessons"
                     :key="lesson.key"
                     type="button"
-                    class="module-lesson-card group relative flex flex-col overflow-hidden rounded-[28px] border-2 bg-white p-5 text-left shadow-lg shadow-slate-200/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-primary/20 xl:p-6"
-                    :class="activeLessonKey === lesson.key ? 'border-primary ring-4 ring-primary/10' : 'border-slate-200/80 hover:border-blue-400'"
+                    class="guide-trait guide-anim module-lesson-card"
+                    :class="{ 'module-lesson-card--active': activeLessonKey === lesson.key }"
+                    :style="`--guide-delay: ${285 + index * 45}ms`"
                     @mouseenter="explainLesson(lesson)"
                     @focus="explainLesson(lesson)"
                     @click="explainLesson(lesson)"
                 >
-                    <div class="flex items-start gap-4 xl:gap-5">
-                        <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-400 to-blue-500 text-white shadow-md shadow-blue-500/20 ring-1 ring-white/20 xl:h-14 xl:w-14">
-                            <PlayCircle class="size-6 xl:size-7" stroke-width="2.5" />
-                        </div>
-                        <div class="min-w-0">
-                            <p class="module-lesson-title font-black text-slate-800">{{ lesson.title ?? label(lesson.key) }}</p>
-                            <p class="module-lesson-description mt-2 font-semibold text-slate-500">{{ lesson.description }}</p>
-                        </div>
-                    </div>
+                    <span class="guide-trait-icon guide-trait-icon--teal">
+                        <PlayCircle class="size-5 stroke-[2.5]" />
+                    </span>
+                    <span class="guide-trait-body">
+                        <span class="guide-trait-label">{{ lesson.title ?? label(lesson.key) }}</span>
+                        <span class="guide-trait-desc">{{ lesson.description }}</span>
+                    </span>
+                    <span v-if="activeLessonKey === lesson.key" class="module-lesson-active-pill">
+                        <Sparkles class="size-3.5" />
+                        Ciel
+                    </span>
                 </button>
             </div>
         </section>
-
-        <BottomActionBar>
-            <div class="flex w-full flex-col-reverse items-center justify-end gap-4 sm:flex-row">
-                <Link v-if="resumeRoute || firstActivityType" :href="resumeRoute ?? `/learner/modules/${module.key}/activity/${firstActivityType}`" class="w-full sm:w-auto">
-                    <PrimaryButton class="group w-full gap-3 rounded-[22px] px-5 py-3.5 text-base shadow-xl shadow-primary/25 hover:-translate-y-0.5 hover:scale-[1.02] active:scale-[0.98] sm:w-auto sm:px-8 xl:text-lg">
-                        {{ actionLabel ?? 'Start Module' }}
-                        <ArrowRight class="size-5 stroke-[3] sm:size-6 transition-transform group-hover:translate-x-1" />
-                    </PrimaryButton>
-                </Link>
-            </div>
-        </BottomActionBar>
-    </LearnerLayout>
+    </GuideLayout>
 </template>
 
 <style scoped>
 .module-overview-shell {
-    max-width: min(100%, 74rem);
-}
-
-.module-overview-card {
-    container-type: inline-size;
-    display: flex;
-    flex-direction: column;
+    display: grid;
     gap: 1rem;
-    justify-content: space-between;
 }
 
-.module-overview-title {
-    font-size: clamp(2rem, 4.6vw, 4.25rem);
-    font-size: clamp(2rem, 6.6cqi, 4.25rem);
-    line-height: 0.98;
+.module-overview-intro {
+    align-items: start;
+    padding: clamp(1.1rem, 3vw, 1.55rem);
 }
 
 .module-overview-purpose {
-    font-size: clamp(1.1rem, 1.8vw, 1.6rem);
-    font-size: clamp(1.1rem, 2.1cqi, 1.6rem);
+    color: var(--rd-text-main);
+    font-size: clamp(1.05rem, 2.3vw, 1.45rem);
+    font-weight: 900;
+    line-height: 1.18;
 }
 
 .module-overview-hint {
-    font-size: clamp(0.95rem, 1.2vw, 1.3rem);
-    font-size: clamp(0.95rem, 1.4cqi, 1.3rem);
-    line-height: 1.45;
-}
-
-.module-lesson-card {
-    container-type: inline-size;
-    min-height: 9rem;
-}
-
-.module-lesson-title {
-    font-size: clamp(1.3rem, 2.25vw, 2.25rem);
-    font-size: clamp(1.3rem, 5.1cqi, 2.25rem);
-    line-height: 1.1;
-}
-
-.module-lesson-description {
-    font-size: clamp(0.98rem, 1.45vw, 1.45rem);
-    font-size: clamp(0.98rem, 3.1cqi, 1.45rem);
+    color: var(--rd-text-muted);
+    font-size: 0.86rem;
+    font-weight: 800;
     line-height: 1.35;
 }
 
-@media (min-width: 1024px) {
-    .module-overview-shell {
-        min-height: clamp(30rem, calc(100svh - 13rem), 48rem);
-        grid-template-rows: auto minmax(0, 1fr);
-    }
+.module-lesson-panel {
+    display: grid;
+    gap: 0.8rem;
+}
 
-    .module-overview-card {
-        align-items: center;
-        flex-direction: row;
-        gap: clamp(1.5rem, 3vw, 3rem);
-        min-height: clamp(11rem, 20svh, 15rem);
-    }
+.module-lesson-card {
+    position: relative;
+    width: 100%;
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+}
 
-    .module-overview-card > :first-child {
-        min-width: 0;
-        flex: 1 1 auto;
-    }
+.module-lesson-card:hover,
+.module-lesson-card:focus-visible,
+.module-lesson-card--active {
+    border-color: var(--rd-primary-orange);
+    outline: none;
+    transform: translateY(-1px);
+}
 
-    .module-overview-card > p {
-        flex: 0 1 clamp(18rem, 32%, 26rem);
-    }
+.module-lesson-card--active {
+    background: rgba(245, 133, 73, 0.06);
+}
 
+.module-lesson-active-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    align-self: flex-start;
+    border-radius: 999px;
+    background: rgba(245, 133, 73, 0.12);
+    padding: 0.32rem 0.55rem;
+    color: var(--rd-primary-orange);
+    font-size: 0.68rem;
+    font-weight: 900;
+    line-height: 1;
+}
+
+@media (min-width: 900px) {
     .module-lesson-panel {
-        height: 100%;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        grid-auto-rows: minmax(clamp(8rem, 16svh, 12rem), 1fr);
     }
 
     .module-lesson-panel-many {
         grid-template-columns: repeat(3, minmax(0, 1fr));
-        grid-auto-rows: minmax(clamp(7rem, 13svh, 9.5rem), 1fr);
     }
 
     .module-lesson-card {
-        min-height: 0;
-    }
-}
-
-@media (min-width: 1536px) {
-    .module-overview-shell {
-        max-width: min(100%, 86rem);
-        min-height: clamp(34rem, calc(100svh - 13rem), 56rem);
-    }
-
-    .module-lesson-panel {
-        grid-auto-rows: minmax(clamp(9rem, 17svh, 13rem), 1fr);
-    }
-
-    .module-lesson-panel-many {
-        grid-auto-rows: minmax(clamp(7.5rem, 13svh, 10.5rem), 1fr);
-    }
-}
-
-@media (min-width: 1024px) and (max-height: 780px) {
-    .module-overview-shell {
-        min-height: calc(100svh - 10.5rem);
-    }
-
-    .module-lesson-panel {
-        grid-auto-rows: minmax(7.25rem, 1fr);
-    }
-
-    .module-lesson-title {
-        font-size: clamp(1.1rem, 1.9vw, 1.55rem);
-        font-size: clamp(1.1rem, 4.25cqi, 1.55rem);
-    }
-
-    .module-lesson-description {
-        font-size: clamp(0.86rem, 1.25vw, 1.1rem);
-        font-size: clamp(0.86rem, 2.65cqi, 1.1rem);
-        line-height: 1.28;
+        align-items: flex-start;
     }
 }
 </style>

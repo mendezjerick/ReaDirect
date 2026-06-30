@@ -1,21 +1,36 @@
 <script setup>
 import { computed } from 'vue';
 import { Link } from '@inertiajs/vue3';
-import { ArrowRight, BarChart3, BookOpen, CheckCircle2, Target, Type } from 'lucide-vue-next';
+import { ArrowRight, BarChart3, BookOpen, CheckCircle2, Route, Star, Target, Type } from 'lucide-vue-next';
 import LearnerSimplePageShell from '../../Components/Learner/LearnerSimplePageShell.vue';
 
 const props = defineProps({
     learner: { type: Object, default: null },
     latestAttempt: { type: Object, default: null },
     flowState: { type: Object, default: null },
+    rewards: { type: Object, default: () => ({ stars: 0 }) },
 });
 
 const score = (value) => Number(value ?? 0);
 const readingAccuracy = computed(() => {
     const value = props.latestAttempt?.reading_accuracy;
+
     if (value == null) return 0;
+
     const number = Number(value);
+
     return Math.round(number <= 1 ? number * 100 : number);
+});
+const totalStars = computed(() => Number(props.rewards?.stars ?? 0));
+const diagnosticDone = computed(() => props.flowState?.diagnostic?.is_completed === true);
+const overallScore = computed(() => {
+    if (!diagnosticDone.value) return 0;
+
+    return Math.round((
+        score(props.latestAttempt?.task_1_score)
+        + score(props.latestAttempt?.task_2b_score ?? props.latestAttempt?.task_2a_score)
+        + Math.round(readingAccuracy.value / 10)
+    ) / 30 * 100);
 });
 
 const progressItems = computed(() => [
@@ -33,51 +48,58 @@ const progressItems = computed(() => [
         subtitle="Your latest reading check details"
         active="progress"
     >
-        <section class="grid gap-6 lg:grid-cols-[1fr_22rem] lg:items-start">
-            <!-- Main Progress Area -->
-            <div class="anim-fade-down rounded-[36px] border border-slate-200/60 bg-white/80 p-6 shadow-xl shadow-slate-200/40 backdrop-blur-md lg:p-8">
-                <div class="flex flex-wrap items-center justify-between gap-4">
-                    <div>
-                        <p class="text-[13px] font-black uppercase tracking-widest text-primary">Latest Progress</p>
-                        <h2 class="mt-1 text-2xl font-black text-slate-800 lg:text-3xl">Reading skills overview</h2>
-                    </div>
+        <section class="progress-layout">
+            <div class="progress-main learner-hub-panel">
+                <div class="progress-summary learner-hub-face">
+                    <span class="learner-hub-badge">
+                        <CheckCircle2 class="size-4" stroke-width="2.8" />
+                        Latest progress
+                    </span>
+                    <h2 class="progress-summary-title">{{ overallScore }}%</h2>
+                    <p class="learner-hub-section-copy">
+                        {{ diagnosticDone ? 'This is your combined diagnostic progress from the latest completed reading check.' : 'Complete the diagnostic to fill in this progress overview.' }}
+                    </p>
                 </div>
 
-                <div class="anim-stagger mt-8 grid gap-4 sm:grid-cols-2">
+                <div class="progress-card-grid">
                     <article
                         v-for="item in progressItems"
                         :key="item.label"
-                        class="relative flex flex-col rounded-[28px] bg-gradient-to-br from-blue-50 to-indigo-50/50 p-5 ring-1 ring-blue-100 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-blue-500/10"
+                        class="progress-card learner-hub-card"
                     >
-                        <div class="flex items-start justify-between gap-3">
-                            <div>
-                                <p class="text-[14px] font-black text-slate-500">{{ item.label }}</p>
-                                <p class="mt-2 text-4xl font-black text-blue-600">{{ item.value }}</p>
-                            </div>
-                            <span class="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-white text-blue-500 shadow-md shadow-blue-500/10">
-                                <component :is="item.icon" class="size-7" />
-                            </span>
-                        </div>
-                        <p class="mt-4 text-[14px] font-bold text-slate-600">{{ item.detail }}</p>
+                        <span class="progress-card-icon">
+                            <component :is="item.icon" class="size-5" stroke-width="2.8" />
+                        </span>
+                        <span class="progress-card-body">
+                            <span class="progress-card-label">{{ item.label }}</span>
+                            <span class="progress-card-value">{{ item.value }}</span>
+                            <span class="progress-card-detail">{{ item.detail }}</span>
+                        </span>
                     </article>
                 </div>
             </div>
 
-            <!-- Current Step Aside -->
-            <aside class="anim-slide-up rounded-[36px] border border-emerald-100 bg-gradient-to-br from-emerald-50 to-teal-50/50 p-6 shadow-xl shadow-emerald-500/10 lg:p-8">
-                <span class="flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-500 text-white shadow-lg shadow-emerald-500/30">
-                    <CheckCircle2 class="size-8" />
+            <aside class="progress-side learner-hub-panel">
+                <span class="learner-hub-badge">
+                    <Route class="size-4" stroke-width="2.8" />
+                    Current step
                 </span>
-                <h2 class="mt-5 text-2xl font-black text-slate-800">Current step</h2>
-                <p class="mt-2 text-[15px] font-bold leading-relaxed text-slate-600">
+                <h2 class="progress-side-title">{{ flowState?.primary_action_label ?? 'Continue' }}</h2>
+                <p class="learner-hub-section-copy">
                     {{ flowState?.message ?? 'Continue your reading path from the dashboard.' }}
                 </p>
+
+                <div class="progress-star-row learner-hub-face">
+                    <Star class="size-5 fill-current" stroke-width="2.8" />
+                    <span>{{ totalStars }} stars earned</span>
+                </div>
+
                 <Link
                     :href="flowState?.primary_action_route ?? '/learner/dashboard'"
-                    class="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-[20px] bg-gradient-to-br from-primary to-blue-600 px-5 py-4 text-lg font-black text-white shadow-lg shadow-primary/20 ring-1 ring-white/20 transition-all duration-200 hover:-translate-y-0.5 hover:scale-[1.02] hover:shadow-xl active:scale-[0.98]"
+                    class="learner-hub-primary-link progress-action"
                 >
                     {{ flowState?.primary_action_label ?? 'Continue' }}
-                    <ArrowRight class="size-5" />
+                    <ArrowRight class="size-5" stroke-width="3" />
                 </Link>
             </aside>
         </section>
@@ -85,31 +107,118 @@ const progressItems = computed(() => [
 </template>
 
 <style scoped>
-.anim-fade-down {
-    animation: fadeDown 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-@keyframes fadeDown {
-    from { opacity: 0; transform: translateY(-12px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.anim-slide-up {
-    animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    animation-delay: 0.1s;
-    opacity: 0;
-}
-@keyframes slideUp {
-    from { opacity: 0; transform: translateY(24px); }
-    to { opacity: 1; transform: translateY(0); }
+.progress-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 23rem);
+    gap: 1.1rem;
+    align-items: start;
 }
 
-.anim-stagger > * {
-    opacity: 0;
-    animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+.progress-main {
+    display: grid;
+    gap: 1rem;
 }
-.anim-stagger > *:nth-child(1) { animation-delay: 100ms; }
-.anim-stagger > *:nth-child(2) { animation-delay: 200ms; }
-.anim-stagger > *:nth-child(3) { animation-delay: 300ms; }
-.anim-stagger > *:nth-child(4) { animation-delay: 400ms; }
+
+.progress-summary {
+    display: grid;
+    gap: 0.65rem;
+    padding: 1.1rem;
+}
+
+.progress-summary-title {
+    color: var(--rd-primary-orange);
+    font-size: clamp(3rem, 8vw, 5rem);
+    font-weight: 900;
+    line-height: 0.9;
+}
+
+.progress-card-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.85rem;
+}
+
+.progress-card {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 0.85rem;
+}
+
+.progress-card-icon {
+    display: grid;
+    width: 2.75rem;
+    height: 2.75rem;
+    flex-shrink: 0;
+    place-items: center;
+    border: 1.5px solid rgba(245, 133, 73, 0.25);
+    border-radius: 0.85rem;
+    background: rgba(245, 133, 73, 0.1);
+    color: var(--rd-primary-orange);
+}
+
+.progress-card-body {
+    display: grid;
+    min-width: 0;
+    gap: 0.08rem;
+}
+
+.progress-card-label {
+    color: var(--rd-text-muted);
+    font-size: 0.7rem;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.progress-card-value {
+    color: var(--rd-text-main);
+    font-size: 1.5rem;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.progress-card-detail {
+    color: var(--rd-text-muted);
+    font-size: 0.78rem;
+    font-weight: 800;
+}
+
+.progress-side {
+    display: grid;
+    gap: 0.9rem;
+}
+
+.progress-side-title {
+    color: var(--rd-text-main);
+    font-size: clamp(1.35rem, 3vw, 1.85rem);
+    font-weight: 900;
+    line-height: 1.1;
+}
+
+.progress-star-row {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.8rem;
+    color: #b45309;
+    font-size: 0.92rem;
+    font-weight: 900;
+}
+
+.progress-action {
+    width: 100%;
+}
+
+@media (max-width: 960px) {
+    .progress-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .progress-card-grid {
+        grid-template-columns: 1fr;
+    }
+}
 </style>
-

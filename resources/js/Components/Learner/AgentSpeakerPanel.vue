@@ -21,6 +21,7 @@ const props = defineProps({
     lineKey: { type: String, default: '' },
     presentation: { type: String, default: 'default' },
     allowCongrats: { type: Boolean, default: false },
+    framedMedia: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['interaction-ended', 'speaking-start', 'speaking-end']);
@@ -271,7 +272,7 @@ watch(
         <div class="pointer-events-none absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-accent/10 blur-3xl" />
         
         <div class="relative grid justify-items-center">
-            <div class="agent-media-box">
+            <div class="agent-media-box" :class="{ 'agent-media-box--framed': framedMedia }">
                 <AgentVideoPlayer
                     :agent="agentType"
                     :action="mediaState"
@@ -662,7 +663,7 @@ watch(
                         {{ ttsError }}
                     </p>
                 </div>
-                <div class="flex shrink-0 items-center gap-2">
+                <div class="assessment-agent-dialogue-actions flex shrink-0 items-center gap-2">
                     <button
                         v-if="ttsEnabled || showAudioButton"
                         type="button"
@@ -839,6 +840,36 @@ watch(
     height: 100%;
 }
 
+.agent-media-box--framed {
+    width: min(100%, 14.5rem);
+    height: 14.5rem;
+    overflow: hidden;
+    border: 2px solid var(--rd-frame-border);
+    border-radius: 24px;
+    background: var(--rd-story-surface);
+    padding: 8px 8px 11px;
+    box-shadow: 0 6px 0 var(--rd-lip), 0 8px 0 var(--rd-lip-dark), 0 22px 30px -12px var(--rd-shadow);
+}
+
+.agent-media-box--framed .agent-media-content {
+    overflow: hidden;
+    border: 1.5px solid var(--rd-face-border);
+    border-radius: 16px;
+    background: var(--rd-face-surface);
+    box-shadow: inset 0 2px 0 var(--rd-highlight), inset 0 -6px 10px var(--rd-inner-shade);
+}
+
+.agent-media-box--framed :deep(.agent-media-player),
+.agent-media-box--framed :deep(.agent-media-layer) {
+    width: 100%;
+    height: 100%;
+}
+
+.agent-media-box--framed :deep(.agent-media-layer) {
+    object-fit: cover;
+    object-position: center bottom;
+}
+
 .assessment-agent-strip {
     display: grid;
     grid-template-columns: var(--assessment-agent-row, clamp(7.5rem, 17dvh, 11.25rem)) minmax(0, 1fr);
@@ -997,6 +1028,252 @@ watch(
 .assessment-agent-square :deep(.agent-media-layer) {
     object-fit: cover;
     object-position: center bottom;
+}
+
+@media (max-width: 600px) and (orientation: portrait) {
+    .assessment-agent-strip {
+        --mobile-agent-strip-height: clamp(118px, 32vw, 132px);
+        --mobile-agent-square-size: calc(var(--mobile-agent-strip-height) - 21px);
+
+        position: relative;
+        box-sizing: border-box;
+        grid-template-columns: var(--mobile-agent-square-size) minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1fr);
+        gap: 0;
+        width: 100%;
+        min-height: var(--mobile-agent-strip-height);
+        height: var(--mobile-agent-strip-height);
+        overflow: hidden;
+        border: 2px solid var(--rd-frame-border);
+        border-radius: var(--rd-radius-frame);
+        background: var(--rd-story-surface);
+        padding: 7px 9px 10px;
+        box-shadow: 0 6px 0 var(--rd-lip), 0 8px 0 var(--rd-lip-dark), 0 22px 30px -12px var(--rd-shadow);
+    }
+
+    .assessment-agent-strip::after {
+        content: none;
+    }
+
+    .assessment-agent-card {
+        width: 100%;
+        height: 100%;
+        aspect-ratio: auto;
+        overflow: hidden;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        padding: 0;
+        box-shadow: none;
+    }
+
+    .assessment-agent-card-face,
+    .assessment-agent-square {
+        width: 100%;
+        height: 100%;
+        min-height: 0;
+    }
+
+    .assessment-agent-card-face {
+        border: 0;
+        border-radius: var(--rd-radius-face) 0 0 var(--rd-radius-face);
+        background: var(--rd-face-surface);
+        box-shadow: none;
+    }
+
+    .assessment-agent-square {
+        place-items: end center;
+        border-radius: inherit;
+    }
+
+    .assessment-agent-square :deep(.agent-media-player) {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+    }
+
+    .assessment-agent-square :deep(.agent-media-layer) {
+        object-fit: contain;
+        object-position: center bottom;
+    }
+
+    .assessment-agent-dialogue {
+        width: 100%;
+        height: 100%;
+        min-height: 0;
+        overflow: hidden;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        padding: 0;
+        box-shadow: none;
+    }
+
+    .assessment-agent-dialogue::before {
+        content: none;
+    }
+
+    .assessment-agent-dialogue-face {
+        position: relative;
+        height: 100%;
+        min-height: 0;
+        align-items: center;
+        gap: 0.45rem;
+        overflow: hidden;
+        border: 0;
+        border-radius: 0 var(--rd-radius-face) var(--rd-radius-face) 0;
+        background: var(--rd-face-surface);
+        padding: clamp(0.48rem, 2.6vw, 0.72rem) clamp(0.6rem, 3.2vw, 1rem);
+        box-shadow: none;
+    }
+
+    .assessment-agent-dialogue-copy {
+        align-content: center;
+        gap: 0.14rem;
+        padding-right: 0;
+    }
+
+    .assessment-agent-dialogue-name,
+    .assessment-agent-dialogue-text {
+        white-space: normal;
+    }
+
+    .assessment-agent-dialogue-name {
+        font-size: clamp(0.78rem, 3.2vw, 0.92rem);
+        line-height: 1.05;
+    }
+
+    .assessment-agent-dialogue-text {
+        overflow: visible;
+        font-size: clamp(0.66rem, 2.8vw, 0.78rem);
+        line-height: 1.08;
+    }
+
+    .assessment-agent-dialogue-actions {
+        display: none;
+    }
+}
+
+:global(body[data-qa-viewport='mobile-vertical'] .assessment-agent-strip) {
+    --mobile-agent-strip-height: 124px;
+    --mobile-agent-square-size: calc(var(--mobile-agent-strip-height) - 21px);
+
+    position: relative;
+    box-sizing: border-box;
+    grid-template-columns: var(--mobile-agent-square-size) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    gap: 0;
+    width: 100%;
+    min-height: var(--mobile-agent-strip-height);
+    height: var(--mobile-agent-strip-height);
+    overflow: hidden;
+    border: 2px solid var(--rd-frame-border);
+    border-radius: var(--rd-radius-frame);
+    background: var(--rd-story-surface);
+    padding: 7px 9px 10px;
+    box-shadow: 0 6px 0 var(--rd-lip), 0 8px 0 var(--rd-lip-dark), 0 22px 30px -12px var(--rd-shadow);
+}
+
+:global(body[data-qa-viewport='mobile-vertical'] .assessment-agent-strip::after) {
+    content: none;
+}
+
+:global(body[data-qa-viewport='mobile-vertical'] .assessment-agent-card) {
+    width: 100%;
+    height: 100%;
+    aspect-ratio: auto;
+    overflow: hidden;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    padding: 0;
+    box-shadow: none;
+}
+
+:global(body[data-qa-viewport='mobile-vertical'] .assessment-agent-card-face),
+:global(body[data-qa-viewport='mobile-vertical'] .assessment-agent-square) {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+}
+
+:global(body[data-qa-viewport='mobile-vertical'] .assessment-agent-card-face) {
+    border: 0;
+    border-radius: var(--rd-radius-face) 0 0 var(--rd-radius-face);
+    background: var(--rd-face-surface);
+    box-shadow: none;
+}
+
+:global(body[data-qa-viewport='mobile-vertical'] .assessment-agent-square) {
+    place-items: end center;
+    border-radius: inherit;
+}
+
+:global(body[data-qa-viewport='mobile-vertical'] .assessment-agent-square .agent-media-player) {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+:global(body[data-qa-viewport='mobile-vertical'] .assessment-agent-square .agent-media-layer) {
+    object-fit: contain;
+    object-position: center bottom;
+}
+
+:global(body[data-qa-viewport='mobile-vertical'] .assessment-agent-dialogue) {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    padding: 0;
+    box-shadow: none;
+}
+
+:global(body[data-qa-viewport='mobile-vertical'] .assessment-agent-dialogue::before) {
+    content: none;
+}
+
+:global(body[data-qa-viewport='mobile-vertical'] .assessment-agent-dialogue-face) {
+    position: relative;
+    height: 100%;
+    min-height: 0;
+    align-items: center;
+    gap: 0.45rem;
+    overflow: hidden;
+    border: 0;
+    border-radius: 0 var(--rd-radius-face) var(--rd-radius-face) 0;
+    background: var(--rd-face-surface);
+    padding: 0.56rem 0.75rem;
+    box-shadow: none;
+}
+
+:global(body[data-qa-viewport='mobile-vertical'] .assessment-agent-dialogue-copy) {
+    align-content: center;
+    gap: 0.14rem;
+    padding-right: 0;
+}
+
+:global(body[data-qa-viewport='mobile-vertical'] .assessment-agent-dialogue-name),
+:global(body[data-qa-viewport='mobile-vertical'] .assessment-agent-dialogue-text) {
+    white-space: normal;
+}
+
+:global(body[data-qa-viewport='mobile-vertical'] .assessment-agent-dialogue-name) {
+    font-size: 0.86rem;
+    line-height: 1.05;
+}
+
+:global(body[data-qa-viewport='mobile-vertical'] .assessment-agent-dialogue-text) {
+    overflow: visible;
+    font-size: 0.72rem;
+    line-height: 1.08;
+}
+
+:global(body[data-qa-viewport='mobile-vertical'] .assessment-agent-dialogue-actions) {
+    display: none;
 }
 
 @media (max-width: 767px) {

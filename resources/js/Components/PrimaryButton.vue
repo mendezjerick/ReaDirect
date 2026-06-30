@@ -1,5 +1,9 @@
 <script setup>
-defineProps({ type: { type: String, default: 'button' }, disabled: Boolean });
+defineProps({
+    type: { type: String, default: 'button' },
+    disabled: Boolean,
+    orangeHover: Boolean,
+});
 </script>
 
 <template>
@@ -7,6 +11,7 @@ defineProps({ type: { type: String, default: 'button' }, disabled: Boolean });
         :type="type"
         :disabled="disabled"
         class="rd-primary-button group inline-flex min-h-[56px] items-center justify-center gap-2 px-7 text-[17px] transition-all duration-150 ease-out disabled:cursor-not-allowed"
+        :class="{ 'rd-primary-button--orange-hover': orangeHover }"
     >
         <slot />
     </button>
@@ -34,6 +39,10 @@ defineProps({ type: { type: String, default: 'button' }, disabled: Boolean });
 
 .rd-primary-button:hover:not(:disabled) {
     background: linear-gradient(180deg, #1A7890 0%, #115A6C 100%);
+}
+
+.rd-primary-button--orange-hover:hover:not(:disabled) {
+    background: linear-gradient(180deg, var(--rd-action-button-light) 0%, var(--rd-action-button) 100%);
 }
 
 .rd-primary-button:active:not(:disabled) {

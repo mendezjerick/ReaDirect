@@ -96,12 +96,19 @@ class AdminTestingService
     {
         $targets = [
             ['group' => 'Learner', 'label' => 'Learner dashboard', 'target' => 'learner-dashboard'],
+            ['group' => 'Learner', 'label' => 'Progress', 'target' => 'learner-progress'],
+            ['group' => 'Learner', 'label' => 'Rewards', 'target' => 'learner-rewards'],
+            ['group' => 'Learner', 'label' => 'Help', 'target' => 'learner-help'],
+            ['group' => 'Learner', 'label' => 'Completion', 'target' => 'learner-completion'],
             ['group' => 'Diagnostic', 'label' => 'Diagnostic start', 'target' => 'diagnostic-start'],
             ['group' => 'Diagnostic', 'label' => 'Task 1', 'target' => 'diagnostic-task-1'],
+            ['group' => 'Diagnostic', 'label' => 'Task 1 routing result', 'target' => 'diagnostic-task-routing'],
             ['group' => 'Diagnostic', 'label' => 'Task 2A', 'target' => 'diagnostic-task-2a'],
+            ['group' => 'Diagnostic', 'label' => 'Task 2A summary', 'target' => 'diagnostic-task-2a-summary'],
             ['group' => 'Diagnostic', 'label' => 'Task 2B', 'target' => 'diagnostic-task-2b'],
             ['group' => 'Diagnostic', 'label' => 'CRLA summary', 'target' => 'diagnostic-crla-summary'],
             ['group' => 'Diagnostic', 'label' => 'Reading intro', 'target' => 'diagnostic-reading-intro'],
+            ['group' => 'Diagnostic', 'label' => 'Story selection', 'target' => 'diagnostic-story-selection'],
             ['group' => 'Diagnostic', 'label' => 'Passage reading', 'target' => 'diagnostic-passage'],
             ['group' => 'Diagnostic', 'label' => 'Comprehension questions', 'target' => 'diagnostic-comprehension'],
             ['group' => 'Diagnostic', 'label' => 'Reading summary', 'target' => 'diagnostic-reading-summary'],
@@ -110,9 +117,11 @@ class AdminTestingService
             ['group' => 'Final reassessment', 'label' => 'Task 1', 'target' => 'final-task-1'],
             ['group' => 'Final reassessment', 'label' => 'Task 2A', 'target' => 'final-task-2a'],
             ['group' => 'Final reassessment', 'label' => 'Task 2B', 'target' => 'final-task-2b'],
+            ['group' => 'Final reassessment', 'label' => 'Story selection', 'target' => 'final-story-selection'],
             ['group' => 'Final reassessment', 'label' => 'Passage', 'target' => 'final-passage'],
             ['group' => 'Final reassessment', 'label' => 'Comprehension', 'target' => 'final-comprehension'],
             ['group' => 'Final reassessment', 'label' => 'Summary', 'target' => 'final-summary'],
+            ['group' => 'Modules', 'label' => 'Module list', 'target' => 'learner-modules'],
         ];
 
         foreach (Module::orderBy('sequence')->get() as $module) {
