@@ -69,6 +69,10 @@ class ModuleExperienceService
     {
         $fallback = str($activityType)->replace('_', ' ')->title()->toString();
 
+        if (($title = $this->moduleActivityTitle($moduleKey, $activityType)) !== null) {
+            return $title;
+        }
+
         return match (true) {
             $activityType === 'hear_and_repeat' => 'Hear and Repeat',
             $activityType === 'listen_and_say' => 'Listen and Say',
@@ -84,13 +88,16 @@ class ModuleExperienceService
             $activityType === 'read_with_coach' => 'Read with Miss Ciel',
             $activityType === 'timed_sentence_reading' => 'Smooth Sentence Reading',
             $activityType === 'pause_practice' => 'Pause Practice',
-            $activityType === 'fluency_challenge' => 'Fluency Practice',
             default => $fallback,
         };
     }
 
     private function activityDescription(string $moduleKey, string $activityType): string
     {
+        if (($description = $this->moduleActivityDescription($moduleKey, $activityType)) !== null) {
+            return $description;
+        }
+
         return match ($activityType) {
             'hear_and_repeat' => 'Listen to a sound, then say it back clearly.',
             'listen_and_say' => 'Listen carefully, then say the sound in your own voice.',
@@ -106,13 +113,16 @@ class ModuleExperienceService
             'read_with_coach' => 'Practice a sentence with gentle help from Miss Ciel.',
             'timed_sentence_reading' => 'Read at a steady pace without rushing.',
             'pause_practice' => 'Practice stopping at the right places in a sentence.',
-            'fluency_challenge' => 'Read smoothly so the sentence sounds natural.',
             default => 'Practice this reading step.',
         };
     }
 
     private function activityExplanation(string $moduleKey, string $activityType): string
     {
+        if (($explanation = $this->moduleActivityExplanation($moduleKey, $activityType)) !== null) {
+            return $explanation;
+        }
+
         return match ($activityType) {
             'hear_and_repeat' => 'This lesson helps your ears and voice work together. Listen first, then copy the sound clearly.',
             'listen_and_say' => 'This lesson helps you listen closely and say the sound clearly after you hear it.',
@@ -128,8 +138,142 @@ class ModuleExperienceService
             'read_with_coach' => 'This lesson lets me guide you while you practice reading a sentence clearly.',
             'timed_sentence_reading' => 'This lesson helps you read smoothly at a steady pace, not too fast and not too slow.',
             'pause_practice' => 'This lesson helps you pause in the right places so the sentence makes sense.',
-            'fluency_challenge' => 'This lesson helps your reading sound smooth and natural, like telling a story.',
             default => 'This part helps you practice reading in a clear way.',
+        };
+    }
+
+    private function moduleActivityTitle(string $moduleKey, string $activityType): ?string
+    {
+        return match ($moduleKey) {
+            'module_1' => $this->moduleOneActivityTitle($activityType),
+            'module_2' => $this->moduleTwoActivityTitle($activityType),
+            'module_3' => $this->moduleThreeActivityTitle($activityType),
+            default => null,
+        };
+    }
+
+    private function moduleActivityDescription(string $moduleKey, string $activityType): ?string
+    {
+        return match ($moduleKey) {
+            'module_1' => $this->moduleOneActivityDescription($activityType),
+            'module_2' => $this->moduleTwoActivityDescription($activityType),
+            'module_3' => $this->moduleThreeActivityDescription($activityType),
+            default => null,
+        };
+    }
+
+    private function moduleActivityExplanation(string $moduleKey, string $activityType): ?string
+    {
+        return match ($moduleKey) {
+            'module_1' => $this->moduleOneActivityExplanation($activityType),
+            'module_2' => $this->moduleTwoActivityExplanation($activityType),
+            'module_3' => $this->moduleThreeActivityExplanation($activityType),
+            default => null,
+        };
+    }
+
+    private function moduleOneActivityTitle(string $activityType): ?string
+    {
+        return match ($activityType) {
+            'hear_and_repeat' => 'Letter Sound Warm-Up',
+            'listen_and_say' => 'Say the Letter Sound',
+            'letter_sounds' => 'Build Letter Sounds',
+            'see_letter_say_sound' => 'Look and Say',
+            'match_sound_to_letter' => 'Letter Sound Check',
+            'sound_drill' => 'Quick Sound Practice',
+            default => null,
+        };
+    }
+
+    private function moduleOneActivityDescription(string $activityType): ?string
+    {
+        return match ($activityType) {
+            'hear_and_repeat' => 'Start with clear letter-sound practice.',
+            'listen_and_say' => 'Look at the letter and say its sound clearly.',
+            'letter_sounds' => 'Practice the basic sound each letter can make.',
+            'see_letter_say_sound' => 'Look at the letter, then say its sound.',
+            'match_sound_to_letter' => 'Check the sound that belongs with the letter.',
+            'sound_drill' => 'Repeat letter sounds for faster recall.',
+            default => null,
+        };
+    }
+
+    private function moduleOneActivityExplanation(string $activityType): ?string
+    {
+        return match ($activityType) {
+            'hear_and_repeat' => 'This box warms up letter sounds. You look at each letter and say the sound clearly.',
+            'listen_and_say' => 'This box is for saying the letter sound yourself. Look carefully, then use your clear voice.',
+            'letter_sounds' => 'This box is for building the basic letter sounds before we use them in words.',
+            'see_letter_say_sound' => 'This box is for matching your eyes and voice. Look at the letter, then say the sound it makes.',
+            'match_sound_to_letter' => 'This box checks letter-sound recognition. Look at the letter and say the sound that matches it.',
+            'sound_drill' => 'This box is for quick practice. You repeat letter sounds so the sound comes to mind faster.',
+            default => null,
+        };
+    }
+
+    private function moduleTwoActivityTitle(string $activityType): ?string
+    {
+        return match ($activityType) {
+            'read_word' => 'Read One Word',
+            'word_family_drill' => 'Word Family Practice',
+            'minimal_pair' => 'Similar Word Practice',
+            'word_accuracy_challenge' => 'Word Accuracy Check',
+            default => null,
+        };
+    }
+
+    private function moduleTwoActivityDescription(string $activityType): ?string
+    {
+        return match ($activityType) {
+            'read_word' => 'Read short words clearly, one at a time.',
+            'word_family_drill' => 'Read words that share the same ending pattern.',
+            'minimal_pair' => 'Read similar-looking words with careful sounds.',
+            'word_accuracy_challenge' => 'Read each word clearly and check every sound.',
+            default => null,
+        };
+    }
+
+    private function moduleTwoActivityExplanation(string $activityType): ?string
+    {
+        return match ($activityType) {
+            'read_word' => 'This box is for reading one short word at a time. Look at the word, then say the whole word clearly.',
+            'word_family_drill' => 'This box groups words with the same ending sound. Notice the pattern, then read each word clearly.',
+            'minimal_pair' => 'This box uses words that look or sound close to each other. Read carefully so every sound is clear.',
+            'word_accuracy_challenge' => 'This box checks careful word reading. Slow down, look at each letter sound, then read the word.',
+            default => null,
+        };
+    }
+
+    private function moduleThreeActivityTitle(string $activityType): ?string
+    {
+        return match ($activityType) {
+            'read_sentence' => 'Read One Sentence',
+            'read_with_coach' => 'Guided Sentence Practice',
+            'timed_sentence_reading' => 'Steady Sentence Reading',
+            'pause_practice' => 'Pause and Pace Practice',
+            default => null,
+        };
+    }
+
+    private function moduleThreeActivityDescription(string $activityType): ?string
+    {
+        return match ($activityType) {
+            'read_sentence' => 'Read the whole sentence clearly from start to finish.',
+            'read_with_coach' => 'Read a sentence, then Miss Ciel can guide your next try.',
+            'timed_sentence_reading' => 'Read at a steady pace without rushing.',
+            'pause_practice' => 'Read with small pauses so the sentence makes sense.',
+            default => null,
+        };
+    }
+
+    private function moduleThreeActivityExplanation(string $activityType): ?string
+    {
+        return match ($activityType) {
+            'read_sentence' => 'This box is for reading a full sentence. Keep the words in order and say each word clearly.',
+            'read_with_coach' => 'This box gives you sentence practice with Miss Ciel nearby. Read the sentence clearly, and she will help after you try.',
+            'timed_sentence_reading' => 'This box checks steady sentence reading. Read clearly at a calm pace, not too fast and not too slow.',
+            'pause_practice' => 'This box is for pacing. Read the sentence with small pauses where they help the meaning.',
+            default => null,
         };
     }
 }

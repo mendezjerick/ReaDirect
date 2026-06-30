@@ -37,9 +37,17 @@ class ContentBankImportTest extends TestCase
         });
 
         $moduleActivities = $this->activeContent('module_activity');
-        $this->assertCount(50, $moduleActivities->where('payload.module_key', 'module_1'));
-        $this->assertCount(50, $moduleActivities->where('payload.module_key', 'module_2'));
-        $this->assertCount(60, $moduleActivities->where('payload.module_key', 'module_3'));
+        $this->assertCount(110, $moduleActivities->where('payload.module_key', 'module_1'));
+        $this->assertCount(164, $moduleActivities->where('payload.module_key', 'module_2'));
+        $this->assertCount(206, $moduleActivities->where('payload.module_key', 'module_3'));
+
+        $practiceRules = $this->activeContent('module_activity_selection_rule')
+            ->filter(fn (LearningContent $content): bool => (int) ($content->payload['practice_item_count'] ?? 0) > 0)
+            ->groupBy(fn (LearningContent $content): string => $content->payload['module_key'] ?? '');
+
+        $this->assertSame(['hear_and_repeat', 'see_letter_say_sound', 'match_sound_to_letter', 'sound_drill'], $this->activityTypesFor($practiceRules, 'module_1'));
+        $this->assertSame(['read_word', 'word_family_drill', 'minimal_pair', 'word_accuracy_challenge'], $this->activityTypesFor($practiceRules, 'module_2'));
+        $this->assertSame(['read_sentence', 'read_with_coach', 'timed_sentence_reading', 'pause_practice'], $this->activityTypesFor($practiceRules, 'module_3'));
 
         $this->activeContent('module_activity_selection_rule')
             ->each(fn (LearningContent $content) => $this->assertNotEmpty($content->payload['source_csv_id'] ?? null));
@@ -71,5 +79,14 @@ class ContentBankImportTest extends TestCase
             ->get()
             ->sortBy(fn (LearningContent $content): int => (int) ($content->payload['sequence'] ?? $content->payload['story_number'] ?? 0))
             ->values();
+    }
+
+    private function activityTypesFor($practiceRules, string $moduleKey): array
+    {
+        return ($practiceRules[$moduleKey] ?? collect())
+            ->sortBy(fn (LearningContent $content): string => $content->payload['source_csv_id'] ?? '')
+            ->pluck('payload.activity_type')
+            ->values()
+            ->all();
     }
 }

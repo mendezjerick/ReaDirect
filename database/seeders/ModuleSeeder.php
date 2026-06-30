@@ -13,7 +13,7 @@ class ModuleSeeder extends Seeder
         $modules = [
             ['sequence' => 1, 'key' => 'module_1', 'title' => 'Letter and Sound Learning', 'description' => 'Letter sound practice, hear and repeat, matching, drills, and mini mastery check.'],
             ['sequence' => 2, 'key' => 'module_2', 'title' => 'Word Reading', 'description' => 'Word families, minimal pairs, word accuracy challenge, and mini mastery check.'],
-            ['sequence' => 3, 'key' => 'module_3', 'title' => 'Sentence Reading and Fluency', 'description' => 'Sentence reading, timed practice, pause practice, fluency challenge, and mini mastery check.'],
+            ['sequence' => 3, 'key' => 'module_3', 'title' => 'Sentence Reading and Fluency', 'description' => 'Sentence reading, guided practice, timed practice, pause practice, and mini mastery check.'],
         ];
 
         foreach ($modules as $moduleData) {
@@ -52,7 +52,6 @@ class ModuleSeeder extends Seeder
                 ['type' => 'coach_reading', 'title' => 'Read with the coach'],
                 ['type' => 'timed_sentence', 'title' => 'Timed sentence reading'],
                 ['type' => 'pause_practice', 'title' => 'Pause practice'],
-                ['type' => 'fluency_challenge', 'title' => 'Fluency challenge'],
                 ['type' => 'mastery_check', 'title' => 'Mini mastery check'],
             ],
         };

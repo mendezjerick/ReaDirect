@@ -48,7 +48,6 @@ class AdminFilterOptionsService
             ['label' => 'Read with Coach', 'value' => 'read_with_coach', 'module' => 'module_3'],
             ['label' => 'Timed Sentence Reading', 'value' => 'timed_sentence_reading', 'module' => 'module_3'],
             ['label' => 'Pause Practice', 'value' => 'pause_practice', 'module' => 'module_3'],
-            ['label' => 'Fluency Challenge', 'value' => 'fluency_challenge', 'module' => 'module_3'],
             ['label' => 'Mastery Check', 'value' => 'mastery_check', 'module' => 'all'],
         ];
     }

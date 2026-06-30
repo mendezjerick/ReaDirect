@@ -1,6 +1,6 @@
 <script setup>
-import { useForm } from '@inertiajs/vue3';
-import { ArrowRight, BookOpen, Loader2 } from 'lucide-vue-next';
+import { Link, useForm } from '@inertiajs/vue3';
+import { ArrowLeft, ArrowRight, BookOpenCheck, ClipboardCheck, Loader2, ShieldCheck, Star } from 'lucide-vue-next';
 import SyncStatusBadge from '../../Components/SyncStatusBadge.vue';
 
 const form = useForm({ learner_code: 'RD-1001' });
@@ -8,392 +8,422 @@ const submit = () => form.post('/learner/access');
 </script>
 
 <template>
-    <div class="learner-autumn-shell flex min-h-screen flex-col">
+    <div class="access-shell">
+        <header class="access-topbar">
+            <Link href="/" class="access-brand" aria-label="Back to ReaDirect home">
+                <span class="access-brand-mark">
+                    <BookOpenCheck class="size-5" stroke-width="2.8" />
+                </span>
+                <span>ReaDirect</span>
+            </Link>
 
-        <!-- Header: matches assessment header rd-card pattern -->
-        <header class="acc-header sticky top-0 z-20 px-4 pb-2 pt-2">
-            <div class="rd-card mx-auto max-w-5xl">
-                <div class="rd-card__face flex min-h-14 items-center justify-between gap-3 px-5 py-2">
-                    <a href="/" class="inline-flex items-center gap-2.5 text-xl font-black transition hover:scale-[1.02]" style="color: var(--rd-text-main)">
-                        <span class="grid size-10 place-items-center rounded-xl border-2 border-[#D9652F] bg-primary text-sm font-black text-white" style="box-shadow: 0 5px 0 #B84B24, 0 8px 14px rgba(54,83,101,0.18), inset 0 2px 0 rgba(255,255,255,0.35)">
-                            Re
-                        </span>
-                        <span class="hidden sm:inline">ReaDirect</span>
-                    </a>
-                    <SyncStatusBadge />
-                </div>
+            <div class="access-header-actions">
+                <SyncStatusBadge />
+                <Link href="/" class="access-home-link">
+                    <ArrowLeft class="size-4" stroke-width="3" />
+                    Home
+                </Link>
             </div>
         </header>
 
-        <!-- Main: centered vertically -->
-        <main class="relative z-10 flex flex-1 items-center justify-center px-4 py-8">
-            <div class="acc-book rd-card w-full max-w-4xl">
-
-                <!-- Split book interior -->
-                <div class="acc-book-face">
-
-                    <!-- LEFT: Book cover — deep autumn teal -->
-                    <div class="acc-cover">
-                        <!-- Subtle diagonal highlight -->
-                        <div class="acc-cover-glare" aria-hidden="true" />
-
-                        <!-- Ornament -->
-                        <span class="acc-ornament" aria-hidden="true">✦</span>
-
-                        <!-- Brand eyebrow -->
-                        <p class="acc-cover-brand">ReaDirect</p>
-
-                        <!-- Big welcome headline -->
-                        <h1 class="acc-cover-title">
-                            Welcome,<br>Reader.
-                        </h1>
-
-                        <!-- Subtitle -->
-                        <p class="acc-cover-sub">
-                            Enter your learner code to start your reading journey.
+        <main class="access-main">
+            <section class="access-card rd-card">
+                <div class="access-card-face rd-card__face">
+                    <div class="access-copy">
+                        <span class="access-badge">
+                            <ShieldCheck class="size-4" stroke-width="2.8" />
+                            Learner access
+                        </span>
+                        <h1 class="access-title">Start your reading path</h1>
+                        <p class="access-subtitle">
+                            Enter your learner code to open your dashboard, current activity, or next reading check.
                         </p>
 
-                        <!-- Bottom book icon -->
-                        <div class="acc-cover-icon" aria-hidden="true">
-                            <BookOpen class="size-6" />
+                        <div class="access-path-preview">
+                            <article class="access-preview-item">
+                                <span class="access-preview-star">
+                                    <Star class="size-4 fill-current" stroke-width="2.8" />
+                                </span>
+                                <span>
+                                    <span class="access-preview-label">Saved progress</span>
+                                    <span class="access-preview-detail">Your next step is restored automatically.</span>
+                                </span>
+                            </article>
+                            <article class="access-preview-item">
+                                <span class="access-preview-star access-preview-star--teal">
+                                    <ClipboardCheck class="size-4" stroke-width="2.8" />
+                                </span>
+                                <span>
+                                    <span class="access-preview-label">Reading checks</span>
+                                    <span class="access-preview-detail">Continue from the right place each time.</span>
+                                </span>
+                            </article>
                         </div>
                     </div>
 
-                    <!-- RIGHT: Form — warm parchment -->
-                    <div class="acc-form-side">
-                        <form class="acc-form" @submit.prevent="submit">
+                    <form class="access-form-panel" @submit.prevent="submit">
+                        <div>
+                            <p class="access-form-kicker">Learner code</p>
+                            <h2 class="access-form-title">Enter your code</h2>
+                        </div>
 
-                            <!-- Label -->
-                            <label for="learner_code" class="acc-form-label">
-                                Your learner code
-                            </label>
-
-                            <!-- Input -->
+                        <div class="access-field">
+                            <label for="learner_code" class="access-label">Your learner code</label>
                             <input
                                 id="learner_code"
                                 v-model="form.learner_code"
                                 type="text"
                                 autocomplete="off"
                                 spellcheck="false"
-                                :class="['acc-input', form.errors.learner_code ? 'acc-input--error' : '']"
+                                :class="['access-input', form.errors.learner_code ? 'access-input--error' : '']"
                                 placeholder="RD-0000"
                             >
-
-                            <!-- Error message -->
-                            <Transition name="acc-err">
-                                <div v-if="form.errors.learner_code" class="acc-error">
-                                    <span class="acc-error-dot">!</span>
-                                    <p class="acc-error-msg">{{ form.errors.learner_code }}</p>
-                                </div>
+                            <Transition name="access-error">
+                                <p v-if="form.errors.learner_code" class="access-error">
+                                    {{ form.errors.learner_code }}
+                                </p>
                             </Transition>
-
-                            <!-- Helper text -->
-                            <p v-if="!form.errors.learner_code" class="acc-helper">
+                            <p v-if="!form.errors.learner_code" class="access-helper">
                                 Ask your teacher if you need your learner code.
                             </p>
+                        </div>
 
-                            <!-- Submit -->
-                            <button
-                                type="submit"
-                                :disabled="form.processing"
-                                class="acc-submit rd-submit-button"
-                            >
-                                <template v-if="form.processing">
-                                    <Loader2 class="size-5 animate-spin" />
-                                    <span>Checking…</span>
-                                </template>
-                                <template v-else>
-                                    <span>Continue</span>
-                                    <ArrowRight class="size-5" />
-                                </template>
-                            </button>
-                        </form>
-                    </div>
+                        <button
+                            type="submit"
+                            :disabled="form.processing"
+                            class="access-submit rd-submit-button"
+                        >
+                            <template v-if="form.processing">
+                                <Loader2 class="size-5 animate-spin" />
+                                <span>Checking</span>
+                            </template>
+                            <template v-else>
+                                <span>Continue</span>
+                                <ArrowRight class="size-5" stroke-width="3" />
+                            </template>
+                        </button>
+                    </form>
                 </div>
-            </div>
+            </section>
         </main>
     </div>
 </template>
 
 <style scoped>
-/* ─── Header entrance ────────────────────────────────── */
-.acc-header {
-    animation: accSlide 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+.access-shell {
+    min-height: 100vh;
+    overflow-x: hidden;
+    background:
+        url('/images/backgrounds/learner-dashboard-desktop.png'),
+        linear-gradient(180deg, #f4e0ba 0%, #faf7ef 100%);
+    background-attachment: fixed;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+    color: var(--rd-text-main);
 }
 
-@keyframes accSlide {
-    from { opacity: 0; transform: translateY(-10px); }
-    to   { opacity: 1; transform: translateY(0); }
+.access-topbar {
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    right: 1rem;
+    z-index: 30;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
 }
 
-/* ─── Book card entrance ─────────────────────────────── */
-.acc-book {
-    animation: accRise 0.65s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
-    animation-delay: 60ms;
+.access-brand,
+.access-home-link {
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
 }
 
-@keyframes accRise {
-    from { opacity: 0; transform: translateY(22px) scale(0.97); }
-    to   { opacity: 1; transform: translateY(0) scale(1); }
+.access-brand {
+    gap: 0.6rem;
+    border: 2px solid var(--rd-story-border-soft);
+    border-radius: 999px;
+    background: var(--rd-story-surface);
+    padding: 0.35rem 0.95rem 0.35rem 0.35rem;
+    color: var(--rd-text-main);
+    font-size: 1.05rem;
+    font-weight: 900;
+    box-shadow: 0 4px 0 rgba(111, 101, 52, 0.16), 0 8px 14px rgba(54, 83, 101, 0.12);
 }
 
-/* ─── Split interior ─────────────────────────────────── */
-.acc-book-face {
+.access-brand-mark,
+.access-preview-star {
     display: grid;
-    grid-template-columns: 1fr;
-    overflow: hidden;
-    border: 1.5px solid var(--rd-face-border);
-    border-radius: var(--rd-radius-face); /* 18px */
+    place-items: center;
+    background: linear-gradient(180deg, var(--rd-action-button-light), var(--rd-action-button));
+    color: #fff;
+    box-shadow: 0 3px 0 #b84b24, 0 7px 12px rgba(245, 133, 73, 0.2);
 }
 
-@media (min-width: 580px) {
-    .acc-book-face {
-        grid-template-columns: 1fr 1.15fr;
-        min-height: 400px;
-    }
+.access-brand-mark {
+    width: 2.35rem;
+    height: 2.35rem;
+    border-radius: 0.85rem;
 }
 
-/* ─── LEFT cover panel ───────────────────────────────── */
-.acc-cover {
-    position: relative;
+.access-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+}
+
+.access-home-link {
+    min-height: 2.75rem;
+    justify-content: center;
+    gap: 0.45rem;
+    border: 2px solid var(--rd-story-border-soft);
+    border-radius: 999px;
+    background: var(--rd-story-surface);
+    padding: 0.55rem 0.95rem;
+    color: var(--rd-text-main);
+    font-size: 0.82rem;
+    font-weight: 900;
+    box-shadow: 0 4px 0 rgba(111, 101, 52, 0.14), 0 8px 14px rgba(54, 83, 101, 0.1);
+}
+
+.access-home-link:hover {
+    color: var(--rd-primary-orange);
+}
+
+.access-main {
+    display: grid;
+    min-height: 100vh;
+    place-items: center;
+    padding: 6rem 1rem 2rem;
+}
+
+.access-card {
+    width: min(100%, 66rem);
+}
+
+.access-card-face {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(20rem, 0.85fr);
+    gap: clamp(1rem, 3vw, 1.35rem);
+    padding: clamp(1rem, 3vw, 1.4rem);
+}
+
+.access-copy,
+.access-form-panel {
+    min-width: 0;
+}
+
+.access-copy {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 0.9rem;
-    padding: 2.25rem 1.875rem 2.75rem;
-    background: linear-gradient(155deg, #365365 0%, #2A4557 100%);
-    overflow: hidden;
+    gap: 1rem;
+    padding: clamp(0.4rem, 2vw, 1rem);
 }
 
-/* Diagonal highlight shimmer */
-.acc-cover-glare {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, rgba(123, 161, 181, 0.18) 0%, transparent 55%);
-    pointer-events: none;
-}
-
-/* Gold ornament — top right */
-.acc-ornament {
-    position: absolute;
-    top: 1.25rem;
-    right: 1.375rem;
-    font-size: 1.25rem;
+.access-badge {
+    display: inline-flex;
+    width: fit-content;
+    align-items: center;
+    gap: 0.45rem;
+    border-radius: 999px;
+    background: rgba(245, 133, 73, 0.1);
+    padding: 0.4rem 0.75rem;
+    color: var(--rd-primary-orange);
+    font-size: 0.74rem;
     font-weight: 900;
-    color: rgba(238, 193, 112, 0.5);
-    line-height: 1;
-    pointer-events: none;
-}
-
-.acc-cover-brand {
-    font-size: 0.65rem;
-    font-weight: 900;
-    letter-spacing: 0.24em;
+    letter-spacing: 0.13em;
     text-transform: uppercase;
-    color: rgba(238, 193, 112, 0.7);
-    animation: accFadeUp 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
-    animation-delay: 150ms;
 }
 
-.acc-cover-title {
-    font-size: clamp(1.85rem, 4vw, 2.8rem);
+.access-title {
+    max-width: 35rem;
+    color: var(--rd-text-main);
+    font-size: clamp(2.4rem, 7vw, 4.75rem);
     font-weight: 900;
-    line-height: 1.07;
-    letter-spacing: -0.02em;
-    color: #FFFDF8;
-    animation: accFadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
-    animation-delay: 210ms;
+    letter-spacing: 0;
+    line-height: 0.94;
 }
 
-.acc-cover-sub {
-    font-size: 0.85rem;
-    font-weight: 700;
-    line-height: 1.55;
-    color: rgba(255, 253, 248, 0.62);
-    animation: accFadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
-    animation-delay: 280ms;
+.access-subtitle {
+    max-width: 35rem;
+    color: var(--rd-text-muted);
+    font-size: clamp(1rem, 2vw, 1.1rem);
+    font-weight: 800;
+    line-height: 1.48;
 }
 
-/* Book icon badge — bottom right of cover */
-.acc-cover-icon {
-    position: absolute;
-    bottom: 1.375rem;
-    right: 1.375rem;
+.access-path-preview {
     display: grid;
-    place-items: center;
-    width: 2.75rem;
-    height: 2.75rem;
-    border-radius: 0.75rem;
-    background: rgba(238, 193, 112, 0.12);
-    border: 1.5px solid rgba(238, 193, 112, 0.22);
-    color: rgba(238, 193, 112, 0.65);
+    gap: 0.7rem;
+    margin-top: 0.4rem;
 }
 
-/* ─── RIGHT form panel ───────────────────────────────── */
-.acc-form-side {
+.access-preview-item {
     display: flex;
     align-items: center;
-    padding: 2rem 1.875rem;
-    background: var(--rd-face-surface); /* warm #FFFDF8 */
+    gap: 0.8rem;
+    border: 1.5px solid var(--rd-face-border);
+    border-radius: 1rem;
+    background: var(--rd-face-surface);
+    padding: 0.8rem;
 }
 
-.acc-form {
+.access-preview-star {
+    width: 2.45rem;
+    height: 2.45rem;
+    flex-shrink: 0;
+    border-radius: 999px;
+}
+
+.access-preview-star--teal {
+    background: var(--rd-depth-blue);
+    box-shadow: 0 3px 0 #223849, 0 7px 12px rgba(54, 83, 101, 0.2);
+}
+
+.access-preview-label {
+    display: block;
+    color: var(--rd-text-main);
+    font-size: 0.92rem;
+    font-weight: 900;
+    line-height: 1.1;
+}
+
+.access-preview-detail {
+    display: block;
+    margin-top: 0.15rem;
+    color: var(--rd-text-muted);
+    font-size: 0.76rem;
+    font-weight: 800;
+    line-height: 1.35;
+}
+
+.access-form-panel {
     display: grid;
-    gap: 0.875rem;
-    width: 100%;
+    align-content: center;
+    gap: 1rem;
+    border: 1.5px solid var(--rd-face-border);
+    border-radius: 1.15rem;
+    background: var(--rd-face-surface);
+    padding: clamp(1rem, 3vw, 1.35rem);
 }
 
-.acc-form-label {
+.access-form-kicker,
+.access-label {
+    color: var(--rd-primary-orange);
     font-size: 0.7rem;
     font-weight: 900;
-    letter-spacing: 0.18em;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--rd-text-muted);
-    animation: accFadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
-    animation-delay: 200ms;
 }
 
-.acc-input {
+.access-form-title {
+    margin-top: 0.2rem;
+    color: var(--rd-text-main);
+    font-size: clamp(1.45rem, 3.5vw, 2rem);
+    font-weight: 900;
+    line-height: 1.05;
+}
+
+.access-field {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.access-label {
+    color: var(--rd-text-muted);
+}
+
+.access-input {
     width: 100%;
-    padding: 0.875rem 1.25rem;
-    border-radius: 14px;
     border: 2px solid var(--rd-frame-border);
+    border-radius: 1rem;
     background: #fff;
-    font-size: clamp(1.4rem, 3vw, 1.75rem);
+    padding: 0.9rem 1rem;
+    color: var(--rd-text-main);
+    font-size: clamp(1.35rem, 4vw, 1.8rem);
     font-weight: 900;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: var(--rd-text-main);
-    transition: border-color 150ms ease, box-shadow 150ms ease;
-    animation: accFadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
-    animation-delay: 270ms;
 }
 
-.acc-input::placeholder {
+.access-input::placeholder {
     color: rgba(95, 111, 120, 0.28);
-    font-weight: 700;
 }
 
-.acc-input:focus {
-    outline: none;
+.access-input:focus {
     border-color: var(--rd-primary-orange);
     box-shadow: 0 0 0 4px rgba(245, 133, 73, 0.1);
+    outline: none;
 }
 
-.acc-input--error {
-    border-color: #f87171;
+.access-input--error {
+    border-color: #dc2626;
     color: #b91c1c;
 }
 
-.acc-input--error:focus {
-    border-color: #f87171;
-    box-shadow: 0 0 0 4px rgba(248, 113, 113, 0.1);
-}
-
-/* ─── Error box ──────────────────────────────────────── */
-.acc-error {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.5rem;
-    padding: 0.75rem 0.875rem;
-    border-radius: 12px;
-    background: #fff1f2;
-    border: 1px solid rgba(248, 113, 113, 0.3);
-}
-
-.acc-error-dot {
-    display: grid;
-    place-items: center;
-    width: 1.2rem;
-    height: 1.2rem;
-    border-radius: 50%;
-    background: #fee2e2;
-    font-size: 0.6rem;
-    font-weight: 900;
-    color: #ef4444;
-    flex-shrink: 0;
-    margin-top: 0.1rem;
-}
-
-.acc-error-msg {
-    font-size: 0.8125rem;
-    font-weight: 700;
-    line-height: 1.4;
-    color: #dc2626;
-    margin: 0;
-}
-
-/* ─── Helper text ────────────────────────────────────── */
-.acc-helper {
-    font-size: 0.73rem;
-    font-weight: 600;
+.access-helper {
     color: var(--rd-text-muted);
+    font-size: 0.78rem;
+    font-weight: 800;
     text-align: center;
-    opacity: 0.65;
-    animation: accFadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
-    animation-delay: 340ms;
 }
 
-/* ─── Submit button ──────────────────────────────────── */
-/* rd-submit-button provides: gradient, border, shadow, uppercase, font-weight */
-.acc-submit {
-    display: flex;
+.access-error {
+    border: 1.5px solid rgba(220, 38, 38, 0.24);
+    border-radius: 0.85rem;
+    background: #fff1f2;
+    padding: 0.65rem 0.75rem;
+    color: #dc2626;
+    font-size: 0.82rem;
+    font-weight: 900;
+}
+
+.access-submit {
+    display: inline-flex;
+    min-height: 3.5rem;
     align-items: center;
     justify-content: center;
-    gap: 0.625rem;
+    gap: 0.65rem;
     width: 100%;
-    padding: 0.9rem 1.5rem;
-    font-size: 1rem;
-    animation: accFadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
-    animation-delay: 340ms;
+    padding: 0.8rem 1.4rem;
+    font-size: 0.98rem;
 }
 
-/* ─── Shared fade-up keyframe ────────────────────────── */
-@keyframes accFadeUp {
-    from { opacity: 0; transform: translateY(12px); }
-    to   { opacity: 1; transform: translateY(0); }
+.access-error-enter-active,
+.access-error-leave-active {
+    transition: opacity 160ms ease, transform 160ms ease;
 }
 
-/* ─── Error transition ───────────────────────────────── */
-.acc-err-enter-active {
-    animation: accErrIn 0.28s ease-out both;
-}
-.acc-err-leave-active {
-    animation: accErrIn 0.2s ease-in reverse both;
-}
-@keyframes accErrIn {
-    from { opacity: 0; transform: translateY(-6px); }
-    to   { opacity: 1; transform: translateY(0); }
+.access-error-enter-from,
+.access-error-leave-to {
+    opacity: 0;
+    transform: translateY(-0.25rem);
 }
 
-/* ─── Mobile: compact cover ──────────────────────────── */
-@media (max-width: 579px) {
-    .acc-cover {
-        padding: 1.625rem 1.5rem 1.875rem;
-        gap: 0.65rem;
-    }
-
-    .acc-cover-icon {
-        display: none;
-    }
-
-    .acc-form-side {
-        padding: 1.625rem 1.5rem;
+@media (max-width: 860px) {
+    .access-card-face {
+        grid-template-columns: 1fr;
     }
 }
 
-/* ─── Reduced motion ─────────────────────────────────── */
-@media (prefers-reduced-motion: reduce) {
-    .acc-header,
-    .acc-book,
-    .acc-cover-brand,
-    .acc-cover-title,
-    .acc-cover-sub,
-    .acc-form-label,
-    .acc-input,
-    .acc-helper,
-    .acc-submit {
-        animation: none;
+@media (max-width: 640px) {
+    .access-topbar {
+        top: 0.75rem;
+        left: 0.75rem;
+        right: 0.75rem;
+    }
+
+    .access-header-actions {
+        align-items: flex-end;
+        flex-direction: column;
+    }
+
+    .access-home-link {
+        padding-inline: 0.75rem;
     }
 }
 </style>

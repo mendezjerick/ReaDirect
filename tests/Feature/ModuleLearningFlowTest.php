@@ -483,7 +483,9 @@ class ModuleLearningFlowTest extends TestCase
                 ->component('Learner/Modules/ModuleOverview')
                 ->where('purpose', 'You will practice letters and sounds so you can say them clearly.')
                 ->where('lessonBoxes.0.key', 'listen_and_say')
-                ->where('lessonBoxes.0.explanation', 'This lesson helps you listen closely and say the sound clearly after you hear it.')
+                ->where('lessonBoxes.0.title', 'Say the Letter Sound')
+                ->where('lessonBoxes.0.description', 'Look at the letter and say its sound clearly.')
+                ->where('lessonBoxes.0.explanation', 'This box is for saying the letter sound yourself. Look carefully, then use your clear voice.')
                 ->has('lessonBoxes', 1)
                 ->missing('debug')
             );
