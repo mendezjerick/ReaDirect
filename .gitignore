@@ -21,6 +21,8 @@
 /public/hot
 /public/ia-assets
 /public/storage
+/public/tts/generated_voice_lines/
+/storage/app/public/tts/generated_voice_lines/
 /storage/*.key
 /storage/app/asr_confusion_fixtures/
 /storage/pail
@@ -36,3 +38,4 @@ content-bank/work/*
 !content-bank/work/.gitkeep
 tools/
 readirect-whisper-base-en-v1-hf
+link_voice_lines.php
