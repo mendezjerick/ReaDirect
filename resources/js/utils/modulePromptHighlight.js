@@ -7,35 +7,44 @@ const isWordLike = (value) => /^[A-Za-z0-9'-]+$/.test(textValue(value));
 export const highlightTargetsForModuleItem = (item) => {
     const payload = item?.payload ?? {};
     const prompt = textValue(item?.display_prompt ?? item?.prompt ?? payload.prompt_text);
-    const expectedAnswer = textValue(payload.expected_answer);
+    const displayFormat = textValue(payload.display_format);
+    const highlightTarget = payload.highlight_target === true || payload.highlight_target === 1 || payload.highlight_target === '1';
+    const highlightedLetter = textValue(payload.highlighted_letter);
+    const highlightedWord = textValue(payload.highlighted_word);
     const targetWord = textValue(payload.target_word);
 
-    if (!prompt) {
+    if (!prompt || !highlightTarget) {
         return [];
     }
 
-    if (isSingleLetter(expectedAnswer)) {
+    if (highlightedLetter && isSingleLetter(highlightedLetter)) {
         return [{
-            text: expectedAnswer,
-            matchCase: prompt.includes(expectedAnswer),
-            wholeWord: true,
+            text: highlightedLetter,
+            matchCase: prompt.includes(highlightedLetter),
+            wholeWord: false,
         }];
     }
 
-    if (targetWord && targetWord.length < prompt.length) {
+    if (highlightedWord || targetWord) {
+        const word = highlightedWord || targetWord;
+
         return [{
-            text: targetWord,
+            text: word,
             matchCase: false,
-            wholeWord: isWordLike(targetWord),
+            wholeWord: isWordLike(word),
         }];
     }
 
-    if (expectedAnswer) {
-        return [{
-            text: expectedAnswer,
-            matchCase: false,
-            wholeWord: expectedAnswer.length < prompt.length && isWordLike(expectedAnswer),
-        }];
+    if (displayFormat.includes('highlight')) {
+        const fallback = textValue(payload.expected_answer);
+
+        if (fallback) {
+            return [{
+                text: fallback,
+                matchCase: false,
+                wholeWord: fallback.length < prompt.length && isWordLike(fallback),
+            }];
+        }
     }
 
     return [];

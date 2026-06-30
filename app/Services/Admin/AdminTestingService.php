@@ -8,6 +8,7 @@ use App\Models\Module;
 use App\Models\ModuleAttempt;
 use App\Models\User;
 use App\Services\AssessmentItemSelectionService;
+use App\Services\ModuleExperienceService;
 use App\Services\ModuleActivitySelectionService;
 
 class AdminTestingService
@@ -76,7 +77,7 @@ class AdminTestingService
         ]);
 
         $selection = app(ModuleActivitySelectionService::class);
-        $firstActivity = $selection->practiceActivityTypes($module)[0] ?? 'read_word';
+        $firstActivity = $selection->practiceActivityTypes($module)[0] ?? 'display_word_reading';
         $selection->selectPracticeItemsForAttempt($attempt, $firstActivity, $selection->practiceCountFor($module, $firstActivity));
 
         return $attempt;
@@ -95,47 +96,81 @@ class AdminTestingService
     public function jumpTargets(Learner $learner): array
     {
         $targets = [
-            ['group' => 'Learner', 'label' => 'Learner dashboard', 'target' => 'learner-dashboard'],
-            ['group' => 'Learner', 'label' => 'Progress', 'target' => 'learner-progress'],
-            ['group' => 'Learner', 'label' => 'Rewards', 'target' => 'learner-rewards'],
-            ['group' => 'Learner', 'label' => 'Help', 'target' => 'learner-help'],
-            ['group' => 'Learner', 'label' => 'Completion', 'target' => 'learner-completion'],
-            ['group' => 'Diagnostic', 'label' => 'Diagnostic start', 'target' => 'diagnostic-start'],
-            ['group' => 'Diagnostic', 'label' => 'Task 1', 'target' => 'diagnostic-task-1'],
-            ['group' => 'Diagnostic', 'label' => 'Task 1 routing result', 'target' => 'diagnostic-task-routing'],
-            ['group' => 'Diagnostic', 'label' => 'Task 2A', 'target' => 'diagnostic-task-2a'],
-            ['group' => 'Diagnostic', 'label' => 'Task 2A summary', 'target' => 'diagnostic-task-2a-summary'],
-            ['group' => 'Diagnostic', 'label' => 'Task 2B', 'target' => 'diagnostic-task-2b'],
-            ['group' => 'Diagnostic', 'label' => 'CRLA summary', 'target' => 'diagnostic-crla-summary'],
-            ['group' => 'Diagnostic', 'label' => 'Reading intro', 'target' => 'diagnostic-reading-intro'],
-            ['group' => 'Diagnostic', 'label' => 'Story selection', 'target' => 'diagnostic-story-selection'],
-            ['group' => 'Diagnostic', 'label' => 'Passage reading', 'target' => 'diagnostic-passage'],
-            ['group' => 'Diagnostic', 'label' => 'Comprehension questions', 'target' => 'diagnostic-comprehension'],
-            ['group' => 'Diagnostic', 'label' => 'Reading summary', 'target' => 'diagnostic-reading-summary'],
-            ['group' => 'Diagnostic', 'label' => 'Module placement result', 'target' => 'diagnostic-module-placement'],
-            ['group' => 'Final reassessment', 'label' => 'Start', 'target' => 'final-start'],
-            ['group' => 'Final reassessment', 'label' => 'Task 1', 'target' => 'final-task-1'],
-            ['group' => 'Final reassessment', 'label' => 'Task 2A', 'target' => 'final-task-2a'],
-            ['group' => 'Final reassessment', 'label' => 'Task 2B', 'target' => 'final-task-2b'],
-            ['group' => 'Final reassessment', 'label' => 'Story selection', 'target' => 'final-story-selection'],
-            ['group' => 'Final reassessment', 'label' => 'Passage', 'target' => 'final-passage'],
-            ['group' => 'Final reassessment', 'label' => 'Comprehension', 'target' => 'final-comprehension'],
-            ['group' => 'Final reassessment', 'label' => 'Summary', 'target' => 'final-summary'],
-            ['group' => 'Modules', 'label' => 'Module list', 'target' => 'learner-modules'],
+            ['category' => 'dashboards', 'group' => 'Dashboards', 'label' => 'Learner dashboard', 'target' => 'learner-dashboard'],
+            ['category' => 'dashboards', 'group' => 'Dashboards', 'label' => 'Progress dashboard', 'target' => 'learner-progress'],
+            ['category' => 'dashboards', 'group' => 'Dashboards', 'label' => 'Rewards dashboard', 'target' => 'learner-rewards'],
+            ['category' => 'dashboards', 'group' => 'Dashboards', 'label' => 'Help dashboard', 'target' => 'learner-help'],
+            ['category' => 'diagnostic', 'group' => 'Diagnostic', 'label' => 'Diagnostic start', 'target' => 'diagnostic-start'],
+            ['category' => 'diagnostic', 'group' => 'Diagnostic', 'label' => 'Task 1', 'target' => 'diagnostic-task-1'],
+            ['category' => 'diagnostic', 'group' => 'Diagnostic', 'label' => 'Task 2A', 'target' => 'diagnostic-task-2a'],
+            ['category' => 'diagnostic', 'group' => 'Diagnostic', 'label' => 'Task 2B', 'target' => 'diagnostic-task-2b'],
+            ['category' => 'diagnostic', 'group' => 'Diagnostic', 'label' => 'Reading intro', 'target' => 'diagnostic-reading-intro'],
+            ['category' => 'diagnostic', 'group' => 'Diagnostic', 'label' => 'Story selection', 'target' => 'diagnostic-story-selection'],
+            ['category' => 'diagnostic', 'group' => 'Diagnostic', 'label' => 'Passage reading', 'target' => 'diagnostic-passage'],
+            ['category' => 'diagnostic', 'group' => 'Diagnostic', 'label' => 'Comprehension questions', 'target' => 'diagnostic-comprehension'],
+            ['category' => 'modules', 'group' => 'Modules', 'label' => 'Module list', 'target' => 'learner-modules'],
         ];
 
+        $selection = app(ModuleActivitySelectionService::class);
+        $experience = app(ModuleExperienceService::class);
         foreach (Module::orderBy('sequence')->get() as $module) {
-            $activityType = app(ModuleActivitySelectionService::class)->practiceActivityTypes($module)[0] ?? 'mastery_check';
-            $moduleTargets = [
-                ['label' => "{$module->title} overview", 'target' => "module-{$module->key}-overview"],
-                ['label' => "{$module->title} activity", 'target' => "module-{$module->key}-activity", 'activity_type' => $activityType],
-                ['label' => "{$module->title} mastery check", 'target' => "module-{$module->key}-mastery"],
-                ['label' => "{$module->title} mastery result", 'target' => "module-{$module->key}-result"],
+            $activityTypes = $selection->practiceActivityTypes($module);
+            $lessonBoxes = collect($experience->overview($module, $activityTypes)['lesson_boxes'] ?? [])->keyBy('key');
+
+            $targets[] = [
+                'category' => 'modules',
+                'group' => 'Modules',
+                'module_key' => $module->key,
+                'label' => "{$module->title} overview",
+                'target' => "module-{$module->key}-overview",
             ];
 
-            foreach ($moduleTargets as $target) {
-                $targets[] = ['group' => 'Modules', 'module_key' => $module->key, ...$target];
+            foreach (array_values(array_filter($activityTypes, fn (string $type): bool => $type !== 'mastery_check')) as $index => $activityType) {
+                $lessonTitle = $lessonBoxes->get($activityType)['title'] ?? str($activityType)->replace('_', ' ')->title()->toString();
+                $targets[] = [
+                    'category' => 'modules',
+                    'group' => 'Modules',
+                    'module_key' => $module->key,
+                    'activity_type' => $activityType,
+                    'label' => "{$module->title} Lesson ".($index + 1).": {$lessonTitle}",
+                    'target' => "module-{$module->key}-activity-{$activityType}",
+                ];
             }
+
+            $targets[] = [
+                'category' => 'modules',
+                'group' => 'Modules',
+                'module_key' => $module->key,
+                'label' => "{$module->title} mastery check",
+                'target' => "module-{$module->key}-mastery",
+            ];
+        }
+
+        array_push($targets,
+            ['category' => 'final', 'group' => 'Final', 'label' => 'Final start', 'target' => 'final-start'],
+            ['category' => 'final', 'group' => 'Final', 'label' => 'Task 1', 'target' => 'final-task-1'],
+            ['category' => 'final', 'group' => 'Final', 'label' => 'Task 2A', 'target' => 'final-task-2a'],
+            ['category' => 'final', 'group' => 'Final', 'label' => 'Task 2B', 'target' => 'final-task-2b'],
+            ['category' => 'final', 'group' => 'Final', 'label' => 'Story selection', 'target' => 'final-story-selection'],
+            ['category' => 'final', 'group' => 'Final', 'label' => 'Passage', 'target' => 'final-passage'],
+            ['category' => 'final', 'group' => 'Final', 'label' => 'Comprehension', 'target' => 'final-comprehension'],
+            ['category' => 'results', 'group' => 'Results', 'label' => 'Learner completion', 'target' => 'learner-completion'],
+            ['category' => 'results', 'group' => 'Results', 'label' => 'Diagnostic task 1 routing result', 'target' => 'diagnostic-task-routing'],
+            ['category' => 'results', 'group' => 'Results', 'label' => 'Diagnostic task 2A summary', 'target' => 'diagnostic-task-2a-summary'],
+            ['category' => 'results', 'group' => 'Results', 'label' => 'Diagnostic CRLA summary', 'target' => 'diagnostic-crla-summary'],
+            ['category' => 'results', 'group' => 'Results', 'label' => 'Diagnostic reading summary', 'target' => 'diagnostic-reading-summary'],
+            ['category' => 'results', 'group' => 'Results', 'label' => 'Diagnostic module placement result', 'target' => 'diagnostic-module-placement'],
+            ['category' => 'results', 'group' => 'Results', 'label' => 'Final summary', 'target' => 'final-summary'],
+        );
+
+        foreach (Module::orderBy('sequence')->get() as $module) {
+            $targets[] = [
+                'category' => 'results',
+                'group' => 'Results',
+                'module_key' => $module->key,
+                'label' => "{$module->title} mastery result",
+                'target' => "module-{$module->key}-result",
+            ];
         }
 
         return collect($targets)

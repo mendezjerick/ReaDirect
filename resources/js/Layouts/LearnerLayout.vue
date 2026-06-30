@@ -92,7 +92,7 @@ onUnmounted(() => {
 <template>
     <div
         class="text-text"
-        :class="assessmentTask ? 'learner-activity-shell flex h-screen flex-col overflow-hidden' : 'min-h-screen bg-gradient-to-b from-slate-50 to-orange-50/30'"
+        :class="assessmentTask ? 'learner-activity-shell flex min-h-screen flex-col overflow-x-hidden overflow-y-auto' : 'min-h-screen bg-gradient-to-b from-slate-50 to-orange-50/30'"
     >
         <AdminTestingToolbar v-if="!isQaViewportEmbed" />
         <div
@@ -201,7 +201,7 @@ onUnmounted(() => {
                         <SyncStatusBadge />
                     </div>
                 </header>
-                <main v-if="assessmentTask" class="learner-frame min-h-0 flex-1 py-2">
+                <main v-if="assessmentTask" class="learner-frame min-h-0 flex-1 pb-0 pt-2 sm:py-2">
                     <slot />
                 </main>
                 <main v-else class="learner-frame learner-stage" :class="!hasBottomBar ? '!pb-2 lg:!pb-4' : ''">

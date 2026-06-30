@@ -84,7 +84,11 @@ class ContentBankRevampTest extends TestCase
         $this->assertCount(25, array_filter($module2, fn (array $row): bool => $row['activity_type'] === 'mastery_check'));
 
         $module3 = $this->activeRows($this->csv('module3_sentence_fluency_activities_adaptive_v2.csv'));
-        $this->assertCount(241, $module3);
+        $this->assertCount(206, $module3);
+        $this->assertCount(50, array_filter($module3, fn (array $row): bool => $row['activity_type'] === 'simple_sentence_reading'));
+        $this->assertCount(50, array_filter($module3, fn (array $row): bool => $row['activity_type'] === 'comma_pause_reading'));
+        $this->assertCount(35, array_filter($module3, fn (array $row): bool => $row['activity_type'] === 'full_stop_pause_reading'));
+        $this->assertCount(35, array_filter($module3, fn (array $row): bool => $row['activity_type'] === 'mixed_punctuation_fluency'));
         $this->assertCount(36, array_filter($module3, fn (array $row): bool => $row['activity_type'] === 'mastery_check'));
 
         foreach ($module3 as $row) {
@@ -92,7 +96,10 @@ class ContentBankRevampTest extends TestCase
             $this->assertNotSame('', trim((string) ($row['min_fluent_time_seconds'] ?? '')));
             $this->assertNotSame('', trim((string) ($row['max_fluent_time_seconds'] ?? '')));
             $this->assertNotSame('', trim((string) ($row['target_wcpm'] ?? '')));
-            $this->assertSame('True', (string) ($row['pace_mastery_required'] ?? ''));
+            $this->assertSame(
+                $row['activity_type'] === 'simple_sentence_reading' ? 'False' : 'True',
+                (string) ($row['pace_mastery_required'] ?? '')
+            );
         }
     }
 

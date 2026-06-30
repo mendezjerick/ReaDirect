@@ -418,11 +418,11 @@ const setAgentSpeaking = (isSpeaking) => {
                         Back
                     </button>
                     <label v-if="canUseManualFallback" class="flex min-w-0 flex-1 items-center gap-2 text-xs font-black text-slate-500">
-                        <span class="shrink-0">Developer QA: Manual Transcript Override</span>
+                        <span class="shrink-0">Manual Transcript Override</span>
                         <input
                             :value="step.answers[step.currentItem.value.id]"
                             class="min-h-9 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-800 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
-                            placeholder="Optional QA fallback text"
+                            placeholder="Optional transcript text"
                             @input="setAnswer(step.currentItem.value, $event.target.value)"
                         >
                     </label>

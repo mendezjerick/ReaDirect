@@ -74,20 +74,18 @@ class ModuleExperienceService
         }
 
         return match (true) {
-            $activityType === 'hear_and_repeat' => 'Hear and Repeat',
-            $activityType === 'listen_and_say' => 'Listen and Say',
-            $activityType === 'letter_sounds' => 'Letter Sounds',
-            $activityType === 'see_letter_say_sound' => 'See the Letter',
-            $activityType === 'match_sound_to_letter' => 'Match the Sound',
-            $activityType === 'sound_drill' => 'Sound Drill',
-            $activityType === 'read_word' => 'Read the Word',
-            $activityType === 'word_family_drill' => 'Word Families',
-            $activityType === 'minimal_pair' => 'Sound-Alike Words',
-            $activityType === 'word_accuracy_challenge' => 'Word Accuracy',
-            $activityType === 'read_sentence' => 'Read the Sentence',
-            $activityType === 'read_with_coach' => 'Read with Miss Ciel',
-            $activityType === 'timed_sentence_reading' => 'Smooth Sentence Reading',
-            $activityType === 'pause_practice' => 'Pause Practice',
+            $activityType === 'letter_pair_identification' => 'Display Letter Pair',
+            $activityType === 'highlighted_first_letter' => 'Highlighted First Letter',
+            $activityType === 'first_letter_identification' => 'First Letter',
+            $activityType === 'missing_first_letter' => 'Missing First Letter',
+            $activityType === 'display_word_reading' => 'Display Word',
+            $activityType === 'split_word_reading' => 'Split Word',
+            $activityType === 'highlighted_rhyme_word' => 'Highlighted Rhyme Word',
+            $activityType === 'highlighted_sentence_word' => 'Highlighted Sentence Word',
+            $activityType === 'simple_sentence_reading' => 'Simple Sentence',
+            $activityType === 'comma_pause_reading' => 'Comma Pause',
+            $activityType === 'full_stop_pause_reading' => 'Full-Stop Pause',
+            $activityType === 'mixed_punctuation_fluency' => 'Mixed Punctuation',
             default => $fallback,
         };
     }
@@ -99,20 +97,18 @@ class ModuleExperienceService
         }
 
         return match ($activityType) {
-            'hear_and_repeat' => 'Listen to a sound, then say it back clearly.',
-            'listen_and_say' => 'Listen carefully, then say the sound in your own voice.',
-            'letter_sounds' => 'Practice the sound each letter makes.',
-            'see_letter_say_sound' => 'Look at a letter and say the sound it makes.',
-            'match_sound_to_letter' => 'Choose the letter that matches the sound you hear.',
-            'sound_drill' => 'Practice tricky sounds a few times to make them stronger.',
-            'read_word' => 'Read one word carefully and say it out loud.',
-            'word_family_drill' => 'Practice words that share the same ending sound.',
-            'minimal_pair' => 'Listen for small sound changes between similar words.',
-            'word_accuracy_challenge' => 'Read words clearly and check each sound.',
-            'read_sentence' => 'Read a short sentence from beginning to end.',
-            'read_with_coach' => 'Practice a sentence with gentle help from Miss Ciel.',
-            'timed_sentence_reading' => 'Read at a steady pace without rushing.',
-            'pause_practice' => 'Practice stopping at the right places in a sentence.',
+            'letter_pair_identification' => 'Look at a letter pair and say the letter name.',
+            'highlighted_first_letter' => 'Look at a word and say the highlighted first letter.',
+            'first_letter_identification' => 'Find the first letter of a word without a highlight.',
+            'missing_first_letter' => 'Compare a full word with a missing-letter word.',
+            'display_word_reading' => 'Read one displayed word clearly.',
+            'split_word_reading' => 'Blend word parts and read the whole word.',
+            'highlighted_rhyme_word' => 'Read only the highlighted word in a rhyming group.',
+            'highlighted_sentence_word' => 'Read only the highlighted word in a sentence.',
+            'simple_sentence_reading' => 'Read one simple sentence from start to finish.',
+            'comma_pause_reading' => 'Read a sentence and make a small comma pause.',
+            'full_stop_pause_reading' => 'Read two sentences with a stronger full-stop pause.',
+            'mixed_punctuation_fluency' => 'Read mixed punctuation smoothly and clearly.',
             default => 'Practice this reading step.',
         };
     }
@@ -124,20 +120,18 @@ class ModuleExperienceService
         }
 
         return match ($activityType) {
-            'hear_and_repeat' => 'This lesson helps your ears and voice work together. Listen first, then copy the sound clearly.',
-            'listen_and_say' => 'This lesson helps you listen closely and say the sound clearly after you hear it.',
-            'letter_sounds' => 'This lesson helps you learn the sound each letter makes so words become easier to read.',
-            'see_letter_say_sound' => 'This lesson helps you remember what sound each letter makes when you see it.',
-            'match_sound_to_letter' => 'This lesson helps you connect a sound you hear with the letter that makes it.',
-            'sound_drill' => 'This lesson gives your mouth extra practice with sounds that need more time.',
-            'read_word' => 'This lesson helps you look at a word and read it out loud one step at a time.',
-            'word_family_drill' => 'This lesson helps you notice words that sound alike, like words with the same ending.',
-            'minimal_pair' => 'This lesson helps you hear tiny sound changes so you can read similar words correctly.',
-            'word_accuracy_challenge' => 'This lesson helps you slow down, check each sound, and read the whole word clearly.',
-            'read_sentence' => 'This lesson helps you read a full sentence and keep the words in order.',
-            'read_with_coach' => 'This lesson lets me guide you while you practice reading a sentence clearly.',
-            'timed_sentence_reading' => 'This lesson helps you read smoothly at a steady pace, not too fast and not too slow.',
-            'pause_practice' => 'This lesson helps you pause in the right places so the sentence makes sense.',
+            'letter_pair_identification' => 'This lesson shows an uppercase and lowercase letter together. Say the letter name clearly.',
+            'highlighted_first_letter' => 'This lesson highlights the first letter in a word. Say that starting letter clearly.',
+            'first_letter_identification' => 'This lesson removes the highlight so you can find and say the first letter yourself.',
+            'missing_first_letter' => 'This lesson shows a full word and a word missing its first letter. Say the letter that completes it.',
+            'display_word_reading' => 'This lesson helps you read one short word clearly from the letters on the screen.',
+            'split_word_reading' => 'This lesson splits the word into parts so you can blend them and read the whole word.',
+            'highlighted_rhyme_word' => 'This lesson shows rhyming words together. Read only the highlighted target word.',
+            'highlighted_sentence_word' => 'This lesson places the target word in a sentence. Read only the highlighted word.',
+            'simple_sentence_reading' => 'This lesson helps you read one complete sentence accurately from start to finish.',
+            'comma_pause_reading' => 'This lesson helps you keep reading smoothly while making a small pause at the comma.',
+            'full_stop_pause_reading' => 'This lesson helps you pause more strongly at the end of one sentence before starting the next.',
+            'mixed_punctuation_fluency' => 'This lesson combines accuracy, comma pauses, and full-stop pauses in one reading.',
             default => 'This part helps you practice reading in a clear way.',
         };
     }
@@ -175,12 +169,10 @@ class ModuleExperienceService
     private function moduleOneActivityTitle(string $activityType): ?string
     {
         return match ($activityType) {
-            'hear_and_repeat' => 'Letter Sound Warm-Up',
-            'listen_and_say' => 'Say the Letter Sound',
-            'letter_sounds' => 'Build Letter Sounds',
-            'see_letter_say_sound' => 'Look and Say',
-            'match_sound_to_letter' => 'Letter Sound Check',
-            'sound_drill' => 'Quick Sound Practice',
+            'letter_pair_identification' => 'Display Letter Pair',
+            'highlighted_first_letter' => 'Highlighted First Letter',
+            'first_letter_identification' => 'First Letter',
+            'missing_first_letter' => 'Missing First Letter',
             default => null,
         };
     }
@@ -188,12 +180,10 @@ class ModuleExperienceService
     private function moduleOneActivityDescription(string $activityType): ?string
     {
         return match ($activityType) {
-            'hear_and_repeat' => 'Start with clear letter-sound practice.',
-            'listen_and_say' => 'Look at the letter and say its sound clearly.',
-            'letter_sounds' => 'Practice the basic sound each letter can make.',
-            'see_letter_say_sound' => 'Look at the letter, then say its sound.',
-            'match_sound_to_letter' => 'Check the sound that belongs with the letter.',
-            'sound_drill' => 'Repeat letter sounds for faster recall.',
+            'letter_pair_identification' => 'Say the letter shown as an uppercase and lowercase pair.',
+            'highlighted_first_letter' => 'Say the highlighted first letter in the word.',
+            'first_letter_identification' => 'Find and say the first letter in the word.',
+            'missing_first_letter' => 'Say the missing first letter that completes the word.',
             default => null,
         };
     }
@@ -201,12 +191,10 @@ class ModuleExperienceService
     private function moduleOneActivityExplanation(string $activityType): ?string
     {
         return match ($activityType) {
-            'hear_and_repeat' => 'This box warms up letter sounds. You look at each letter and say the sound clearly.',
-            'listen_and_say' => 'This box is for saying the letter sound yourself. Look carefully, then use your clear voice.',
-            'letter_sounds' => 'This box is for building the basic letter sounds before we use them in words.',
-            'see_letter_say_sound' => 'This box is for matching your eyes and voice. Look at the letter, then say the sound it makes.',
-            'match_sound_to_letter' => 'This box checks letter-sound recognition. Look at the letter and say the sound that matches it.',
-            'sound_drill' => 'This box is for quick practice. You repeat letter sounds so the sound comes to mind faster.',
+            'letter_pair_identification' => 'This box shows a letter pair like Aa. Say the letter name clearly.',
+            'highlighted_first_letter' => 'This box shows a word with the first letter highlighted. Say the highlighted letter.',
+            'first_letter_identification' => 'This box shows a word without a highlight. Find the first letter and say it.',
+            'missing_first_letter' => 'This box shows a full word beside a missing-letter word. Say the missing first letter.',
             default => null,
         };
     }
@@ -214,10 +202,10 @@ class ModuleExperienceService
     private function moduleTwoActivityTitle(string $activityType): ?string
     {
         return match ($activityType) {
-            'read_word' => 'Read One Word',
-            'word_family_drill' => 'Word Family Practice',
-            'minimal_pair' => 'Similar Word Practice',
-            'word_accuracy_challenge' => 'Word Accuracy Check',
+            'display_word_reading' => 'Display Word',
+            'split_word_reading' => 'Split Word',
+            'highlighted_rhyme_word' => 'Highlighted Rhyme Word',
+            'highlighted_sentence_word' => 'Highlighted Sentence Word',
             default => null,
         };
     }
@@ -225,10 +213,10 @@ class ModuleExperienceService
     private function moduleTwoActivityDescription(string $activityType): ?string
     {
         return match ($activityType) {
-            'read_word' => 'Read short words clearly, one at a time.',
-            'word_family_drill' => 'Read words that share the same ending pattern.',
-            'minimal_pair' => 'Read similar-looking words with careful sounds.',
-            'word_accuracy_challenge' => 'Read each word clearly and check every sound.',
+            'display_word_reading' => 'Read one short word clearly.',
+            'split_word_reading' => 'Blend the parts and read the whole word.',
+            'highlighted_rhyme_word' => 'Read only the highlighted word in a rhyme group.',
+            'highlighted_sentence_word' => 'Read only the highlighted word in a sentence.',
             default => null,
         };
     }
@@ -236,10 +224,10 @@ class ModuleExperienceService
     private function moduleTwoActivityExplanation(string $activityType): ?string
     {
         return match ($activityType) {
-            'read_word' => 'This box is for reading one short word at a time. Look at the word, then say the whole word clearly.',
-            'word_family_drill' => 'This box groups words with the same ending sound. Notice the pattern, then read each word clearly.',
-            'minimal_pair' => 'This box uses words that look or sound close to each other. Read carefully so every sound is clear.',
-            'word_accuracy_challenge' => 'This box checks careful word reading. Slow down, look at each letter sound, then read the word.',
+            'display_word_reading' => 'This box is for reading one short word at a time. Look at the word, then say it clearly.',
+            'split_word_reading' => 'This box splits a word into beginning and ending parts. Blend the parts and read the whole word.',
+            'highlighted_rhyme_word' => 'This box shows rhyming words together. Read only the highlighted word.',
+            'highlighted_sentence_word' => 'This box shows a sentence with one highlighted word. Read only that word.',
             default => null,
         };
     }
@@ -247,10 +235,10 @@ class ModuleExperienceService
     private function moduleThreeActivityTitle(string $activityType): ?string
     {
         return match ($activityType) {
-            'read_sentence' => 'Read One Sentence',
-            'read_with_coach' => 'Guided Sentence Practice',
-            'timed_sentence_reading' => 'Steady Sentence Reading',
-            'pause_practice' => 'Pause and Pace Practice',
+            'simple_sentence_reading' => 'Simple Sentence',
+            'comma_pause_reading' => 'Comma Pause',
+            'full_stop_pause_reading' => 'Full-Stop Pause',
+            'mixed_punctuation_fluency' => 'Mixed Punctuation Fluency',
             default => null,
         };
     }
@@ -258,10 +246,10 @@ class ModuleExperienceService
     private function moduleThreeActivityDescription(string $activityType): ?string
     {
         return match ($activityType) {
-            'read_sentence' => 'Read the whole sentence clearly from start to finish.',
-            'read_with_coach' => 'Read a sentence, then Miss Ciel can guide your next try.',
-            'timed_sentence_reading' => 'Read at a steady pace without rushing.',
-            'pause_practice' => 'Read with small pauses so the sentence makes sense.',
+            'simple_sentence_reading' => 'Read one full sentence clearly.',
+            'comma_pause_reading' => 'Read with a small pause at the comma.',
+            'full_stop_pause_reading' => 'Read two sentences with a full-stop pause between them.',
+            'mixed_punctuation_fluency' => 'Read smoothly with comma and full-stop pauses.',
             default => null,
         };
     }
@@ -269,10 +257,10 @@ class ModuleExperienceService
     private function moduleThreeActivityExplanation(string $activityType): ?string
     {
         return match ($activityType) {
-            'read_sentence' => 'This box is for reading a full sentence. Keep the words in order and say each word clearly.',
-            'read_with_coach' => 'This box gives you sentence practice with Miss Ciel nearby. Read the sentence clearly, and she will help after you try.',
-            'timed_sentence_reading' => 'This box checks steady sentence reading. Read clearly at a calm pace, not too fast and not too slow.',
-            'pause_practice' => 'This box is for pacing. Read the sentence with small pauses where they help the meaning.',
+            'simple_sentence_reading' => 'This box is for reading a full sentence accurately from start to finish.',
+            'comma_pause_reading' => 'This box helps you read a sentence and pause just a little when you see a comma.',
+            'full_stop_pause_reading' => 'This box helps you pause more strongly after one sentence before reading the next one.',
+            'mixed_punctuation_fluency' => 'This box combines accurate sentence reading with smooth comma and full-stop pauses.',
             default => null,
         };
     }

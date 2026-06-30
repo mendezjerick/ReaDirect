@@ -416,7 +416,7 @@ class DiagnosticAssessmentController extends Controller
         if ($attempt instanceof RedirectResponse) {
             return $attempt;
         }
-        $allowManualFallback = $mode->canShowManualFallback($request, $attempt, $attempt->learner);
+        $allowManualFallback = $mode->canUseIncorrectWordsOverride($request, $attempt, $attempt->learner);
 
         $validated = $request->validate([
             'incorrect_words' => [$allowManualFallback ? 'required' : 'nullable', 'integer', 'min:0', 'max:50'],

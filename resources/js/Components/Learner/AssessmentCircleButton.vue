@@ -185,18 +185,18 @@ const attemptRingGradient = computed(() => {
 
 @media (max-width: 600px) and (orientation: portrait) {
     .assessment-circle-button-frame {
-        --assessment-circle-button-size: clamp(4.4rem, 20vw, 5.6rem);
+        --assessment-circle-button-size: clamp(5.25rem, 24vw, 6.75rem);
         --assessment-circle-ring-thickness: clamp(3px, 1.2vw, 5px);
-        --assessment-circle-icon-size: clamp(1.9rem, 8vw, 2.6rem);
-        --assessment-circle-re-size: clamp(1.25rem, 5.5vw, 1.75rem);
+        --assessment-circle-icon-size: clamp(2.25rem, 9vw, 3rem);
+        --assessment-circle-re-size: clamp(1.45rem, 6vw, 2rem);
     }
 }
 
 :global(body[data-qa-viewport='mobile-vertical'] .assessment-circle-button-frame) {
-    --assessment-circle-button-size: 4.9rem;
+    --assessment-circle-button-size: 5.85rem;
     --assessment-circle-ring-thickness: 4px;
-    --assessment-circle-icon-size: 2rem;
-    --assessment-circle-re-size: 1.4rem;
+    --assessment-circle-icon-size: 2.35rem;
+    --assessment-circle-re-size: 1.62rem;
 }
 
 </style>

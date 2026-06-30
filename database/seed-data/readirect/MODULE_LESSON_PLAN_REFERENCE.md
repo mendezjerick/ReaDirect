@@ -21,28 +21,28 @@ Each module currently has four active learner-facing practice lessons. Each less
 
 | # | Lesson | Activity Key | Current Focus |
 |---|---|---|---|
-| 1 | Letter Sound Warm-Up | `hear_and_repeat` | Start with clear letter-sound practice. |
-| 2 | Look and Say | `see_letter_say_sound` | Look at the letter, then say its sound. |
-| 3 | Letter Sound Check | `match_sound_to_letter` | Check the sound that belongs with the letter. |
-| 4 | Quick Sound Practice | `sound_drill` | Repeat letter sounds for faster recall. |
+| 1 | Display Letter Pair | `letter_pair_identification` | Display `Aa`; learner says `A`. |
+| 2 | Highlighted First Letter | `highlighted_first_letter` | Display a word with the first letter highlighted; learner says that letter. |
+| 3 | First Letter | `first_letter_identification` | Display the word without a highlight; learner says the first letter. |
+| 4 | Missing First Letter | `missing_first_letter` | Display `Cat - _at`; learner says the missing first letter. |
 
 ### Module 2: Word Reading
 
 | # | Lesson | Activity Key | Current Focus |
 |---|---|---|---|
-| 1 | Read One Word | `read_word` | Read short words clearly, one at a time. |
-| 2 | Word Family Practice | `word_family_drill` | Read words that share the same ending pattern. |
-| 3 | Similar Word Practice | `minimal_pair` | Read similar-looking words with careful sounds. |
-| 4 | Word Accuracy Check | `word_accuracy_challenge` | Read each word clearly and check every sound. |
+| 1 | Display Word | `display_word_reading` | Display one word; learner reads that word. |
+| 2 | Split Word | `split_word_reading` | Display word parts like `C + at`; learner reads the whole word. |
+| 3 | Highlighted Rhyme Word | `highlighted_rhyme_word` | Display a rhyme group and highlight one word; learner reads the highlighted word only. |
+| 4 | Highlighted Sentence Word | `highlighted_sentence_word` | Display a sentence and highlight the target word; learner reads the highlighted word only. |
 
 ### Module 3: Sentence Reading and Fluency
 
 | # | Lesson | Activity Key | Current Focus |
 |---|---|---|---|
-| 1 | Read One Sentence | `read_sentence` | Read the whole sentence clearly from start to finish. |
-| 2 | Guided Sentence Practice | `read_with_coach` | Read a sentence, then Miss Ciel can guide your next try. |
-| 3 | Steady Sentence Reading | `timed_sentence_reading` | Read at a steady pace without rushing. |
-| 4 | Pause and Pace Practice | `pause_practice` | Read with small pauses so the sentence makes sense. |
+| 1 | Simple Sentence | `simple_sentence_reading` | Read one full sentence accurately. |
+| 2 | Comma Pause | `comma_pause_reading` | Read a sentence with a small pause at the comma. |
+| 3 | Full-Stop Pause | `full_stop_pause_reading` | Read two short sentences with a stronger full-stop pause. |
+| 4 | Mixed Punctuation Fluency | `mixed_punctuation_fluency` | Read mixed punctuation smoothly with accuracy and pacing. |
 
 ## Module Activity CSV Schema
 
@@ -127,23 +127,38 @@ The most important display-driving fields are:
 prompt_text
 expected_text
 metadata.display_text
+metadata.display_format
+metadata.target_letter
 metadata.target_word
 metadata.target_sentence
+metadata.highlight_target
+metadata.highlighted_letter
+metadata.highlighted_word
+metadata.split_word_display
+metadata.rhyme_group
+metadata.sentence_with_target
+metadata.punctuation_focus
+metadata.canonical_target
 activity_type
 module_key
 ```
 
-For Module 1, the frontend formats isolated letter prompts as upper/lower pairs when possible:
+For Module 1, the item bank carries the display format explicitly:
 
 ```text
-A -> Aa
-B -> Bb
+letter_pair_identification -> Aa
+highlighted_first_letter -> Cat, highlight C
+first_letter_identification -> Cat
+missing_first_letter -> Cat - _at
 ```
 
-For Module 2, simple lowercase word display values are capitalized for the learner view:
+For Module 2, simple lowercase word display values are capitalized for the learner view, and highlight metadata controls visual highlighting:
 
 ```text
 cat -> Cat
+C + at -> read cat
+cat   bat   mat -> highlight target word
+I can read cat. -> highlight cat
 ```
 
 ## Scoring Basis
@@ -155,8 +170,8 @@ Correctness is based mainly on `accepted_answers`.
 `accepted_answers` is pipe-delimited:
 
 ```text
-Cat|cat
-A|a|Aa|short a|shorta
+cat
+A|a
 ```
 
 The learner transcript and accepted answers are normalized before comparison:
@@ -165,15 +180,6 @@ The learner transcript and accepted answers are normalized before comparison:
 - remove punctuation
 - collapse repeated whitespace
 - exact compare against each accepted answer
-
-Some spoken letter aliases are also accepted for isolated letters. Examples:
-
-```text
-c -> see / sea
-o -> oh
-u -> you / yew
-x -> ex
-```
 
 Important scoring fields for Modules 1 and 2:
 
@@ -284,7 +290,7 @@ Important metadata keys:
 {
   "id": "M1-R001",
   "module_key": "module_1",
-  "activity_type": "hear_and_repeat",
+  "activity_type": "letter_pair_identification",
   "is_active": 1,
   "practice_item_count": 5,
   "mastery_item_count": 0

@@ -178,10 +178,10 @@ class AudioRecordingTest extends TestCase
         Storage::fake('local');
         [$learner, $module] = $this->moduleContext();
         $learner->update(['current_module_id' => $module->id, 'current_stage' => 'module_practice']);
-        $this->seedModuleActivities($module, 'read_word', 5);
+        $this->seedModuleActivities($module, 'display_word_reading', 5);
         $selection = app(ModuleActivitySelectionService::class);
         $attempt = $selection->startOrResumeModuleAttempt($learner, $module);
-        $items = $selection->selectPracticeItemsForAttempt($attempt, 'read_word', 5);
+        $items = $selection->selectPracticeItemsForAttempt($attempt, 'display_word_reading', 5);
         $responses = $items->map(fn ($item, $index) => [
             'module_attempt_item_id' => $item->id,
             'answer' => 'cat',
@@ -191,7 +191,7 @@ class AudioRecordingTest extends TestCase
         ])->all();
 
         $this->withSession(['learner_id' => $learner->id, 'module_attempt_id' => $attempt->id, 'admin_testing_mode' => true])
-            ->post(route('learner.modules.activity.store', [$module, 'read_word']), ['responses' => $responses])
+            ->post(route('learner.modules.activity.store', [$module, 'display_word_reading']), ['responses' => $responses])
             ->assertRedirect();
 
         $response = ModuleActivityResponse::whereNotNull('audio_file_id')->firstOrFail();
@@ -602,10 +602,10 @@ class AudioRecordingTest extends TestCase
         config(['stt.mock.transcript' => 'dog']);
         [$learner, $module] = $this->moduleContext();
         $learner->update(['current_module_id' => $module->id, 'current_stage' => 'module_practice']);
-        $this->seedModuleActivities($module, 'read_word', 5);
+        $this->seedModuleActivities($module, 'display_word_reading', 5);
         $selection = app(ModuleActivitySelectionService::class);
         $attempt = $selection->startOrResumeModuleAttempt($learner, $module);
-        $items = $selection->selectPracticeItemsForAttempt($attempt, 'read_word', 5);
+        $items = $selection->selectPracticeItemsForAttempt($attempt, 'display_word_reading', 5);
         $responses = $items->map(fn ($item, $index) => [
             'module_attempt_item_id' => $item->id,
             'answer' => 'cat',
@@ -615,7 +615,7 @@ class AudioRecordingTest extends TestCase
         ])->all();
 
         $this->withSession(['learner_id' => $learner->id, 'module_attempt_id' => $attempt->id, 'admin_testing_mode' => true])
-            ->post(route('learner.modules.activity.store', [$module, 'read_word']), ['responses' => $responses])
+            ->post(route('learner.modules.activity.store', [$module, 'display_word_reading']), ['responses' => $responses])
             ->assertRedirect();
 
         $response = ModuleActivityResponse::whereNotNull('audio_file_id')->firstOrFail();
@@ -639,7 +639,7 @@ class AudioRecordingTest extends TestCase
             'payload' => [
                 'source_csv_id' => 'AUD-MOD-LONG',
                 'module_key' => $module->key,
-                'activity_type' => 'read_sentence',
+                'activity_type' => 'simple_sentence_reading',
                 'sequence' => 1,
                 'expected_answer' => $longAnswer,
                 'points' => 1,
@@ -656,7 +656,7 @@ class AudioRecordingTest extends TestCase
             'payload' => [
                 'source_csv_id' => 'AUD-MOD-RULE',
                 'module_key' => $module->key,
-                'activity_type' => 'read_sentence',
+                'activity_type' => 'simple_sentence_reading',
                 'practice_item_count' => 1,
             ],
             'difficulty' => 'easy',
@@ -666,19 +666,19 @@ class AudioRecordingTest extends TestCase
             'module_id' => $module->id,
             'learning_content_id' => $content->id,
             'sequence' => 1,
-            'activity_type' => 'read_sentence',
+            'activity_type' => 'simple_sentence_reading',
             'title' => 'Long reading practice',
             'configuration' => $content->payload,
         ]);
 
         $selection = app(ModuleActivitySelectionService::class);
         $attempt = $selection->startOrResumeModuleAttempt($learner, $module);
-        $items = $selection->selectPracticeItemsForAttempt($attempt, 'read_sentence', 1);
+        $items = $selection->selectPracticeItemsForAttempt($attempt, 'simple_sentence_reading', 1);
 
         $this->assertGreaterThan(255, strlen($longAnswer));
 
         $this->withSession(['learner_id' => $learner->id, 'module_attempt_id' => $attempt->id, 'admin_testing_mode' => true])
-            ->post(route('learner.modules.activity.store', [$module, 'read_sentence']), [
+            ->post(route('learner.modules.activity.store', [$module, 'simple_sentence_reading']), [
                 'responses' => [[
                     'module_attempt_item_id' => $items->first()->id,
                     'answer' => $longAnswer,
@@ -700,10 +700,10 @@ class AudioRecordingTest extends TestCase
         config(['stt.mock.transcript' => 'dog']);
         [$learner, $module] = $this->moduleContext();
         $learner->update(['current_module_id' => $module->id, 'current_stage' => 'module_practice']);
-        $this->seedModuleActivities($module, 'read_word', 5);
+        $this->seedModuleActivities($module, 'display_word_reading', 5);
         $selection = app(ModuleActivitySelectionService::class);
         $attempt = $selection->startOrResumeModuleAttempt($learner, $module);
-        $items = $selection->selectPracticeItemsForAttempt($attempt, 'read_word', 5);
+        $items = $selection->selectPracticeItemsForAttempt($attempt, 'display_word_reading', 5);
         $responses = $items->map(fn ($item, $index) => [
             'module_attempt_item_id' => $item->id,
             'answer' => 'cat',
@@ -713,7 +713,7 @@ class AudioRecordingTest extends TestCase
         ])->all();
 
         $this->withSession(['learner_id' => $learner->id, 'module_attempt_id' => $attempt->id])
-            ->post(route('learner.modules.activity.store', [$module, 'read_word']), ['responses' => $responses])
+            ->post(route('learner.modules.activity.store', [$module, 'display_word_reading']), ['responses' => $responses])
             ->assertRedirect();
 
         $response = ModuleActivityResponse::whereNotNull('audio_file_id')->firstOrFail();
@@ -756,7 +756,7 @@ class AudioRecordingTest extends TestCase
         $activity = ModuleActivity::create([
             'module_id' => $module->id,
             'sequence' => 1,
-            'activity_type' => 'read_word',
+            'activity_type' => 'display_word_reading',
             'title' => 'Read cat',
             'configuration' => ['expected_answer' => 'cat'],
         ]);
@@ -896,6 +896,7 @@ class AudioRecordingTest extends TestCase
                     'module_key' => $module->key,
                     'activity_type' => $activityType,
                     'sequence' => $index,
+                    'canonical_target' => $activityType.'-'.$index,
                     'expected_answer' => 'cat',
                     'points' => 1,
                     'is_mastery_item' => false,

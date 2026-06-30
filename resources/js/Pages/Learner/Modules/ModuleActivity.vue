@@ -52,31 +52,72 @@ const isAutomaticListeningMode = computed(() => (
     && manualRecorderOverride.value !== true
 ));
 const recorderPromptType = computed(() => {
-    const activity = String(props.activityType ?? '');
-
     if (props.module?.key === 'module_1') return 'letter';
+    if (props.module?.key === 'module_2') return 'word';
     if (props.module?.key === 'module_3') return 'sentence';
-    if (activity.includes('sentence')) return 'sentence';
-    if (activity.includes('rhyme')) return 'rhyme';
-    if (activity.includes('letter')) return 'letter';
 
     return 'word';
 });
-const initialModuleCues = {
-    letter: [
-        { text: 'Look at the letter below and say its sound clearly.', lineKey: 'ciel.module1.before_recording.letter_01' },
-        { text: 'Say the displayed letter sound slowly.', lineKey: 'ciel.module1.before_recording.letter_02' },
-        { text: 'Read the letter sound below carefully.', lineKey: 'ciel.module1.before_recording.letter_03' },
+const lessonCues = {
+    letter_pair_identification: [
+        { text: 'Look at the letter pair below, then say the letter clearly.', lineKey: 'ciel.module1.letter_pair_identification.01' },
+        { text: 'Read the letter you see. Say it nice and clear.', lineKey: 'ciel.module1.letter_pair_identification.02' },
+        { text: "Let's practice this letter. Say the letter shown below.", lineKey: 'ciel.module1.letter_pair_identification.03' },
     ],
-    word: [
-        { text: 'Read the displayed word below carefully.', lineKey: 'ciel.module2.before_recording.word_01' },
-        { text: 'Read the word below slowly.', lineKey: 'ciel.module2.before_recording.word_02' },
-        { text: 'Look at the word below and say it clearly.', lineKey: 'ciel.module2.before_recording.word_03' },
+    highlighted_first_letter: [
+        { text: 'Look at the highlighted first letter, then say that letter.', lineKey: 'ciel.module1.highlighted_first_letter.01' },
+        { text: 'The first letter is highlighted. Say the letter that starts the word.', lineKey: 'ciel.module1.highlighted_first_letter.02' },
+        { text: 'Find the highlighted letter at the start of the word, then say it clearly.', lineKey: 'ciel.module1.highlighted_first_letter.03' },
     ],
-    sentence: [
-        { text: 'Read the sentence below clearly and naturally.', lineKey: 'ciel.module3.before_recording.sentence_01' },
-        { text: 'Read the displayed sentence at a steady pace.', lineKey: 'ciel.module3.before_recording.sentence_02' },
-        { text: 'Read the sentence below carefully from start to finish.', lineKey: 'ciel.module3.before_recording.sentence_03' },
+    first_letter_identification: [
+        { text: 'Look at the word below. What letter does it start with?', lineKey: 'ciel.module1.first_letter_identification.01' },
+        { text: 'Find the first letter of the word, then say it clearly.', lineKey: 'ciel.module1.first_letter_identification.02' },
+        { text: 'No highlight this time. Say the letter that starts the word.', lineKey: 'ciel.module1.first_letter_identification.03' },
+    ],
+    missing_first_letter: [
+        { text: 'Look at the full word and the missing-letter word. What letter is missing?', lineKey: 'ciel.module1.missing_first_letter.01' },
+        { text: 'Compare the two words, then say the missing first letter.', lineKey: 'ciel.module1.missing_first_letter.02' },
+        { text: 'The first letter is missing. Say the letter that completes the word.', lineKey: 'ciel.module1.missing_first_letter.03' },
+    ],
+    display_word_reading: [
+        { text: 'Look at the word below, then read it clearly.', lineKey: 'ciel.module2.display_word_reading.01' },
+        { text: 'Read the word you see on the screen.', lineKey: 'ciel.module2.display_word_reading.02' },
+        { text: "Let's practice this word. Say the word clearly.", lineKey: 'ciel.module2.display_word_reading.03' },
+    ],
+    split_word_reading: [
+        { text: 'Look at the word parts, then read the whole word.', lineKey: 'ciel.module2.split_word_reading.01' },
+        { text: 'Blend the parts together and say the full word.', lineKey: 'ciel.module2.split_word_reading.02' },
+        { text: 'Read the complete word made by the parts below.', lineKey: 'ciel.module2.split_word_reading.03' },
+    ],
+    highlighted_rhyme_word: [
+        { text: 'Look at the rhyming words, then read the highlighted word.', lineKey: 'ciel.module2.highlighted_rhyme_word.01' },
+        { text: 'Only read the highlighted word in the group.', lineKey: 'ciel.module2.highlighted_rhyme_word.02' },
+        { text: 'Find the highlighted word, then say it clearly.', lineKey: 'ciel.module2.highlighted_rhyme_word.03' },
+    ],
+    highlighted_sentence_word: [
+        { text: 'Look at the sentence, then read the highlighted word.', lineKey: 'ciel.module2.highlighted_sentence_word.01' },
+        { text: 'Only say the highlighted word in the sentence.', lineKey: 'ciel.module2.highlighted_sentence_word.02' },
+        { text: 'Find the highlighted word in the sentence and read it clearly.', lineKey: 'ciel.module2.highlighted_sentence_word.03' },
+    ],
+    simple_sentence_reading: [
+        { text: 'Read the sentence below from start to finish.', lineKey: 'ciel.module3.simple_sentence_reading.01' },
+        { text: 'Look at the sentence, then read it clearly.', lineKey: 'ciel.module3.simple_sentence_reading.02' },
+        { text: "Let's read the whole sentence carefully.", lineKey: 'ciel.module3.simple_sentence_reading.03' },
+    ],
+    comma_pause_reading: [
+        { text: 'Read the sentence and make a small pause at the comma.', lineKey: 'ciel.module3.comma_pause_reading.01' },
+        { text: 'When you see the comma, pause just a little, then keep reading.', lineKey: 'ciel.module3.comma_pause_reading.02' },
+        { text: 'Read smoothly and remember the small comma pause.', lineKey: 'ciel.module3.comma_pause_reading.03' },
+    ],
+    full_stop_pause_reading: [
+        { text: 'Read both sentences and pause after the full stop.', lineKey: 'ciel.module3.full_stop_pause_reading.01' },
+        { text: 'When the sentence ends, make a stronger pause before reading the next one.', lineKey: 'ciel.module3.full_stop_pause_reading.02' },
+        { text: 'Read the two sentences clearly, with a full-stop pause between them.', lineKey: 'ciel.module3.full_stop_pause_reading.03' },
+    ],
+    mixed_punctuation_fluency: [
+        { text: 'Read the full text smoothly. Pause at the comma and full stop.', lineKey: 'ciel.module3.mixed_punctuation_fluency.01' },
+        { text: 'Read carefully and use the punctuation to guide your pacing.', lineKey: 'ciel.module3.mixed_punctuation_fluency.02' },
+        { text: "Let's read this smoothly, with clear pauses and steady pacing.", lineKey: 'ciel.module3.mixed_punctuation_fluency.03' },
     ],
 };
 const afterRecordingCues = [
@@ -104,7 +145,7 @@ const moduleCueTypeFor = (item = null) => {
     return 'word';
 };
 const cycleIndexForItem = (item = null) => {
-    const directSequence = Number(item?.sequence);
+    const directSequence = Number(item?.dialogue_cycle_position ?? item?.payload?.dialogue_cycle_position ?? item?.sequence);
     const listIndex = (props.items ?? []).findIndex((candidate) => candidate?.id === item?.id);
     const sequence = Number.isFinite(directSequence) && directSequence > 0
         ? directSequence
@@ -113,7 +154,8 @@ const cycleIndexForItem = (item = null) => {
     return (sequence - 1) % 3;
 };
 const cycleCueForItem = (cues, item = null) => cues[cycleIndexForItem(item)] ?? cues[0];
-const initialCueForItem = (item = null) => cycleCueForItem(initialModuleCues[moduleCueTypeFor(item)] ?? initialModuleCues.word, item);
+const lessonCuesForItem = (item = null) => lessonCues[String(item?.activity_type ?? props.activityType ?? '')] ?? lessonCues.display_word_reading;
+const initialCueForItem = (item = null) => cycleCueForItem(lessonCuesForItem(item), item);
 const afterRecordingCueForItem = (item = null) => cycleCueForItem(afterRecordingCues, item);
 const noRecordingCueForItem = (item = null) => noRecordingCues[moduleCueTypeFor(item)] ?? noRecordingCues.word;
 const praiseCueForItem = (item = null) => cycleCueForItem(praiseCues, item);
@@ -136,9 +178,16 @@ const focusEchoStepsForItem = (item = null, fallbackText = '', fallbackAction = 
         { text: echo.text, action: 'talk', line_key: echo.line_key, intent: echo.intent ?? 'module_echo_correct' },
     ];
 };
-const promptDisplaySize = computed(() => (recorderPromptType.value === 'letter'
-    ? 'letter'
-    : (recorderPromptType.value === 'sentence' ? 'sentence' : 'word')));
+const displaySizeForItem = (item = null) => {
+    const moduleKey = String(item?.payload?.module_key ?? props.module?.key ?? '');
+    const format = String(item?.payload?.display_format ?? '');
+
+    if (format === 'letter_pair') return 'letter';
+    if (moduleKey === 'module_3' || format.includes('sentence') || format.includes('punctuation') || format.includes('text')) return 'sentence';
+
+    return 'word';
+};
+const promptDisplaySize = computed(() => displaySizeForItem(step.currentItem.value));
 const manualAnswerFor = (item, answer = null) => canUseManualFallback.value ? String(answer ?? step.answers[item?.id] ?? '').trim() : '';
 const answerFor = (item, answer = null) => manualAnswerFor(item, answer) || String(generatedTranscripts[item?.id] ?? '').trim();
 const sourceFor = (item, answer = null) => manualAnswerFor(item, answer)
@@ -815,11 +864,11 @@ onBeforeUnmount(() => {
 
             <template v-if="canUseManualFallback" #qa>
                 <label class="flex min-w-0 flex-1 items-center gap-2 text-xs font-black text-slate-500">
-                    <span class="shrink-0">Developer QA: Manual Transcript Override</span>
+                    <span class="shrink-0">Manual Transcript Override</span>
                     <input
                         v-model="step.answers[step.currentItem.value.id]"
                         class="min-h-9 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-800 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
-                        placeholder="Optional QA fallback text"
+                        placeholder="Optional transcript text"
                     >
                 </label>
             </template>

@@ -49,19 +49,19 @@ const recorderPromptType = computed(() => {
 });
 const initialModuleCues = {
     letter: [
-        { text: 'Look at the letter below and say its sound clearly.', lineKey: 'ciel.module1.before_recording.letter_01' },
-        { text: 'Say the displayed letter sound slowly.', lineKey: 'ciel.module1.before_recording.letter_02' },
-        { text: 'Read the letter sound below carefully.', lineKey: 'ciel.module1.before_recording.letter_03' },
+        { text: "This is your mini mastery check. Do your best one item at a time, and I'll stay with you.", lineKey: 'ciel.mastery.start' },
+        { text: "Take your time, then read this one out loud. I'll stay with you, and we can go slowly together.", lineKey: 'ciel.friendly.read_slowly_together' },
+        { text: "Ready? Let's read this one together. Go slowly, and just try your best.", lineKey: 'ciel.friendly.ready_read_together' },
     ],
     word: [
-        { text: 'Read the displayed word below carefully.', lineKey: 'ciel.module2.before_recording.word_01' },
-        { text: 'Read the word below slowly.', lineKey: 'ciel.module2.before_recording.word_02' },
-        { text: 'Look at the word below and say it clearly.', lineKey: 'ciel.module2.before_recording.word_03' },
+        { text: "This is your mini mastery check. Do your best one item at a time, and I'll stay with you.", lineKey: 'ciel.mastery.start' },
+        { text: "Take your time, then read this one out loud. I'll stay with you, and we can go slowly together.", lineKey: 'ciel.friendly.read_slowly_together' },
+        { text: "Ready? Let's read this one together. Go slowly, and just try your best.", lineKey: 'ciel.friendly.ready_read_together' },
     ],
     sentence: [
-        { text: 'Read the sentence below clearly and naturally.', lineKey: 'ciel.module3.before_recording.sentence_01' },
-        { text: 'Read the displayed sentence at a steady pace.', lineKey: 'ciel.module3.before_recording.sentence_02' },
-        { text: 'Read the sentence below carefully from start to finish.', lineKey: 'ciel.module3.before_recording.sentence_03' },
+        { text: "This is your mini mastery check. Do your best one item at a time, and I'll stay with you.", lineKey: 'ciel.mastery.start' },
+        { text: "Take your time, then read this one out loud. I'll stay with you, and we can go slowly together.", lineKey: 'ciel.friendly.read_slowly_together' },
+        { text: "Ready? Let's read this one together. Go slowly, and just try your best.", lineKey: 'ciel.friendly.ready_read_together' },
     ],
 };
 const afterRecordingCues = [
@@ -796,11 +796,11 @@ onBeforeUnmount(() => {
 
             <template v-if="canUseManualFallback" #qa>
                 <label class="flex min-w-0 flex-1 items-center gap-2 text-xs font-black text-slate-500">
-                    <span class="shrink-0">Developer QA: Manual Transcript Override</span>
+                    <span class="shrink-0">Manual Transcript Override</span>
                     <input
                         v-model="step.answers[step.currentItem.value.id]"
                         class="min-h-9 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-800 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
-                        placeholder="Optional QA fallback text"
+                        placeholder="Optional transcript text"
                     >
                 </label>
             </template>

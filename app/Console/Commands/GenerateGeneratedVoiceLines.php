@@ -11,6 +11,23 @@ use Illuminate\Support\Str;
 
 class GenerateGeneratedVoiceLines extends Command
 {
+    private const CIEL_LESSON_REFERENCE_AUDIO = 'ciel/focused_instruction/ciel_focused_instruction_01.wav';
+
+    private const CIEL_LESSON_LINE_PREFIXES = [
+        'ciel.module1.letter_pair_identification.',
+        'ciel.module1.highlighted_first_letter.',
+        'ciel.module1.first_letter_identification.',
+        'ciel.module1.missing_first_letter.',
+        'ciel.module2.display_word_reading.',
+        'ciel.module2.split_word_reading.',
+        'ciel.module2.highlighted_rhyme_word.',
+        'ciel.module2.highlighted_sentence_word.',
+        'ciel.module3.simple_sentence_reading.',
+        'ciel.module3.comma_pause_reading.',
+        'ciel.module3.full_stop_pause_reading.',
+        'ciel.module3.mixed_punctuation_fluency.',
+    ];
+
     protected $signature = 'readirect:voice-lines:generate
         {--line-key= : Generate one line key}
         {--line-key-prefix= : Generate rows whose line key starts with this prefix}
@@ -88,7 +105,7 @@ class GenerateGeneratedVoiceLines extends Command
                 'text' => $line->text,
                 'synthesis_text' => $line->synthesis_text,
                 'voice_id' => $line->voice_id,
-                'reference_audio_path' => $this->option('reference-audio') ?: null,
+                'reference_audio_path' => $this->referenceAudioFor($line),
                 'is_static' => $line->is_static,
                 'is_defense_demo' => $line->is_defense_demo,
             ])->values()->all();
@@ -215,5 +232,21 @@ class GenerateGeneratedVoiceLines extends Command
         }
 
         return false;
+    }
+
+    private function referenceAudioFor(GeneratedVoiceLine $line): ?string
+    {
+        $requested = trim((string) ($this->option('reference-audio') ?? ''));
+        if ($requested !== '') {
+            return $requested;
+        }
+
+        foreach (self::CIEL_LESSON_LINE_PREFIXES as $prefix) {
+            if (str_starts_with($line->line_key, $prefix)) {
+                return self::CIEL_LESSON_REFERENCE_AUDIO;
+            }
+        }
+
+        return null;
     }
 }

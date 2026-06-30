@@ -25,6 +25,11 @@ class AssessmentModeService
 
     public function canUseManualFallback(Request $request, AssessmentAttempt|ModuleAttempt|null $attempt = null, ?Learner $learner = null): bool
     {
+        return true;
+    }
+
+    public function canUseIncorrectWordsOverride(Request $request, AssessmentAttempt|ModuleAttempt|null $attempt = null, ?Learner $learner = null): bool
+    {
         return $this->hasQaPermission($request, $attempt, $learner, 'manual_fallback');
     }
 
@@ -81,6 +86,7 @@ class AssessmentModeService
         return [
             'isDeveloperQaMode' => $isDeveloperQaMode,
             'canUseManualFallback' => $this->canUseManualFallback($request, $attempt, $learner),
+            'canUseIncorrectWordsOverride' => $this->canUseIncorrectWordsOverride($request, $attempt, $learner),
             'canShowAssessmentDebug' => $this->canShowAssessmentDebug($request, $attempt, $learner),
             'canUseDeveloperJumpControls' => false,
             'canBypassLinearFlow' => false,

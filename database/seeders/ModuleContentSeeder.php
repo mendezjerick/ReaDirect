@@ -12,6 +12,12 @@ class ModuleContentSeeder extends Seeder
 
     private ?array $enrichmentIndex = null;
 
+    private array $seededModuleActivitySourceIds = [];
+
+    private array $seededSelectionRuleSourceIds = [];
+
+    private array $seededFeedbackTemplateSourceIds = [];
+
     public function __construct()
     {
         $this->basePath = database_path('seed-data/readirect');
@@ -24,14 +30,16 @@ class ModuleContentSeeder extends Seeder
         $this->seedModuleActivities('module3_sentence_fluency_activities_adaptive_v2.csv');
         $this->seedFeedbackTemplates();
         $this->seedSelectionRules();
+        $this->deactivateStaleSeededContent();
     }
 
     private function seedModuleActivities(string $file): void
     {
         foreach ($this->csv($file) as $row) {
+            $this->seededModuleActivitySourceIds[] = $this->rowId($row);
             $metadata = $this->metadata($row);
             $module = Module::where('key', $row['module_key'])->firstOrFail();
-            $payload = [
+            $payload = array_merge([
                 'source_csv_id' => $this->rowId($row),
                 'module_key' => $row['module_key'],
                 'activity_type' => $row['activity_type'],
@@ -43,7 +51,7 @@ class ModuleContentSeeder extends Seeder
                 'word_family' => $row['word_family'] ?? null,
                 'points' => $this->points($row, $metadata),
                 'is_mastery_item' => $this->active($row['is_mastery_item']),
-            ] + $this->fluencyPayload($row, $metadata);
+            ], $this->displayPayload($row, $metadata), $this->fluencyPayload($row, $metadata));
             $enrichment = $this->rowEnrichment($row) + $this->enrichmentFor($this->rowId($row));
 
             $content = $this->updateLearningContent(
@@ -75,6 +83,7 @@ class ModuleContentSeeder extends Seeder
     private function seedFeedbackTemplates(): void
     {
         foreach ($this->csv('module_feedback_templates.csv') as $row) {
+            $this->seededFeedbackTemplateSourceIds[] = $this->rowId($row);
             LearningContent::updateOrCreate(
                 ['content_type' => 'module_feedback_template', 'title' => $row['id']],
                 [
@@ -99,6 +108,7 @@ class ModuleContentSeeder extends Seeder
     private function seedSelectionRules(): void
     {
         foreach ($this->csv('module_activity_selection_rules.csv') as $row) {
+            $this->seededSelectionRuleSourceIds[] = $this->rowId($row);
             $metadata = $this->metadata($row);
             $this->updateLearningContent(
                 'module_activity_selection_rule',
@@ -119,6 +129,51 @@ class ModuleContentSeeder extends Seeder
                 ]
             );
         }
+    }
+
+    private function deactivateStaleSeededContent(): void
+    {
+        $this->deactivateStaleContent(
+            'module_activity',
+            $this->seededModuleActivitySourceIds,
+            fn (array $payload): bool => in_array((string) ($payload['module_key'] ?? ''), ['module_1', 'module_2', 'module_3'], true)
+        );
+
+        $this->deactivateStaleContent(
+            'module_activity_selection_rule',
+            $this->seededSelectionRuleSourceIds,
+            fn (array $payload): bool => in_array((string) ($payload['module_key'] ?? ''), ['module_1', 'module_2', 'module_3'], true)
+        );
+
+        $this->deactivateStaleContent(
+            'module_feedback_template',
+            $this->seededFeedbackTemplateSourceIds,
+            fn (array $payload): bool => array_key_exists('module_key', $payload)
+        );
+    }
+
+    private function deactivateStaleContent(string $contentType, array $currentSourceIds, callable $belongsToThisSeeder): void
+    {
+        $currentSourceIds = array_flip(array_unique($currentSourceIds));
+
+        LearningContent::query()
+            ->where('content_type', $contentType)
+            ->where('is_active', true)
+            ->get()
+            ->each(function (LearningContent $content) use ($currentSourceIds, $belongsToThisSeeder): void {
+                $payload = $content->payload ?? [];
+
+                if (! $belongsToThisSeeder($payload)) {
+                    return;
+                }
+
+                $sourceCsvId = (string) ($payload['source_csv_id'] ?? '');
+                if ($sourceCsvId === '' || isset($currentSourceIds[$sourceCsvId])) {
+                    return;
+                }
+
+                $content->update(['is_active' => false]);
+            });
     }
 
     private function csv(string $file): array
@@ -257,6 +312,49 @@ class ModuleContentSeeder extends Seeder
             'pace_feedback_rule' => $this->nullableText($row['pace_feedback_rule'] ?? $metadata['pace_feedback_rule'] ?? null),
             'pace_mastery_required' => $this->nullableBool($row['pace_mastery_required'] ?? $metadata['pace_mastery_required'] ?? null),
         ];
+    }
+
+    private function displayPayload(array $row, array $metadata): array
+    {
+        $fields = [
+            'canonical_target',
+            'target_letter',
+            'target_word',
+            'target_sentence',
+            'highlight_target',
+            'highlighted_letter',
+            'highlighted_word',
+            'target_word_index',
+            'split_word_display',
+            'rhyme_group',
+            'sentence_with_target',
+            'punctuation_focus',
+            'display_format',
+        ];
+
+        return collect($fields)
+            ->mapWithKeys(function (string $field) use ($row, $metadata): array {
+                $value = $row[$field] ?? $metadata[$field] ?? null;
+
+                if ($field === 'highlight_target') {
+                    return [$field => $this->nullableBool($value)];
+                }
+
+                if ($field === 'target_word_index') {
+                    return [$field => is_numeric($value) ? (int) $value : null];
+                }
+
+                if ($field === 'rhyme_group' && is_string($value)) {
+                    $decoded = json_decode($value, true);
+                    if (is_array($decoded)) {
+                        return [$field => $decoded];
+                    }
+                }
+
+                return [$field => $value === '' ? null : $value];
+            })
+            ->filter(fn (mixed $value): bool => $value !== null)
+            ->all();
     }
 
     private function nullableText(mixed $value): ?string

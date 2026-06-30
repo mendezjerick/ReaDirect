@@ -4,9 +4,12 @@ namespace App\Services\Admin;
 
 use App\Models\AssessmentAttempt;
 use App\Models\AudioFile;
+use App\Models\LearnerModuleUsedTarget;
 use App\Models\Learner;
 use App\Models\Module;
+use App\Models\ModuleActivityResponse;
 use App\Models\ModuleAttempt;
+use App\Models\ModuleAttemptItem;
 use App\Models\Recommendation;
 use App\Models\School;
 use App\Models\SchoolClass;
@@ -82,17 +85,7 @@ class QaTestingStateService
     public function reset(Request $request): Learner
     {
         return DB::transaction(function () use ($request): Learner {
-            $tester = $this->tester();
-
-            AudioFile::where('learner_id', $tester->id)->delete();
-            Recommendation::where('learner_id', $tester->id)->delete();
-            AssessmentAttempt::where('learner_id', $tester->id)->delete();
-            ModuleAttempt::where('learner_id', $tester->id)->delete();
-
-            $tester->update([
-                'current_module_id' => null,
-                'current_stage' => LearnerStage::NEW,
-            ]);
+            $tester = $this->resetTesterData();
 
             $this->clearAttemptSession($request);
             $this->activate($request);
@@ -103,18 +96,10 @@ class QaTestingStateService
 
     public function exit(Request $request): void
     {
-        $this->reset($request);
-        $request->session()->forget([
-            'admin_testing_mode',
-            'admin_testing_learner_id',
-            'admin_testing_assessment_attempt_id',
-            'admin_testing_module_attempt_id',
-            'learner_id',
-            'assessment_attempt_id',
-            'final_assessment_attempt_id',
-            'module_attempt_id',
-            'task_one_route',
-        ]);
+        DB::transaction(function () use ($request): void {
+            $this->resetTesterData();
+            $this->clearTestingSession($request);
+        });
     }
 
     public function prepareJump(Request $request, string $target): array
@@ -279,11 +264,15 @@ class QaTestingStateService
 
     private function prepareModuleJump(Request $request, Learner $tester, string $target): array
     {
-        preg_match('/^module-(module_[123])-(overview|activity|mastery|result|extra)$/', $target, $matches);
+        preg_match('/^module-(module_[123])-(overview|activity(?:-.+)?|mastery|result|extra)$/', $target, $matches);
         abort_unless($matches, 404);
 
         $module = Module::where('key', $matches[1])->firstOrFail();
-        $page = $matches[2];
+        $pageToken = $matches[2];
+        $requestedActivityType = str_starts_with($pageToken, 'activity-')
+            ? substr($pageToken, strlen('activity-'))
+            : null;
+        $page = str_starts_with($pageToken, 'activity') ? 'activity' : $pageToken;
         $this->seedDiagnosticForModule($tester, $module->key);
 
         $attempt = ModuleAttempt::create([
@@ -301,13 +290,17 @@ class QaTestingStateService
             'current_stage' => LearnerStage::MODULE_PRACTICE_IN_PROGRESS,
         ]);
 
-        $activityType = $this->firstPracticeActivity($module);
+        $activityType = $requestedActivityType ?: $this->firstPracticeActivity($module);
+        abort_if($page === 'activity' && ! in_array($activityType, $this->moduleItems->practiceActivityTypes($module), true), 404);
 
         return match ($page) {
             'overview' => $this->redirect($tester->fresh(), route('learner.modules.overview', $module)),
             'activity' => tap(
                 $this->redirect($tester->fresh(), route('learner.modules.activity', [$module, $activityType])),
-                fn () => $this->moduleItems->selectPracticeItemsForAttempt($attempt, $activityType, $this->moduleItems->practiceCountFor($module, $activityType))
+                function () use ($attempt, $module, $activityType): void {
+                    $this->completePracticePrerequisitesBefore($attempt, $module, $activityType);
+                    $this->moduleItems->selectPracticeItemsForAttempt($attempt, $activityType, $this->moduleItems->practiceCountFor($module, $activityType));
+                }
             ),
             'mastery' => tap(
                 $this->redirect($tester->fresh(), route('learner.modules.mastery-check', $module)),
@@ -509,10 +502,66 @@ class QaTestingStateService
                 $activityType,
                 $this->moduleItems->practiceCountFor($module, $activityType)
             );
-            $items->each(fn ($item) => $item->update(['answered_at' => now()]));
+            $items->each(fn (ModuleAttemptItem $item) => $this->seedCorrectModuleResponse($attempt, $item));
+            $this->moduleItems->completePracticeLessonAttempt($attempt, $activityType, $items);
         }
 
         $attempt->update(['status' => 'practice_started']);
+    }
+
+    private function completePracticePrerequisitesBefore(ModuleAttempt $attempt, Module $module, string $targetActivityType): void
+    {
+        foreach ($this->moduleItems->practiceActivityTypes($module) as $activityType) {
+            if ($activityType === $targetActivityType) {
+                break;
+            }
+
+            $items = $this->moduleItems->selectPracticeItemsForAttempt(
+                $attempt,
+                $activityType,
+                $this->moduleItems->practiceCountFor($module, $activityType)
+            );
+            $items->each(fn (ModuleAttemptItem $item) => $this->seedCorrectModuleResponse($attempt, $item));
+            $this->moduleItems->completePracticeLessonAttempt($attempt, $activityType, $items);
+        }
+
+        $attempt->update(['status' => 'practice_started']);
+    }
+
+    private function seedCorrectModuleResponse(ModuleAttempt $attempt, ModuleAttemptItem $item): void
+    {
+        $snapshot = $item->prompt_snapshot ?? [];
+        $payload = $snapshot['payload'] ?? [];
+        $expected = (string) (
+            $snapshot['accepted_answers'][0]
+            ?? $payload['expected_answer']
+            ?? $payload['expected_text']
+            ?? $payload['target_sentence']
+            ?? $payload['target_word']
+            ?? $snapshot['prompt']
+            ?? ''
+        );
+
+        ModuleActivityResponse::updateOrCreate(
+            [
+                'module_attempt_id' => $attempt->id,
+                'module_attempt_item_id' => $item->id,
+            ],
+            [
+                'module_activity_id' => $item->module_activity_id,
+                'response_text' => $expected,
+                'learner_answer' => $expected,
+                'expected_answer' => $expected,
+                'is_correct' => true,
+                'score' => 1,
+                'feedback_text' => 'Correct.',
+                'retry_count' => 0,
+                'is_mastery_item' => false,
+                'metadata' => ['admin_qa_seeded' => true],
+            ],
+        );
+
+        $item->update(['answered_at' => now()]);
     }
 
     private function seedCompletedModuleAttempt(ModuleAttempt $attempt, Module $module, float|int $score): void
@@ -564,6 +613,39 @@ class QaTestingStateService
             'admin_testing_assessment_attempt_id',
             'admin_testing_module_attempt_id',
         ]);
+    }
+
+    private function clearTestingSession(Request $request): void
+    {
+        $request->session()->forget([
+            'admin_testing_mode',
+            'admin_testing_learner_id',
+            'admin_testing_assessment_attempt_id',
+            'admin_testing_module_attempt_id',
+            'learner_id',
+            'assessment_attempt_id',
+            'final_assessment_attempt_id',
+            'module_attempt_id',
+            'task_one_route',
+        ]);
+    }
+
+    private function resetTesterData(): Learner
+    {
+        $tester = $this->tester();
+
+        AudioFile::where('learner_id', $tester->id)->delete();
+        Recommendation::where('learner_id', $tester->id)->delete();
+        AssessmentAttempt::where('learner_id', $tester->id)->delete();
+        ModuleAttempt::where('learner_id', $tester->id)->delete();
+        LearnerModuleUsedTarget::where('learner_id', $tester->id)->delete();
+
+        $tester->update([
+            'current_module_id' => null,
+            'current_stage' => LearnerStage::NEW,
+        ]);
+
+        return $tester;
     }
 
     private function redirect(Learner $tester, string $url): array

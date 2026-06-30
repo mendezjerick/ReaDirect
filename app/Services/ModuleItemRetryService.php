@@ -351,7 +351,11 @@ class ModuleItemRetryService
     {
         $payload = $item->prompt_snapshot['payload'] ?? [];
 
-        return $payload['expected_answer'] ?? $payload['target_word'] ?? $item->prompt_snapshot['prompt'] ?? null;
+        return $payload['expected_answer']
+            ?? $payload['target_sentence']
+            ?? $payload['target_word']
+            ?? $item->prompt_snapshot['prompt']
+            ?? null;
     }
 
     private function correctStreak(ModuleAttempt $attempt, bool $currentCorrect): int

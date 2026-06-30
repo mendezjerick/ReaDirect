@@ -36,18 +36,18 @@ class AdminFilterOptionsService
     public function moduleActivityTypeOptions(): array
     {
         return [
-            ['label' => 'Hear and Repeat', 'value' => 'hear_and_repeat', 'module' => 'module_1'],
-            ['label' => 'See Letter, Say Sound', 'value' => 'see_letter_say_sound', 'module' => 'module_1'],
-            ['label' => 'Match Sound to Letter', 'value' => 'match_sound_to_letter', 'module' => 'module_1'],
-            ['label' => 'Sound Drill', 'value' => 'sound_drill', 'module' => 'module_1'],
-            ['label' => 'Read Word', 'value' => 'read_word', 'module' => 'module_2'],
-            ['label' => 'Word Family Drill', 'value' => 'word_family_drill', 'module' => 'module_2'],
-            ['label' => 'Minimal Pair', 'value' => 'minimal_pair', 'module' => 'module_2'],
-            ['label' => 'Word Accuracy Challenge', 'value' => 'word_accuracy_challenge', 'module' => 'module_2'],
-            ['label' => 'Read Sentence', 'value' => 'read_sentence', 'module' => 'module_3'],
-            ['label' => 'Read with Coach', 'value' => 'read_with_coach', 'module' => 'module_3'],
-            ['label' => 'Timed Sentence Reading', 'value' => 'timed_sentence_reading', 'module' => 'module_3'],
-            ['label' => 'Pause Practice', 'value' => 'pause_practice', 'module' => 'module_3'],
+            ['label' => 'Display Letter Pair', 'value' => 'letter_pair_identification', 'module' => 'module_1'],
+            ['label' => 'Highlighted First Letter', 'value' => 'highlighted_first_letter', 'module' => 'module_1'],
+            ['label' => 'First Letter', 'value' => 'first_letter_identification', 'module' => 'module_1'],
+            ['label' => 'Missing First Letter', 'value' => 'missing_first_letter', 'module' => 'module_1'],
+            ['label' => 'Display Word', 'value' => 'display_word_reading', 'module' => 'module_2'],
+            ['label' => 'Split Word', 'value' => 'split_word_reading', 'module' => 'module_2'],
+            ['label' => 'Highlighted Rhyme Word', 'value' => 'highlighted_rhyme_word', 'module' => 'module_2'],
+            ['label' => 'Highlighted Sentence Word', 'value' => 'highlighted_sentence_word', 'module' => 'module_2'],
+            ['label' => 'Simple Sentence', 'value' => 'simple_sentence_reading', 'module' => 'module_3'],
+            ['label' => 'Comma Pause', 'value' => 'comma_pause_reading', 'module' => 'module_3'],
+            ['label' => 'Full-Stop Pause', 'value' => 'full_stop_pause_reading', 'module' => 'module_3'],
+            ['label' => 'Mixed Punctuation Fluency', 'value' => 'mixed_punctuation_fluency', 'module' => 'module_3'],
             ['label' => 'Mastery Check', 'value' => 'mastery_check', 'module' => 'all'],
         ];
     }

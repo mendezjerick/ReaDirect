@@ -1,11 +1,8 @@
 /**
- * Reading Illustrations — maps words and passages to placeholder images.
+ * Reading Illustrations - maps words and passages to image assets.
  *
- * Word images:   /ia-assets/images/reading/words/{word}.svg
- * Passage images: /ia-assets/images/reading/passages/{slug}.svg
- *
- * To replace a placeholder, drop a new file with the same name into the
- * corresponding ReaDirect-IA directory.  No code changes are needed.
+ * Word images: /images/reading/words/{word}.svg
+ * Passage images: /ia-graphics/{filename}
  */
 
 const WORD_IMAGE_BASE = '/images/reading/words';
@@ -19,16 +16,16 @@ const ILLUSTRATED_WORDS = new Set([
     'red', 'rock', 'run', 'sit', 'sun', 'tap', 'top', 'tree',
 ]);
 
-/** Passage title → slug mapping. */
-const PASSAGE_SLUGS = {
-    'ana and ben at the park': 'passage-park',
-    'leo and the kite': 'passage-kite',
+/** Passage IDs for the active assessment stories. */
+const PASSAGE_IMAGE_OVERRIDES = {
+    'pass-001': 'story1.png',
+    'pass-002': 'story2.png',
 };
 
 /**
  * Get the image URL for a word prompt.
  *
- * @param {string} word – the word (case-insensitive, auto-trimmed)
+ * @param {string} word - the word (case-insensitive, auto-trimmed)
  * @returns {string|null} image path or null
  */
 export function getWordImage(word) {
@@ -42,13 +39,25 @@ export function getWordImage(word) {
 /**
  * Get the image URL for a reading passage.
  *
- * @param {string} sourceCsvId – the passage ID
+ * @param {string} sourceCsvId - the passage ID
+ * @param {number|string|null} storyNumber - optional story number from the passage payload
  * @returns {string} image path
  */
-export function getPassageImage(sourceCsvId) {
+export function getPassageImage(sourceCsvId, storyNumber = null) {
+    const number = Number(storyNumber);
+
+    if (Number.isInteger(number) && number >= 1 && number <= 2) {
+        return `${PASSAGE_IMAGE_BASE}/story${number}.png`;
+    }
+
     if (!sourceCsvId) return `${PASSAGE_IMAGE_BASE}/passage-default.svg`;
 
     const slug = String(sourceCsvId).toLowerCase().trim();
+    const override = PASSAGE_IMAGE_OVERRIDES[slug];
+
+    if (override) {
+        return `${PASSAGE_IMAGE_BASE}/${override}`;
+    }
 
     return `${PASSAGE_IMAGE_BASE}/${slug}.png`;
 }

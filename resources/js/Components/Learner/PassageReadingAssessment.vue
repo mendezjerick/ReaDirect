@@ -44,8 +44,8 @@ const agentIntent = ref('focused_instruction');
 const agentState = ref('listening');
 const agentSpeaking = ref(false);
 const passageChecked = ref(Boolean(transcript.value || form.audio_file_id));
-const canUseManualFallback = computed(() => props.assessmentMode?.canUseManualFallback === true);
-const passageImage = computed(() => getPassageImage(props.passage?.source_csv_id));
+const canUseIncorrectWordsOverride = computed(() => props.assessmentMode?.canUseIncorrectWordsOverride === true);
+const passageImage = computed(() => getPassageImage(props.passage?.source_csv_id, props.passage?.payload?.story_number));
 const displayState = computed(() => {
     if (asrVisualizationEnabled.value && (uploading.value || (asrVisualizationPending.value && passageChecked.value && transcript.value.trim() !== ''))) return 'processing';
     if (passageChecked.value && transcript.value.trim() !== '') return 'result';
@@ -270,7 +270,7 @@ const canSubmitForReview = computed(() => {
     if (uploading.value) return false;
     if (audioFile.value || form.audio_file_id) return true;
 
-    return canUseManualFallback.value && hasIncorrectWords();
+    return canUseIncorrectWordsOverride.value && hasIncorrectWords();
 });
 const primaryLabel = computed(() => passageChecked.value ? 'Next' : 'Submit');
 const primaryDisabled = computed(() => form.processing || uploading.value || asrVisualizationPending.value || (!passageChecked.value && !canSubmitForReview.value));
@@ -422,7 +422,7 @@ const submitCurrentForReview = async () => {
         return;
     }
 
-    if (canUseManualFallback.value && hasIncorrectWords()) {
+    if (canUseIncorrectWordsOverride.value && hasIncorrectWords()) {
         form.audio = null;
         form.duration_seconds = null;
         passageChecked.value = true;
@@ -440,7 +440,7 @@ const submit = () => {
         return;
     }
 
-    if (canUseManualFallback.value && !form.audio_file_id) {
+    if (canUseIncorrectWordsOverride.value && !form.audio_file_id) {
         form.audio = null;
         form.duration_seconds = null;
     }
@@ -478,19 +478,30 @@ const setAgentSpeaking = (isSpeaking) => {
             :progress="100"
             :primary-label="primaryLabel"
             :primary-disabled="primaryDisabled"
-            :prompt-image="passageImage"
+            display-flush
             :display-state="displayState"
             @primary="handlePrimary"
             @agent-speaking-change="setAgentSpeaking"
         >
             <template #prompt>
-                <div class="passage-prompt" aria-label="Reading passage">
-                    <p v-if="passage?.title" class="passage-title">{{ passage.title }}</p>
-                    <p class="passage-text">
-                        <template v-for="(token, index) in highlightedPassageTokens" :key="index">
-                            <span>{{ token.text }}</span>
-                        </template>
-                    </p>
+                <div class="passage-reveal" :class="{ 'passage-reveal--has-image': passageImage }">
+                    <img
+                        v-if="passageImage"
+                        :src="passageImage"
+                        alt=""
+                        class="passage-reveal-image"
+                        draggable="false"
+                    >
+                    <div class="passage-reveal-text">
+                        <div class="passage-prompt" aria-label="Reading passage">
+                            <p v-if="passage?.title" class="passage-title">{{ passage.title }}</p>
+                            <p class="passage-text">
+                                <template v-for="(token, index) in highlightedPassageTokens" :key="index">
+                                    <span>{{ token.text }}</span>
+                                </template>
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </template>
 
@@ -549,9 +560,9 @@ const setAgentSpeaking = (isSpeaking) => {
                 </p>
             </template>
 
-            <template v-if="canUseManualFallback" #qa>
+            <template v-if="canUseIncorrectWordsOverride" #qa>
                 <label class="flex min-w-0 flex-1 items-center gap-2 text-xs font-black text-slate-500">
-                    <span class="shrink-0">Developer QA: Incorrect Words Override</span>
+                    <span class="shrink-0">Manual Incorrect Words Override</span>
                     <input
                         v-model="form.incorrect_words"
                         type="number"
@@ -566,6 +577,98 @@ const setAgentSpeaking = (isSpeaking) => {
 </template>
 
 <style scoped>
+.passage-reveal {
+    position: relative;
+    display: grid;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.passage-reveal-image {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    opacity: 0.2;
+    transform: scale(1.02);
+    animation: passage-image-settle 6.8s ease forwards;
+    user-select: none;
+}
+
+.passage-reveal-text {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: clamp(0.35rem, 1dvh, 0.75rem);
+    opacity: 1;
+}
+
+.passage-reveal--has-image .passage-reveal-text {
+    opacity: 0;
+    animation: passage-text-reveal 1.4s ease 5s forwards;
+}
+
+.passage-reveal .passage-prompt {
+    height: auto;
+    min-height: 100%;
+    max-height: none;
+    overflow: visible;
+}
+
+@keyframes passage-image-settle {
+    0%,
+    74% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    100% {
+        opacity: 0.2;
+        transform: scale(1.02);
+    }
+}
+
+@keyframes passage-text-reveal {
+    from {
+        opacity: 0;
+        transform: translateY(0.35rem);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .passage-reveal-image,
+    .passage-reveal--has-image .passage-reveal-text {
+        animation: none;
+    }
+
+    .passage-reveal-image {
+        opacity: 0.2;
+        transform: scale(1.02);
+    }
+
+    .passage-reveal--has-image .passage-reveal-text {
+        opacity: 1;
+        transform: none;
+    }
+}
+
 .passage-prompt {
     display: grid;
     width: min(100%, 66rem);

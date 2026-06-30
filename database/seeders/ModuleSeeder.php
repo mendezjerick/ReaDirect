@@ -11,9 +11,9 @@ class ModuleSeeder extends Seeder
     public function run(): void
     {
         $modules = [
-            ['sequence' => 1, 'key' => 'module_1', 'title' => 'Letter and Sound Learning', 'description' => 'Letter sound practice, hear and repeat, matching, drills, and mini mastery check.'],
-            ['sequence' => 2, 'key' => 'module_2', 'title' => 'Word Reading', 'description' => 'Word families, minimal pairs, word accuracy challenge, and mini mastery check.'],
-            ['sequence' => 3, 'key' => 'module_3', 'title' => 'Sentence Reading and Fluency', 'description' => 'Sentence reading, guided practice, timed practice, pause practice, and mini mastery check.'],
+            ['sequence' => 1, 'key' => 'module_1', 'title' => 'Letter and Sound Learning', 'description' => 'Letter names, first-letter recognition, missing-letter practice, and mini mastery check.'],
+            ['sequence' => 2, 'key' => 'module_2', 'title' => 'Word Reading', 'description' => 'Whole words, split words, highlighted rhyme words, highlighted sentence words, and mini mastery check.'],
+            ['sequence' => 3, 'key' => 'module_3', 'title' => 'Sentence Reading and Fluency', 'description' => 'Simple sentences, comma pauses, full-stop pauses, mixed punctuation fluency, and mini mastery check.'],
         ];
 
         foreach ($modules as $moduleData) {
@@ -34,24 +34,24 @@ class ModuleSeeder extends Seeder
     {
         return match ($moduleKey) {
             'module_1' => [
-                ['type' => 'letter_sound_practice', 'title' => 'Letter sound practice'],
-                ['type' => 'hear_and_repeat', 'title' => 'Hear and repeat'],
-                ['type' => 'sound_to_letter', 'title' => 'Match sound to letter'],
-                ['type' => 'sound_drill', 'title' => 'Sound drills'],
+                ['type' => 'letter_pair_identification', 'title' => 'Display letter pair'],
+                ['type' => 'highlighted_first_letter', 'title' => 'Highlighted first letter'],
+                ['type' => 'first_letter_identification', 'title' => 'First letter'],
+                ['type' => 'missing_first_letter', 'title' => 'Missing first letter'],
                 ['type' => 'mastery_check', 'title' => 'Mini mastery check'],
             ],
             'module_2' => [
-                ['type' => 'read_word', 'title' => 'Read the word'],
-                ['type' => 'word_family_drill', 'title' => 'Word family drill'],
-                ['type' => 'minimal_pair', 'title' => 'Minimal pair practice'],
-                ['type' => 'word_accuracy', 'title' => 'Word accuracy challenge'],
+                ['type' => 'display_word_reading', 'title' => 'Display word'],
+                ['type' => 'split_word_reading', 'title' => 'Split word'],
+                ['type' => 'highlighted_rhyme_word', 'title' => 'Highlighted rhyme word'],
+                ['type' => 'highlighted_sentence_word', 'title' => 'Highlighted sentence word'],
                 ['type' => 'mastery_check', 'title' => 'Mini mastery check'],
             ],
             default => [
-                ['type' => 'read_sentence', 'title' => 'Read the sentence'],
-                ['type' => 'coach_reading', 'title' => 'Read with the coach'],
-                ['type' => 'timed_sentence', 'title' => 'Timed sentence reading'],
-                ['type' => 'pause_practice', 'title' => 'Pause practice'],
+                ['type' => 'simple_sentence_reading', 'title' => 'Simple sentence'],
+                ['type' => 'comma_pause_reading', 'title' => 'Comma pause'],
+                ['type' => 'full_stop_pause_reading', 'title' => 'Full-stop pause'],
+                ['type' => 'mixed_punctuation_fluency', 'title' => 'Mixed punctuation fluency'],
                 ['type' => 'mastery_check', 'title' => 'Mini mastery check'],
             ],
         };

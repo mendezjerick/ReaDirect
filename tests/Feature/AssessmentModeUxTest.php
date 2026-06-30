@@ -32,7 +32,8 @@ class AssessmentModeUxTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Learner/Task1LetterPronunciation')
                 ->where('assessmentMode.isDeveloperQaMode', false)
-                ->where('assessmentMode.canUseManualFallback', false)
+                ->where('assessmentMode.canUseManualFallback', true)
+                ->where('assessmentMode.canUseIncorrectWordsOverride', false)
                 ->where('assessmentMode.canShowAssessmentDebug', false)
                 ->where('assessmentMode.canUseDeveloperJumpControls', false)
                 ->where('assessmentMode.canBypassLinearFlow', false)
@@ -66,6 +67,7 @@ class AssessmentModeUxTest extends TestCase
                 ->component('Learner/Task1LetterPronunciation')
                 ->where('assessmentMode.isDeveloperQaMode', true)
                 ->where('assessmentMode.canUseManualFallback', true)
+                ->where('assessmentMode.canUseIncorrectWordsOverride', true)
                 ->where('assessmentMode.canUseDeveloperJumpControls', false)
                 ->where('assessmentMode.canAutoTranscribeOnStop', false)
                 ->where('assessmentMode.canSeeRawAiPayload', true)
@@ -95,7 +97,8 @@ class AssessmentModeUxTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Learner/Task1LetterPronunciation')
                 ->where('assessmentMode.isDeveloperQaMode', false)
-                ->where('assessmentMode.canUseManualFallback', false)
+                ->where('assessmentMode.canUseManualFallback', true)
+                ->where('assessmentMode.canUseIncorrectWordsOverride', false)
                 ->where('assessmentMode.canUseDeveloperJumpControls', false)
                 ->where('assessmentMode.canAutoTranscribeOnStop', false)
                 ->where('assessmentMode.requireReviewBeforeSubmit', true)
@@ -117,6 +120,7 @@ class AssessmentModeUxTest extends TestCase
                 ->component('Learner/Task1LetterPronunciation')
                 ->where('assessmentMode.isDeveloperQaMode', true)
                 ->where('assessmentMode.canUseManualFallback', true)
+                ->where('assessmentMode.canUseIncorrectWordsOverride', true)
                 ->where('assessmentMode.canUseDeveloperJumpControls', false)
                 ->where('assessmentMode.canAutoTranscribeOnStop', false)
                 ->where('assessmentMode.canSeeRawAiPayload', true)
@@ -140,12 +144,13 @@ class AssessmentModeUxTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Learner/FinalAssessment/Task1LetterPronunciation')
-                ->where('assessmentMode.canUseManualFallback', false)
+                ->where('assessmentMode.canUseManualFallback', true)
+                ->where('assessmentMode.canUseIncorrectWordsOverride', false)
                 ->where('assessmentMode.canUseDeveloperJumpControls', false)
             );
     }
 
-    public function test_normal_learner_manual_transcript_is_not_used_for_scoring(): void
+    public function test_normal_learner_manual_transcript_scores(): void
     {
         $attempt = $this->diagnosticAttemptWithTaskItems(AssessmentItemSelectionService::TASK_1_LETTER);
 
@@ -162,9 +167,10 @@ class AssessmentModeUxTest extends TestCase
 
         $this->withSession(['learner_id' => $attempt->learner_id, 'assessment_attempt_id' => $attempt->id])
             ->post(route('learner.diagnostic.task-1.store'), ['responses' => $responses])
-            ->assertSessionHasErrors('responses.0.answer');
+            ->assertRedirect(route('learner.diagnostic.task-routing'));
 
-        $this->assertSame(0, AssessmentTaskResponse::count());
+        $this->assertSame(10, (int) $attempt->refresh()->task_1_score);
+        $this->assertSame(10, AssessmentTaskResponse::count());
     }
 
     public function test_developer_qa_manual_transcript_still_scores(): void
@@ -229,6 +235,63 @@ class AssessmentModeUxTest extends TestCase
 
         $this->assertArrayHasKey('raw_transcript', $response->json());
         $this->assertArrayHasKey('stt_confidence', $response->json());
+    }
+
+    public function test_admin_testing_exit_clears_qa_session_state(): void
+    {
+        $admin = $this->userWithRole('system_admin');
+        $learner = $this->learner();
+
+        $this->actingAs($admin)
+            ->withSession([
+                'admin_testing_mode' => true,
+                'admin_testing_learner_id' => $learner->id,
+                'admin_testing_assessment_attempt_id' => 123,
+                'admin_testing_module_attempt_id' => 456,
+                'learner_id' => $learner->id,
+                'assessment_attempt_id' => 123,
+                'final_assessment_attempt_id' => 789,
+                'module_attempt_id' => 456,
+                'task_one_route' => ['next_task' => 'task_2b'],
+            ])
+            ->post(route('admin.testing.exit'))
+            ->assertRedirect(route('admin.testing.index'))
+            ->assertSessionMissing('admin_testing_mode')
+            ->assertSessionMissing('admin_testing_learner_id')
+            ->assertSessionMissing('admin_testing_assessment_attempt_id')
+            ->assertSessionMissing('admin_testing_module_attempt_id')
+            ->assertSessionMissing('learner_id')
+            ->assertSessionMissing('assessment_attempt_id')
+            ->assertSessionMissing('final_assessment_attempt_id')
+            ->assertSessionMissing('module_attempt_id')
+            ->assertSessionMissing('task_one_route');
+    }
+
+    public function test_learner_access_clears_stale_qa_session_state(): void
+    {
+        $learner = $this->learner();
+
+        $this->withSession([
+            'admin_testing_mode' => true,
+            'admin_testing_learner_id' => 999,
+            'admin_testing_assessment_attempt_id' => 123,
+            'admin_testing_module_attempt_id' => 456,
+            'assessment_attempt_id' => 123,
+            'final_assessment_attempt_id' => 789,
+            'module_attempt_id' => 456,
+            'task_one_route' => ['next_task' => 'task_2b'],
+        ])
+            ->post(route('learner.access.store'), ['learner_code' => $learner->learner_code])
+            ->assertRedirect(route('learner.diagnostic.start'))
+            ->assertSessionHas('learner_id', $learner->id)
+            ->assertSessionMissing('admin_testing_mode')
+            ->assertSessionMissing('admin_testing_learner_id')
+            ->assertSessionMissing('admin_testing_assessment_attempt_id')
+            ->assertSessionMissing('admin_testing_module_attempt_id')
+            ->assertSessionMissing('assessment_attempt_id')
+            ->assertSessionMissing('final_assessment_attempt_id')
+            ->assertSessionMissing('module_attempt_id')
+            ->assertSessionMissing('task_one_route');
     }
 
     private function diagnosticAttemptWithTaskItems(string $taskType): AssessmentAttempt

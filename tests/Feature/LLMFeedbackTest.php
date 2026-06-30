@@ -128,10 +128,10 @@ class LLMFeedbackTest extends TestCase
 
         [$learner, $module] = $this->moduleContext();
         $learner->update(['current_module_id' => $module->id, 'current_stage' => 'module_practice_in_progress']);
-        $this->seedModuleActivities($module, 'read_word', 5);
+        $this->seedModuleActivities($module, 'display_word_reading', 5);
         $selection = app(ModuleActivitySelectionService::class);
         $attempt = $selection->startOrResumeModuleAttempt($learner, $module);
-        $items = $selection->selectPracticeItemsForAttempt($attempt, 'read_word', 5);
+        $items = $selection->selectPracticeItemsForAttempt($attempt, 'display_word_reading', 5);
         $responses = $items->map(fn ($item) => [
             'module_attempt_item_id' => $item->id,
             'answer' => 'cat',
@@ -142,7 +142,7 @@ class LLMFeedbackTest extends TestCase
             'module_attempt_id' => $attempt->id,
             'admin_testing_mode' => true,
         ])
-            ->post(route('learner.modules.activity.store', [$module, 'read_word']), ['responses' => $responses])
+            ->post(route('learner.modules.activity.store', [$module, 'display_word_reading']), ['responses' => $responses])
             ->assertRedirect();
 
         $response = ModuleActivityResponse::firstOrFail();
@@ -188,7 +188,7 @@ class LLMFeedbackTest extends TestCase
             'source_id' => 123,
             'prompt_key' => 'coach_feedback_incorrect',
             'module_key' => 'module_1',
-            'activity_type' => 'read_word',
+            'activity_type' => 'display_word_reading',
             'expected_answer' => 'cat',
             'learner_response' => 'cap',
             'is_correct' => false,
@@ -232,6 +232,7 @@ class LLMFeedbackTest extends TestCase
                     'module_key' => $module->key,
                     'activity_type' => $activityType,
                     'sequence' => $index,
+                    'canonical_target' => $activityType.'-'.$index,
                     'expected_answer' => 'cat',
                     'points' => 1,
                     'is_mastery_item' => false,

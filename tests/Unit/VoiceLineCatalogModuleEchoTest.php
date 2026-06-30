@@ -7,22 +7,49 @@ use Tests\TestCase;
 
 class VoiceLineCatalogModuleEchoTest extends TestCase
 {
-    public function test_ciel_echoes_are_item_specific_and_new_module_generic_lines_exist(): void
+    public function test_ciel_echoes_are_item_specific_and_lesson_specific_lines_exist(): void
     {
         $catalog = new VoiceLineCatalog();
         $lines = $catalog->allSeedLines();
         $lineKeys = array_column($lines, 'line_key');
 
         foreach ([
-            'ciel.module1.before_recording.letter_01',
-            'ciel.module1.before_recording.letter_02',
-            'ciel.module1.before_recording.letter_03',
-            'ciel.module2.before_recording.word_01',
-            'ciel.module2.before_recording.word_02',
-            'ciel.module2.before_recording.word_03',
-            'ciel.module3.before_recording.sentence_01',
-            'ciel.module3.before_recording.sentence_02',
-            'ciel.module3.before_recording.sentence_03',
+            'ciel.module1.letter_pair_identification.01',
+            'ciel.module1.letter_pair_identification.02',
+            'ciel.module1.letter_pair_identification.03',
+            'ciel.module1.highlighted_first_letter.01',
+            'ciel.module1.highlighted_first_letter.02',
+            'ciel.module1.highlighted_first_letter.03',
+            'ciel.module1.first_letter_identification.01',
+            'ciel.module1.first_letter_identification.02',
+            'ciel.module1.first_letter_identification.03',
+            'ciel.module1.missing_first_letter.01',
+            'ciel.module1.missing_first_letter.02',
+            'ciel.module1.missing_first_letter.03',
+            'ciel.module2.display_word_reading.01',
+            'ciel.module2.display_word_reading.02',
+            'ciel.module2.display_word_reading.03',
+            'ciel.module2.split_word_reading.01',
+            'ciel.module2.split_word_reading.02',
+            'ciel.module2.split_word_reading.03',
+            'ciel.module2.highlighted_rhyme_word.01',
+            'ciel.module2.highlighted_rhyme_word.02',
+            'ciel.module2.highlighted_rhyme_word.03',
+            'ciel.module2.highlighted_sentence_word.01',
+            'ciel.module2.highlighted_sentence_word.02',
+            'ciel.module2.highlighted_sentence_word.03',
+            'ciel.module3.simple_sentence_reading.01',
+            'ciel.module3.simple_sentence_reading.02',
+            'ciel.module3.simple_sentence_reading.03',
+            'ciel.module3.comma_pause_reading.01',
+            'ciel.module3.comma_pause_reading.02',
+            'ciel.module3.comma_pause_reading.03',
+            'ciel.module3.full_stop_pause_reading.01',
+            'ciel.module3.full_stop_pause_reading.02',
+            'ciel.module3.full_stop_pause_reading.03',
+            'ciel.module3.mixed_punctuation_fluency.01',
+            'ciel.module3.mixed_punctuation_fluency.02',
+            'ciel.module3.mixed_punctuation_fluency.03',
             'ciel.module.after_recording.review_submit_01',
             'ciel.module.after_recording.review_submit_02',
             'ciel.module.after_recording.review_submit_03',
@@ -38,9 +65,12 @@ class VoiceLineCatalogModuleEchoTest extends TestCase
 
         $this->assertNotContains('vivian.asr.unknown_transcript', $lineKeys);
         $this->assertNotContains('ciel.module.after_recording.listen_submit', $lineKeys);
+        $this->assertNotContains('ciel.module1.before_recording.letter_01', $lineKeys);
+        $this->assertNotContains('ciel.module2.before_recording.word_01', $lineKeys);
+        $this->assertNotContains('ciel.module3.before_recording.sentence_01', $lineKeys);
         $this->assertNotContains('ciel.module1.instruction.look_letter_sound', $lineKeys);
-        $this->assertNotContains('ciel.module2.instruction.look_read_word', $lineKeys);
-        $this->assertNotContains('ciel.module3.instruction.read_sentence', $lineKeys);
+        $this->assertNotContains('ciel.module2.instruction.look_display_word_reading', $lineKeys);
+        $this->assertNotContains('ciel.module3.instruction.simple_sentence_reading', $lineKeys);
         $this->assertNotContains(
             'target_word_echo.generic.rosa',
             $lineKeys,
@@ -78,7 +108,7 @@ class VoiceLineCatalogModuleEchoTest extends TestCase
             collect($lineKeys)->filter(fn (string $lineKey): bool => str_starts_with($lineKey, 'ciel.module_echo.correct.module_2.word.'))->count(),
         );
         $this->assertSame(
-            50,
+            170,
             collect($lineKeys)->filter(fn (string $lineKey): bool => str_starts_with($lineKey, 'ciel.module_echo.correct.module_3.sentence.'))->count(),
         );
         $this->assertSame(

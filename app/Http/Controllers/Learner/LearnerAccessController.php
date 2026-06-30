@@ -29,6 +29,10 @@ class LearnerAccessController extends Controller
 
         $request->session()->put('learner_id', $learner->id);
         $request->session()->forget([
+            'admin_testing_mode',
+            'admin_testing_learner_id',
+            'admin_testing_assessment_attempt_id',
+            'admin_testing_module_attempt_id',
             'assessment_attempt_id',
             'final_assessment_attempt_id',
             'module_attempt_id',

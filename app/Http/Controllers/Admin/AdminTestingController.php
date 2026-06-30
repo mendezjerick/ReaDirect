@@ -129,7 +129,6 @@ class AdminTestingController extends Controller
         return Inertia::render('Admin/Testing/FlowJump', [
             'learner' => $learner,
             'targets' => $testing->jumpTargets($learner),
-            'modules' => Module::orderBy('sequence')->get(),
         ]);
     }
 

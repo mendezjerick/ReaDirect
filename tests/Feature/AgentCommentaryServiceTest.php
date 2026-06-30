@@ -116,14 +116,14 @@ class AgentCommentaryServiceTest extends TestCase
         $this->seedModuleActivities($module);
         $selection = app(ModuleActivitySelectionService::class);
         $attempt = $selection->startOrResumeModuleAttempt($learner, $module);
-        $items = $selection->selectPracticeItemsForAttempt($attempt, 'read_word', 5);
+        $items = $selection->selectPracticeItemsForAttempt($attempt, 'display_word_reading', 5);
 
         $this->withSession([
             'learner_id' => $learner->id,
             'module_attempt_id' => $attempt->id,
             'admin_testing_mode' => true,
         ])
-            ->post(route('learner.modules.activity.store', [$module, 'read_word']), [
+            ->post(route('learner.modules.activity.store', [$module, 'display_word_reading']), [
                 'responses' => $items->map(fn ($item) => ['module_attempt_item_id' => $item->id, 'answer' => 'cap'])->all(),
             ])
             ->assertRedirect();
@@ -209,8 +209,9 @@ class AgentCommentaryServiceTest extends TestCase
                 'payload' => [
                     'source_csv_id' => 'COM-'.$index,
                     'module_key' => $module->key,
-                    'activity_type' => 'read_word',
+                    'activity_type' => 'display_word_reading',
                     'sequence' => $index,
+                    'canonical_target' => 'commentary-'.$index,
                     'expected_answer' => 'cat',
                     'points' => 1,
                 ],
@@ -223,7 +224,7 @@ class AgentCommentaryServiceTest extends TestCase
                 'module_id' => $module->id,
                 'learning_content_id' => $content->id,
                 'sequence' => $index,
-                'activity_type' => 'read_word',
+                'activity_type' => 'display_word_reading',
                 'title' => $content->prompt,
                 'configuration' => $content->payload,
             ]);

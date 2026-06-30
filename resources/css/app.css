@@ -142,6 +142,7 @@ body[data-qa-viewport]:not([data-qa-viewport='auto']) .qa-viewport-iframe {
 }
 
 body[data-qa-viewport]:not([data-qa-viewport='auto']) .learner-activity-shell .qa-viewport-frame {
+    overflow: visible;
     background-color: #f4e0ba;
     background-image: url('/images/backgrounds/learner-desktop.png');
     background-position: center;

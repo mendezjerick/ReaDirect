@@ -122,8 +122,7 @@ class ModuleActivityController extends Controller
             }
         }
 
-        $item = $selection->getLockedItemsForAttempt($attempt, $activityType)
-            ->where('is_mastery_item', false)
+        $item = $selection->currentPracticeItemsForAttempt($attempt, $activityType)
             ->firstWhere('id', (int) $validated['module_attempt_item_id']);
 
         if (! $item) {
@@ -176,7 +175,7 @@ class ModuleActivityController extends Controller
                 ->with('info', 'Continue from your current module activity.');
         }
 
-        $items = $selection->getLockedItemsForAttempt($attempt, $activityType)->where('is_mastery_item', false)->values();
+        $items = $selection->currentPracticeItemsForAttempt($attempt, $activityType);
 
         if ($items->isEmpty()) {
             return redirect()->route('learner.modules.activity', [$module, $activityType])
@@ -204,6 +203,13 @@ class ModuleActivityController extends Controller
         if ($items->contains(fn (ModuleAttemptItem $item): bool => ! $retry->itemIsComplete($item->refresh()))) {
             return redirect()->route('learner.modules.activity', [$module, $activityType])
                 ->with('info', 'Check each item until it is correct or all three tries are used.');
+        }
+
+        $lessonResult = $selection->completePracticeLessonAttempt($attempt, $activityType, $items);
+
+        if (! $lessonResult['mastered']) {
+            return redirect()->route('learner.modules.activity', [$module, $activityType])
+                ->with('info', "You scored {$lessonResult['correct_count']} of {$lessonResult['item_count']}. Try this lesson again with new items.");
         }
 
         $activityTypes = $selection->practiceActivityTypes($module);
@@ -251,6 +257,9 @@ class ModuleActivityController extends Controller
             'sequence' => $item->sequence,
             'source_csv_id' => $item->source_csv_id,
             'activity_type' => $item->activity_type,
+            'lesson_attempt_number' => $item->lesson_attempt_number,
+            'lesson_item_number' => $item->lesson_item_number,
+            'dialogue_cycle_position' => $item->prompt_snapshot['payload']['dialogue_cycle_position'] ?? $item->sequence,
             'prompt' => $item->prompt_snapshot['prompt'] ?? '',
             'display_prompt' => $this->displayPromptFor($item),
             'accepted_answers' => $item->prompt_snapshot['accepted_answers'] ?? [],

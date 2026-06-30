@@ -71,7 +71,7 @@ class IsolatedLetterSet
     public static function isIsolatedLetterActivity(?string $activityType, array $payload = [], ?string $contentType = null): bool
     {
         $value = strtolower((string) ($activityType ?? $payload['activity_type'] ?? $contentType ?? ''));
-        if (str_contains($value, 'letter') || in_array($value, ['listen_and_say'], true)) {
+        if (str_contains($value, 'letter')) {
             return self::expectedLetter($payload) !== null;
         }
 

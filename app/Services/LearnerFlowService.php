@@ -485,15 +485,26 @@ class LearnerFlowService
 
     public function nextPracticeActivity(ModuleAttempt $attempt, Module $module): ?string
     {
-        $activityTypes = app(ModuleActivitySelectionService::class)->practiceActivityTypes($module);
+        $selection = app(ModuleActivitySelectionService::class);
+        $activityTypes = $selection->practiceActivityTypes($module);
 
         foreach ($activityTypes as $activityType) {
-            $items = $attempt->items()
-                ->where('activity_type', $activityType)
-                ->where('is_mastery_item', false)
-                ->get();
+            if ($selection->lessonMastered($attempt, $activityType)) {
+                continue;
+            }
 
-            if ($items->isEmpty() || $items->contains(fn ($item) => $item->answered_at === null)) {
+            $progress = $selection->latestLessonProgress($attempt, $activityType);
+
+            if (! $progress || $progress->status === 'retry') {
+                return $activityType;
+            }
+
+            $items = $selection->currentPracticeItemsForAttempt($attempt, $activityType);
+
+            if ($items->isEmpty()
+                || $progress->status === 'in_progress'
+                || $items->contains(fn ($item) => $item->answered_at === null)
+            ) {
                 return $activityType;
             }
         }

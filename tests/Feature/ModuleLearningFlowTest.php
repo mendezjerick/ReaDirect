@@ -3,11 +3,13 @@
 namespace Tests\Feature;
 
 use App\Models\Learner;
+use App\Models\LearnerModuleUsedTarget;
 use App\Models\LearnerReward;
 use App\Models\LearningContent;
 use App\Models\Module;
 use App\Models\ModuleActivity;
 use App\Models\ModuleActivityResponse;
+use App\Models\ModuleAttempt;
 use App\Models\School;
 use App\Services\ModuleActivitySelectionService;
 use App\Services\ModuleFeedbackService;
@@ -23,12 +25,12 @@ class ModuleLearningFlowTest extends TestCase
     public function test_practice_items_are_selected_locked_and_reused(): void
     {
         [$learner, $module] = $this->moduleContext();
-        $this->seedModuleActivities($module, 'read_word', 12, false);
+        $this->seedModuleActivities($module, 'display_word_reading', 12, false);
         $service = app(ModuleActivitySelectionService::class);
         $attempt = $service->startOrResumeModuleAttempt($learner, $module);
 
-        $first = $service->selectPracticeItemsForAttempt($attempt, 'read_word', 5);
-        $second = $service->selectPracticeItemsForAttempt($attempt, 'read_word', 5);
+        $first = $service->selectPracticeItemsForAttempt($attempt, 'display_word_reading', 5);
+        $second = $service->selectPracticeItemsForAttempt($attempt, 'display_word_reading', 5);
 
         $this->assertCount(5, $first);
         $this->assertSame($first->pluck('id')->all(), $second->pluck('id')->all());
@@ -51,19 +53,90 @@ class ModuleLearningFlowTest extends TestCase
         $this->assertTrue($first->first()->is_mastery_item);
     }
 
+    public function test_lesson_score_four_of_five_marks_mastered_and_unlocks_next_lesson(): void
+    {
+        [$learner, $module] = $this->moduleContext('module_2');
+        $learner->update(['current_module_id' => $module->id, 'current_stage' => 'module_practice_in_progress']);
+        $this->seedModuleActivities($module, 'display_word_reading', 5, false);
+        $this->seedModuleActivities($module, 'split_word_reading', 5, false);
+        $this->seedRule($module, 'display_word_reading', 5, 0);
+        $this->seedRule($module, 'split_word_reading', 5, 0);
+        $service = app(ModuleActivitySelectionService::class);
+        $attempt = $service->startOrResumeModuleAttempt($learner, $module);
+        $items = $service->selectPracticeItemsForAttempt($attempt, 'display_word_reading', 5);
+        $this->seedResolvedLessonResponses($attempt, $items, 4);
+
+        $this->withSession(['learner_id' => $learner->id, 'module_attempt_id' => $attempt->id])
+            ->post(route('learner.modules.activity.store', [$module, 'display_word_reading']))
+            ->assertRedirect(route('learner.modules.activity', [$module, 'split_word_reading']));
+
+        $progress = $service->latestLessonProgress($attempt, 'display_word_reading');
+        $this->assertSame('mastered', $progress?->status);
+        $this->assertSame(4, $progress?->correct_count);
+        $this->assertSame('split_word_reading', app(\App\Services\LearnerFlowService::class)->nextPracticeActivity($attempt, $module));
+    }
+
+    public function test_lesson_score_three_of_five_repeats_same_lesson_with_fresh_targets(): void
+    {
+        [$learner, $module] = $this->moduleContext('module_2');
+        $learner->update(['current_module_id' => $module->id, 'current_stage' => 'module_practice_in_progress']);
+        $this->seedModuleActivities($module, 'display_word_reading', 12, false);
+        $this->seedRule($module, 'display_word_reading', 5, 0);
+        $service = app(ModuleActivitySelectionService::class);
+        $attempt = $service->startOrResumeModuleAttempt($learner, $module);
+        $firstItems = $service->selectPracticeItemsForAttempt($attempt, 'display_word_reading', 5);
+        $firstTargets = $firstItems->pluck('prompt_snapshot.payload.canonical_target')->all();
+        $this->seedResolvedLessonResponses($attempt, $firstItems, 3);
+
+        $this->withSession(['learner_id' => $learner->id, 'module_attempt_id' => $attempt->id])
+            ->post(route('learner.modules.activity.store', [$module, 'display_word_reading']))
+            ->assertRedirect(route('learner.modules.activity', [$module, 'display_word_reading']));
+
+        $progress = $service->latestLessonProgress($attempt, 'display_word_reading');
+        $this->assertSame('retry', $progress?->status);
+        $this->assertSame(3, $progress?->correct_count);
+
+        $secondItems = $service->selectPracticeItemsForAttempt($attempt, 'display_word_reading', 5);
+        $secondTargets = $secondItems->pluck('prompt_snapshot.payload.canonical_target')->all();
+
+        $this->assertSame(2, $service->latestLessonProgress($attempt, 'display_word_reading')?->lesson_attempt_number);
+        $this->assertCount(5, $secondItems);
+        $this->assertSame([], array_values(array_intersect($firstTargets, $secondTargets)));
+    }
+
+    public function test_used_target_cycle_refreshes_after_pool_exhaustion_and_still_fills_lesson(): void
+    {
+        [$learner, $module] = $this->moduleContext('module_2');
+        $this->seedModuleActivities($module, 'display_word_reading', 7, false);
+        $service = app(ModuleActivitySelectionService::class);
+        $attempt = $service->startOrResumeModuleAttempt($learner, $module);
+        $firstItems = $service->selectPracticeItemsForAttempt($attempt, 'display_word_reading', 5);
+        $firstTargets = $firstItems->pluck('prompt_snapshot.payload.canonical_target')->all();
+        $service->latestLessonProgress($attempt, 'display_word_reading')?->update(['status' => 'retry', 'completed_at' => now()]);
+
+        $secondItems = $service->selectPracticeItemsForAttempt($attempt, 'display_word_reading', 5);
+        $secondTargets = $secondItems->pluck('prompt_snapshot.payload.canonical_target')->all();
+        $allTargets = collect(range(1, 7))->map(fn (int $index): string => 'display_word_reading-'.$index)->all();
+        $remainingTargets = array_values(array_diff($allTargets, $firstTargets));
+
+        $this->assertCount(5, $secondItems);
+        $this->assertCount(2, array_intersect($remainingTargets, $secondTargets));
+        $this->assertSame(2, LearnerModuleUsedTarget::where('learner_id', $learner->id)->where('module_key', 'module_2')->max('cycle_number'));
+    }
+
     public function test_new_module_letter_only_items_exclude_unreliable_isolated_letters(): void
     {
         [$learner, $module] = $this->moduleContext();
-        $this->seedModuleLetterActivities($module, 'hear_and_repeat', false);
-        $this->seedModuleLetterActivities($module, 'sound_drill', false);
-        $this->seedModuleLetterActivities($module, 'see_letter_say_sound', false);
+        $this->seedModuleLetterActivities($module, 'letter_pair_identification', false);
+        $this->seedModuleLetterActivities($module, 'missing_first_letter', false);
+        $this->seedModuleLetterActivities($module, 'highlighted_first_letter', false);
         $this->seedModuleLetterActivities($module, 'mastery_check', true);
         $service = app(ModuleActivitySelectionService::class);
         $attempt = $service->startOrResumeModuleAttempt($learner, $module);
 
-        $hearAndRepeat = $service->selectPracticeItemsForAttempt($attempt, 'hear_and_repeat', 10);
-        $soundDrill = $service->selectPracticeItemsForAttempt($attempt, 'sound_drill', 10);
-        $seeLetter = $service->selectPracticeItemsForAttempt($attempt, 'see_letter_say_sound', 10);
+        $hearAndRepeat = $service->selectPracticeItemsForAttempt($attempt, 'letter_pair_identification', 10);
+        $soundDrill = $service->selectPracticeItemsForAttempt($attempt, 'missing_first_letter', 10);
+        $seeLetter = $service->selectPracticeItemsForAttempt($attempt, 'highlighted_first_letter', 10);
         $mastery = $service->selectMasteryItemsForAttempt($attempt, 10);
         $selected = $hearAndRepeat
             ->merge($soundDrill)
@@ -83,10 +156,10 @@ class ModuleLearningFlowTest extends TestCase
     public function test_module_scoring_accepts_correct_answers_and_scores_attempted_misses_zero(): void
     {
         [$learner, $module] = $this->moduleContext();
-        $this->seedModuleActivities($module, 'read_word', 1, false);
+        $this->seedModuleActivities($module, 'display_word_reading', 1, false);
         $service = app(ModuleActivitySelectionService::class);
         $attempt = $service->startOrResumeModuleAttempt($learner, $module);
-        $item = $service->selectPracticeItemsForAttempt($attempt, 'read_word', 1)->first();
+        $item = $service->selectPracticeItemsForAttempt($attempt, 'display_word_reading', 1)->first();
         $scoring = app(ModuleScoringService::class);
 
         $correct = $scoring->scoreAnswer($item, 'cat');
@@ -101,10 +174,10 @@ class ModuleLearningFlowTest extends TestCase
     public function test_missing_answer_is_rejected_before_scoring(): void
     {
         [$learner, $module] = $this->moduleContext();
-        $this->seedModuleActivities($module, 'read_word', 1, false);
+        $this->seedModuleActivities($module, 'display_word_reading', 1, false);
         $service = app(ModuleActivitySelectionService::class);
         $attempt = $service->startOrResumeModuleAttempt($learner, $module);
-        $item = $service->selectPracticeItemsForAttempt($attempt, 'read_word', 1)->first();
+        $item = $service->selectPracticeItemsForAttempt($attempt, 'display_word_reading', 1)->first();
 
         $this->expectException(\InvalidArgumentException::class);
 
@@ -115,15 +188,15 @@ class ModuleLearningFlowTest extends TestCase
     {
         [$learner, $module] = $this->moduleContext();
         $learner->update(['current_module_id' => $module->id, 'current_stage' => 'module_practice_in_progress']);
-        $this->seedModuleActivities($module, 'read_word', 5, false);
+        $this->seedModuleActivities($module, 'display_word_reading', 5, false);
         $service = app(ModuleActivitySelectionService::class);
         $attempt = $service->startOrResumeModuleAttempt($learner, $module);
-        $items = $service->selectPracticeItemsForAttempt($attempt, 'read_word', 5);
+        $items = $service->selectPracticeItemsForAttempt($attempt, 'display_word_reading', 5);
         $responses = $items->map(fn ($item) => ['module_attempt_item_id' => $item->id, 'answer' => 'cat'])->all();
         $responses[0]['answer'] = '';
 
         $this->withSession(['learner_id' => $learner->id, 'module_attempt_id' => $attempt->id])
-            ->post(route('learner.modules.activity.store', [$module, 'read_word']), ['responses' => $responses])
+            ->post(route('learner.modules.activity.store', [$module, 'display_word_reading']), ['responses' => $responses])
             ->assertSessionHasErrors('responses.0.answer');
 
         $this->assertSame(0, ModuleActivityResponse::count());
@@ -133,16 +206,16 @@ class ModuleLearningFlowTest extends TestCase
     {
         [$learner, $module] = $this->moduleContext();
         $learner->update(['current_module_id' => $module->id, 'current_stage' => 'module_practice_in_progress']);
-        $this->seedModuleActivities($module, 'read_word', 5, false);
-        $this->seedModuleActivities($module, 'word_family_drill', 5, false);
+        $this->seedModuleActivities($module, 'display_word_reading', 5, false);
+        $this->seedModuleActivities($module, 'split_word_reading', 5, false);
         $service = app(ModuleActivitySelectionService::class);
         $attempt = $service->startOrResumeModuleAttempt($learner, $module);
-        $staleItems = $service->selectPracticeItemsForAttempt($attempt, 'read_word', 5);
-        $service->selectPracticeItemsForAttempt($attempt, 'word_family_drill', 5);
+        $staleItems = $service->selectPracticeItemsForAttempt($attempt, 'display_word_reading', 5);
+        $service->selectPracticeItemsForAttempt($attempt, 'split_word_reading', 5);
         $responses = $staleItems->map(fn ($item) => ['module_attempt_item_id' => $item->id, 'answer' => 'cat'])->all();
 
         $this->withSession(['learner_id' => $learner->id, 'module_attempt_id' => $attempt->id])
-            ->post(route('learner.modules.activity.store', [$module, 'word_family_drill']), ['responses' => $responses])
+            ->post(route('learner.modules.activity.store', [$module, 'split_word_reading']), ['responses' => $responses])
             ->assertSessionHasErrors('responses');
 
         $this->assertSame(0, ModuleActivityResponse::count());
@@ -152,15 +225,15 @@ class ModuleLearningFlowTest extends TestCase
     {
         [$learner, $module] = $this->moduleContext('module_2');
         $learner->update(['current_module_id' => $module->id, 'current_stage' => 'module_practice_in_progress']);
-        $this->seedModuleActivities($module, 'read_word', 1, false);
-        $this->seedRule($module, 'read_word', 1, 0);
+        $this->seedModuleActivities($module, 'display_word_reading', 1, false);
+        $this->seedRule($module, 'display_word_reading', 1, 0);
         $service = app(ModuleActivitySelectionService::class);
         $attempt = $service->startOrResumeModuleAttempt($learner, $module);
         $attempt->update(['is_sandbox' => true, 'status' => 'practice_started']);
-        $item = $service->selectPracticeItemsForAttempt($attempt, 'read_word', 1)->first();
+        $item = $service->selectPracticeItemsForAttempt($attempt, 'display_word_reading', 1)->first();
 
         $this->withSession(['learner_id' => $learner->id, 'module_attempt_id' => $attempt->id, 'admin_testing_mode' => true])
-            ->postJson(route('learner.modules.activity.check', [$module, 'read_word']), [
+            ->postJson(route('learner.modules.activity.check', [$module, 'display_word_reading']), [
                 'module_attempt_item_id' => $item->id,
                 'answer' => 'dog',
                 'transcript_source' => 'manual',
@@ -182,11 +255,11 @@ class ModuleLearningFlowTest extends TestCase
         $this->assertNull($item->refresh()->answered_at);
 
         $this->withSession(['learner_id' => $learner->id, 'module_attempt_id' => $attempt->id])
-            ->post(route('learner.modules.activity.store', [$module, 'read_word']))
-            ->assertRedirect(route('learner.modules.activity', [$module, 'read_word']));
+            ->post(route('learner.modules.activity.store', [$module, 'display_word_reading']))
+            ->assertRedirect(route('learner.modules.activity', [$module, 'display_word_reading']));
 
         $this->withSession(['learner_id' => $learner->id, 'module_attempt_id' => $attempt->id, 'admin_testing_mode' => true])
-            ->postJson(route('learner.modules.activity.check', [$module, 'read_word']), [
+            ->postJson(route('learner.modules.activity.check', [$module, 'display_word_reading']), [
                 'module_attempt_item_id' => $item->id,
                 'answer' => 'cat',
                 'transcript_source' => 'manual',
@@ -207,7 +280,7 @@ class ModuleLearningFlowTest extends TestCase
         $this->assertSame(2, ModuleActivityResponse::firstOrFail()->retry_count);
 
         $this->withSession(['learner_id' => $learner->id, 'module_attempt_id' => $attempt->id])
-            ->post(route('learner.modules.activity.store', [$module, 'read_word']))
+            ->post(route('learner.modules.activity.store', [$module, 'display_word_reading']))
             ->assertRedirect(route('learner.modules.mastery-check', $module));
     }
 
@@ -215,15 +288,15 @@ class ModuleLearningFlowTest extends TestCase
     {
         [$learner, $module] = $this->moduleContext('module_2');
         $learner->update(['current_module_id' => $module->id, 'current_stage' => 'module_practice_in_progress']);
-        $this->seedModuleActivities($module, 'read_word', 1, false);
-        $this->seedRule($module, 'read_word', 1, 0);
+        $this->seedModuleActivities($module, 'display_word_reading', 1, false);
+        $this->seedRule($module, 'display_word_reading', 1, 0);
         $service = app(ModuleActivitySelectionService::class);
         $attempt = $service->startOrResumeModuleAttempt($learner, $module);
         $attempt->update(['is_sandbox' => true, 'status' => 'practice_started']);
-        $item = $service->selectPracticeItemsForAttempt($attempt, 'read_word', 1)->first();
+        $item = $service->selectPracticeItemsForAttempt($attempt, 'display_word_reading', 1)->first();
 
         $this->withSession(['learner_id' => $learner->id, 'module_attempt_id' => $attempt->id, 'admin_testing_mode' => true])
-            ->postJson(route('learner.modules.activity.check', [$module, 'read_word']), [
+            ->postJson(route('learner.modules.activity.check', [$module, 'display_word_reading']), [
                 'module_attempt_item_id' => $item->id,
                 'answer' => 'dog',
                 'transcript_source' => 'manual',
@@ -233,7 +306,7 @@ class ModuleLearningFlowTest extends TestCase
             ->assertJsonPath('ciel_focus_event', null);
 
         $this->withSession(['learner_id' => $learner->id, 'module_attempt_id' => $attempt->id, 'admin_testing_mode' => true])
-            ->postJson(route('learner.modules.activity.check', [$module, 'read_word']), [
+            ->postJson(route('learner.modules.activity.check', [$module, 'display_word_reading']), [
                 'module_attempt_item_id' => $item->id,
                 'answer' => 'dog',
                 'transcript_source' => 'manual',
@@ -266,16 +339,16 @@ class ModuleLearningFlowTest extends TestCase
     {
         [$learner, $module] = $this->moduleContext('module_2');
         $learner->update(['current_module_id' => $module->id, 'current_stage' => 'module_practice_in_progress']);
-        $this->seedModuleActivities($module, 'read_word', 3, false);
-        $this->seedRule($module, 'read_word', 3, 0);
+        $this->seedModuleActivities($module, 'display_word_reading', 3, false);
+        $this->seedRule($module, 'display_word_reading', 3, 0);
         $service = app(ModuleActivitySelectionService::class);
         $attempt = $service->startOrResumeModuleAttempt($learner, $module);
         $attempt->update(['is_sandbox' => true, 'status' => 'practice_started']);
-        $items = $service->selectPracticeItemsForAttempt($attempt, 'read_word', 3)->values();
+        $items = $service->selectPracticeItemsForAttempt($attempt, 'display_word_reading', 3)->values();
 
         foreach ($items as $index => $item) {
             $response = $this->withSession(['learner_id' => $learner->id, 'module_attempt_id' => $attempt->id, 'admin_testing_mode' => true])
-                ->postJson(route('learner.modules.activity.check', [$module, 'read_word']), [
+                ->postJson(route('learner.modules.activity.check', [$module, 'display_word_reading']), [
                     'module_attempt_item_id' => $item->id,
                     'answer' => 'cat',
                     'transcript_source' => 'manual',
@@ -302,7 +375,7 @@ class ModuleLearningFlowTest extends TestCase
             $attempt,
             $items[2],
             $module,
-            'read_word',
+            'display_word_reading',
             'cat',
             true,
             1,
@@ -324,16 +397,16 @@ class ModuleLearningFlowTest extends TestCase
     {
         [$learner, $module] = $this->moduleContext('module_2');
         $learner->update(['current_module_id' => $module->id, 'current_stage' => 'module_practice_in_progress']);
-        $this->seedModuleActivities($module, 'read_word', 6, false);
-        $this->seedRule($module, 'read_word', 6, 0);
+        $this->seedModuleActivities($module, 'display_word_reading', 6, false);
+        $this->seedRule($module, 'display_word_reading', 6, 0);
         $service = app(ModuleActivitySelectionService::class);
         $attempt = $service->startOrResumeModuleAttempt($learner, $module);
         $attempt->update(['is_sandbox' => true, 'status' => 'practice_started']);
-        $items = $service->selectPracticeItemsForAttempt($attempt, 'read_word', 6)->values();
+        $items = $service->selectPracticeItemsForAttempt($attempt, 'display_word_reading', 6)->values();
 
         foreach ($items as $index => $item) {
             $response = $this->withSession(['learner_id' => $learner->id, 'module_attempt_id' => $attempt->id, 'admin_testing_mode' => true])
-                ->postJson(route('learner.modules.activity.check', [$module, 'read_word']), [
+                ->postJson(route('learner.modules.activity.check', [$module, 'display_word_reading']), [
                     'module_attempt_item_id' => $item->id,
                     'answer' => 'cat',
                     'transcript_source' => 'manual',
@@ -446,7 +519,7 @@ class ModuleLearningFlowTest extends TestCase
             'is_active' => true,
         ]);
 
-        $feedback = app(ModuleFeedbackService::class)->feedbackForIncorrect('module_1', 'read_word');
+        $feedback = app(ModuleFeedbackService::class)->feedbackForIncorrect('module_1', 'display_word_reading');
         $combined = strtolower(implode(' ', $feedback));
 
         $this->assertStringContainsString('great effort', strtolower($feedback['feedback_text']));
@@ -471,9 +544,9 @@ class ModuleLearningFlowTest extends TestCase
     {
         [$learner, $module] = $this->moduleContext('module_1');
         $learner->update(['current_module_id' => $module->id, 'current_stage' => 'module_assigned']);
-        $this->seedModuleActivities($module, 'listen_and_say', 5, false);
+        $this->seedModuleActivities($module, 'letter_pair_identification', 5, false);
         $this->seedModuleActivities($module, 'mastery_check', 10, true);
-        $this->seedRule($module, 'listen_and_say', 5, 0);
+        $this->seedRule($module, 'letter_pair_identification', 5, 0);
         $this->seedRule($module, 'mastery_check', 0, 10);
 
         $this->withSession(['learner_id' => $learner->id])
@@ -482,10 +555,10 @@ class ModuleLearningFlowTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Learner/Modules/ModuleOverview')
                 ->where('purpose', 'You will practice letters and sounds so you can say them clearly.')
-                ->where('lessonBoxes.0.key', 'listen_and_say')
-                ->where('lessonBoxes.0.title', 'Say the Letter Sound')
-                ->where('lessonBoxes.0.description', 'Look at the letter and say its sound clearly.')
-                ->where('lessonBoxes.0.explanation', 'This box is for saying the letter sound yourself. Look carefully, then use your clear voice.')
+                ->where('lessonBoxes.0.key', 'letter_pair_identification')
+                ->where('lessonBoxes.0.title', 'Display Letter Pair')
+                ->where('lessonBoxes.0.description', 'Say the letter shown as an uppercase and lowercase pair.')
+                ->where('lessonBoxes.0.explanation', 'This box shows a letter pair like Aa. Say the letter name clearly.')
                 ->has('lessonBoxes', 1)
                 ->missing('debug')
             );
@@ -495,8 +568,8 @@ class ModuleLearningFlowTest extends TestCase
     {
         [$learner, $module] = $this->moduleContext('module_2');
         $learner->update(['current_module_id' => $module->id, 'current_stage' => 'module_practice_in_progress']);
-        $this->seedModuleActivities($module, 'read_word', 5, false);
-        $this->seedRule($module, 'read_word', 5, 0);
+        $this->seedModuleActivities($module, 'display_word_reading', 5, false);
+        $this->seedRule($module, 'display_word_reading', 5, 0);
         $service = app(ModuleActivitySelectionService::class);
         $attempt = $service->startOrResumeModuleAttempt($learner, $module);
 
@@ -512,11 +585,11 @@ class ModuleLearningFlowTest extends TestCase
     {
         [$learner, $module] = $this->moduleContext('module_2');
         $learner->update(['current_module_id' => $module->id, 'current_stage' => 'module_practice_in_progress']);
-        $this->seedModuleActivities($module, 'read_word', 5, false);
-        $this->seedRule($module, 'read_word', 5, 0);
+        $this->seedModuleActivities($module, 'display_word_reading', 5, false);
+        $this->seedRule($module, 'display_word_reading', 5, 0);
 
         $this->withSession(['learner_id' => $learner->id])
-            ->post(route('learner.modules.activity.store', [$module, 'read_word']), ['responses' => []])
+            ->post(route('learner.modules.activity.store', [$module, 'display_word_reading']), ['responses' => []])
             ->assertRedirect(route('learner.modules.start', $module));
 
         $this->assertSame(0, $learner->moduleAttempts()->where('module_id', $module->id)->count());
@@ -577,6 +650,7 @@ class ModuleLearningFlowTest extends TestCase
                     'module_key' => $module->key,
                     'activity_type' => $activityType,
                     'sequence' => $index,
+                    'canonical_target' => $activityType.'-'.$index,
                     'expected_answer' => 'cat',
                     'points' => 1,
                     'is_mastery_item' => $isMastery,
@@ -597,6 +671,25 @@ class ModuleLearningFlowTest extends TestCase
         }
     }
 
+    private function seedResolvedLessonResponses(ModuleAttempt $attempt, $items, int $correctCount): void
+    {
+        foreach ($items->values() as $index => $item) {
+            $isCorrect = $index < $correctCount;
+            ModuleActivityResponse::create([
+                'module_attempt_id' => $attempt->id,
+                'module_activity_id' => $item->module_activity_id,
+                'module_attempt_item_id' => $item->id,
+                'response_text' => $isCorrect ? 'cat' : 'dog',
+                'learner_answer' => $isCorrect ? 'cat' : 'dog',
+                'expected_answer' => 'cat',
+                'is_correct' => $isCorrect,
+                'score' => $isCorrect ? 1 : 0,
+                'is_mastery_item' => false,
+            ]);
+            $item->update(['answered_at' => now()]);
+        }
+    }
+
     private function seedModuleLetterActivities(Module $module, string $activityType, bool $isMastery): void
     {
         foreach (range('A', 'Z') as $index => $letter) {
@@ -609,6 +702,8 @@ class ModuleLearningFlowTest extends TestCase
                     'module_key' => $module->key,
                     'activity_type' => $activityType,
                     'sequence' => $index + 1,
+                    'canonical_target' => $letter,
+                    'target_letter' => $letter,
                     'expected_answer' => $letter,
                     'points' => 1,
                     'is_mastery_item' => $isMastery,

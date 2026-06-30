@@ -400,7 +400,7 @@ class FinalAssessmentTest extends TestCase
             ->assertRedirect(route('learner.completion'));
 
         $this->withSession(['learner_id' => $learner->id])
-            ->get(route('learner.modules.activity', [$module, 'hear_and_repeat']))
+            ->get(route('learner.modules.activity', [$module, 'letter_pair_identification']))
             ->assertRedirect(route('learner.completion'));
     }
 

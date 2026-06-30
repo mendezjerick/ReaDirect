@@ -1,6 +1,6 @@
 <script setup>
-import { computed, ref } from 'vue';
-import { BookOpen, ChevronRight, Flag } from 'lucide-vue-next';
+import { computed } from 'vue';
+import { BookOpen, Flag } from 'lucide-vue-next';
 import AgentSpeakerPanel from './AgentSpeakerPanel.vue';
 
 const props = defineProps({
@@ -14,24 +14,15 @@ const props = defineProps({
     primaryDisabled: { type: Boolean, default: false },
     promptImage: { type: String, default: '' },
     displayState: { type: String, default: 'item' },
+    displayFlush: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['primary', 'agent-speaking-change']);
 
-const showPromptImage = ref(false);
-const hasPromptImage = computed(() => String(props.promptImage ?? '').trim().length > 0);
 const progressWidth = computed(() => `${Math.max(0, Math.min(100, Number(props.progress) || 0))}%`);
 const normalizedDisplayState = computed(() => (
     ['item', 'processing', 'result'].includes(props.displayState) ? props.displayState : 'item'
 ));
-
-const togglePromptImage = () => {
-    if (!hasPromptImage.value) {
-        return;
-    }
-
-    showPromptImage.value = !showPromptImage.value;
-};
 </script>
 
 <template>
@@ -40,6 +31,7 @@ const togglePromptImage = () => {
         :class="{
             'assessment-task-workspace--has-lower-section': $slots.transcript || $slots.status || $slots.qa,
             'assessment-task-workspace--has-qa': $slots.qa,
+            'assessment-task-workspace--display-flush': displayFlush,
         }"
     >
         <AgentSpeakerPanel
@@ -57,31 +49,9 @@ const togglePromptImage = () => {
         <section class="assessment-prompt-record-grid">
             <div class="assessment-prompt-panel">
                 <div class="assessment-prompt-face">
-                    <button
-                        v-if="hasPromptImage"
-                        type="button"
-                        class="assessment-prompt-toggle"
-                        :aria-pressed="showPromptImage"
-                        aria-label="Toggle prompt image"
-                        @click="togglePromptImage"
-                    >
-                        <ChevronRight class="size-5 transition-transform" :class="showPromptImage ? 'rotate-180' : ''" />
-                    </button>
-
                     <Transition name="assessment-display-fade" mode="out-in">
                         <div
-                            v-if="showPromptImage && hasPromptImage"
-                            key="image"
-                            class="assessment-display-layer assessment-display-layer--image"
-                        >
-                            <img
-                                :src="promptImage"
-                                alt=""
-                                class="h-full max-h-full w-full object-contain"
-                            >
-                        </div>
-                        <div
-                            v-else-if="normalizedDisplayState === 'processing'"
+                            v-if="normalizedDisplayState === 'processing'"
                             key="processing"
                             class="assessment-display-layer assessment-display-layer--processing"
                         >
@@ -237,6 +207,10 @@ const togglePromptImage = () => {
     padding: clamp(0.55rem, 1.7dvh, 1.35rem);
 }
 
+.assessment-task-workspace--display-flush .assessment-prompt-face {
+    padding: 0;
+}
+
 .assessment-display-layer {
     display: grid;
     width: 100%;
@@ -247,8 +221,7 @@ const togglePromptImage = () => {
 }
 
 .assessment-display-layer--item,
-.assessment-display-layer--result,
-.assessment-display-layer--image {
+.assessment-display-layer--result {
     place-items: center;
 }
 
@@ -298,22 +271,6 @@ const togglePromptImage = () => {
     font-size: clamp(6rem, min(70cqh, 18cqw), 13rem);
     color: #000000;
     text-shadow: 0 3px 0 rgba(255, 255, 255, 0.8), 0 6px 14px rgba(54, 83, 101, 0.18);
-}
-
-.assessment-prompt-toggle {
-    position: absolute;
-    right: 0.75rem;
-    top: 0.75rem;
-    z-index: 1;
-    display: grid;
-    width: 2.25rem;
-    height: 2.25rem;
-    place-items: center;
-    border: 1px solid rgba(54, 83, 101, 0.14);
-    border-radius: 9999px;
-    background: var(--rd-card-cream);
-    color: var(--rd-primary-orange);
-    box-shadow: 0 4px 0 rgba(111, 101, 52, 0.2), 0 8px 14px rgba(35, 55, 70, 0.08);
 }
 
 .assessment-progress-row {
@@ -654,17 +611,21 @@ const togglePromptImage = () => {
 @media (max-width: 600px) and (orientation: portrait) {
     .assessment-task-workspace {
         --mobile-page-padding: 16px;
-        --mobile-section-gap: 12px;
-        --mobile-card-gap: 14px;
+        --mobile-section-gap: 16px;
+        --mobile-card-gap: 16px;
         --assessment-gap: var(--mobile-section-gap);
         --assessment-agent-row: clamp(118px, 32vw, 132px);
         --assessment-progress-row: auto;
 
         align-content: start;
+        height: auto;
+        min-height: 100%;
         grid-template-rows: auto auto auto;
         gap: var(--mobile-section-gap);
         overscroll-behavior: contain;
         padding-inline: 0;
+        padding-bottom: 8px;
+        overflow: visible;
     }
 
     .assessment-task-workspace--has-lower-section {
@@ -706,7 +667,7 @@ const togglePromptImage = () => {
 
     .assessment-record-panel {
         width: 100%;
-        aspect-ratio: 1 / 1;
+        height: clamp(180px, 28vh, 240px);
         min-height: 0;
     }
 
@@ -720,12 +681,20 @@ const togglePromptImage = () => {
     .assessment-progress-row {
         width: 100%;
         grid-template-columns: minmax(0, 1fr);
-        gap: 11px;
+        gap: 16px;
+        overflow: visible;
     }
 
     .assessment-progress-track {
         width: 100%;
         min-height: clamp(3.25rem, 12vw, 4rem);
+        overflow: visible;
+    }
+
+    .assessment-progress-face,
+    .assessment-primary-action,
+    .assessment-primary-action-label {
+        overflow: visible;
     }
 
     .assessment-primary-action {
@@ -738,17 +707,21 @@ const togglePromptImage = () => {
 
 :global(body[data-qa-viewport='mobile-vertical'] .assessment-task-workspace) {
     --mobile-page-padding: 16px;
-    --mobile-section-gap: 12px;
-    --mobile-card-gap: 14px;
+    --mobile-section-gap: 16px;
+    --mobile-card-gap: 16px;
     --assessment-gap: var(--mobile-section-gap);
     --assessment-agent-row: 124px;
     --assessment-progress-row: auto;
 
     align-content: start;
+    height: auto;
+    min-height: 100%;
     grid-template-rows: auto auto auto;
     gap: var(--mobile-section-gap);
     overscroll-behavior: contain;
     padding-inline: 0;
+    padding-bottom: 8px;
+    overflow: visible;
 }
 
 :global(body[data-qa-viewport='mobile-vertical'] .assessment-task-workspace--has-lower-section) {
@@ -790,7 +763,7 @@ const togglePromptImage = () => {
 
 :global(body[data-qa-viewport='mobile-vertical'] .assessment-record-panel) {
     width: 100%;
-    aspect-ratio: 1 / 1;
+    height: clamp(180px, 28vh, 240px);
     min-height: 0;
 }
 
@@ -804,12 +777,20 @@ const togglePromptImage = () => {
 :global(body[data-qa-viewport='mobile-vertical'] .assessment-progress-row) {
     width: 100%;
     grid-template-columns: minmax(0, 1fr);
-    gap: 11px;
+    gap: 16px;
+    overflow: visible;
 }
 
 :global(body[data-qa-viewport='mobile-vertical'] .assessment-progress-track) {
     width: 100%;
     min-height: 3.25rem;
+    overflow: visible;
+}
+
+:global(body[data-qa-viewport='mobile-vertical'] .assessment-progress-face),
+:global(body[data-qa-viewport='mobile-vertical'] .assessment-primary-action),
+:global(body[data-qa-viewport='mobile-vertical'] .assessment-primary-action-label) {
+    overflow: visible;
 }
 
 :global(body[data-qa-viewport='mobile-vertical'] .assessment-primary-action) {

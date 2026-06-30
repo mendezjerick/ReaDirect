@@ -343,7 +343,7 @@ class AdminAreaTest extends TestCase
             'module_id' => $module->id,
             'learning_content_id' => $content->id,
             'sequence' => 1,
-            'activity_type' => 'read_word',
+            'activity_type' => 'display_word_reading',
             'title' => 'Read cat',
             'configuration' => ['is_active' => true],
         ]);
@@ -509,10 +509,12 @@ class AdminAreaTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/Testing/FlowJump')
                 ->where('learner.learner_code', 'QA-TESTER')
-                ->where('targets.0.group', 'Learner')
-                ->where('targets.4.target', 'learner-completion')
-                ->where('targets.26.group', 'Modules')
-                ->where('targets.26.target', 'learner-modules')
+                ->where('targets.0.group', 'Dashboards')
+                ->where('targets.4.group', 'Diagnostic')
+                ->where('targets.12.group', 'Modules')
+                ->where('targets.14.target', "module-{$module->key}-activity-{$activityType}")
+                ->where('targets.22.group', 'Final')
+                ->where('targets.29.group', 'Results')
             );
 
         $this->actingAs($admin)
@@ -531,7 +533,7 @@ class AdminAreaTest extends TestCase
 
         $this->actingAs($admin)
             ->withSession(['admin_testing_mode' => true, 'admin_testing_learner_id' => $learner->id])
-            ->get(route('admin.testing.jump', "module-{$module->key}-activity"))
+            ->get(route('admin.testing.jump', "module-{$module->key}-activity-{$activityType}"))
             ->assertRedirect(route('learner.modules.activity', [$module, $activityType]));
 
         $tester->refresh();
@@ -679,11 +681,11 @@ class AdminAreaTest extends TestCase
                 ->where('activities.data.1.module.key', 'module_2'));
 
         $this->actingAs($admin)
-            ->get(route('admin.module-content.index', ['activity_type' => 'read_word']))
+            ->get(route('admin.module-content.index', ['activity_type' => 'display_word_reading']))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('activities.data', 1)
-                ->where('activities.data.0.activity_type', 'read_word')
+                ->where('activities.data.0.activity_type', 'display_word_reading')
                 ->where('activities.data.0.module.key', 'module_2'));
 
         $this->actingAs($admin)
@@ -882,22 +884,23 @@ class AdminAreaTest extends TestCase
             'is_active' => true,
         ]);
 
-        $activityType = 'hear_and_repeat';
-        foreach (range(1, 5) as $index) {
+        $activityType = 'letter_pair_identification';
+        $letters = ['A', 'C', 'E', 'F', 'G'];
+        foreach ($letters as $index => $letter) {
             $content = LearningContent::create([
                 'content_type' => 'module_activity',
-                'title' => 'Say A '.$index,
-                'prompt' => 'A',
-                'accepted_answers' => ['a'],
-                'payload' => ['expected_answer' => 'A', 'points' => 1],
+                'title' => 'Say '.$letter.' '.($index + 1),
+                'prompt' => $letter,
+                'accepted_answers' => [strtolower($letter)],
+                'payload' => ['expected_answer' => $letter, 'target_letter' => $letter, 'points' => 1],
                 'is_active' => true,
             ]);
             ModuleActivity::create([
                 'module_id' => $module->id,
                 'learning_content_id' => $content->id,
-                'sequence' => $index,
+                'sequence' => $index + 1,
                 'activity_type' => $activityType,
-                'title' => 'Say A '.$index,
+                'title' => 'Say '.$letter.' '.($index + 1),
                 'configuration' => ['is_mastery_item' => false, 'is_active' => true],
             ]);
         }
@@ -968,10 +971,10 @@ class AdminAreaTest extends TestCase
             $modules[$key] = Module::create(['sequence' => $sequence, 'key' => $key, 'title' => $title, 'is_active' => true]);
         }
 
-        $this->createModuleActivity($modules['module_1'], 'hear_and_repeat', 'Say A', true, false);
-        $this->createModuleActivity($modules['module_2'], 'read_word', 'Read cat', true, false);
+        $this->createModuleActivity($modules['module_1'], 'letter_pair_identification', 'Say A', true, false);
+        $this->createModuleActivity($modules['module_2'], 'display_word_reading', 'Read cat', true, false);
         $this->createModuleActivity($modules['module_2'], 'mastery_check', 'Mastery word', true, true);
-        $this->createModuleActivity($modules['module_3'], 'read_sentence', 'Read sentence', false, false);
+        $this->createModuleActivity($modules['module_3'], 'simple_sentence_reading', 'Read sentence', false, false);
 
         return [$modules['module_1'], $modules['module_2'], $modules['module_3']];
     }

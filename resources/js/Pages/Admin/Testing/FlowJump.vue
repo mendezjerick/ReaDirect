@@ -1,34 +1,40 @@
 <script setup>
+import { computed, ref } from 'vue';
 import { useForm, Link } from '@inertiajs/vue3';
 import AdminLayout from '../../../Layouts/AdminLayout.vue';
 import DashboardCard from '../../../Components/DashboardCard.vue';
 import EmptyState from '../../../Components/EmptyState.vue';
 import {
     ArrowLeft,
-    ArrowRight,
     ExternalLink,
     GraduationCap,
-    Loader2,
     Navigation,
     Play,
-    Rocket,
 } from 'lucide-vue-next';
 
-const props = defineProps({ learner: Object, targets: Array, modules: Array });
+const props = defineProps({ learner: Object, targets: Array });
 
-const form = useForm({
-    learner_id: props.learner?.id ?? '',
-    type: 'diagnostic',
-    module_id: props.modules?.[0]?.id ?? '',
-});
 const resetForm = useForm({});
 const exitForm = useForm({});
 
-const typeLabels = {
-    diagnostic: { label: 'Sandbox Diagnostic', color: 'blue' },
-    module: { label: 'Sandbox Module', color: 'violet' },
-    final: { label: 'Sandbox Final Reassessment', color: 'orange' },
-};
+const selectedCategory = ref('all');
+
+const categoryOptions = [
+    { label: 'All', value: 'all' },
+    { label: 'Dashboards', value: 'dashboards' },
+    { label: 'Diagnostic', value: 'diagnostic' },
+    { label: 'Modules', value: 'modules' },
+    { label: 'Final', value: 'final' },
+    { label: 'Results', value: 'results' },
+];
+
+const filteredTargets = computed(() => {
+    if (selectedCategory.value === 'all') {
+        return props.targets ?? [];
+    }
+
+    return (props.targets ?? []).filter((target) => target.category === selectedCategory.value);
+});
 </script>
 
 <template>
@@ -90,64 +96,38 @@ const typeLabels = {
                 </div>
             </div>
 
-            <!-- Optional create attempt form -->
-            <form v-if="learner" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" @submit.prevent="form.post('/admin/testing/start-sandbox')">
-                <input v-model="form.learner_id" type="hidden">
-
-                <label class="grid gap-1.5">
-                    <span class="text-[11px] font-bold uppercase tracking-wider text-muted">Attempt type</span>
-                    <select v-model="form.type" class="w-full rounded-xl border border-border bg-white px-3 py-2.5 text-sm font-semibold text-text transition-all duration-200 hover:border-primary/40 focus:border-primary focus:ring-2 focus:ring-primary/10">
-                        <option value="diagnostic">Sandbox diagnostic</option>
-                        <option value="module">Sandbox module</option>
-                        <option value="final">Sandbox final reassessment</option>
-                    </select>
-                </label>
-
-                <label class="grid gap-1.5">
-                    <span class="text-[11px] font-bold uppercase tracking-wider text-muted">Module</span>
-                    <select v-model="form.module_id" class="w-full rounded-xl border border-border bg-white px-3 py-2.5 text-sm font-semibold text-text transition-all duration-200 hover:border-primary/40 focus:border-primary focus:ring-2 focus:ring-primary/10">
-                        <option v-for="module in modules" :key="module.id" :value="module.id">{{ module.title }}</option>
-                    </select>
-                </label>
-
-                <div class="flex items-end sm:col-span-2">
-                    <button
-                        type="submit"
-                        class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white transition-all duration-200 hover:bg-primary-dark hover:shadow-md hover:shadow-primary/20 active:scale-[0.97] disabled:opacity-60 disabled:cursor-not-allowed"
-                        :disabled="form.processing"
-                    >
-                        <Loader2 v-if="form.processing" class="size-4 animate-spin" />
-                        <Rocket v-else class="size-4" />
-                        Create Tester Attempt
-                    </button>
-                </div>
-            </form>
-
-            <div v-else class="rounded-xl bg-amber-50 border border-amber-200/60 px-4 py-3 text-sm font-semibold text-amber-700">
+            <div v-if="!learner" class="rounded-xl bg-amber-50 border border-amber-200/60 px-4 py-3 text-sm font-semibold text-amber-700">
                 Tester was not prepared. Reload this page to start QA Testing.
             </div>
         </DashboardCard>
 
         <!-- ── Jump Targets ────────────────────────────────── -->
         <DashboardCard class="mt-5 fj-card-in" style="--card-delay: 100ms">
-            <div class="mb-4 flex items-center justify-between">
+            <div class="mb-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
                 <div class="flex items-center gap-2.5">
                     <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-500">
                         <Navigation class="size-4" />
                     </div>
                     <h2 class="text-sm font-bold text-text">Jump Targets</h2>
                 </div>
+
+                <label class="grid gap-1.5 md:w-64">
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-muted">Category</span>
+                    <select v-model="selectedCategory" class="w-full rounded-xl border border-border bg-white px-3 py-2.5 text-sm font-semibold text-text transition-all duration-200 hover:border-primary/40 focus:border-primary focus:ring-2 focus:ring-primary/10">
+                        <option v-for="option in categoryOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+                    </select>
+                </label>
             </div>
 
             <EmptyState
-                v-if="!targets?.length"
+                v-if="!filteredTargets.length"
                 title="No jump targets"
-                message="No QA targets are available yet."
+                message="No QA targets are available for this category."
             />
 
             <div v-else class="grid gap-2 sm:grid-cols-2">
                 <a
-                    v-for="(target, index) in targets"
+                    v-for="(target, index) in filteredTargets"
                     :key="target.url"
                     :href="target.url"
                     class="group flex items-center gap-3 rounded-xl border border-border/60 bg-background/50 px-4 py-3 transition-all duration-200 hover:bg-primary-light hover:border-primary/20 hover:shadow-sm active:scale-[0.98] fj-row-in"

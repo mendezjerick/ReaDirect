@@ -124,8 +124,8 @@ class AgentSpeakerPanelStructureTest extends TestCase
         $this->assertStringContainsString('lessonBoxes', $component);
         $this->assertStringContainsString('explainLesson', $component);
         $this->assertStringContainsString('transitionMessages', $component);
-        $this->assertStringContainsString('Let us slow down and choose one lesson at a time.', $component);
-        $this->assertStringContainsString('Are you ready to choose one lesson without rushing?', $component);
+        $this->assertStringContainsString('pauseForHoverSpam', $component);
+        $this->assertStringContainsString('hoverPausedUntil', $component);
         $this->assertStringContainsString('transitionDelayFor', $component);
         $this->assertStringContainsString('@mouseenter="explainLesson(lesson)"', $component);
         $this->assertStringContainsString('@focus="explainLesson(lesson)"', $component);
@@ -143,7 +143,7 @@ class AgentSpeakerPanelStructureTest extends TestCase
 
         foreach ([$activity, $mastery] as $component) {
             $this->assertStringContainsString('returnToDashboard', $component);
-            $this->assertStringContainsString('See you next time!', $component);
+            $this->assertStringContainsString('See you next time', $component);
             $this->assertStringContainsString('readirect:stop-agent-speech', $component);
             $this->assertStringContainsString("window.location.href = '/learner/dashboard'", $component);
         }
@@ -157,8 +157,9 @@ class AgentSpeakerPanelStructureTest extends TestCase
         $mastery = file_get_contents($root.'/resources/js/Pages/Learner/Modules/ModuleMasteryCheck.vue');
         $composable = file_get_contents($root.'/resources/js/Composables/useAutomaticCielListeningSession.js');
 
-        $this->assertStringContainsString('/learner/listening-mode', $dashboard);
-        $this->assertStringContainsString('Automatic Ciel Listening Mode', $dashboard);
+        $this->assertStringContainsString('listeningMode', $dashboard);
+        $this->assertStringContainsString('listeningLabel', $dashboard);
+        $this->assertStringContainsString('Recording', $dashboard);
         $this->assertStringContainsString('AutomaticCielListeningPanel', $activity);
         $this->assertStringContainsString('v-if="isAutomaticListeningMode"', $activity);
         $this->assertStringContainsString('AutomaticCielListeningPanel', $mastery);

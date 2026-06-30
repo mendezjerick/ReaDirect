@@ -45,9 +45,9 @@ class ContentBankImportTest extends TestCase
             ->filter(fn (LearningContent $content): bool => (int) ($content->payload['practice_item_count'] ?? 0) > 0)
             ->groupBy(fn (LearningContent $content): string => $content->payload['module_key'] ?? '');
 
-        $this->assertSame(['hear_and_repeat', 'see_letter_say_sound', 'match_sound_to_letter', 'sound_drill'], $this->activityTypesFor($practiceRules, 'module_1'));
-        $this->assertSame(['read_word', 'word_family_drill', 'minimal_pair', 'word_accuracy_challenge'], $this->activityTypesFor($practiceRules, 'module_2'));
-        $this->assertSame(['read_sentence', 'read_with_coach', 'timed_sentence_reading', 'pause_practice'], $this->activityTypesFor($practiceRules, 'module_3'));
+        $this->assertSame(['letter_pair_identification', 'highlighted_first_letter', 'first_letter_identification', 'missing_first_letter'], $this->activityTypesFor($practiceRules, 'module_1'));
+        $this->assertSame(['display_word_reading', 'split_word_reading', 'highlighted_rhyme_word', 'highlighted_sentence_word'], $this->activityTypesFor($practiceRules, 'module_2'));
+        $this->assertSame(['simple_sentence_reading', 'comma_pause_reading', 'full_stop_pause_reading', 'mixed_punctuation_fluency'], $this->activityTypesFor($practiceRules, 'module_3'));
 
         $this->activeContent('module_activity_selection_rule')
             ->each(fn (LearningContent $content) => $this->assertNotEmpty($content->payload['source_csv_id'] ?? null));

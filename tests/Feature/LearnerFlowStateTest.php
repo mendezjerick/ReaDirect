@@ -157,7 +157,7 @@ class LearnerFlowStateTest extends TestCase
             'current_module_id' => $module->id,
             'current_stage' => LearnerStage::MODULE_PRACTICE_IN_PROGRESS,
         ]);
-        $this->seedModuleActivity($module, 'read_word');
+        $this->seedModuleActivity($module, 'display_word_reading');
         $attempt = ModuleAttempt::create([
             'learner_id' => $learner->id,
             'module_id' => $module->id,
@@ -166,7 +166,7 @@ class LearnerFlowStateTest extends TestCase
         ]);
 
         $this->withSession(['learner_id' => $learner->id])
-            ->get(route('learner.modules.activity', [$module, 'read_word']))
+            ->get(route('learner.modules.activity', [$module, 'display_word_reading']))
             ->assertOk();
 
         $this->assertSame($attempt->id, session('module_attempt_id'));

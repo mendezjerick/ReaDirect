@@ -18,6 +18,8 @@ class ModuleAttemptItem extends Model
         'source_csv_id',
         'activity_type',
         'sequence',
+        'lesson_attempt_number',
+        'lesson_item_number',
         'prompt_snapshot',
         'is_mastery_item',
         'selected_at',
@@ -28,6 +30,8 @@ class ModuleAttemptItem extends Model
     {
         return [
             'prompt_snapshot' => 'array',
+            'lesson_attempt_number' => 'integer',
+            'lesson_item_number' => 'integer',
             'is_mastery_item' => 'boolean',
             'selected_at' => 'datetime',
             'answered_at' => 'datetime',

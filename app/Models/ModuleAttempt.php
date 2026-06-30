@@ -33,6 +33,11 @@ class ModuleAttempt extends Model
         return $this->hasMany(ModuleAttemptItem::class);
     }
 
+    public function lessonProgress(): HasMany
+    {
+        return $this->hasMany(ModuleLessonProgress::class);
+    }
+
     public function responses(): HasMany
     {
         return $this->hasMany(ModuleActivityResponse::class);
