@@ -15,6 +15,7 @@ use App\Services\AssessmentModeService;
 use App\Services\AudioStorageService;
 use App\Services\STT\AudioTranscriptionService;
 use App\Support\CurrentLearner;
+use App\Support\ModuleSentenceText;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -386,6 +387,12 @@ class AudioUploadController extends Controller
             : ($taskType === 'crla_task_2b_sentence'
             ? ($payload['target_word'] ?? $payload['expected_answer'] ?? $snapshot['prompt'] ?? null)
             : ($payload['expected_answer'] ?? $payload['target_word'] ?? $snapshot['prompt'] ?? null));
+        $activityType = $validated['activity_type'] ?? $item?->activity_type ?? $taskType;
+        $moduleKey = (string) ($payload['module_key'] ?? $moduleAttempt?->module?->key ?? '');
+
+        if (is_string($expectedText)) {
+            $expectedText = ModuleSentenceText::scoringTarget($expectedText, $moduleKey, (string) $activityType);
+        }
 
         return [
             'expected_text' => $expectedText,
@@ -393,7 +400,7 @@ class AudioUploadController extends Controller
             'prompt_id' => $item?->source_csv_id,
             'module_key' => $moduleAttempt?->module?->key,
             'module_type' => $moduleAttempt?->module?->key,
-            'activity_type' => $validated['activity_type'] ?? $item?->activity_type ?? $taskType,
+            'activity_type' => $activityType,
             'assessment_type' => $assessmentAttempt?->attempt_type ?? ($moduleAttempt ? 'module_activity' : null),
             'item_id' => $item?->id ?? $validated['item_id'] ?? null,
             'learner_id' => $assessmentAttempt?->learner_id ?? $moduleAttempt?->learner_id,

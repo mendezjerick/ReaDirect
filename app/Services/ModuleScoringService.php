@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\ModuleAttempt;
 use App\Models\ModuleAttemptItem;
+use App\Support\ModuleSentenceText;
 use Illuminate\Support\Collection;
 
 class ModuleScoringService
@@ -26,6 +27,13 @@ class ModuleScoringService
         $payload = $snapshot['payload'] ?? [];
         $points = (float) ($snapshot['points'] ?? $payload['points'] ?? 1);
         $expectedAnswer = $payload['expected_answer'] ?? $payload['target_sentence'] ?? $payload['target_word'] ?? null;
+        $expectedAnswer = is_string($expectedAnswer)
+            ? ModuleSentenceText::scoringTarget(
+                $expectedAnswer,
+                (string) ($payload['module_key'] ?? ''),
+                (string) ($payload['activity_type'] ?? $moduleAttemptItem->activity_type ?? ''),
+            )
+            : $expectedAnswer;
 
         if ($this->isModuleThreeSentenceItem($moduleAttemptItem, $payload, $expectedAnswer)) {
             return $this->scoreSentenceItem(

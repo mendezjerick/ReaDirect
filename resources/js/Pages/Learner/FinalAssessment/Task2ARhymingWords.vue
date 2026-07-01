@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import { Check, Music2, X } from 'lucide-vue-next';
 import GuideLayout from '../../../Components/Learner/GuideLayout.vue';
@@ -29,7 +29,36 @@ const currentPayload = computed(() => step.currentItem.value?.payload ?? {});
 const currentAnswer = computed(() => step.answers[step.currentItem.value?.id] ?? '');
 const canUseDeveloperJumpControls = computed(() => props.assessmentMode?.canUseDeveloperJumpControls === true);
 const firstFormError = computed(() => Object.values(form.errors ?? {})[0] ?? '');
-const vivianPrompt = 'Listen to both words carefully. Then choose Yes if they rhyme, or No if they do not rhyme.';
+const genericVivianPrompt = 'Listen to both words carefully. Then choose Yes if they rhyme, or No if they do not rhyme.';
+const hasPlayedGenericPrompt = ref(false);
+const hasStartedGenericPrompt = ref(false);
+
+const normalizeLineKeyToken = (value) => String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+
+const pairSpeechText = computed(() => {
+    const payload = currentPayload.value;
+    const script = String(payload.audio_script ?? '').trim();
+    if (script) return script;
+
+    return [payload.word_1, payload.word_2]
+        .map((word) => String(word ?? '').trim())
+        .filter(Boolean)
+        .join(', ');
+});
+
+const pairLineKey = computed(() => {
+    const sourceId = step.currentItem.value?.source_csv_id ?? currentPayload.value.source_csv_id ?? '';
+    const token = normalizeLineKeyToken(sourceId);
+
+    return token ? `vivian.task2a.pair.${token}` : '';
+});
+
+const agentMessage = computed(() => (hasPlayedGenericPrompt.value ? pairSpeechText.value : genericVivianPrompt));
+const agentLineKey = computed(() => (hasPlayedGenericPrompt.value ? pairLineKey.value : 'vivian.task2a.rhyme_prompt_intro'));
 
 const selectAnswer = (answer) => {
     step.answers[step.currentItem.value.id] = answer;
@@ -56,6 +85,19 @@ const handlePrimary = () => {
     if (step.isLast.value) return submit();
     step.goNext();
 };
+
+const handleAgentSpeakingStart = (event) => {
+    if (event?.isIntro || event?.lineKey !== 'vivian.task2a.rhyme_prompt_intro') return;
+
+    hasStartedGenericPrompt.value = true;
+};
+
+const handleAgentSpeakingEnd = (event) => {
+    if (event?.isIntro || event?.lineKey !== 'vivian.task2a.rhyme_prompt_intro') return;
+    if (!hasStartedGenericPrompt.value) return;
+
+    hasPlayedGenericPrompt.value = true;
+};
 </script>
 
 <template>
@@ -63,11 +105,13 @@ const handlePrimary = () => {
         :progress="50"
         eyebrow="Task 2A"
         divider-label="Rhyme decision"
-        :agent-message="vivianPrompt"
-        agent-line-key="vivian.task2a.rhyme_prompt_intro"
+        :agent-message="agentMessage"
+        :agent-line-key="agentLineKey"
         :primary-label="step.isLast.value ? 'Save answers' : 'Next'"
         :primary-disabled="form.processing || !step.isCurrentAnswered.value"
         @primary="handlePrimary"
+        @agent-speaking-start="handleAgentSpeakingStart"
+        @agent-speaking-end="handleAgentSpeakingEnd"
     >
         <template v-if="canUseDeveloperJumpControls && !step.isFirst.value" #secondary-action>
             <SecondaryButton @click="step.goBack">Developer QA: Back</SecondaryButton>

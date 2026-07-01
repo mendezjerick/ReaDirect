@@ -48,9 +48,10 @@ class AssessmentItemSelectionServiceTest extends TestCase
     public function test_it_locks_task_two_a_rhyme_decisions_with_required_split(): void
     {
         $attempt = $this->assessmentAttempt();
+        $rhymePattern = [true, true, true, false, true, false, false, true, true, false];
 
         foreach (range(1, 10) as $sequence) {
-            $isRhyme = $sequence <= 6;
+            $isRhyme = $rhymePattern[$sequence - 1];
             $wordTwo = $isRhyme ? 'hat' : 'dog';
 
             LearningContent::create([
@@ -78,6 +79,10 @@ class AssessmentItemSelectionServiceTest extends TestCase
         $this->assertSame(AssessmentItemSelectionService::TASK_2A_RHYME, $items->first()->task_type);
         $this->assertSame(6, $items->filter(fn ($item) => (bool) $item->prompt_snapshot['payload']['is_rhyme'])->count());
         $this->assertSame(4, $items->reject(fn ($item) => (bool) $item->prompt_snapshot['payload']['is_rhyme'])->count());
+        $this->assertSame(
+            $rhymePattern,
+            $items->map(fn ($item): bool => (bool) $item->prompt_snapshot['payload']['is_rhyme'])->all()
+        );
     }
 
     public function test_new_task_one_selection_excludes_unreliable_isolated_letters(): void

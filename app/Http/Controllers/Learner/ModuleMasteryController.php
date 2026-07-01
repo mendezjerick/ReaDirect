@@ -20,6 +20,7 @@ use App\Services\ModuleScoringService;
 use App\Services\VoiceLines\ModuleEchoLineFactory;
 use App\Support\CurrentLearner;
 use App\Support\LearnerStage;
+use App\Support\ModuleSentenceText;
 use App\Support\SubmittedItemSet;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -315,6 +316,10 @@ class ModuleMasteryController extends Controller
         }
 
         $moduleKey = (string) ($payload['module_key'] ?? '');
+        if ($moduleKey === 'module_3') {
+            return ModuleSentenceText::display($display);
+        }
+
         if ($moduleKey === 'module_2' && preg_match('/^[a-z][a-z0-9\'-]*$/', $display)) {
             return ucfirst($display);
         }

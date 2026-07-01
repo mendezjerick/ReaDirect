@@ -18,14 +18,18 @@ class TaskTwoAContentBankTest extends TestCase
             ['cat', 'hat', 'yes'],
             ['sun', 'run', 'yes'],
             ['dog', 'log', 'yes'],
-            ['cup', 'pup', 'yes'],
-            ['bed', 'red', 'yes'],
-            ['hop', 'top', 'yes'],
             ['map', 'sit', 'no'],
+            ['cup', 'pup', 'yes'],
             ['pen', 'bug', 'no'],
             ['bat', 'lip', 'no'],
+            ['bed', 'red', 'yes'],
+            ['hop', 'top', 'yes'],
             ['hen', 'tap', 'no'],
         ], array_map(fn (array $row): array => [$row['word_1'], $row['word_2'], $row['correct_answer']], $rows));
+        $this->assertSame(
+            [true, true, true, false, true, false, false, true, true, false],
+            array_map(fn (array $row): bool => strtolower($row['is_rhyme']) === 'true', $rows)
+        );
 
         $words = [];
 

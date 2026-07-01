@@ -26,6 +26,7 @@ use Illuminate\Support\Facades\DB;
 class QaTestingStateService
 {
     public const LEARNER_CODE = 'QA-TESTER';
+    private const DIAGNOSTIC_TUTORIAL_COMPLETED_ATTEMPT_KEY = 'diagnostic_tutorial_completed_attempt_id';
 
     public function __construct(
         private readonly AssessmentItemSelectionService $assessmentItems,
@@ -173,6 +174,8 @@ class QaTestingStateService
     private function prepareDiagnosticJump(Request $request, Learner $tester, string $target): array
     {
         if ($target === 'diagnostic-start') {
+            $request->session()->forget(self::DIAGNOSTIC_TUTORIAL_COMPLETED_ATTEMPT_KEY);
+
             return $this->redirect($tester, route('learner.diagnostic.start'));
         }
 
@@ -180,9 +183,19 @@ class QaTestingStateService
         $this->putAssessmentSession($request, $attempt);
 
         return match ($target) {
+            'diagnostic-tutorial' => tap(
+                $this->redirect($tester, route('learner.diagnostic.tutorial')),
+                function () use ($request, $attempt): void {
+                    $request->session()->forget(self::DIAGNOSTIC_TUTORIAL_COMPLETED_ATTEMPT_KEY);
+                    $this->assessmentItems->selectTask1LettersForAttempt($attempt);
+                }
+            ),
             'diagnostic-task-1' => tap(
                 $this->redirect($tester, route('learner.diagnostic.task-1')),
-                fn () => $this->assessmentItems->selectTask1LettersForAttempt($attempt)
+                function () use ($request, $attempt): void {
+                    $request->session()->put(self::DIAGNOSTIC_TUTORIAL_COMPLETED_ATTEMPT_KEY, $attempt->id);
+                    $this->assessmentItems->selectTask1LettersForAttempt($attempt);
+                }
             ),
             'diagnostic-task-routing' => tap(
                 $this->redirect($tester, route('learner.diagnostic.task-routing')),
@@ -612,6 +625,7 @@ class QaTestingStateService
             'task_one_route',
             'admin_testing_assessment_attempt_id',
             'admin_testing_module_attempt_id',
+            self::DIAGNOSTIC_TUTORIAL_COMPLETED_ATTEMPT_KEY,
         ]);
     }
 
@@ -627,6 +641,7 @@ class QaTestingStateService
             'final_assessment_attempt_id',
             'module_attempt_id',
             'task_one_route',
+            self::DIAGNOSTIC_TUTORIAL_COMPLETED_ATTEMPT_KEY,
         ]);
     }
 

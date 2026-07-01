@@ -22,39 +22,42 @@ const normalizedAttemptSegments = computed(() => Array.from({ length: 3 }, (_, i
     };
 }));
 const hasAttemptRing = computed(() => props.attemptSegments.length > 0);
-const attemptRingGradient = computed(() => {
-    const colors = {
-        correct: '#585123',
-        incorrect: '#772F1A',
-        wrong: '#772F1A',
-        unused: 'transparent',
-    };
-    const gap = 5;
-    const segmentSize = 120;
-    const stops = normalizedAttemptSegments.value.flatMap((segment, index) => {
-        const start = (index * segmentSize) + (gap / 2);
-        const end = ((index + 1) * segmentSize) - (gap / 2);
-        const color = colors[segment.status] ?? colors.unused;
+const attemptRingSegments = computed(() => {
+    const paths = [
+        'M 10.2 49 A 40.5 40.5 0 0 1 23.4 20.3',
+        'M 30.2 14.6 A 40.5 40.5 0 0 1 69.8 14.6',
+        'M 76.6 20.3 A 40.5 40.5 0 0 1 89.8 49',
+    ];
 
-        return [
-            `transparent ${index * segmentSize}deg ${start}deg`,
-            `${color} ${start}deg ${end}deg`,
-            `transparent ${end}deg ${(index + 1) * segmentSize}deg`,
-        ];
+    return normalizedAttemptSegments.value.map((segment, index) => {
+        const status = segment.status === 'wrong' ? 'incorrect' : segment.status;
+
+        return {
+            ...segment,
+            path: paths[index],
+            statusClass: `assessment-circle-attempt-segment--${status}`,
+        };
     });
-
-    return `conic-gradient(from -90deg, ${stops.join(', ')})`;
 });
 </script>
 
 <template>
     <div class="assessment-circle-button-frame">
-        <div
+        <svg
             v-if="hasAttemptRing"
             class="assessment-circle-attempt-ring"
-            :style="{ background: attemptRingGradient }"
+            viewBox="0 0 100 100"
+            focusable="false"
             aria-hidden="true"
-        />
+        >
+            <path
+                v-for="segment in attemptRingSegments"
+                :key="segment.attempt"
+                class="assessment-circle-attempt-segment"
+                :class="segment.statusClass"
+                :d="segment.path"
+            />
+        </svg>
         <button
             v-bind="attrs"
             type="button"
@@ -72,15 +75,14 @@ const attemptRingGradient = computed(() => {
 <style scoped>
 .assessment-circle-button-frame {
     --assessment-circle-button-size: clamp(3rem, min(50cqh, 38cqw), 9.5rem);
-    --assessment-circle-ring-gap: 0px;
-    --assessment-circle-ring-thickness: clamp(3px, min(1.1cqh, 0.8cqw), 5px);
+    --assessment-circle-ring-offset: clamp(1.75rem, min(13cqh, 9.5cqw), 2.75rem);
     --assessment-circle-icon-size: clamp(1.55rem, min(18cqh, 12cqw), 3rem);
     --assessment-circle-re-size: clamp(1.1rem, min(10cqh, 6cqw), 1.875rem);
 
     position: relative;
     display: grid;
-    inline-size: calc(var(--assessment-circle-button-size) + (var(--assessment-circle-ring-gap) * 2));
-    block-size: calc(var(--assessment-circle-button-size) + (var(--assessment-circle-ring-gap) * 2));
+    inline-size: calc(var(--assessment-circle-button-size) + (var(--assessment-circle-ring-offset) * 2));
+    block-size: calc(var(--assessment-circle-button-size) + (var(--assessment-circle-ring-offset) * 2));
     aspect-ratio: 1 / 1;
     flex: 0 0 auto;
     place-items: center;
@@ -88,6 +90,7 @@ const attemptRingGradient = computed(() => {
 
 .assessment-circle-button {
     position: relative;
+    z-index: 1;
     isolation: isolate;
     inline-size: var(--assessment-circle-button-size);
     block-size: var(--assessment-circle-button-size);
@@ -132,10 +135,28 @@ const attemptRingGradient = computed(() => {
 .assessment-circle-attempt-ring {
     position: absolute;
     inset: 0;
-    border-radius: 9999px;
+    z-index: 0;
+    overflow: visible;
     pointer-events: none;
-    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - var(--assessment-circle-ring-thickness)), #000 calc(100% - var(--assessment-circle-ring-thickness)));
-    mask: radial-gradient(farthest-side, transparent calc(100% - var(--assessment-circle-ring-thickness)), #000 calc(100% - var(--assessment-circle-ring-thickness)));
+}
+
+.assessment-circle-attempt-segment {
+    fill: none;
+    stroke: rgba(224, 207, 166, 0.58);
+    stroke-width: 4.4;
+    stroke-linecap: round;
+}
+
+.assessment-circle-attempt-segment--correct {
+    stroke: var(--rd-correct-green, #585123);
+}
+
+.assessment-circle-attempt-segment--incorrect {
+    stroke: var(--rd-wrong-red, #772F1A);
+}
+
+.assessment-circle-attempt-segment--unused {
+    stroke: rgba(224, 207, 166, 0.58);
 }
 
 .assessment-circle-button--recording {
@@ -186,7 +207,7 @@ const attemptRingGradient = computed(() => {
 @media (max-width: 600px) and (orientation: portrait) {
     .assessment-circle-button-frame {
         --assessment-circle-button-size: clamp(5.25rem, 24vw, 6.75rem);
-        --assessment-circle-ring-thickness: clamp(3px, 1.2vw, 5px);
+        --assessment-circle-ring-offset: clamp(1.45rem, 8.5vw, 2.1rem);
         --assessment-circle-icon-size: clamp(2.25rem, 9vw, 3rem);
         --assessment-circle-re-size: clamp(1.45rem, 6vw, 2rem);
     }
@@ -194,7 +215,7 @@ const attemptRingGradient = computed(() => {
 
 :global(body[data-qa-viewport='mobile-vertical'] .assessment-circle-button-frame) {
     --assessment-circle-button-size: 5.85rem;
-    --assessment-circle-ring-thickness: 4px;
+    --assessment-circle-ring-offset: 1.85rem;
     --assessment-circle-icon-size: 2.35rem;
     --assessment-circle-re-size: 1.62rem;
 }

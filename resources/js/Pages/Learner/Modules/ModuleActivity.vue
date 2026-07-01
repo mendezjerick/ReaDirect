@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import LearnerLayout from '../../../Layouts/LearnerLayout.vue';
 import AssessmentTaskWorkspace from '../../../Components/Learner/AssessmentTaskWorkspace.vue';
+import AssessmentPromptAttemptStack from '../../../Components/Learner/AssessmentPromptAttemptStack.vue';
 import AssessmentPromptText from '../../../Components/Learner/AssessmentPromptText.vue';
 import AudioRecorder from '../../../Components/Learner/AudioRecorder.vue';
 import AsrTranscriptVisualizer from '../../../Components/Learner/AsrTranscriptVisualizer.vue';
@@ -11,7 +12,7 @@ import CielFocusMode from '../../../Components/Learner/CielFocusMode.vue';
 import { useAsrVisualization } from '../../../Composables/useAsrVisualization';
 import { useStepAssessment } from '../../../Composables/useStepAssessment';
 import { appendAudioMetadata, normalizeAsrResponse } from '../../../utils/asrResponse';
-import { acceptedFromRetryState, latestRetryAttempt, letterPairDisplay, resultToneForAccepted } from '../../../utils/assessmentDisplay';
+import { acceptedFromRetryState, latestRetryAttempt, letterPairDisplay, moduleItemDisplayText, resultToneForAccepted } from '../../../utils/assessmentDisplay';
 import { AUTOMATIC_CIEL_LISTENING_MODE, AUTOMATIC_CIEL_LISTENING_STATES } from '../../../Composables/useAutomaticCielListeningSession';
 import { highlightTargetsForModuleItem } from '../../../utils/modulePromptHighlight';
 import { getWordImage } from '../../../utils/readingIllustrations';
@@ -234,7 +235,7 @@ const promptDisplayText = computed(() => {
         ) || String(item?.display_prompt ?? item?.prompt ?? '');
     }
 
-    return String(item?.display_prompt ?? item?.prompt ?? '');
+    return moduleItemDisplayText(item, props.module);
 });
 const promptDisplayLabel = computed(() => (promptDisplaySize.value === 'letter' ? '' : props.activityLabel));
 const currentHighlightTargets = computed(() => highlightTargetsForModuleItem(step.currentItem.value));
@@ -247,10 +248,13 @@ const currentWordImage = computed(() => {
 const currentRetryState = computed(() => retryStates[step.currentItem.value?.id] ?? defaultRetryState());
 const isCurrentResolved = computed(() => currentRetryState.value.is_resolved === true);
 const currentHasCheckResult = computed(() => Number(currentRetryState.value.attempt_count ?? 0) > 0 || isCurrentResolved.value);
+const currentWrongAttempts = computed(() => (currentRetryState.value.attempts ?? [])
+    .filter((attempt) => attempt?.is_correct !== true && String(attempt?.answer ?? '').trim())
+    .slice(-3));
 const currentAsrVisualizationPending = computed(() => Boolean(asrVisualizationPending[step.currentItem.value?.id]));
 const currentDisplayState = computed(() => {
-    if (asrVisualizationEnabled.value && (isCurrentUploading.value || (currentAsrVisualizationPending.value && currentTranscript.value && currentHasSubmittedAnswer.value))) return 'processing';
-    if (currentTranscript.value && (currentHasSubmittedAnswer.value || currentRetryState.value.attempt_count > 0 || isCurrentResolved.value)) return 'result';
+    if (asrVisualizationEnabled.value && (isCurrentUploading.value || isCurrentChecking.value || currentAsrVisualizationPending.value)) return 'processing';
+    if (currentTranscript.value && currentHasCheckResult.value && acceptedFromRetryState(currentRetryState.value) === true) return 'result';
 
     return 'item';
 });
@@ -280,7 +284,7 @@ const automaticListeningDisabled = computed(() => (
 ));
 const primaryLabel = computed(() => {
     if (!isCurrentResolved.value) {
-        return currentHasSubmittedAnswer.value ? 'Check' : 'Submit';
+        return 'Submit';
     }
 
     if (step.isLast.value) {
@@ -717,6 +721,22 @@ const submitCurrentForReview = async () => {
     return uploadAudio(item, file);
 };
 
+const submitRecorderFile = async (item, file) => {
+    if (!item || isCurrentUploading.value || isCurrentChecking.value || focusModeVisible.value) {
+        return false;
+    }
+
+    if (file) {
+        audioFiles[item.id] = file;
+        audioDurations[item.id] = file.durationSeconds ?? audioDurations[item.id] ?? null;
+    }
+
+    const uploaded = await uploadAudio(item, file);
+    if (!uploaded) return false;
+
+    return checkCurrent();
+};
+
 const submit = () => {
     form.post(`/learner/modules/${props.module.key}/activity/${props.activityType}`, { forceFormData: true });
 };
@@ -725,8 +745,8 @@ const handlePrimary = async () => {
     if (focusModeVisible.value) return;
 
     if (!isCurrentResolved.value) {
-        if (!currentHasSubmittedAnswer.value) {
-            await submitCurrentForReview();
+        const submitted = currentHasSubmittedAnswer.value || await submitCurrentForReview();
+        if (!submitted) {
             return;
         }
 
@@ -792,7 +812,17 @@ onBeforeUnmount(() => {
             @agent-speaking-change="handleWorkspaceAgentSpeakingChange"
         >
             <template #prompt>
+                <AssessmentPromptAttemptStack
+                    v-if="currentWrongAttempts.length"
+                    :key="`${step.currentItem.value.id}-wrong-stack`"
+                    :label="promptDisplayLabel"
+                    :prompt="promptDisplayText"
+                    :highlight-targets="currentHighlightTargets"
+                    :size="promptDisplaySize"
+                    :attempts="currentWrongAttempts"
+                />
                 <AssessmentPromptText
+                    v-else
                     :key="step.currentItem.value.id"
                     :label="promptDisplayLabel"
                     :prompt="promptDisplayText"
@@ -827,8 +857,8 @@ onBeforeUnmount(() => {
                     :attempt-segments="currentAttemptSlots"
                     label="Practice voice"
                     @recorded="(file) => rememberAudio(step.currentItem.value, file)"
-                    @submit="(file) => uploadAudio(step.currentItem.value, file)"
-                    @cleared="() => clearAudio(step.currentItem.value)"
+                    @submit="(file) => submitRecorderFile(step.currentItem.value, file)"
+                    @cleared="(event) => clearAudio(step.currentItem.value, event?.resetAgent !== false)"
                     @error="handleRecorderError"
                 />
             </template>

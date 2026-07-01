@@ -20,7 +20,7 @@ export const highlightTargetsForModuleItem = (item) => {
     if (highlightedLetter && isSingleLetter(highlightedLetter)) {
         return [{
             text: highlightedLetter,
-            matchCase: prompt.includes(highlightedLetter),
+            matchCase: false,
             wholeWord: false,
         }];
     }

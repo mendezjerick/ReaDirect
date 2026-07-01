@@ -1,6 +1,7 @@
 export const diagnosticStepKeys = {
     INTRO: 'intro',
     WARM_UP: 'warm-up',
+    TUTORIAL: 'tutorial',
     TASK_1: 'task-1',
     TASK_2A: 'task-2a',
     TASK_2B: 'task-2b',
@@ -9,7 +10,7 @@ export const diagnosticStepKeys = {
 
 const diagnosticStepDefinitions = [
     { key: diagnosticStepKeys.INTRO, label: 'Intro' },
-    { key: diagnosticStepKeys.WARM_UP, label: 'Warm-Up' },
+    { key: diagnosticStepKeys.TUTORIAL, label: 'Tutorial' },
     { key: diagnosticStepKeys.TASK_1, label: 'Task 1' },
     { key: diagnosticStepKeys.TASK_2A, label: 'Task 2A' },
     { key: diagnosticStepKeys.TASK_2B, label: 'Task 2B' },

@@ -96,7 +96,7 @@ class DiagnosticAssessmentValidationTest extends TestCase
             ]);
         }
 
-        $this->withSession(['learner_id' => $attempt->learner_id])
+        $this->withSession($this->learnerSession($attempt, ['diagnostic_tutorial_completed_attempt_id' => $attempt->id]))
             ->get(route('learner.diagnostic.task-1'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
@@ -548,7 +548,7 @@ class DiagnosticAssessmentValidationTest extends TestCase
         $this->actingAs($admin)
             ->withSession(['learner_id' => $learner->id, 'admin_testing_mode' => true, 'admin_testing_learner_id' => $learner->id])
             ->post(route('learner.diagnostic.developer-retest'))
-            ->assertRedirect(route('learner.diagnostic.task-1'));
+            ->assertRedirect(route('learner.diagnostic.tutorial'));
 
         $this->assertDatabaseHas('assessment_attempts', ['id' => $previous->id, 'status' => 'module_placement_completed']);
         $newAttempt = AssessmentAttempt::where('learner_id', $learner->id)->where('id', '!=', $previous->id)->latest()->firstOrFail();

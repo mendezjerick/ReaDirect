@@ -200,12 +200,20 @@ const loadNaturalVoice = async () => {
 const handleSpeakingStart = () => {
     ttsError.value = '';
     isSpeaking.value = true;
-    emit('speaking-start');
+    emit('speaking-start', {
+        isIntro: showIntro.value,
+        lineKey: props.lineKey,
+        message: displayMessage.value,
+    });
 };
 
 const handleSpeakingEnd = () => {
     isSpeaking.value = false;
-    emit('speaking-end');
+    emit('speaking-end', {
+        isIntro: showIntro.value,
+        lineKey: props.lineKey,
+        message: displayMessage.value,
+    });
 };
 
 const handleTtsError = (message) => {
@@ -217,13 +225,21 @@ const handleTtsError = (message) => {
     if (message.toLowerCase().includes('autoplay')) {
         ttsError.value = '';
         isSpeaking.value = false;
-        emit('speaking-end');
+        emit('speaking-end', {
+            isIntro: showIntro.value,
+            lineKey: props.lineKey,
+            message: displayMessage.value,
+        });
         return;
     }
 
     ttsError.value = 'Voice is unavailable, but you can read the message here.';
     isSpeaking.value = false;
-    emit('speaking-end');
+    emit('speaking-end', {
+        isIntro: showIntro.value,
+        lineKey: props.lineKey,
+        message: displayMessage.value,
+    });
 };
 
 const loadIntroState = () => {

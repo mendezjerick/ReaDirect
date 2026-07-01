@@ -533,10 +533,11 @@ class AdminAreaTest extends TestCase
                 ->where('learner.learner_code', 'QA-TESTER')
                 ->where('targets.0.group', 'Dashboards')
                 ->where('targets.4.group', 'Diagnostic')
-                ->where('targets.12.group', 'Modules')
-                ->where('targets.14.target', "module-{$module->key}-activity-{$activityType}")
-                ->where('targets.22.group', 'Final')
-                ->where('targets.29.group', 'Results')
+                ->where('targets.5.target', 'diagnostic-tutorial')
+                ->where('targets.13.group', 'Modules')
+                ->where('targets.15.target', "module-{$module->key}-activity-{$activityType}")
+                ->where('targets.23.group', 'Final')
+                ->where('targets.30.group', 'Results')
             );
 
         $this->actingAs($admin)
@@ -627,7 +628,7 @@ class AdminAreaTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/Testing/FlowJump')
-                ->has('targets', 39)
+                ->has('targets', 40)
             );
 
         $targets = $flowJump->viewData('page')['props']['targets'];

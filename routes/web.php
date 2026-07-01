@@ -83,6 +83,8 @@ Route::prefix('learner/diagnostic')->name('learner.diagnostic.')->group(function
     Route::get('/start', [DiagnosticAssessmentController::class, 'start'])->name('start');
     Route::post('/start', [DiagnosticAssessmentController::class, 'storeStart'])->middleware('throttle:assessment-submit')->name('start.store');
     Route::post('/developer-retest', [DiagnosticAssessmentController::class, 'developerRetest'])->middleware('throttle:assessment-submit')->name('developer-retest');
+    Route::get('/tutorial', [DiagnosticAssessmentController::class, 'tutorial'])->name('tutorial');
+    Route::post('/tutorial/complete', [DiagnosticAssessmentController::class, 'completeTutorial'])->middleware('throttle:assessment-submit')->name('tutorial.complete');
     Route::get('/task-1', [DiagnosticAssessmentController::class, 'taskOne'])->name('task-1');
     Route::post('/task-1', [DiagnosticAssessmentController::class, 'storeTaskOne'])->middleware('throttle:assessment-submit')->name('task-1.store');
     Route::get('/task-routing', [DiagnosticAssessmentController::class, 'taskRouting'])->name('task-routing');

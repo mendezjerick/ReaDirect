@@ -28,7 +28,7 @@ defineProps({
     primaryHref: { type: String, default: '' },
 });
 
-const emit = defineEmits(['primary', 'agent-interaction-ended']);
+const emit = defineEmits(['primary', 'agent-interaction-ended', 'agent-speaking-start', 'agent-speaking-end']);
 
 const handlePrimary = (href) => {
     if (href) {
@@ -64,6 +64,8 @@ const handlePrimary = (href) => {
                     :framed-media="framedMedia"
                     :allow-congrats="agentAllowCongrats"
                     @interaction-ended="emit('agent-interaction-ended', $event)"
+                    @speaking-start="emit('agent-speaking-start', $event)"
+                    @speaking-end="emit('agent-speaking-end', $event)"
                 />
             </div>
 

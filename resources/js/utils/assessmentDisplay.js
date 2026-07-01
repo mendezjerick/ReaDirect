@@ -105,3 +105,27 @@ export const letterPairDisplay = (...values) => {
 
     return '';
 };
+
+const sentenceDisplayText = (value) => {
+    const text = String(value ?? '').trim().replace(/\s+/g, ' ');
+
+    if (!text) return '';
+
+    const capitalized = text.replace(/(^|[.!?]\s+)([a-z])/g, (_, prefix, letter) => `${prefix}${letter.toUpperCase()}`);
+
+    return /[.!?]$/.test(capitalized) ? capitalized : `${capitalized}.`;
+};
+
+export const moduleItemDisplayText = (item = null, module = null) => {
+    const text = String(item?.display_prompt ?? item?.prompt ?? '');
+    const moduleKey = String(item?.payload?.module_key ?? module?.key ?? '');
+    const displayFormat = String(item?.payload?.display_format ?? '');
+
+    if (moduleKey === 'module_3') {
+        return sentenceDisplayText(text);
+    }
+
+    const shouldLowercase = moduleKey === 'module_2' || (moduleKey === 'module_1' && displayFormat !== 'letter_pair');
+
+    return shouldLowercase ? text.toLowerCase() : text;
+};

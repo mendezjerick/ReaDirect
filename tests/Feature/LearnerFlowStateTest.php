@@ -40,7 +40,7 @@ class LearnerFlowStateTest extends TestCase
 
         $this->withSession(['learner_id' => $learner->id])
             ->post(route('learner.diagnostic.start.store'))
-            ->assertRedirect(route('learner.diagnostic.task-1'));
+            ->assertRedirect(route('learner.diagnostic.tutorial'));
 
         $firstAttempt = AssessmentAttempt::firstOrFail();
 
@@ -48,10 +48,53 @@ class LearnerFlowStateTest extends TestCase
 
         $this->withSession(['learner_id' => $learner->id])
             ->post(route('learner.diagnostic.start.store'))
-            ->assertRedirect(route('learner.diagnostic.task-1'));
+            ->assertRedirect(route('learner.diagnostic.tutorial'));
+
+        $this->withSession([
+            'learner_id' => $learner->id,
+            'assessment_attempt_id' => $firstAttempt->id,
+            'admin_testing_mode' => true,
+        ])
+            ->post(route('learner.diagnostic.start.store'))
+            ->assertRedirect(route('learner.diagnostic.tutorial'));
 
         $this->assertSame(1, AssessmentAttempt::where('learner_id', $learner->id)->count());
         $this->assertSame($firstAttempt->id, AssessmentAttempt::first()->id);
+    }
+
+    public function test_diagnostic_tutorial_uses_current_sun_sentence_when_seeded_content_is_stale(): void
+    {
+        $learner = $this->learner(['current_stage' => LearnerStage::DIAGNOSTIC_IN_PROGRESS]);
+        $attempt = AssessmentAttempt::create([
+            'learner_id' => $learner->id,
+            'attempt_type' => 'diagnostic',
+            'status' => 'task_1',
+            'started_at' => now(),
+        ]);
+
+        LearningContent::create([
+            'content_type' => 'word_sentence',
+            'title' => 'Word sentence T2B-W003',
+            'prompt' => 'We sit in the sun.',
+            'payload' => [
+                'source_csv_id' => 'T2B-W003',
+                'sequence' => 3,
+                'target_word' => 'sun',
+                'expected_answer' => 'sun',
+            ],
+            'accepted_answers' => ['sun'],
+            'difficulty' => 'easy',
+            'is_active' => true,
+        ]);
+
+        $this->withSession(['learner_id' => $learner->id, 'assessment_attempt_id' => $attempt->id])
+            ->get(route('learner.diagnostic.tutorial'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Learner/DiagnosticTutorial')
+                ->where('demoItem.prompt', 'The sun is hot.')
+                ->where('demoItem.payload.target_word', 'sun')
+            );
     }
 
     public function test_task_one_only_is_still_diagnostic_in_progress_on_dashboard(): void

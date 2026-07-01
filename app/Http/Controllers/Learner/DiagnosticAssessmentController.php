@@ -36,6 +36,12 @@ use Inertia\Response;
 
 class DiagnosticAssessmentController extends Controller
 {
+    private const DIAGNOSTIC_TUTORIAL_COMPLETED_ATTEMPT_KEY = 'diagnostic_tutorial_completed_attempt_id';
+    private const TASK_TWO_B_TUTORIAL_PROMPT = 'The sun is hot.';
+    private const LEGACY_TASK_TWO_B_TUTORIAL_PROMPTS = [
+        'We sit in the sun.',
+    ];
+
     public function start(Request $request, LearnerFlowService $flow): Response|RedirectResponse
     {
         $learner = $this->learner($request);
@@ -53,7 +59,7 @@ class DiagnosticAssessmentController extends Controller
         if ($activeAttempt) {
             $learner->update(['current_stage' => LearnerStage::DIAGNOSTIC_IN_PROGRESS]);
 
-            return redirect($flow->diagnosticResumeRoute($activeAttempt));
+            return redirect($this->diagnosticResumeRouteWithTutorial($request, $flow, $activeAttempt));
         }
 
         if ($flow->isDiagnosticComplete($latestAttempt) && ! $this->canUseDeveloperRetest($request)) {
@@ -84,7 +90,7 @@ class DiagnosticAssessmentController extends Controller
         if ($activeAttempt) {
             $learner->update(['current_stage' => LearnerStage::DIAGNOSTIC_IN_PROGRESS]);
 
-            return redirect($flow->diagnosticResumeRoute($activeAttempt));
+            return redirect($this->diagnosticResumeRouteWithTutorial($request, $flow, $activeAttempt));
         }
 
         if ($flow->isDiagnosticComplete($flow->latestDiagnosticAttempt($learner)) && ! $this->canUseDeveloperRetest($request)) {
@@ -98,12 +104,13 @@ class DiagnosticAssessmentController extends Controller
 
         $itemSelection->selectTask1LettersForAttempt($attempt);
         $request->session()->put('assessment_attempt_id', $attempt->id);
+        $request->session()->forget(self::DIAGNOSTIC_TUTORIAL_COMPLETED_ATTEMPT_KEY);
         if ($attempt->is_sandbox) {
             $request->session()->put('admin_testing_assessment_attempt_id', $attempt->id);
         }
         $learner->update(['current_stage' => LearnerStage::DIAGNOSTIC_IN_PROGRESS]);
 
-        return redirect()->route('learner.diagnostic.task-1');
+        return redirect()->route('learner.diagnostic.tutorial');
     }
 
     public function developerRetest(Request $request, AssessmentItemSelectionService $itemSelection): RedirectResponse
@@ -116,11 +123,42 @@ class DiagnosticAssessmentController extends Controller
 
         $itemSelection->selectTask1LettersForAttempt($attempt);
         $request->session()->put('assessment_attempt_id', $attempt->id);
+        $request->session()->forget(self::DIAGNOSTIC_TUTORIAL_COMPLETED_ATTEMPT_KEY);
         $request->session()->put('admin_testing_assessment_attempt_id', $attempt->id);
 
         return redirect()
-            ->route('learner.diagnostic.task-1')
+            ->route('learner.diagnostic.tutorial')
             ->with('success', 'Developer test attempt created. Previous attempts were preserved for QA review.');
+    }
+
+    public function tutorial(Request $request, LearnerFlowService $flow): Response|RedirectResponse
+    {
+        $attempt = $this->attemptForTutorial($request, $flow);
+        if ($attempt instanceof RedirectResponse) {
+            return $attempt;
+        }
+
+        if (! $this->shouldShowDiagnosticTutorial($request, $attempt)) {
+            return redirect($flow->diagnosticResumeRoute($attempt));
+        }
+
+        return Inertia::render('Learner/DiagnosticTutorial', [
+            'demoItem' => $this->tutorialTaskTwoBItem(),
+            'completeUrl' => route('learner.diagnostic.tutorial.complete'),
+            'nextUrl' => route('learner.diagnostic.task-1'),
+        ]);
+    }
+
+    public function completeTutorial(Request $request, LearnerFlowService $flow): RedirectResponse
+    {
+        $attempt = $this->attemptForTutorial($request, $flow);
+        if ($attempt instanceof RedirectResponse) {
+            return $attempt;
+        }
+
+        $request->session()->put(self::DIAGNOSTIC_TUTORIAL_COMPLETED_ATTEMPT_KEY, $attempt->id);
+
+        return redirect()->route('learner.diagnostic.task-1');
     }
 
     public function taskOne(Request $request, AssessmentItemSelectionService $itemSelection, LearnerFlowService $flow, AssessmentModeService $mode): Response|RedirectResponse
@@ -128,6 +166,10 @@ class DiagnosticAssessmentController extends Controller
         $attempt = $this->attemptForStep($request, $flow, 'task-1');
         if ($attempt instanceof RedirectResponse) {
             return $attempt;
+        }
+
+        if ($this->shouldShowDiagnosticTutorial($request, $attempt)) {
+            return redirect()->route('learner.diagnostic.tutorial');
         }
 
         $items = $itemSelection->selectTask1LettersForAttempt($attempt);
@@ -720,6 +762,56 @@ class DiagnosticAssessmentController extends Controller
         return $attempt;
     }
 
+    private function attemptForTutorial(Request $request, LearnerFlowService $flow): AssessmentAttempt|RedirectResponse
+    {
+        $learner = $flow->learner($request);
+
+        if (
+            in_array(LearnerStage::normalize($learner->current_stage), [LearnerStage::FINAL_REASSESSMENT_COMPLETED, LearnerStage::COMPLETED], true)
+            || $this->hasCompletedFinalAttempt($learner)
+        ) {
+            return redirect()->route('learner.completion')
+                ->with('info', 'You already completed your reading journey.');
+        }
+
+        $attempt = $flow->resolveDiagnosticAttempt($request);
+
+        if (! $attempt) {
+            return redirect()->route('learner.diagnostic.start');
+        }
+
+        if ($flow->isDiagnosticComplete($attempt)) {
+            return redirect()->route('learner.dashboard')
+                ->with('info', 'Your diagnostic is complete. Continue from your dashboard.');
+        }
+
+        if ($attempt->task_1_score !== null) {
+            return redirect($flow->diagnosticResumeRoute($attempt));
+        }
+
+        $learner->update(['current_stage' => LearnerStage::DIAGNOSTIC_IN_PROGRESS]);
+
+        return $attempt;
+    }
+
+    private function diagnosticResumeRouteWithTutorial(Request $request, LearnerFlowService $flow, AssessmentAttempt $attempt): string
+    {
+        if ($this->shouldShowDiagnosticTutorial($request, $attempt)) {
+            return route('learner.diagnostic.tutorial');
+        }
+
+        return $flow->diagnosticResumeRoute($attempt);
+    }
+
+    private function shouldShowDiagnosticTutorial(Request $request, AssessmentAttempt $attempt): bool
+    {
+        if ($attempt->attempt_type !== 'diagnostic' || $attempt->task_1_score !== null) {
+            return false;
+        }
+
+        return (int) $request->session()->get(self::DIAGNOSTIC_TUTORIAL_COMPLETED_ATTEMPT_KEY) !== (int) $attempt->id;
+    }
+
     private function attemptFromRequest(Request $request, Learner $learner, bool $allowCompleted = false): ?AssessmentAttempt
     {
         $attemptId = $request->input('assessment_attempt_id');
@@ -1076,6 +1168,44 @@ class DiagnosticAssessmentController extends Controller
         }
 
         return $payload;
+    }
+
+    private function tutorialTaskTwoBItem(): array
+    {
+        $content = LearningContent::query()
+            ->where('content_type', 'word_sentence')
+            ->where('is_active', true)
+            ->get()
+            ->first(function (LearningContent $content): bool {
+                $payload = $content->payload ?? [];
+
+                return strtolower((string) ($payload['source_csv_id'] ?? '')) === 't2b-w003'
+                    || strtolower((string) ($payload['target_word'] ?? $payload['expected_answer'] ?? '')) === 'sun';
+            });
+
+        $payload = $content?->payload ?? [
+            'source_csv_id' => 'T2B-W003',
+            'sequence' => 3,
+            'target_word' => 'sun',
+            'expected_answer' => 'sun',
+        ];
+        $targetWord = (string) ($payload['target_word'] ?? $payload['expected_answer'] ?? 'sun');
+        $payload['target_word'] = $targetWord;
+        $payload['expected_answer'] = (string) ($payload['expected_answer'] ?? $targetWord);
+        $prompt = trim((string) ($content?->prompt ?? self::TASK_TWO_B_TUTORIAL_PROMPT));
+        if ($prompt === '' || in_array($prompt, self::LEGACY_TASK_TWO_B_TUTORIAL_PROMPTS, true)) {
+            $prompt = self::TASK_TWO_B_TUTORIAL_PROMPT;
+        }
+
+        return [
+            'id' => $content?->id ?? 'tutorial-sun',
+            'sequence' => (int) ($payload['sequence'] ?? 3),
+            'source_csv_id' => $payload['source_csv_id'] ?? 'T2B-W003',
+            'prompt' => $prompt,
+            'title' => $content?->title ?? 'Word sentence T2B-W003',
+            'payload' => $payload,
+            'accepted_answers' => $content?->accepted_answers ?? ['sun'],
+        ];
     }
 
     private function analysisContext(AssessmentAttemptItem $item, ?string $expectedAnswer, array $acceptedAnswers): array

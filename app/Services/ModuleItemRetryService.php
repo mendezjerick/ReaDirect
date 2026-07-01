@@ -11,6 +11,7 @@ use App\Models\ModuleAttemptItem;
 use App\Services\AI\AIAnalysisResolver;
 use App\Services\AI\LearnerHistoryPayloadBuilder;
 use App\Services\Ciel\CielTutorAgentClient;
+use App\Support\ModuleSentenceText;
 use Illuminate\Validation\ValidationException;
 
 class ModuleItemRetryService
@@ -350,12 +351,21 @@ class ModuleItemRetryService
     private function expectedAnswer(ModuleAttemptItem $item): ?string
     {
         $payload = $item->prompt_snapshot['payload'] ?? [];
-
-        return $payload['expected_answer']
+        $expected = $payload['expected_answer']
             ?? $payload['target_sentence']
             ?? $payload['target_word']
             ?? $item->prompt_snapshot['prompt']
             ?? null;
+
+        if ($expected === null) {
+            return null;
+        }
+
+        return ModuleSentenceText::scoringTarget(
+            (string) $expected,
+            (string) ($payload['module_key'] ?? ''),
+            (string) ($payload['activity_type'] ?? $item->activity_type ?? ''),
+        );
     }
 
     private function correctStreak(ModuleAttempt $attempt, bool $currentCorrect): int

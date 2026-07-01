@@ -119,7 +119,7 @@ const shouldShowReviewSubmit = computed(() => props.requireReviewBeforeSubmit ||
 const holdButtonText = computed(() => {
     if (status.value === 'recording' || status.value === 'processing') return 'Recording...';
     if (isPlaying.value) return 'Playing...';
-    if (audioUrl.value && playbackFinished.value) return 'Retry?';
+    if (audioUrl.value && playbackFinished.value && !props.submitted) return 'Retry?';
     if (audioUrl.value) return 'Click to play audio';
     return 'Hold to record';
 });
@@ -180,9 +180,12 @@ const resetRecordingState = () => {
     setStatus('ready');
 };
 
-const clearRecording = () => {
+const clearRecording = (options = {}) => {
     resetRecordingState();
-    emit('cleared');
+    emit('cleared', {
+        resetAgent: options.resetAgent !== false,
+        reason: options.reason ?? 'manual_clear',
+    });
 };
 
 const isEditableTarget = (target) => {
@@ -383,8 +386,8 @@ const startRecording = async () => {
     if (props.disabled || props.submitting || props.submitted || status.value === 'recording') return;
 
     try {
-        clearRecording();
         await stopAllAgentAudioBeforeRecording();
+        clearRecording({ resetAgent: false, reason: 'recording_start' });
         stream.value = await navigator.mediaDevices.getUserMedia({ audio: true });
         const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : '';
         mediaRecorder.value = new MediaRecorder(stream.value, mimeType ? { mimeType } : undefined);
@@ -706,7 +709,7 @@ onBeforeUnmount(() => {
                 </AssessmentCircleButton>
 
                 <button
-                    v-if="audioUrl && playbackFinished"
+                    v-if="audioUrl && playbackFinished && !submitted"
                     type="button"
                     class="assessment-button-label assessment-button-label--action underline-offset-4 hover:underline disabled:cursor-not-allowed disabled:opacity-60"
                     :disabled="submitting"

@@ -101,6 +101,7 @@ class AdminTestingService
             ['category' => 'dashboards', 'group' => 'Dashboards', 'label' => 'Rewards dashboard', 'target' => 'learner-rewards'],
             ['category' => 'dashboards', 'group' => 'Dashboards', 'label' => 'Help dashboard', 'target' => 'learner-help'],
             ['category' => 'diagnostic', 'group' => 'Diagnostic', 'label' => 'Diagnostic start', 'target' => 'diagnostic-start'],
+            ['category' => 'diagnostic', 'group' => 'Diagnostic', 'label' => 'Diagnostic tutorial', 'target' => 'diagnostic-tutorial'],
             ['category' => 'diagnostic', 'group' => 'Diagnostic', 'label' => 'Task 1', 'target' => 'diagnostic-task-1'],
             ['category' => 'diagnostic', 'group' => 'Diagnostic', 'label' => 'Task 2A', 'target' => 'diagnostic-task-2a'],
             ['category' => 'diagnostic', 'group' => 'Diagnostic', 'label' => 'Task 2B', 'target' => 'diagnostic-task-2b'],

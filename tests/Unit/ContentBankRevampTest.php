@@ -15,14 +15,14 @@ class ContentBankRevampTest extends TestCase
         $expected = [
             ['I see a cat.', 'cat'],
             ['The dog can run.', 'dog'],
-            ['We sit in the sun.', 'sun'],
+            ['The sun is hot.', 'sun'],
             ['My hat is red.', 'hat'],
             ['I have a pen.', 'pen'],
-            ['The cup is big.', 'cup'],
-            ['A bug can run.', 'bug'],
-            ['The bed is soft.', 'bed'],
-            ['Ben can hop.', 'hop'],
-            ['Sam can tap.', 'tap'],
+            ['A bug is on the leaf.', 'bug'],
+            ['The cup is full.', 'cup'],
+            ['The red ball rolls.', 'red'],
+            ['Put the toy in the box.', 'box'],
+            ['The fish can swim.', 'fish'],
         ];
 
         $actual = array_map(fn (array $row): array => [$row['prompt_text'], $row['expected_text']], $rows);
@@ -30,6 +30,13 @@ class ContentBankRevampTest extends TestCase
 
         foreach ($rows as $row) {
             $this->assertSame(1, preg_match_all('/\b'.preg_quote($row['expected_text'], '/').'\b/i', $row['prompt_text']));
+
+            $metadata = json_decode($row['metadata'], true);
+            $this->assertIsArray($metadata);
+            $this->assertSame($row['prompt_text'], $metadata['sentence_text'] ?? null);
+            $this->assertSame($row['expected_text'], $metadata['expected_answer'] ?? null);
+            $this->assertSame($row['expected_text'], $metadata['target_word'] ?? null);
+            $this->assertSame($row['expected_text'], ($row['onset_unit'] ?? '').($row['rime_unit'] ?? ''));
         }
     }
 
