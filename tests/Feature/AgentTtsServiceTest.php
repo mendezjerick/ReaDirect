@@ -124,6 +124,47 @@ class AgentTtsServiceTest extends TestCase
         Http::assertSentCount(0);
     }
 
+    public function test_explicit_ciel_line_key_routes_to_ciel_even_from_assessment_agent(): void
+    {
+        Storage::fake('public');
+        config()->set('readirect.voice_database.enabled', true);
+        config()->set('readirect.tts.enabled', true);
+        config()->set('readirect.tts.base_url', 'http://tts.test');
+        Http::fake();
+
+        Storage::disk('public')->put(
+            'tts/generated_voice_lines/reference_style/ciel/focused_instruction/module3.wav',
+            'RIFF-ciel-module-three'
+        );
+
+        GeneratedVoiceLine::create([
+            'line_key' => 'ciel.module3.simple_sentence_reading.01',
+            'agent' => 'ciel',
+            'intent' => 'focused_instruction',
+            'text' => 'Read the sentence below from start to finish.',
+            'reference_style_audio_path' => 'tts/generated_voice_lines/reference_style/ciel/focused_instruction/module3.wav',
+            'reference_style_engine' => 'index_tts2',
+            'reference_style_duration_seconds' => 2.5,
+            'reference_style_status' => 'generated',
+            'status' => 'generated',
+        ]);
+
+        $payload = app(AgentTtsService::class)->speechPayload(
+            'assessment',
+            'Read the sentence below from start to finish.',
+            true,
+            ['line_key' => 'ciel.module3.simple_sentence_reading.01']
+        );
+
+        $this->assertTrue($payload['voice_enabled']);
+        $this->assertSame('database', $payload['tts_provider']);
+        $this->assertSame('miss_ciel', $payload['agent']);
+        $this->assertSame('ciel.module3.simple_sentence_reading.01', $payload['line_key']);
+        $this->assertSame('af_heart', $payload['debug']['voice']);
+        $this->assertStringContainsString('/agent-voice/generated/', $payload['audio_url']);
+        Http::assertSentCount(0);
+    }
+
     public function test_successful_tts_response_is_cached_and_served_through_laravel_route(): void
     {
         Storage::fake('local');

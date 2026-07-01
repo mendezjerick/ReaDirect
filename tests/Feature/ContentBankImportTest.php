@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\LearningContent;
+use App\Models\ModuleActivity;
 use Database\Seeders\DiagnosticContentSeeder;
 use Database\Seeders\ModuleContentSeeder;
 use Database\Seeders\ModuleSeeder;
@@ -39,7 +40,8 @@ class ContentBankImportTest extends TestCase
         $moduleActivities = $this->activeContent('module_activity');
         $this->assertCount(110, $moduleActivities->where('payload.module_key', 'module_1'));
         $this->assertCount(164, $moduleActivities->where('payload.module_key', 'module_2'));
-        $this->assertCount(206, $moduleActivities->where('payload.module_key', 'module_3'));
+        $this->assertCount(110, $moduleActivities->where('payload.module_key', 'module_3'));
+        $this->assertCount(156, $moduleActivities->where('payload.module_key', 'advanced_module'));
 
         $practiceRules = $this->activeContent('module_activity_selection_rule')
             ->filter(fn (LearningContent $content): bool => (int) ($content->payload['practice_item_count'] ?? 0) > 0)
@@ -47,7 +49,8 @@ class ContentBankImportTest extends TestCase
 
         $this->assertSame(['letter_pair_identification', 'highlighted_first_letter', 'first_letter_identification', 'missing_first_letter'], $this->activityTypesFor($practiceRules, 'module_1'));
         $this->assertSame(['display_word_reading', 'split_word_reading', 'highlighted_rhyme_word', 'highlighted_sentence_word'], $this->activityTypesFor($practiceRules, 'module_2'));
-        $this->assertSame(['simple_sentence_reading', 'comma_pause_reading', 'full_stop_pause_reading', 'mixed_punctuation_fluency'], $this->activityTypesFor($practiceRules, 'module_3'));
+        $this->assertSame(['simple_sentence_reading'], $this->activityTypesFor($practiceRules, 'module_3'));
+        $this->assertSame(['comma_pause_reading', 'full_stop_pause_reading', 'mixed_punctuation_fluency'], $this->activityTypesFor($practiceRules, 'advanced_module'));
 
         $this->activeContent('module_activity_selection_rule')
             ->each(fn (LearningContent $content) => $this->assertNotEmpty($content->payload['source_csv_id'] ?? null));
@@ -71,6 +74,19 @@ class ContentBankImportTest extends TestCase
         $this->assertSame(4, $this->activeContent('rhyme_decision')->where('payload.is_rhyme', false)->count());
     }
 
+    public function test_module_content_seeders_are_idempotent_on_reseed(): void
+    {
+        $this->seed(ModuleSeeder::class);
+        $this->seed(ModuleContentSeeder::class);
+
+        $firstSnapshot = $this->moduleContentSnapshot();
+
+        $this->seed(ModuleSeeder::class);
+        $this->seed(ModuleContentSeeder::class);
+
+        $this->assertSame($firstSnapshot, $this->moduleContentSnapshot());
+    }
+
     private function activeContent(string $contentType)
     {
         return LearningContent::query()
@@ -88,5 +104,18 @@ class ContentBankImportTest extends TestCase
             ->pluck('payload.activity_type')
             ->values()
             ->all();
+    }
+
+    private function moduleContentSnapshot(): array
+    {
+        return [
+            'learning_content_total' => LearningContent::query()->count(),
+            'module_activity_total' => ModuleActivity::query()->count(),
+            'module_activity_content_total' => ModuleActivity::query()->whereNotNull('learning_content_id')->count(),
+            'module_activity_static_total' => ModuleActivity::query()->whereNull('learning_content_id')->count(),
+            'module_3_active_content' => $this->activeContent('module_activity')->where('payload.module_key', 'module_3')->count(),
+            'advanced_active_content' => $this->activeContent('module_activity')->where('payload.module_key', 'advanced_module')->count(),
+            'selection_rule_content' => $this->activeContent('module_activity_selection_rule')->count(),
+        ];
     }
 }

@@ -15,7 +15,7 @@ The module activity CSVs are item banks. They are not fixed screens. The lesson 
 
 ## Current Lessons
 
-Each module currently has four active learner-facing practice lessons. Each lesson selects 5 practice items. Mastery checks are separate and are not shown as overview lessons.
+Module 1 and Module 2 have four active learner-facing practice lessons. Module 3 has one required practice lesson. The optional Advanced Module has three practice lessons. Each lesson selects 5 practice items. Mastery checks are separate and are not shown as overview lessons.
 
 ### Module 1: Letter and Sound Learning
 
@@ -28,6 +28,8 @@ Each module currently has four active learner-facing practice lessons. Each less
 
 ### Module 2: Word Reading
 
+Module 2 active target words are restricted to three-letter consonant-vowel-consonant words.
+
 | # | Lesson | Activity Key | Current Focus |
 |---|---|---|---|
 | 1 | Display Word | `display_word_reading` | Display one word; learner reads that word. |
@@ -37,12 +39,23 @@ Each module currently has four active learner-facing practice lessons. Each less
 
 ### Module 3: Sentence Reading and Fluency
 
+Required Module 3 sentence content uses the same CVC controlled vocabulary as Module 2. No required Module 3 content word should be four letters or longer. The only helper words allowed in required Module 3 sentences are `The`, `is`, and `and`.
+
 | # | Lesson | Activity Key | Current Focus |
 |---|---|---|---|
-| 1 | Simple Sentence | `simple_sentence_reading` | Read one full sentence accurately. |
-| 2 | Comma Pause | `comma_pause_reading` | Read a sentence with a small pause at the comma. |
-| 3 | Full-Stop Pause | `full_stop_pause_reading` | Read two short sentences with a stronger full-stop pause. |
-| 4 | Mixed Punctuation Fluency | `mixed_punctuation_fluency` | Read mixed punctuation smoothly with accuracy and pacing. |
+| 1 | Simple Sentence | `simple_sentence_reading` | Read short beginner sentences using the Module 2 controlled word list. |
+
+Module 3 now has one required lesson and a mastery check based on that lesson only. The required path is Module 3 Lesson 1, Module 3 mastery check, then Final Assessment.
+
+### Advanced Module: Optional Sentence Fluency
+
+| # | Lesson | Activity Key | Current Focus |
+|---|---|---|---|
+| 1 | Comma Pause | `comma_pause_reading` | Read a sentence with a small pause at the comma. |
+| 2 | Full-Stop Pause | `full_stop_pause_reading` | Read two short sentences with a stronger full-stop pause. |
+| 3 | Mixed Punctuation Fluency | `mixed_punctuation_fluency` | Read mixed punctuation smoothly with accuracy and pacing. |
+
+The Advanced Module reuses the former harder Module 3 lesson content and is optional. It appears only after a perfect Final Assessment and awards a separate special star when completed.
 
 ## Module Activity CSV Schema
 
@@ -193,7 +206,7 @@ is_active
 is_mastery_item
 ```
 
-### Module 3
+### Module 3 and Advanced Module
 
 Sentence correctness is based on the expected sentence:
 
@@ -211,7 +224,7 @@ The sentence scorer checks:
 - insertions
 - pacing, when required
 
-Module 3 uses timing and pacing fields when present:
+Module 3 and Advanced Module use timing and pacing fields when present:
 
 ```text
 target_read_time_seconds
@@ -299,7 +312,10 @@ Important metadata keys:
 
 Current rule:
 
-- each module has 4 active practice lesson types
+- Module 1 has 4 active practice lesson types
+- Module 2 has 4 active practice lesson types
+- Module 3 has 1 active required practice lesson type
+- Advanced Module has 3 optional practice lesson types
 - each practice lesson locks 5 items
 - mastery check is separate from overview lessons
 

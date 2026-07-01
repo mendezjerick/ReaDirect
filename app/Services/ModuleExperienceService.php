@@ -28,6 +28,8 @@ class ModuleExperienceService
             'proceed_to_reassessment' => 'You worked hard in your modules. Stay calm, listen carefully, and do your best on your final reading check.',
             'repeat_module_3' => 'Let us practice sentence reading again so you can read more smoothly and clearly.',
             'return_to_module_2' => 'We will practice words again to help your sentence reading become stronger and easier.',
+            'advanced_module_complete' => 'You completed the Advanced Module and earned a special star.',
+            'repeat_advanced_module' => 'Let us practice the Advanced Module again so your sentence fluency can feel stronger.',
             default => 'Great effort! Your next reading step is ready, and we will keep moving one step at a time.',
         };
     }
@@ -38,6 +40,7 @@ class ModuleExperienceService
             'module_1' => 'You will practice letters and sounds so you can say them clearly.',
             'module_2' => 'You will practice reading words and understanding how they sound.',
             'module_3' => 'You will practice reading sentences smoothly and clearly.',
+            'advanced_module' => 'You will practice advanced sentence fluency with longer punctuation patterns.',
             default => 'You will practice reading one step at a time.',
         };
     }
@@ -48,6 +51,7 @@ class ModuleExperienceService
             'module_1' => 'Hi, I am Miss Ciel. Choose a lesson box, and I will explain how it helps your letter practice.',
             'module_2' => 'Hi, I am Miss Ciel. Choose a lesson box, and I will show how each word practice step works.',
             'module_3' => 'Hi, I am Miss Ciel. Choose a lesson box, and I will explain how it helps your sentence reading.',
+            'advanced_module' => 'Hi, I am Miss Ciel. Choose a lesson box, and I will explain this advanced sentence practice.',
             default => 'Hi, I am Miss Ciel. Choose a lesson box, and I will guide your reading practice.',
         };
     }
@@ -58,6 +62,7 @@ class ModuleExperienceService
             'module_1' => 'ciel.module1.overview.intro',
             'module_2' => 'ciel.module2.overview.intro',
             'module_3' => 'ciel.module3.overview.intro',
+            'advanced_module' => 'ciel.module3.overview.intro',
             default => 'ciel.module_overview.intro',
         };
     }
@@ -153,7 +158,7 @@ class ModuleExperienceService
         $modulePrefix = match ($moduleKey) {
             'module_1' => 'module1',
             'module_2' => 'module2',
-            'module_3' => 'module3',
+            'module_3', 'advanced_module' => 'module3',
             default => 'module',
         };
 
@@ -165,7 +170,7 @@ class ModuleExperienceService
         return match ($moduleKey) {
             'module_1' => $this->moduleOneActivityTitle($activityType),
             'module_2' => $this->moduleTwoActivityTitle($activityType),
-            'module_3' => $this->moduleThreeActivityTitle($activityType),
+            'module_3', 'advanced_module' => $this->moduleThreeActivityTitle($activityType),
             default => null,
         };
     }
@@ -175,7 +180,7 @@ class ModuleExperienceService
         return match ($moduleKey) {
             'module_1' => $this->moduleOneActivityDescription($activityType),
             'module_2' => $this->moduleTwoActivityDescription($activityType),
-            'module_3' => $this->moduleThreeActivityDescription($activityType),
+            'module_3', 'advanced_module' => $this->moduleThreeActivityDescription($activityType),
             default => null,
         };
     }
@@ -185,7 +190,7 @@ class ModuleExperienceService
         return match ($moduleKey) {
             'module_1' => $this->moduleOneActivityExplanation($activityType),
             'module_2' => $this->moduleTwoActivityExplanation($activityType),
-            'module_3' => $this->moduleThreeActivityExplanation($activityType),
+            'module_3', 'advanced_module' => $this->moduleThreeActivityExplanation($activityType),
             default => null,
         };
     }

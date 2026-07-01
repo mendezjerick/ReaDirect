@@ -622,16 +622,18 @@ class AdminAreaTest extends TestCase
         $this->moduleWithContent('module_1');
         $this->moduleWithContent('module_2');
         $this->moduleWithContent('module_3');
+        $this->moduleWithContent('advanced_module');
 
         $flowJump = $this->actingAs($admin)
             ->get(route('admin.testing.flow-jump'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/Testing/FlowJump')
-                ->has('targets', 40)
+                ->has('targets', 44)
             );
 
         $targets = $flowJump->viewData('page')['props']['targets'];
+        $this->assertContains('Advanced Module Lesson 1: Comma Pause', array_column($targets, 'label'));
 
         foreach ($targets as $target) {
             $jump = $this->actingAs($admin)
@@ -898,24 +900,37 @@ class AdminAreaTest extends TestCase
 
     private function moduleWithContent(string $key): array
     {
-        $sequence = (int) str_replace('module_', '', $key);
+        $isAdvanced = $key === 'advanced_module';
+        $sequence = $isAdvanced ? 4 : (int) str_replace('module_', '', $key);
         $module = Module::create([
             'sequence' => $sequence,
             'key' => $key,
-            'title' => 'Module '.$sequence,
+            'title' => $isAdvanced ? 'Advanced Module' : 'Module '.$sequence,
             'description' => 'Test module',
             'is_active' => true,
         ]);
 
-        $activityType = 'letter_pair_identification';
-        $letters = ['A', 'C', 'E', 'F', 'G'];
-        foreach ($letters as $index => $letter) {
+        $activityType = $isAdvanced ? 'comma_pause_reading' : 'letter_pair_identification';
+        $prompts = $isAdvanced
+            ? ['Cat and dog.', 'The cat is big.', 'The dog is wet.', 'Bug and rug.', 'Run and hop.']
+            : ['A', 'C', 'E', 'F', 'G'];
+        foreach ($prompts as $index => $prompt) {
+            $expected = $isAdvanced ? $prompt : $prompt;
             $content = LearningContent::create([
                 'content_type' => 'module_activity',
-                'title' => 'Say '.$letter.' '.($index + 1),
-                'prompt' => $letter,
-                'accepted_answers' => [strtolower($letter)],
-                'payload' => ['expected_answer' => $letter, 'target_letter' => $letter, 'points' => 1],
+                'title' => ($isAdvanced ? 'Read ' : 'Say ').$prompt.' '.($index + 1),
+                'prompt' => $prompt,
+                'accepted_answers' => [strtolower($expected)],
+                'payload' => $isAdvanced
+                    ? [
+                        'module_key' => $key,
+                        'activity_type' => $activityType,
+                        'expected_answer' => $expected,
+                        'target_sentence' => $expected,
+                        'canonical_target' => strtolower($expected),
+                        'points' => 1,
+                    ]
+                    : ['expected_answer' => $expected, 'target_letter' => $expected, 'points' => 1],
                 'is_active' => true,
             ]);
             ModuleActivity::create([
@@ -923,17 +938,27 @@ class AdminAreaTest extends TestCase
                 'learning_content_id' => $content->id,
                 'sequence' => $index + 1,
                 'activity_type' => $activityType,
-                'title' => 'Say '.$letter.' '.($index + 1),
+                'title' => ($isAdvanced ? 'Read ' : 'Say ').$prompt.' '.($index + 1),
                 'configuration' => ['is_mastery_item' => false, 'is_active' => true],
             ]);
         }
         foreach (range(1, 10) as $index) {
+            $prompt = $isAdvanced ? 'Cat and dog.' : 'A';
             $content = LearningContent::create([
                 'content_type' => 'module_activity',
-                'title' => 'Mastery A '.$index,
-                'prompt' => 'A',
-                'accepted_answers' => ['a'],
-                'payload' => ['expected_answer' => 'A', 'points' => 1],
+                'title' => 'Mastery '.$prompt.' '.$index,
+                'prompt' => $prompt,
+                'accepted_answers' => [strtolower($prompt)],
+                'payload' => $isAdvanced
+                    ? [
+                        'module_key' => $key,
+                        'activity_type' => 'mastery_check',
+                        'expected_answer' => $prompt,
+                        'target_sentence' => $prompt,
+                        'canonical_target' => strtolower($prompt),
+                        'points' => 1,
+                    ]
+                    : ['expected_answer' => $prompt, 'points' => 1],
                 'is_active' => true,
             ]);
             ModuleActivity::create([

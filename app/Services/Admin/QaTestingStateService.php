@@ -277,7 +277,7 @@ class QaTestingStateService
 
     private function prepareModuleJump(Request $request, Learner $tester, string $target): array
     {
-        preg_match('/^module-(module_[123])-(overview|activity(?:-.+)?|mastery|result|extra)$/', $target, $matches);
+        preg_match('/^module-(module_[123]|advanced_module)-(overview|activity(?:-.+)?|mastery|result|extra)$/', $target, $matches);
         abort_unless($matches, 404);
 
         $module = Module::where('key', $matches[1])->firstOrFail();
@@ -286,7 +286,11 @@ class QaTestingStateService
             ? substr($pageToken, strlen('activity-'))
             : null;
         $page = str_starts_with($pageToken, 'activity') ? 'activity' : $pageToken;
-        $this->seedDiagnosticForModule($tester, $module->key);
+        if ($module->key === 'advanced_module') {
+            $this->seedReadyForAdvancedModule($tester);
+        } else {
+            $this->seedDiagnosticForModule($tester, $module->key);
+        }
 
         $attempt = ModuleAttempt::create([
             'learner_id' => $tester->id,
@@ -448,6 +452,29 @@ class QaTestingStateService
         return $baseline;
     }
 
+    private function seedReadyForAdvancedModule(Learner $tester): AssessmentAttempt
+    {
+        $baseline = $this->seedReadyForFinalAssessment($tester);
+
+        $attempt = AssessmentAttempt::create([
+            'learner_id' => $tester->id,
+            'baseline_assessment_attempt_id' => $baseline->id,
+            'attempt_type' => 'final_reassessment',
+            'status' => 'task_1',
+            'is_sandbox' => true,
+            'started_at' => now(),
+        ]);
+
+        $this->seedPerfectFinalComplete($attempt);
+
+        $tester->update([
+            'current_module_id' => null,
+            'current_stage' => LearnerStage::FINAL_REASSESSMENT_COMPLETED,
+        ]);
+
+        return $attempt->fresh();
+    }
+
     private function seedCrlaComplete(AssessmentAttempt $attempt, int $taskOne, int $taskTwoA, int $taskTwoB): void
     {
         $total = $this->crla->calculateTotalScore($taskOne, $taskTwoA, $taskTwoB);
@@ -501,6 +528,16 @@ class QaTestingStateService
     {
         $this->seedCrlaComplete($attempt, 8, 10, 8);
         $this->seedReadingComplete($attempt, $incorrectWords, $correctAnswers);
+        $attempt->update([
+            'status' => 'final_reassessment_completed',
+            'completed_at' => now(),
+        ]);
+    }
+
+    private function seedPerfectFinalComplete(AssessmentAttempt $attempt): void
+    {
+        $this->seedCrlaComplete($attempt, 10, 10, 10);
+        $this->seedReadingComplete($attempt, 0, ReadingComprehensionScoringService::ASSESSMENT_COMPREHENSION_QUESTION_COUNT);
         $attempt->update([
             'status' => 'final_reassessment_completed',
             'completed_at' => now(),
@@ -591,6 +628,15 @@ class QaTestingStateService
             'decision_reason' => $decision['user_friendly_message'],
             'completed_at' => now(),
         ]);
+
+        if ($module->key === 'advanced_module') {
+            if ($decision['decision_key'] === 'advanced_module_complete') {
+                app(\App\Services\CielFocusModeService::class)
+                    ->awardAdvancedModuleStar($attempt->learner_id, $module->id, $attempt->id);
+            }
+
+            return;
+        }
 
         $attempt->learner->update([
             'current_module_id' => $nextModule?->id,

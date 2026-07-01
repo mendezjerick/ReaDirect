@@ -44,7 +44,7 @@ const isAutomaticListeningMode = computed(() => (
 ));
 const recorderPromptType = computed(() => {
     if (props.module?.key === 'module_1') return 'letter';
-    if (props.module?.key === 'module_3') return 'sentence';
+    if (['module_3', 'advanced_module'].includes(props.module?.key)) return 'sentence';
 
     return 'word';
 });
@@ -85,7 +85,7 @@ const moduleCueTypeFor = (item = null) => {
     const activity = String(item?.activity_type ?? '');
 
     if (moduleKey === 'module_1') return 'letter';
-    if (moduleKey === 'module_3' || activity.includes('sentence') || activity.includes('paragraph')) return 'sentence';
+    if (moduleKey === 'module_3' || moduleKey === 'advanced_module' || activity.includes('sentence') || activity.includes('paragraph')) return 'sentence';
 
     return 'word';
 };
@@ -735,6 +735,7 @@ onBeforeUnmount(() => {
             :agent-message="agentMessage"
             :agent-intent="agentIntent"
             :agent-line-key="agentLineKey"
+            :tts-enabled="!focusModeVisible"
             :progress="step.progressPercent.value"
             :primary-label="primaryLabel"
             :primary-disabled="primaryDisabled"

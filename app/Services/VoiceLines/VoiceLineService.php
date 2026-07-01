@@ -267,9 +267,11 @@ class VoiceLineService
         $cleanLineKey = $this->cleanKey($lineKey);
 
         if ($cleanLineKey) {
+            $lineKeyAgent = $this->agentFromLineKey($cleanLineKey) ?? $canonicalAgent;
+
             $query = GeneratedVoiceLine::query()
                 ->where('line_key', $cleanLineKey)
-                ->where('agent', $canonicalAgent);
+                ->where('agent', $lineKeyAgent);
 
             return $query->first();
         }
@@ -318,6 +320,16 @@ class VoiceLineService
             ->where('agent', $agent)
             ->where('line_key', $lineKey)
             ->first();
+    }
+
+    private function agentFromLineKey(string $lineKey): ?string
+    {
+        return match (true) {
+            str_starts_with($lineKey, 'ciel.') => 'ciel',
+            str_starts_with($lineKey, 'vivian.') => 'vivian',
+            str_starts_with($lineKey, 'estelle.') => 'estelle',
+            default => null,
+        };
     }
 
     private function aliasLineKey(string $agent, string $text): ?string

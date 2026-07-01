@@ -89,14 +89,56 @@ class ContentBankRevampTest extends TestCase
         $module2 = $this->activeRows($this->csv('module2_word_reading_activities_adaptive_v2.csv'));
         $this->assertCount(164, $module2);
         $this->assertCount(25, array_filter($module2, fn (array $row): bool => $row['activity_type'] === 'mastery_check'));
+        foreach ($module2 as $row) {
+            $this->assertCvcWord($row['expected_text']);
+        }
 
         $module3 = $this->activeRows($this->csv('module3_sentence_fluency_activities_adaptive_v2.csv'));
-        $this->assertCount(206, $module3);
-        $this->assertCount(50, array_filter($module3, fn (array $row): bool => $row['activity_type'] === 'simple_sentence_reading'));
-        $this->assertCount(50, array_filter($module3, fn (array $row): bool => $row['activity_type'] === 'comma_pause_reading'));
-        $this->assertCount(35, array_filter($module3, fn (array $row): bool => $row['activity_type'] === 'full_stop_pause_reading'));
-        $this->assertCount(35, array_filter($module3, fn (array $row): bool => $row['activity_type'] === 'mixed_punctuation_fluency'));
-        $this->assertCount(36, array_filter($module3, fn (array $row): bool => $row['activity_type'] === 'mastery_check'));
+        $requiredModule3 = array_values(array_filter($module3, fn (array $row): bool => $row['module_key'] === 'module_3'));
+        $advancedModule = array_values(array_filter($module3, fn (array $row): bool => $row['module_key'] === 'advanced_module'));
+        $module2Words = array_values(array_unique(array_map(
+            fn (array $row): string => strtolower($row['expected_text']),
+            $module2,
+        )));
+        sort($module2Words);
+
+        $this->assertCount(110, $requiredModule3);
+        $this->assertCount(55, array_filter($requiredModule3, fn (array $row): bool => $row['activity_type'] === 'simple_sentence_reading'));
+        $this->assertCount(55, array_filter($requiredModule3, fn (array $row): bool => $row['activity_type'] === 'mastery_check'));
+        $requiredTypes = array_values(array_unique(array_column($requiredModule3, 'activity_type')));
+        sort($requiredTypes);
+        $this->assertSame(['mastery_check', 'simple_sentence_reading'], $requiredTypes);
+
+        $this->assertCount(156, $advancedModule);
+        $this->assertCount(50, array_filter($advancedModule, fn (array $row): bool => $row['activity_type'] === 'comma_pause_reading'));
+        $this->assertCount(35, array_filter($advancedModule, fn (array $row): bool => $row['activity_type'] === 'full_stop_pause_reading'));
+        $this->assertCount(35, array_filter($advancedModule, fn (array $row): bool => $row['activity_type'] === 'mixed_punctuation_fluency'));
+        $this->assertCount(36, array_filter($advancedModule, fn (array $row): bool => $row['activity_type'] === 'mastery_check'));
+
+        $simpleRows = array_values(array_filter($requiredModule3, fn (array $row): bool => $row['activity_type'] === 'simple_sentence_reading'));
+        $masteryRows = array_values(array_filter($requiredModule3, fn (array $row): bool => $row['activity_type'] === 'mastery_check'));
+        $simplePrompts = array_column($simpleRows, 'prompt_text');
+        $masteryPrompts = array_column($masteryRows, 'prompt_text');
+        $this->assertCount(count($simplePrompts), array_unique($simplePrompts));
+        $this->assertCount(count($masteryPrompts), array_unique($masteryPrompts));
+        sort($simplePrompts);
+        sort($masteryPrompts);
+        $this->assertSame($simplePrompts, $masteryPrompts);
+
+        $seenWords = [];
+        foreach ($simpleRows as $row) {
+            $this->assertPromptUsesOnlyCvcWordsAndHelpers($row['prompt_text']);
+            foreach ($this->words($row['prompt_text']) as $word) {
+                $this->assertContains($word, array_merge($module2Words, ['the', 'is', 'and']));
+                if (in_array($word, $module2Words, true)) {
+                    $seenWords[$word] = true;
+                }
+            }
+        }
+
+        $seenWords = array_keys($seenWords);
+        sort($seenWords);
+        $this->assertSame($module2Words, $seenWords);
 
         foreach ($module3 as $row) {
             $this->assertNotSame('', trim((string) ($row['target_read_time_seconds'] ?? '')));
@@ -104,7 +146,7 @@ class ContentBankRevampTest extends TestCase
             $this->assertNotSame('', trim((string) ($row['max_fluent_time_seconds'] ?? '')));
             $this->assertNotSame('', trim((string) ($row['target_wcpm'] ?? '')));
             $this->assertSame(
-                $row['activity_type'] === 'simple_sentence_reading' ? 'False' : 'True',
+                $row['module_key'] === 'module_3' ? 'False' : 'True',
                 (string) ($row['pace_mastery_required'] ?? '')
             );
         }
@@ -152,5 +194,32 @@ class ContentBankRevampTest extends TestCase
         preg_match_all("/[a-z']+/i", strtolower($text), $matches);
 
         return count($matches[0]);
+    }
+
+    private function assertPromptUsesOnlyCvcWordsAndHelpers(string $prompt): void
+    {
+        foreach ($this->words($prompt) as $word) {
+            if (in_array($word, ['the', 'is', 'and'], true)) {
+                continue;
+            }
+
+            $this->assertCvcWord($word);
+        }
+    }
+
+    private function assertCvcWord(string $word): void
+    {
+        $this->assertMatchesRegularExpression(
+            '/\A[bcdfghjklmnpqrstvwxyz][aeiou][bcdfghjklmnpqrstvwxyz]\z/',
+            strtolower($word),
+            "{$word} should be a three-letter CVC word.",
+        );
+    }
+
+    private function words(string $text): array
+    {
+        preg_match_all('/[a-z]+/i', strtolower($text), $matches);
+
+        return $matches[0];
     }
 }

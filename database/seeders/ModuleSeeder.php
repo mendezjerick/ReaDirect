@@ -13,18 +13,25 @@ class ModuleSeeder extends Seeder
         $modules = [
             ['sequence' => 1, 'key' => 'module_1', 'title' => 'Letter and Sound Learning', 'description' => 'Letter names, first-letter recognition, missing-letter practice, and mini mastery check.'],
             ['sequence' => 2, 'key' => 'module_2', 'title' => 'Word Reading', 'description' => 'Whole words, split words, highlighted rhyme words, highlighted sentence words, and mini mastery check.'],
-            ['sequence' => 3, 'key' => 'module_3', 'title' => 'Sentence Reading and Fluency', 'description' => 'Simple sentences, comma pauses, full-stop pauses, mixed punctuation fluency, and mini mastery check.'],
+            ['sequence' => 3, 'key' => 'module_3', 'title' => 'Sentence Reading and Fluency', 'description' => 'Simple beginner sentences and mini mastery check.'],
+            ['sequence' => 4, 'key' => 'advanced_module', 'title' => 'Advanced Module', 'description' => 'Optional advanced sentence fluency practice unlocked by a perfect final assessment.'],
         ];
 
         foreach ($modules as $moduleData) {
             $module = Module::updateOrCreate(['key' => $moduleData['key']], $moduleData + ['is_active' => true]);
+            $activities = $this->activitiesFor($module->key);
 
-            foreach ($this->activitiesFor($module->key) as $sequence => $activity) {
+            foreach ($activities as $sequence => $activity) {
                 $module->activities()->updateOrCreate(
-                    ['sequence' => $sequence + 1],
+                    ['sequence' => $sequence + 1, 'learning_content_id' => null],
                     ['activity_type' => $activity['type'], 'title' => $activity['title'], 'configuration' => $activity['configuration'] ?? []]
                 );
             }
+
+            $module->activities()
+                ->whereNull('learning_content_id')
+                ->where('sequence', '>', count($activities))
+                ->delete();
         }
 
         $this->seedThresholds();
@@ -47,13 +54,17 @@ class ModuleSeeder extends Seeder
                 ['type' => 'highlighted_sentence_word', 'title' => 'Highlighted sentence word'],
                 ['type' => 'mastery_check', 'title' => 'Mini mastery check'],
             ],
-            default => [
+            'module_3' => [
                 ['type' => 'simple_sentence_reading', 'title' => 'Simple sentence'],
+                ['type' => 'mastery_check', 'title' => 'Mini mastery check'],
+            ],
+            'advanced_module' => [
                 ['type' => 'comma_pause_reading', 'title' => 'Comma pause'],
                 ['type' => 'full_stop_pause_reading', 'title' => 'Full-stop pause'],
                 ['type' => 'mixed_punctuation_fluency', 'title' => 'Mixed punctuation fluency'],
                 ['type' => 'mastery_check', 'title' => 'Mini mastery check'],
             ],
+            default => [],
         };
     }
 

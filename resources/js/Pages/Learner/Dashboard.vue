@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import {
     ArrowRight,
+    Award,
     BarChart3,
     BookOpen,
     Check,
@@ -22,6 +23,7 @@ import LearnerSimplePageShell from '../../Components/Learner/LearnerSimplePageSh
 const props = defineProps({
     learner: { type: Object, default: null },
     modules: { type: Array, default: () => [] },
+    advancedModule: { type: Object, default: () => ({ unlocked: false, completed: false, in_progress: false, route: null, module: null }) },
     latestAttempt: { type: Object, default: null },
     latestFinalAttempt: { type: Object, default: null },
     flowState: { type: Object, default: null },
@@ -43,10 +45,16 @@ const moduleMeta = {
         icon: MessageSquareText,
     },
     module_3: {
-        title: 'Reading Comprehension',
-        shortTitle: 'Comprehension',
-        blurb: 'Read passages and answer questions.',
+        title: 'Sentence Reading and Fluency',
+        shortTitle: 'Sentences',
+        blurb: 'Read short sentences clearly.',
         icon: BookOpen,
+    },
+    advanced_module: {
+        title: 'Advanced Module',
+        shortTitle: 'Advanced',
+        blurb: 'Optional fluency practice.',
+        icon: Award,
     },
 };
 
@@ -56,7 +64,10 @@ const primaryActionRoute = computed(() => props.flowState?.primary_action_route 
 const primaryActionLabel = computed(() => props.flowState?.primary_action_label ?? 'Start Diagnostic');
 const primaryMessage = computed(() => props.flowState?.message ?? 'Begin with your diagnostic reading check.');
 const totalStars = computed(() => Number(props.rewards?.stars ?? 0));
+const specialStars = computed(() => Number(props.rewards?.advanced_stars ?? 0));
 const assignedKey = computed(() => props.learner?.current_module?.key ?? props.flowState?.current_module_key ?? null);
+const advancedUnlocked = computed(() => props.advancedModule?.unlocked === true && props.advancedModule?.module);
+const advancedCompleted = computed(() => props.advancedModule?.completed === true || specialStars.value > 0);
 const diagnosticDone = computed(() => props.flowState?.diagnostic?.is_completed === true);
 const finalDone = computed(() => (
     props.flowState?.final_reassessment?.is_completed === true
@@ -140,6 +151,13 @@ const finalState = computed(() => {
     return 'locked';
 });
 
+const advancedState = computed(() => {
+    if (!advancedUnlocked.value) return 'locked';
+    if (advancedCompleted.value) return 'done';
+
+    return 'current';
+});
+
 const completionState = computed(() => {
     if (currentStage.value === 'completed') return 'done';
     if (finalDone.value) return 'current';
@@ -148,7 +166,9 @@ const completionState = computed(() => {
 });
 
 const pathNodes = computed(() => {
-    const moduleNodes = props.modules.map((module) => {
+    const moduleNodes = props.modules
+        .filter((module) => module.key !== 'advanced_module')
+        .map((module) => {
         const meta = metaFor(module.key);
         const state = moduleStateFor(module.key);
 
@@ -163,6 +183,15 @@ const pathNodes = computed(() => {
                 : null,
         };
     });
+    const advancedNode = advancedUnlocked.value ? [{
+        id: 'advanced_module',
+        label: metaFor('advanced_module').shortTitle,
+        detail: advancedCompleted.value ? 'Special star earned.' : 'Unlocked by a perfect final check.',
+        icon: metaFor('advanced_module').icon,
+        state: advancedState.value,
+        special: true,
+        href: advancedState.value === 'current' ? props.advancedModule?.route : null,
+    }] : [];
 
     return [
         {
@@ -182,6 +211,7 @@ const pathNodes = computed(() => {
             state: finalState.value,
             href: finalState.value === 'current' ? primaryActionRoute.value : null,
         },
+        ...advancedNode,
         {
             id: 'completion',
             label: 'Completion',
@@ -338,7 +368,13 @@ const scoreCards = computed(() => [
                         <p class="learner-hub-kicker">Star path</p>
                         <h2 class="learner-hub-section-title">Your reading route</h2>
                     </div>
-                    <span class="dashboard-path-count">{{ totalStars }} stars</span>
+                    <span class="dashboard-path-rewards">
+                        <span class="dashboard-path-count">{{ totalStars }} stars</span>
+                        <span v-if="specialStars > 0" class="dashboard-special-count">
+                            <Award class="size-3.5" stroke-width="3" />
+                            {{ specialStars }} special
+                        </span>
+                    </span>
                 </div>
 
                 <div class="dashboard-path-list">
@@ -361,9 +397,11 @@ const scoreCards = computed(() => [
                             :class="[
                                 `dashboard-star-button--${node.state}`,
                                 { 'dashboard-star-button--clickable': Boolean(node.href) },
+                                { 'dashboard-star-button--special': node.special && node.state !== 'locked' },
                             ]"
                         >
-                            <Check v-if="node.state === 'done'" class="size-6" stroke-width="3.4" />
+                            <Award v-if="node.special && node.state !== 'locked'" class="size-6" stroke-width="3.2" />
+                            <Check v-else-if="node.state === 'done'" class="size-6" stroke-width="3.4" />
                             <Lock v-else-if="node.state === 'locked'" class="size-5" stroke-width="3" />
                             <Star v-else class="size-7 fill-current" stroke-width="2.8" />
                         </component>
@@ -641,7 +679,15 @@ const scoreCards = computed(() => [
     margin-bottom: 0.8rem;
 }
 
-.dashboard-path-count {
+.dashboard-path-rewards {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.45rem;
+}
+
+.dashboard-path-count,
+.dashboard-special-count {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -652,6 +698,12 @@ const scoreCards = computed(() => [
     font-size: 0.78rem;
     font-weight: 900;
     white-space: nowrap;
+}
+
+.dashboard-special-count {
+    gap: 0.28rem;
+    background: rgba(30, 156, 150, 0.14);
+    color: #0f766e;
 }
 
 .dashboard-path-list {
@@ -710,6 +762,12 @@ const scoreCards = computed(() => [
     background: linear-gradient(180deg, #d6d9dc, #aeb6bd);
     color: #fff;
     box-shadow: 0 5px 0 #87929b, 0 10px 16px rgba(54, 83, 101, 0.12);
+}
+
+.dashboard-star-button--special {
+    background: linear-gradient(180deg, #f8d783, #1e9c96);
+    color: #fffdf2;
+    box-shadow: 0 7px 0 #0f766e, 0 14px 24px rgba(30, 156, 150, 0.2);
 }
 
 .dashboard-star-button--clickable:hover {

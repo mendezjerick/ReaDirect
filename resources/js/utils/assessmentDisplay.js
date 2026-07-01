@@ -121,7 +121,7 @@ export const moduleItemDisplayText = (item = null, module = null) => {
     const moduleKey = String(item?.payload?.module_key ?? module?.key ?? '');
     const displayFormat = String(item?.payload?.display_format ?? '');
 
-    if (moduleKey === 'module_3') {
+    if (['module_3', 'advanced_module'].includes(moduleKey)) {
         return sentenceDisplayText(text);
     }
 

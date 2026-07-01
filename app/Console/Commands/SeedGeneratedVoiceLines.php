@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Storage;
 
 class SeedGeneratedVoiceLines extends Command
 {
+    private ?array $module1LetterPromptIds = null;
+
     protected $signature = 'readirect:voice-lines:seed
         {--fresh : Delete existing generated voice line registry rows before seeding}
         {--reset-ciel-echoes : Delete generated Ciel echo audio and reset current echo rows to pending}
@@ -73,10 +75,14 @@ class SeedGeneratedVoiceLines extends Command
             $text = (string) ($line['text'] ?? '');
             $synthesisText = trim((string) ($line['synthesis_text'] ?? '')) ?: null;
             $status = ($line['is_dynamic_template'] ?? false) ? 'skipped_dynamic' : 'pending';
+            $existing = GeneratedVoiceLine::query()
+                ->where('line_key', $line['line_key'])
+                ->first();
+            $existingReferenceAudio = $this->existingReferenceAudioValues($line, $existing);
 
             GeneratedVoiceLine::query()->updateOrCreate(
                 ['line_key' => $line['line_key']],
-                [
+                array_merge([
                     'agent' => $line['agent'],
                     'intent' => $line['intent'],
                     'context' => $line['context'],
@@ -106,7 +112,7 @@ class SeedGeneratedVoiceLines extends Command
                     'is_static' => (bool) $line['is_static'],
                     'is_dynamic_template' => (bool) $line['is_dynamic_template'],
                     'is_defense_demo' => (bool) $line['is_defense_demo'],
-                ],
+                ], $existingReferenceAudio),
             );
             $count++;
         }
@@ -151,6 +157,157 @@ class SeedGeneratedVoiceLines extends Command
         }
 
         return $deleted;
+    }
+
+    private function existingReferenceAudioValues(array $line, ?GeneratedVoiceLine $existing): array
+    {
+        if ((bool) ($line['is_dynamic_template'] ?? false)) {
+            return [];
+        }
+
+        $path = $this->existingPublicPath($existing?->reference_style_audio_path)
+            ?? $this->findExistingReferenceAudioPath($line);
+
+        if (! $path) {
+            return [];
+        }
+
+        $activeStage = (string) config('readirect.voice_database.active_stage', 'reference_style');
+
+        return [
+            'reference_style_audio_path' => $path,
+            'reference_style_engine' => $existing?->reference_style_engine ?: 'index_tts2',
+            'reference_style_status' => 'generated',
+            'reference_style_error' => null,
+            'defense_audio_path' => $path,
+            'active_audio_path' => $activeStage === VoiceLineService::REFERENCE_STYLE
+                ? $path
+                : $existing?->active_audio_path,
+            'active_audio_type' => $activeStage,
+            'status' => 'generated',
+            'generation_error' => null,
+            'checksum' => $this->checksumForPublicPath($path) ?? $existing?->checksum,
+        ];
+    }
+
+    private function existingPublicPath(?string $path): ?string
+    {
+        $path = trim((string) $path);
+        if ($path === '' || ! Storage::disk('public')->exists($path)) {
+            return null;
+        }
+
+        return $path;
+    }
+
+    private function findExistingReferenceAudioPath(array $line): ?string
+    {
+        $agent = trim((string) ($line['agent'] ?? ''));
+        $lineKey = trim((string) ($line['line_key'] ?? ''));
+        if ($agent === '' || $lineKey === '') {
+            return null;
+        }
+
+        foreach ($this->candidateAudioFilenameStems($line) as $stem) {
+            $path = $this->findReferenceAudioByStem($agent, $stem);
+            if ($path) {
+                return $path;
+            }
+        }
+
+        return null;
+    }
+
+    private function candidateAudioFilenameStems(array $line): array
+    {
+        $lineKey = trim((string) ($line['line_key'] ?? ''));
+        $stems = [$this->audioFilenameStem($lineKey)];
+
+        if (preg_match('/\Aciel\.module_echo\.correct\.module_1\.letter\.([a-z])\z/', $lineKey, $matches)) {
+            $promptId = $this->module1LetterPromptIds()[$matches[1]] ?? null;
+            if ($promptId) {
+                $stems[] = $this->audioFilenameStem('ciel.module_echo.correct.module_1.'.$promptId);
+            }
+        }
+
+        return array_values(array_unique(array_filter($stems)));
+    }
+
+    private function findReferenceAudioByStem(string $agent, string $stem): ?string
+    {
+        $root = trim((string) config('readirect.voice_database.public_disk_root', 'tts/generated_voice_lines'), '/');
+        $folder = "{$root}/reference_style/{$agent}";
+        if (! Storage::disk('public')->exists($folder)) {
+            return null;
+        }
+
+        $matches = [];
+        foreach (Storage::disk('public')->allFiles($folder) as $path) {
+            $name = strtolower(pathinfo($path, PATHINFO_FILENAME));
+            if ($name === $stem || str_starts_with($name, $stem.'_')) {
+                $matches[] = $path;
+            }
+        }
+
+        sort($matches, SORT_NATURAL);
+
+        return $matches[0] ?? null;
+    }
+
+    private function audioFilenameStem(string $value): string
+    {
+        return trim((string) preg_replace('/[^a-z0-9]+/', '_', strtolower($value)), '_');
+    }
+
+    private function module1LetterPromptIds(): array
+    {
+        if ($this->module1LetterPromptIds !== null) {
+            return $this->module1LetterPromptIds;
+        }
+
+        $path = database_path('seed-data/readirect/module1_letter_sound_activities_adaptive_v2.csv');
+        if (! is_file($path)) {
+            return $this->module1LetterPromptIds = [];
+        }
+
+        $handle = fopen($path, 'r');
+        $headers = fgetcsv($handle, null, ',', '"', '\\') ?: [];
+        $map = [];
+
+        while (($data = fgetcsv($handle, null, ',', '"', '\\')) !== false) {
+            $row = array_combine($headers, $data);
+            if (! is_array($row)) {
+                continue;
+            }
+
+            if (($row['module_key'] ?? '') !== 'module_1' || ($row['activity_type'] ?? '') !== 'letter_pair_identification') {
+                continue;
+            }
+
+            if (! $this->active($row['is_active'] ?? null)) {
+                continue;
+            }
+
+            $letter = strtolower(trim((string) ($row['expected_text'] ?? '')));
+            $promptId = strtolower(trim((string) ($row['prompt_id'] ?? '')));
+            if (preg_match('/\A[a-z]\z/', $letter) && $promptId !== '' && ! isset($map[$letter])) {
+                $map[$letter] = $promptId;
+            }
+        }
+
+        fclose($handle);
+
+        return $this->module1LetterPromptIds = $map;
+    }
+
+    private function checksumForPublicPath(string $path): ?string
+    {
+        $absolutePath = Storage::disk('public')->path($path);
+        if (! is_file($absolutePath)) {
+            return null;
+        }
+
+        return hash_file('sha256', $absolutePath) ?: null;
     }
 
     private function currentCielEchoRows()
@@ -263,5 +420,14 @@ class SeedGeneratedVoiceLines extends Command
         }
 
         return $deleted;
+    }
+
+    private function active(mixed $value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        return in_array(strtolower(trim((string) $value)), ['1', 'true', 'yes'], true);
     }
 }

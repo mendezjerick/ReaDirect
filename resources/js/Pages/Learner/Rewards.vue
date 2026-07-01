@@ -15,12 +15,14 @@ const diagnosticDone = computed(() => props.flowState?.diagnostic?.is_completed 
 const moduleStarted = computed(() => Boolean(props.flowState?.module?.current_module_key ?? props.flowState?.current_module_key));
 const readingDone = computed(() => Number(props.latestAttempt?.reading_accuracy ?? 0) > 0);
 const totalStars = computed(() => Number(props.rewards?.stars ?? 0));
+const specialStars = computed(() => Number(props.rewards?.advanced_stars ?? 0));
 
 const rewardItems = computed(() => [
     { title: 'Diagnostic Explorer', detail: 'Complete the first reading check.', unlocked: diagnosticDone.value, icon: Trophy },
     { title: 'Module Starter', detail: 'Open your assigned learning module.', unlocked: moduleStarted.value, icon: BookOpen },
     { title: 'Passage Reader', detail: 'Finish a passage reading check.', unlocked: readingDone.value, icon: Star },
     { title: 'Path Builder', detail: 'Keep practicing until the next checkpoint.', unlocked: totalStars.value > 0, icon: Award },
+    { title: 'Advanced Star', detail: 'Complete the optional Advanced Module.', unlocked: specialStars.value > 0, icon: Award, special: true },
 ]);
 </script>
 
@@ -50,6 +52,14 @@ const rewardItems = computed(() => [
                     <span class="rewards-star-label">stars earned</span>
                 </span>
             </div>
+
+            <div v-if="specialStars > 0" class="rewards-star-total rewards-star-total--special learner-hub-face">
+                <Award class="size-10" stroke-width="2.8" />
+                <span>
+                    <span class="rewards-star-count">{{ specialStars }}</span>
+                    <span class="rewards-star-label">special star</span>
+                </span>
+            </div>
         </section>
 
         <section class="rewards-grid">
@@ -59,7 +69,13 @@ const rewardItems = computed(() => [
                 class="rewards-card learner-hub-card"
                 :class="{ 'rewards-card--locked': !reward.unlocked }"
             >
-                <span class="rewards-card-icon" :class="{ 'rewards-card-icon--locked': !reward.unlocked }">
+                <span
+                    class="rewards-card-icon"
+                    :class="{
+                        'rewards-card-icon--locked': !reward.unlocked,
+                        'rewards-card-icon--special': reward.special && reward.unlocked,
+                    }"
+                >
                     <component :is="reward.unlocked ? reward.icon : Lock" class="size-6" stroke-width="2.8" />
                 </span>
                 <span class="rewards-card-body">
@@ -118,6 +134,10 @@ const rewardItems = computed(() => [
     color: #b45309;
 }
 
+.rewards-star-total--special {
+    color: #0f766e;
+}
+
 .rewards-star-count {
     display: block;
     color: var(--rd-text-main);
@@ -168,6 +188,11 @@ const rewardItems = computed(() => [
 .rewards-card-icon--locked {
     background: linear-gradient(180deg, #d6d9dc, #aeb6bd);
     box-shadow: 0 5px 0 #87929b, 0 10px 16px rgba(54, 83, 101, 0.12);
+}
+
+.rewards-card-icon--special {
+    background: linear-gradient(180deg, #f8d783, #1e9c96);
+    box-shadow: 0 5px 0 #0f766e, 0 10px 16px rgba(30, 156, 150, 0.18);
 }
 
 .rewards-card-body {

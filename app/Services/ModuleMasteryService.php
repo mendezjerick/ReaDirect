@@ -14,6 +14,7 @@ class ModuleMasteryService
             'module_1' => $this->moduleOne((float) $score),
             'module_2' => $this->moduleTwo((float) $score),
             'module_3' => $this->moduleThree((float) $score),
+            'advanced_module' => $this->advancedModule((float) $score),
             default => throw new \InvalidArgumentException('Unknown module key.'),
         };
     }
@@ -77,6 +78,20 @@ class ModuleMasteryService
                 'next' => 'Module 2',
                 'rule_applied' => 'MODULE_3_MASTERY_V1',
             ],
+            [
+                'module' => 'Advanced Module',
+                'score_range' => '90-100',
+                'decision' => 'advanced_module_complete',
+                'next' => 'Dashboard',
+                'rule_applied' => 'ADVANCED_MODULE_MASTERY_V1',
+            ],
+            [
+                'module' => 'Advanced Module',
+                'score_range' => '0-89',
+                'decision' => 'repeat_advanced_module',
+                'next' => 'Advanced Module',
+                'rule_applied' => 'ADVANCED_MODULE_MASTERY_V1',
+            ],
         ];
     }
 
@@ -103,6 +118,14 @@ class ModuleMasteryService
             $score >= 90 => $this->result('proceed_to_reassessment', null, 'MODULE_3_MASTERY_V1', $score, 'You worked hard in your modules. Stay calm, listen carefully, and do your best on your final reading check.'),
             $score >= 70 => $this->result('repeat_module_3', 'module_3', 'MODULE_3_MASTERY_V1', $score, 'Let us practice sentence reading again so you can read more smoothly and clearly.'),
             default => $this->result('return_to_module_2', 'module_2', 'MODULE_3_MASTERY_V1', $score, 'We will practice words again to help your sentence reading become stronger and easier.'),
+        };
+    }
+
+    private function advancedModule(float $score): array
+    {
+        return match (true) {
+            $score >= 90 => $this->result('advanced_module_complete', null, 'ADVANCED_MODULE_MASTERY_V1', $score, 'You completed the Advanced Module and earned a special star.'),
+            default => $this->result('repeat_advanced_module', 'advanced_module', 'ADVANCED_MODULE_MASTERY_V1', $score, 'Let us practice the Advanced Module again so your sentence fluency can feel stronger.'),
         };
     }
 

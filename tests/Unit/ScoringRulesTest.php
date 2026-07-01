@@ -204,5 +204,7 @@ class ScoringRulesTest extends TestCase
         $this->assertSame('repeat_module_3', $service->decide('module_3', 89)['decision']);
         $this->assertSame('repeat_module_3', $service->decide('module_3', 70)['decision']);
         $this->assertSame('return_to_module_2', $service->decide('module_3', 69)['decision']);
+        $this->assertSame('advanced_module_complete', $service->decide('advanced_module', 90)['decision']);
+        $this->assertSame('repeat_advanced_module', $service->decide('advanced_module', 89)['decision']);
     }
 }

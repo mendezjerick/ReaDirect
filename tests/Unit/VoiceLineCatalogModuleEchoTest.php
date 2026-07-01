@@ -116,7 +116,7 @@ class VoiceLineCatalogModuleEchoTest extends TestCase
             collect($lineKeys)->filter(fn (string $lineKey): bool => str_starts_with($lineKey, 'ciel.module_echo.correct.module_2.word.'))->count(),
         );
         $this->assertSame(
-            170,
+            210,
             collect($lineKeys)->filter(fn (string $lineKey): bool => str_starts_with($lineKey, 'ciel.module_echo.correct.module_3.sentence.'))->count(),
         );
         $this->assertSame(

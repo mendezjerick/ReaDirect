@@ -29,6 +29,11 @@ class LearnerDashboardController extends Controller
         }
 
         $flowState = $learner ? $flow->state($learner) : null;
+        $advancedModule = Module::where('key', LearnerFlowService::ADVANCED_MODULE_KEY)->first();
+        $advancedUnlocked = $advancedModule ? $flow->advancedModuleUnlocked($learner) : false;
+        $advancedActiveAttempt = $advancedModule
+            ? $flow->activeModuleAttempt($learner, $advancedModule)
+            : null;
         $latestAttempt = $learner?->assessmentAttempts()
             ->where('attempt_type', 'diagnostic')
             ->where('status', LearnerFlowService::DIAGNOSTIC_COMPLETE)
@@ -67,7 +72,19 @@ class LearnerDashboardController extends Controller
                     'current_module' => $learner->currentModule?->only('key', 'sequence', 'title', 'description'),
                 ]
             ) : null,
-            'modules' => Module::query()->orderBy('sequence')->get(['key', 'sequence', 'title', 'description']),
+            'modules' => Module::query()
+                ->whereIn('key', ['module_1', 'module_2', 'module_3'])
+                ->orderBy('sequence')
+                ->get(['key', 'sequence', 'title', 'description']),
+            'advancedModule' => [
+                'unlocked' => $advancedUnlocked,
+                'completed' => $focusMode->specialStarTotal($learner->id) > 0,
+                'in_progress' => (bool) $advancedActiveAttempt,
+                'route' => $advancedUnlocked && $advancedModule ? route('learner.modules.start', $advancedModule) : null,
+                'module' => $advancedUnlocked && $advancedModule
+                    ? $advancedModule->only('key', 'sequence', 'title', 'description')
+                    : null,
+            ],
             'latestAttempt' => $latestAttempt?->only(
                 'status',
                 'task_1_score',
@@ -92,6 +109,7 @@ class LearnerDashboardController extends Controller
             'listeningMode' => $listeningMode->props($learner),
             'rewards' => [
                 'stars' => $focusMode->starTotal($learner->id),
+                'advanced_stars' => $focusMode->specialStarTotal($learner->id),
             ],
         ]);
     }

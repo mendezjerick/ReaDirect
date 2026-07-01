@@ -62,7 +62,9 @@ class ModuleMasteryController extends Controller
         $items = $selection->selectMasteryItemsForAttempt($attempt, $selection->masteryCountFor($module));
 
         $attempt->update(['status' => 'mastery_started']);
-        $learner->update(['current_stage' => LearnerStage::MODULE_MASTERY_IN_PROGRESS]);
+        if (! $flow->isAdvancedModule($module)) {
+            $learner->update(['current_stage' => LearnerStage::MODULE_MASTERY_IN_PROGRESS]);
+        }
 
         return Inertia::render('Learner/Modules/ModuleMasteryCheck', [
             'module' => $module->only('key', 'title', 'description'),
@@ -211,7 +213,7 @@ class ModuleMasteryController extends Controller
             'completed_at' => now(),
         ]);
 
-        $this->applyLearnerDecision($learner, $decision);
+        $this->applyLearnerDecision($learner, $decision, $attempt, $module);
 
         return redirect()->route('learner.modules.mastery-result', $module);
     }
@@ -239,8 +241,17 @@ class ModuleMasteryController extends Controller
         ]);
     }
 
-    private function applyLearnerDecision(Learner $learner, array $decision): void
+    private function applyLearnerDecision(Learner $learner, array $decision, ModuleAttempt $attempt, Module $module): void
     {
+        if ($module->key === LearnerFlowService::ADVANCED_MODULE_KEY) {
+            if ($decision['decision_key'] === 'advanced_module_complete') {
+                app(\App\Services\CielFocusModeService::class)
+                    ->awardAdvancedModuleStar($learner->id, $module->id, $attempt->id);
+            }
+
+            return;
+        }
+
         $nextModule = $decision['next_module_key'] ? Module::where('key', $decision['next_module_key'])->first() : null;
         $stage = match ($decision['decision_key']) {
             'proceed_to_reassessment' => LearnerStage::FINAL_REASSESSMENT_PENDING,
@@ -265,10 +276,10 @@ class ModuleMasteryController extends Controller
 
     private function guardModuleAccess(Learner $learner, Module $module, LearnerFlowService $flow): ?RedirectResponse
     {
-        if (
+        if (! $flow->isAdvancedModule($module) && (
             in_array(LearnerStage::normalize($learner->current_stage), [LearnerStage::FINAL_REASSESSMENT_COMPLETED, LearnerStage::COMPLETED], true)
             || $flow->isFinalComplete($flow->latestFinalAttempt($learner))
-        ) {
+        )) {
             return redirect()->route('learner.completion')
                 ->with('info', 'You already completed your reading journey.');
         }
@@ -316,7 +327,7 @@ class ModuleMasteryController extends Controller
         }
 
         $moduleKey = (string) ($payload['module_key'] ?? '');
-        if ($moduleKey === 'module_3') {
+        if (in_array($moduleKey, ['module_3', 'advanced_module'], true)) {
             return ModuleSentenceText::display($display);
         }
 

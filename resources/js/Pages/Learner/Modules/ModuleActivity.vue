@@ -55,7 +55,7 @@ const isAutomaticListeningMode = computed(() => (
 const recorderPromptType = computed(() => {
     if (props.module?.key === 'module_1') return 'letter';
     if (props.module?.key === 'module_2') return 'word';
-    if (props.module?.key === 'module_3') return 'sentence';
+    if (['module_3', 'advanced_module'].includes(props.module?.key)) return 'sentence';
 
     return 'word';
 });
@@ -141,7 +141,7 @@ const moduleCueTypeFor = (item = null) => {
     const activity = String(item?.activity_type ?? props.activityType ?? '');
 
     if (moduleKey === 'module_1') return 'letter';
-    if (moduleKey === 'module_3' || activity.includes('sentence') || activity.includes('paragraph')) return 'sentence';
+    if (moduleKey === 'module_3' || moduleKey === 'advanced_module' || activity.includes('sentence') || activity.includes('paragraph')) return 'sentence';
 
     return 'word';
 };
@@ -184,7 +184,7 @@ const displaySizeForItem = (item = null) => {
     const format = String(item?.payload?.display_format ?? '');
 
     if (format === 'letter_pair') return 'letter';
-    if (moduleKey === 'module_3' || format.includes('sentence') || format.includes('punctuation') || format.includes('text')) return 'sentence';
+    if (moduleKey === 'module_3' || moduleKey === 'advanced_module' || format.includes('sentence') || format.includes('punctuation') || format.includes('text')) return 'sentence';
 
     return 'word';
 };
@@ -803,6 +803,7 @@ onBeforeUnmount(() => {
             :agent-message="coachMessage"
             :agent-intent="coachIntent"
             :agent-line-key="coachLineKey"
+            :tts-enabled="!focusModeVisible"
             :progress="step.progressPercent.value"
             :primary-label="primaryLabel"
             :primary-disabled="primaryDisabled"

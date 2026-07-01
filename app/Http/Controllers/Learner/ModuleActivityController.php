@@ -73,7 +73,9 @@ class ModuleActivityController extends Controller
         $nextActivityType = $this->nextActivityType($activityTypes, $activityType);
 
         $attempt->update(['status' => 'practice_started']);
-        $learner->update(['current_stage' => LearnerStage::MODULE_PRACTICE_IN_PROGRESS]);
+        if (! $flow->isAdvancedModule($module)) {
+            $learner->update(['current_stage' => LearnerStage::MODULE_PRACTICE_IN_PROGRESS]);
+        }
 
         return Inertia::render('Learner/Modules/ModuleActivity', [
             'module' => $module->only('key', 'title', 'description'),
@@ -235,10 +237,10 @@ class ModuleActivityController extends Controller
 
     private function guardModuleAccess(Learner $learner, Module $module, LearnerFlowService $flow): ?RedirectResponse
     {
-        if (
+        if (! $flow->isAdvancedModule($module) && (
             in_array(LearnerStage::normalize($learner->current_stage), [LearnerStage::FINAL_REASSESSMENT_COMPLETED, LearnerStage::COMPLETED], true)
             || $flow->isFinalComplete($flow->latestFinalAttempt($learner))
-        ) {
+        )) {
             return redirect()->route('learner.completion')
                 ->with('info', 'You already completed your reading journey.');
         }
@@ -289,7 +291,7 @@ class ModuleActivityController extends Controller
         }
 
         $moduleKey = (string) ($payload['module_key'] ?? '');
-        if ($moduleKey === 'module_3') {
+        if (in_array($moduleKey, ['module_3', 'advanced_module'], true)) {
             return ModuleSentenceText::display($display);
         }
 

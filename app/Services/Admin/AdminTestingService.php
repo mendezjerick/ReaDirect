@@ -115,6 +115,7 @@ class AdminTestingService
         $selection = app(ModuleActivitySelectionService::class);
         $experience = app(ModuleExperienceService::class);
         foreach (Module::orderBy('sequence')->get() as $module) {
+            $moduleTitle = $module->key === 'advanced_module' ? 'Advanced Module' : $module->title;
             $activityTypes = $selection->practiceActivityTypes($module);
             $lessonBoxes = collect($experience->overview($module, $activityTypes)['lesson_boxes'] ?? [])->keyBy('key');
 
@@ -122,7 +123,7 @@ class AdminTestingService
                 'category' => 'modules',
                 'group' => 'Modules',
                 'module_key' => $module->key,
-                'label' => "{$module->title} overview",
+                'label' => "{$moduleTitle} overview",
                 'target' => "module-{$module->key}-overview",
             ];
 
@@ -133,7 +134,7 @@ class AdminTestingService
                     'group' => 'Modules',
                     'module_key' => $module->key,
                     'activity_type' => $activityType,
-                    'label' => "{$module->title} Lesson ".($index + 1).": {$lessonTitle}",
+                    'label' => "{$moduleTitle} Lesson ".($index + 1).": {$lessonTitle}",
                     'target' => "module-{$module->key}-activity-{$activityType}",
                 ];
             }
@@ -142,7 +143,7 @@ class AdminTestingService
                 'category' => 'modules',
                 'group' => 'Modules',
                 'module_key' => $module->key,
-                'label' => "{$module->title} mastery check",
+                'label' => "{$moduleTitle} mastery check",
                 'target' => "module-{$module->key}-mastery",
             ];
         }
@@ -165,11 +166,12 @@ class AdminTestingService
         );
 
         foreach (Module::orderBy('sequence')->get() as $module) {
+            $moduleTitle = $module->key === 'advanced_module' ? 'Advanced Module' : $module->title;
             $targets[] = [
                 'category' => 'results',
                 'group' => 'Results',
                 'module_key' => $module->key,
-                'label' => "{$module->title} mastery result",
+                'label' => "{$moduleTitle} mastery result",
                 'target' => "module-{$module->key}-result",
             ];
         }

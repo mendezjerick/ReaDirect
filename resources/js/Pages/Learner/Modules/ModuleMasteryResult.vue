@@ -11,13 +11,15 @@ const actionLabel = (decisionKey) => ({
     repeat_module_1: 'Practice Module 1 Again',
     repeat_module_2: 'Practice Module 2 Again',
     repeat_module_3: 'Practice Module 3 Again',
+    advanced_module_complete: 'Back to Dashboard',
+    repeat_advanced_module: 'Practice Advanced Again',
     return_to_module_1: 'Return to Module 1',
     return_to_module_2: 'Return to Module 2',
     proceed_to_reassessment: 'Go to Dashboard',
 }[decisionKey] ?? 'Continue');
 
 const actionHref = (decision, module, nextModule) => {
-    if (decision?.decision_key === 'proceed_to_reassessment') return '/learner/dashboard';
+    if (['proceed_to_reassessment', 'advanced_module_complete'].includes(decision?.decision_key)) return '/learner/dashboard';
 
     const moduleKey = nextModule?.key ?? module?.key;
     return moduleKey ? `/learner/modules/${moduleKey}/start` : '/learner/dashboard';

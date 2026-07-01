@@ -150,6 +150,19 @@ class AgentSpeakerPanelStructureTest extends TestCase
         }
     }
 
+    public function test_focus_mode_disables_underlying_module_tts(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $workspace = file_get_contents($root.'/resources/js/Components/Learner/AssessmentTaskWorkspace.vue');
+        $activity = file_get_contents($root.'/resources/js/Pages/Learner/Modules/ModuleActivity.vue');
+        $mastery = file_get_contents($root.'/resources/js/Pages/Learner/Modules/ModuleMasteryCheck.vue');
+
+        $this->assertStringContainsString('ttsEnabled', $workspace);
+        $this->assertStringContainsString(':tts-enabled="ttsEnabled"', $workspace);
+        $this->assertStringContainsString(':tts-enabled="!focusModeVisible"', $activity);
+        $this->assertStringContainsString(':tts-enabled="!focusModeVisible"', $mastery);
+    }
+
     public function test_automatic_ciel_listening_is_scoped_to_supported_module_pages(): void
     {
         $root = dirname(__DIR__, 2);

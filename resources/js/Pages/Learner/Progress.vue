@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { Link } from '@inertiajs/vue3';
-import { ArrowRight, BarChart3, BookOpen, CheckCircle2, Route, Star, Target, Type } from 'lucide-vue-next';
+import { ArrowRight, Award, BarChart3, BookOpen, CheckCircle2, Route, Star, Target, Type } from 'lucide-vue-next';
 import LearnerSimplePageShell from '../../Components/Learner/LearnerSimplePageShell.vue';
 
 const props = defineProps({
@@ -22,6 +22,7 @@ const readingAccuracy = computed(() => {
     return Math.round(number <= 1 ? number * 100 : number);
 });
 const totalStars = computed(() => Number(props.rewards?.stars ?? 0));
+const specialStars = computed(() => Number(props.rewards?.advanced_stars ?? 0));
 const diagnosticDone = computed(() => props.flowState?.diagnostic?.is_completed === true);
 const overallScore = computed(() => {
     if (!diagnosticDone.value) return 0;
@@ -92,6 +93,11 @@ const progressItems = computed(() => [
                 <div class="progress-star-row learner-hub-face">
                     <Star class="size-5 fill-current" stroke-width="2.8" />
                     <span>{{ totalStars }} stars earned</span>
+                </div>
+
+                <div v-if="specialStars > 0" class="progress-star-row progress-star-row--special learner-hub-face">
+                    <Award class="size-5" stroke-width="2.8" />
+                    <span>{{ specialStars }} special star earned</span>
                 </div>
 
                 <Link
@@ -204,6 +210,11 @@ const progressItems = computed(() => [
     color: #b45309;
     font-size: 0.92rem;
     font-weight: 900;
+}
+
+.progress-star-row--special {
+    border-color: rgba(30, 156, 150, 0.22);
+    color: #0f766e;
 }
 
 .progress-action {

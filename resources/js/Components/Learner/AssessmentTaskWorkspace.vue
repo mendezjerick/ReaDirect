@@ -9,6 +9,7 @@ const props = defineProps({
     agentMessage: { type: String, required: true },
     agentIntent: { type: String, default: '' },
     agentLineKey: { type: String, default: '' },
+    ttsEnabled: { type: Boolean, default: true },
     progress: { type: Number, default: 0 },
     primaryLabel: { type: String, default: 'Submit' },
     primaryDisabled: { type: Boolean, default: false },
@@ -41,6 +42,7 @@ const normalizedDisplayState = computed(() => (
             :message="agentMessage"
             :intent="agentIntent"
             :line-key="agentLineKey"
+            :tts-enabled="ttsEnabled"
             presentation="assessment-horizontal"
             @speaking-start="emit('agent-speaking-change', true)"
             @speaking-end="emit('agent-speaking-change', false)"

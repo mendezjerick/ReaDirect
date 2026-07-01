@@ -42,10 +42,12 @@ class ModuleController extends Controller
 
         $request->session()->put('module_attempt_id', $attempt->id);
 
-        $learner->update([
-            'current_module_id' => $module->id,
-            'current_stage' => LearnerStage::MODULE_PRACTICE_IN_PROGRESS,
-        ]);
+        if (! $flow->isAdvancedModule($module)) {
+            $learner->update([
+                'current_module_id' => $module->id,
+                'current_stage' => LearnerStage::MODULE_PRACTICE_IN_PROGRESS,
+            ]);
+        }
 
         return redirect()->route('learner.modules.overview', $module);
     }
@@ -117,10 +119,10 @@ class ModuleController extends Controller
 
     private function guardModuleAccess(Learner $learner, Module $module, LearnerFlowService $flow): ?RedirectResponse
     {
-        if (
+        if (! $flow->isAdvancedModule($module) && (
             in_array(LearnerStage::normalize($learner->current_stage), [LearnerStage::FINAL_REASSESSMENT_COMPLETED, LearnerStage::COMPLETED], true)
             || $flow->isFinalComplete($flow->latestFinalAttempt($learner))
-        ) {
+        )) {
             return redirect()->route('learner.completion')
                 ->with('info', 'You already completed your reading journey.');
         }

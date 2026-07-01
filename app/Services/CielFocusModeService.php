@@ -12,6 +12,8 @@ class CielFocusModeService
 {
     public function __construct(private readonly ModuleEchoLineFactory $moduleEchoLines) {}
 
+    public const SPECIAL_STAR_REWARD_TYPE = 'advanced_star';
+
     public const MODES = [
         'teaching',
         'reward',
@@ -48,6 +50,33 @@ class CielFocusModeService
             ->where('learner_id', $learnerId)
             ->where('reward_type', 'star')
             ->sum('amount');
+    }
+
+    public function specialStarTotal(int $learnerId): int
+    {
+        return (int) LearnerReward::query()
+            ->where('learner_id', $learnerId)
+            ->where('reward_type', self::SPECIAL_STAR_REWARD_TYPE)
+            ->sum('amount');
+    }
+
+    public function awardAdvancedModuleStar(int $learnerId, int $moduleId, int $moduleAttemptId): LearnerReward
+    {
+        return LearnerReward::query()->firstOrCreate(
+            [
+                'learner_id' => $learnerId,
+                'reward_type' => self::SPECIAL_STAR_REWARD_TYPE,
+                'reason' => 'advanced_module_complete',
+                'source_type' => 'advanced_module',
+                'source_id' => $moduleId,
+            ],
+            [
+                'amount' => 1,
+                'metadata' => [
+                    'module_attempt_id' => $moduleAttemptId,
+                ],
+            ],
+        );
     }
 
     private function teachingEvent(ModuleAttemptItem $item, Module $module, string $activityType, ?string $targetText): array
@@ -151,6 +180,10 @@ class CielFocusModeService
 
         if ($module->key === 'module_1' || str_contains($activity, 'letter') || str_contains($activity, 'sound')) {
             return 'letter';
+        }
+
+        if ($module->key === 'module_3' || $module->key === 'advanced_module') {
+            return 'sentence';
         }
 
         return 'word';

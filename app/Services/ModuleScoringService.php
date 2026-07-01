@@ -140,6 +140,7 @@ class ModuleScoringService
         $activityType = (string) ($payload['activity_type'] ?? $item->activity_type ?? '');
 
         return $moduleKey === 'module_3'
+            || $moduleKey === 'advanced_module'
             || str_contains($activityType, 'sentence')
             || str_contains($activityType, 'fluency')
             || (is_string($expectedAnswer) && str_contains(trim($expectedAnswer), ' '));

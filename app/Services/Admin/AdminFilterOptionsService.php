@@ -45,9 +45,9 @@ class AdminFilterOptionsService
             ['label' => 'Highlighted Rhyme Word', 'value' => 'highlighted_rhyme_word', 'module' => 'module_2'],
             ['label' => 'Highlighted Sentence Word', 'value' => 'highlighted_sentence_word', 'module' => 'module_2'],
             ['label' => 'Simple Sentence', 'value' => 'simple_sentence_reading', 'module' => 'module_3'],
-            ['label' => 'Comma Pause', 'value' => 'comma_pause_reading', 'module' => 'module_3'],
-            ['label' => 'Full-Stop Pause', 'value' => 'full_stop_pause_reading', 'module' => 'module_3'],
-            ['label' => 'Mixed Punctuation Fluency', 'value' => 'mixed_punctuation_fluency', 'module' => 'module_3'],
+            ['label' => 'Comma Pause', 'value' => 'comma_pause_reading', 'module' => 'advanced_module'],
+            ['label' => 'Full-Stop Pause', 'value' => 'full_stop_pause_reading', 'module' => 'advanced_module'],
+            ['label' => 'Mixed Punctuation Fluency', 'value' => 'mixed_punctuation_fluency', 'module' => 'advanced_module'],
             ['label' => 'Mastery Check', 'value' => 'mastery_check', 'module' => 'all'],
         ];
     }

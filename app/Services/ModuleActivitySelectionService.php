@@ -200,7 +200,6 @@ class ModuleActivitySelectionService
             ->filter(fn (LearningContent $content) => ($content->payload['module_key'] ?? null) === $module->key)
             ->filter(fn (LearningContent $content) => (int) ($content->payload['practice_item_count'] ?? 0) > 0)
             ->sortBy(fn (LearningContent $content) => $content->payload['source_csv_id'] ?? '')
-            ->take(4)
             ->map(fn (LearningContent $content) => $content->payload['activity_type'] ?? null)
             ->filter()
             ->values()
@@ -465,7 +464,7 @@ class ModuleActivitySelectionService
     {
         return match ($moduleKey) {
             'module_1' => 'letter',
-            'module_3' => 'sentence',
+            'module_3', 'advanced_module' => 'sentence',
             default => 'word',
         };
     }

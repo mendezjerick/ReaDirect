@@ -143,7 +143,7 @@ class ModuleEchoLineFactory
             return 'ciel.module_echo.correct.module_2.word.'.$this->cleanKey(strtolower(trim((string) $target)));
         }
 
-        if ($moduleKey === 'module_3' && trim((string) $target) !== '') {
+        if (in_array($moduleKey, ['module_3', 'advanced_module'], true) && trim((string) $target) !== '') {
             return 'ciel.module_echo.correct.module_3.sentence.'.substr(hash('sha1', strtolower(trim((string) $target))), 0, 12);
         }
 
@@ -158,7 +158,7 @@ class ModuleEchoLineFactory
             return 'letter';
         }
 
-        if ($moduleKey === 'module_3' || str_contains($activity, 'sentence') || str_contains($activity, 'paragraph')) {
+        if ($moduleKey === 'module_3' || $moduleKey === 'advanced_module' || str_contains($activity, 'sentence') || str_contains($activity, 'paragraph')) {
             return 'sentence';
         }
 

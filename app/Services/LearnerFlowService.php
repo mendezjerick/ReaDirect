@@ -16,6 +16,8 @@ class LearnerFlowService
 
     public const FINAL_COMPLETE = 'final_reassessment_completed';
 
+    public const ADVANCED_MODULE_KEY = 'advanced_module';
+
     public function learner(Request $request): Learner
     {
         return CurrentLearner::require($request, true);
@@ -285,6 +287,31 @@ class LearnerFlowService
             && $attempt->completed_at !== null;
     }
 
+    public function isAdvancedModule(Module $module): bool
+    {
+        return $module->key === self::ADVANCED_MODULE_KEY;
+    }
+
+    public function advancedModuleUnlocked(Learner $learner): bool
+    {
+        return $this->isPerfectFinalAttempt($this->latestFinalAttempt($learner));
+    }
+
+    public function isPerfectFinalAttempt(?AssessmentAttempt $attempt): bool
+    {
+        if (! $this->isFinalComplete($attempt)) {
+            return false;
+        }
+
+        return (int) $attempt->task_1_score === 10
+            && (int) $attempt->task_2a_score === 10
+            && (int) $attempt->task_2b_score === 10
+            && (int) $attempt->crla_total_score === 30
+            && round((float) $attempt->reading_accuracy, 2) >= 100.0
+            && round((float) $attempt->comprehension_percentage, 2) >= 100.0
+            && round((float) $attempt->final_reading_score, 2) >= 100.0;
+    }
+
     public function diagnosticResumeRoute(AssessmentAttempt $attempt): string
     {
         return route($this->diagnosticResumeRouteName($attempt));
@@ -453,6 +480,10 @@ class LearnerFlowService
 
     public function moduleAccessible(Learner $learner, Module $module): bool
     {
+        if ($this->isAdvancedModule($module)) {
+            return $this->advancedModuleUnlocked($learner);
+        }
+
         return $learner->current_module_id !== null
             && (int) $learner->current_module_id === (int) $module->id
             && ! in_array(LearnerStage::normalize($learner->current_stage), [

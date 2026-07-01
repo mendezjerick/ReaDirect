@@ -50,9 +50,10 @@ class AgentTtsService
 
         $databaseAudio = $this->voiceLines->resolve($profile['agent'], $safeText, $lineKey, $intent);
         if ($databaseAudio !== null) {
+            $resolvedProfile = $this->voiceProfile((string) ($databaseAudio['agent'] ?? $profile['agent']));
             $payload = [
-                'agent' => $profile['agent'],
-                'display_name' => $profile['display_name'],
+                'agent' => $resolvedProfile['agent'],
+                'display_name' => $resolvedProfile['display_name'],
                 'text' => $databaseAudio['text'] ?: $safeText,
                 'voice_enabled' => true,
                 'tts_provider' => 'database',
@@ -70,7 +71,7 @@ class AgentTtsService
                 $includeDebug,
                 null,
                 0,
-                $profile['voice'],
+                $resolvedProfile['voice'],
                 true
             );
         }
@@ -216,8 +217,9 @@ class AgentTtsService
     private function canonicalAgent(string $agent): string
     {
         return match ($agent) {
-            'coach_feedback', AgentIdentity::MISS_CIEL, 'miss_ciel' => 'miss_ciel',
-            'evaluator', 'evaluator_recommendation', AgentIdentity::MISS_ESTELLE, 'miss_estelle' => 'miss_estelle',
+            'coach_feedback', AgentIdentity::MISS_CIEL, 'miss_ciel', 'ciel' => 'miss_ciel',
+            'evaluator', 'evaluator_recommendation', AgentIdentity::MISS_ESTELLE, 'miss_estelle', 'estelle' => 'miss_estelle',
+            AgentIdentity::MISS_VIVIAN, 'miss_vivian', 'vivian' => 'miss_vivian',
             default => 'miss_vivian',
         };
     }

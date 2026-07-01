@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\LearningContent;
 use App\Models\Module;
+use App\Models\ModuleActivity;
 use Illuminate\Database\Seeder;
 
 class ModuleContentSeeder extends Seeder
@@ -68,9 +69,10 @@ class ModuleContentSeeder extends Seeder
                 ]
             );
 
-            $module->activities()->updateOrCreate(
+            ModuleActivity::updateOrCreate(
                 ['learning_content_id' => $content->id],
                 [
+                    'module_id' => $module->id,
                     'sequence' => $payload['sequence'],
                     'activity_type' => $row['activity_type'],
                     'title' => $row['prompt_text'],
@@ -136,13 +138,13 @@ class ModuleContentSeeder extends Seeder
         $this->deactivateStaleContent(
             'module_activity',
             $this->seededModuleActivitySourceIds,
-            fn (array $payload): bool => in_array((string) ($payload['module_key'] ?? ''), ['module_1', 'module_2', 'module_3'], true)
+            fn (array $payload): bool => in_array((string) ($payload['module_key'] ?? ''), ['module_1', 'module_2', 'module_3', 'advanced_module'], true)
         );
 
         $this->deactivateStaleContent(
             'module_activity_selection_rule',
             $this->seededSelectionRuleSourceIds,
-            fn (array $payload): bool => in_array((string) ($payload['module_key'] ?? ''), ['module_1', 'module_2', 'module_3'], true)
+            fn (array $payload): bool => in_array((string) ($payload['module_key'] ?? ''), ['module_1', 'module_2', 'module_3', 'advanced_module'], true)
         );
 
         $this->deactivateStaleContent(

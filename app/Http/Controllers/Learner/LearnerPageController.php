@@ -67,6 +67,7 @@ class LearnerPageController extends Controller
             'flowState' => $this->safeFlowState($flow->state($learner)),
             'rewards' => [
                 'stars' => $focusMode->starTotal($learner->id),
+                'advanced_stars' => $focusMode->specialStarTotal($learner->id),
             ],
         ]);
     }

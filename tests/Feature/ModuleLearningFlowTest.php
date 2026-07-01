@@ -6,6 +6,7 @@ use App\Models\Learner;
 use App\Models\LearnerModuleUsedTarget;
 use App\Models\LearnerReward;
 use App\Models\LearningContent;
+use App\Models\AssessmentAttempt;
 use App\Models\Module;
 use App\Models\ModuleActivity;
 use App\Models\ModuleActivityResponse;
@@ -566,6 +567,124 @@ class ModuleLearningFlowTest extends TestCase
             );
     }
 
+    public function test_module_three_single_lesson_mastery_unlocks_final_assessment(): void
+    {
+        [$learner, $module] = $this->moduleContext('module_3');
+        $learner->update(['current_module_id' => $module->id, 'current_stage' => 'module_practice_in_progress']);
+        $this->seedModuleActivities($module, 'simple_sentence_reading', 5, false);
+        $this->seedModuleActivities($module, 'mastery_check', 10, true);
+        $this->seedRule($module, 'simple_sentence_reading', 5, 0);
+        $this->seedRule($module, 'mastery_check', 0, 10);
+        $service = app(ModuleActivitySelectionService::class);
+        $attempt = $service->startOrResumeModuleAttempt($learner, $module);
+        $items = $service->selectPracticeItemsForAttempt($attempt, 'simple_sentence_reading', 5);
+        $this->seedResolvedLessonResponses($attempt, $items, 5);
+
+        $this->withSession(['learner_id' => $learner->id, 'module_attempt_id' => $attempt->id])
+            ->post(route('learner.modules.activity.store', [$module, 'simple_sentence_reading']))
+            ->assertRedirect(route('learner.modules.mastery-check', $module));
+
+        $this->assertNull(app(\App\Services\LearnerFlowService::class)->nextPracticeActivity($attempt, $module));
+
+        $masteryItems = $service->selectMasteryItemsForAttempt($attempt, 10);
+        $this->seedResolvedModuleResponses($attempt, $masteryItems, 10, true);
+        $attempt->update(['status' => 'mastery_started']);
+        $learner->update(['current_stage' => 'module_mastery_in_progress']);
+
+        $this->withSession(['learner_id' => $learner->id, 'module_attempt_id' => $attempt->id])
+            ->post(route('learner.modules.mastery-check.store', $module))
+            ->assertRedirect(route('learner.modules.mastery-result', $module));
+
+        $this->assertSame('proceed_to_reassessment', $attempt->refresh()->mastery_decision);
+        $this->assertNull($learner->refresh()->current_module_id);
+        $this->assertSame('final_reassessment_pending', $learner->current_stage);
+    }
+
+    public function test_advanced_module_unlocks_only_after_perfect_final_and_awards_special_star(): void
+    {
+        $school = School::create(['name' => 'Advanced Module School']);
+        $learner = Learner::create([
+            'school_id' => $school->id,
+            'learner_code' => uniqid('ADV-', false),
+            'first_name' => 'Advanced',
+            'grade_level' => 'Grade 1',
+            'current_stage' => 'final_reassessment_completed',
+        ]);
+        foreach ([1 => ['module_1', 'Module 1'], 2 => ['module_2', 'Module 2'], 3 => ['module_3', 'Module 3'], 4 => ['advanced_module', 'Advanced Module']] as $sequence => [$key, $title]) {
+            Module::create(['sequence' => $sequence, 'key' => $key, 'title' => $title, 'description' => $title, 'is_active' => true]);
+        }
+        $advanced = Module::where('key', 'advanced_module')->firstOrFail();
+        $this->seedModuleActivities($advanced, 'comma_pause_reading', 1, false);
+        $this->seedModuleActivities($advanced, 'mastery_check', 1, true);
+        $this->seedRule($advanced, 'comma_pause_reading', 1, 0);
+        $this->seedRule($advanced, 'mastery_check', 0, 1);
+        $final = AssessmentAttempt::create([
+            'learner_id' => $learner->id,
+            'attempt_type' => 'final_reassessment',
+            'status' => 'final_reassessment_completed',
+            'task_1_score' => 10,
+            'task_2a_score' => 10,
+            'task_2b_score' => 10,
+            'crla_total_score' => 30,
+            'reading_accuracy' => 99,
+            'comprehension_percentage' => 100,
+            'final_reading_score' => 99.4,
+            'completed_at' => now(),
+        ]);
+
+        $this->withSession(['learner_id' => $learner->id])
+            ->get(route('learner.dashboard'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('advancedModule.unlocked', false)
+                ->where('advancedModule.module', null)
+                ->has('modules', 3)
+            );
+
+        $final->update([
+            'reading_accuracy' => 100,
+            'final_reading_score' => 100,
+        ]);
+
+        $this->withSession(['learner_id' => $learner->id])
+            ->get(route('learner.dashboard'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('advancedModule.unlocked', true)
+                ->where('advancedModule.module.key', 'advanced_module')
+                ->where('rewards.advanced_stars', 0)
+            );
+
+        $this->withSession(['learner_id' => $learner->id])
+            ->get(route('learner.modules.start', $advanced))
+            ->assertRedirect(route('learner.modules.overview', $advanced));
+
+        $service = app(ModuleActivitySelectionService::class);
+        $attempt = ModuleAttempt::where('learner_id', $learner->id)->where('module_id', $advanced->id)->firstOrFail();
+        $items = $service->selectPracticeItemsForAttempt($attempt, 'comma_pause_reading', 1);
+        $this->seedResolvedLessonResponses($attempt, $items, 1);
+
+        $this->withSession(['learner_id' => $learner->id, 'module_attempt_id' => $attempt->id])
+            ->post(route('learner.modules.activity.store', [$advanced, 'comma_pause_reading']))
+            ->assertRedirect(route('learner.modules.mastery-check', $advanced));
+
+        $masteryItems = $service->selectMasteryItemsForAttempt($attempt, 1);
+        $this->seedResolvedModuleResponses($attempt, $masteryItems, 1, true);
+        $attempt->update(['status' => 'mastery_started']);
+
+        $this->withSession(['learner_id' => $learner->id, 'module_attempt_id' => $attempt->id])
+            ->post(route('learner.modules.mastery-check.store', $advanced))
+            ->assertRedirect(route('learner.modules.mastery-result', $advanced));
+
+        $this->assertSame(0, LearnerReward::where('learner_id', $learner->id)->where('reward_type', 'star')->sum('amount'));
+        $this->assertSame(1, LearnerReward::where('learner_id', $learner->id)->where('reward_type', 'advanced_star')->sum('amount'));
+
+        $this->withSession(['learner_id' => $learner->id])
+            ->get(route('learner.dashboard'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('advancedModule.completed', true)
+                ->where('rewards.advanced_stars', 1)
+            );
+    }
+
     public function test_continue_module_reuses_active_attempt_without_duplicate_attempt(): void
     {
         [$learner, $module] = $this->moduleContext('module_2');
@@ -675,6 +794,11 @@ class ModuleLearningFlowTest extends TestCase
 
     private function seedResolvedLessonResponses(ModuleAttempt $attempt, $items, int $correctCount): void
     {
+        $this->seedResolvedModuleResponses($attempt, $items, $correctCount, false);
+    }
+
+    private function seedResolvedModuleResponses(ModuleAttempt $attempt, $items, int $correctCount, bool $isMastery): void
+    {
         foreach ($items->values() as $index => $item) {
             $isCorrect = $index < $correctCount;
             ModuleActivityResponse::create([
@@ -686,7 +810,7 @@ class ModuleLearningFlowTest extends TestCase
                 'expected_answer' => 'cat',
                 'is_correct' => $isCorrect,
                 'score' => $isCorrect ? 1 : 0,
-                'is_mastery_item' => false,
+                'is_mastery_item' => $isMastery,
             ]);
             $item->update(['answered_at' => now()]);
         }
