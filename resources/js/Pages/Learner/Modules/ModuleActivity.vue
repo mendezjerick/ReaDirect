@@ -188,6 +188,11 @@ const displaySizeForItem = (item = null) => {
 
     return 'word';
 };
+const capitalizeSentenceStart = (text) => String(text ?? '').replace(/^(\s*)([a-z])/, (_, prefix, letter) => `${prefix}${letter.toUpperCase()}`);
+const shouldCapitalizeModuleTwoSentence = (item = null) => (
+    String(item?.payload?.module_key ?? props.module?.key ?? '') === 'module_2'
+    && String(item?.activity_type ?? props.activityType ?? '') === 'highlighted_sentence_word'
+);
 const promptDisplaySize = computed(() => displaySizeForItem(step.currentItem.value));
 const manualAnswerFor = (item, answer = null) => canUseManualFallback.value ? String(answer ?? step.answers[item?.id] ?? '').trim() : '';
 const answerFor = (item, answer = null) => manualAnswerFor(item, answer) || String(generatedTranscripts[item?.id] ?? '').trim();
@@ -235,7 +240,9 @@ const promptDisplayText = computed(() => {
         ) || String(item?.display_prompt ?? item?.prompt ?? '');
     }
 
-    return moduleItemDisplayText(item, props.module);
+    const displayText = moduleItemDisplayText(item, props.module);
+
+    return shouldCapitalizeModuleTwoSentence(item) ? capitalizeSentenceStart(displayText) : displayText;
 });
 const promptDisplayLabel = computed(() => (promptDisplaySize.value === 'letter' ? '' : props.activityLabel));
 const currentHighlightTargets = computed(() => highlightTargetsForModuleItem(step.currentItem.value));
