@@ -53,7 +53,7 @@ return [
         'expressive' => [
             'enabled' => filter_var(env('TTS_EXPRESSIVE_ENGINE_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
             'engine' => env('TTS_EXPRESSIVE_ENGINE', 'index_tts2'),
-            'fallback_to_kokoro' => filter_var(env('TTS_EXPRESSIVE_FALLBACK_TO_KOKORO', true), FILTER_VALIDATE_BOOLEAN),
+            'fallback_to_kokoro' => filter_var(env('TTS_EXPRESSIVE_FALLBACK_TO_KOKORO', false), FILTER_VALIDATE_BOOLEAN),
             'reference_manifest_path' => env('TTS_REFERENCE_MANIFEST_PATH', 'storage/tts/references/manifest.json'),
             'reference_audio_root' => env('TTS_REFERENCE_AUDIO_ROOT', 'storage/tts/references'),
             'reference_weighting_enabled' => filter_var(env('TTS_REFERENCE_WEIGHTING_ENABLED', true), FILTER_VALIDATE_BOOLEAN),
@@ -116,9 +116,9 @@ return [
         'allow_stage_switch' => filter_var(env('READIRECT_TTS_ALLOW_STAGE_SWITCH', true), FILTER_VALIDATE_BOOLEAN),
         'cycling_enabled' => filter_var(env('READIRECT_VOICE_LINE_CYCLING_ENABLED', true), FILTER_VALIDATE_BOOLEAN),
         'random_selection_enabled' => filter_var(env('READIRECT_VOICE_LINE_RANDOM_SELECTION_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
-        'fallback_to_other_stage' => filter_var(env('READIRECT_TTS_FALLBACK_TO_OTHER_STAGE', true), FILTER_VALIDATE_BOOLEAN),
-        'fallback_to_runtime_tts' => filter_var(env('READIRECT_TTS_FALLBACK_TO_RUNTIME_TTS', true), FILTER_VALIDATE_BOOLEAN),
-        'fallback_to_raw_kokoro' => filter_var(env('READIRECT_TTS_FALLBACK_TO_RAW_KOKORO', true), FILTER_VALIDATE_BOOLEAN),
+        'fallback_to_other_stage' => filter_var(env('READIRECT_TTS_FALLBACK_TO_OTHER_STAGE', false), FILTER_VALIDATE_BOOLEAN),
+        'fallback_to_runtime_tts' => filter_var(env('READIRECT_TTS_FALLBACK_TO_RUNTIME_TTS', false), FILTER_VALIDATE_BOOLEAN),
+        'fallback_to_raw_kokoro' => filter_var(env('READIRECT_TTS_FALLBACK_TO_RAW_KOKORO', false), FILTER_VALIDATE_BOOLEAN),
         'public_disk_root' => env('READIRECT_TTS_GENERATED_PUBLIC_ROOT', 'tts/generated_voice_lines'),
     ],
 ];

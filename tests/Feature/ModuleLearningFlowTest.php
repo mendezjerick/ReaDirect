@@ -555,10 +555,12 @@ class ModuleLearningFlowTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Learner/Modules/ModuleOverview')
                 ->where('purpose', 'You will practice letters and sounds so you can say them clearly.')
+                ->where('guideLineKey', 'ciel.module1.overview.intro')
                 ->where('lessonBoxes.0.key', 'letter_pair_identification')
                 ->where('lessonBoxes.0.title', 'Display Letter Pair')
                 ->where('lessonBoxes.0.description', 'Say the letter shown as an uppercase and lowercase pair.')
-                ->where('lessonBoxes.0.explanation', 'This box shows a letter pair like Aa. Say the letter name clearly.')
+                ->where('lessonBoxes.0.explanation', 'This lesson shows the big and small form together, like Aa. Look first, then say the letter name clearly.')
+                ->where('lessonBoxes.0.line_key', 'ciel.module1.overview.letter_pair_identification')
                 ->has('lessonBoxes', 1)
                 ->missing('debug')
             );

@@ -89,6 +89,14 @@ class VoiceLineCatalogModuleEchoTest extends TestCase
         $byKey = collect($lines)->keyBy('line_key');
         $this->assertSame('focused_instruction', $byKey['ciel.focus.echo_intro']['intent']);
         $this->assertSame('focused_instruction', $byKey['ciel.focus.echo_repeat']['intent']);
+        $this->assertSame(
+            'This lesson shows the big and small form together, like Aa. Look first, then say the letter name clearly.',
+            $byKey['ciel.module1.overview.letter_pair_identification']['text'],
+        );
+        $this->assertSame(
+            'This lesson shows the big and small form together, like ay. Look first, then say the letter name clearly.',
+            $byKey['ciel.module1.overview.letter_pair_identification']['synthesis_text'],
+        );
         $this->assertSame('The letter is pronounced as K.', $byKey['ciel.module_echo.correct.module_1.letter.k']['text']);
         $this->assertSame('The letter is pronounced as kay.', $byKey['ciel.module_echo.correct.module_1.letter.k']['synthesis_text']);
         $this->assertNotSame('The letter is pronounced as Kk.', $byKey['ciel.module_echo.correct.module_1.letter.k']['text']);

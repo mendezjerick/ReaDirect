@@ -12,6 +12,7 @@ use Illuminate\Support\Str;
 class GenerateGeneratedVoiceLines extends Command
 {
     private const CIEL_LESSON_REFERENCE_AUDIO = 'ciel/focused_instruction/ciel_focused_instruction_01.wav';
+    private const CIEL_OVERVIEW_REFERENCE_AUDIO = 'ciel/friendly_encouragement/ciel_friendly_encouragement_01.wav';
 
     private const CIEL_LESSON_LINE_PREFIXES = [
         'ciel.module1.letter_pair_identification.',
@@ -26,6 +27,13 @@ class GenerateGeneratedVoiceLines extends Command
         'ciel.module3.comma_pause_reading.',
         'ciel.module3.full_stop_pause_reading.',
         'ciel.module3.mixed_punctuation_fluency.',
+    ];
+
+    private const CIEL_OVERVIEW_LINE_PREFIXES = [
+        'ciel.module1.overview.',
+        'ciel.module2.overview.',
+        'ciel.module3.overview.',
+        'ciel.module_overview.',
     ];
 
     protected $signature = 'readirect:voice-lines:generate
@@ -118,7 +126,7 @@ class GenerateGeneratedVoiceLines extends Command
                         'items' => $items,
                         'mode' => $stage1Only ? 'pregenerate_stage1' : 'pregenerate_two_stage',
                         'engine' => 'index_tts2',
-                        'fallback' => true,
+                        'fallback' => false,
                         'force' => (bool) $this->option('force'),
                         'generate_stage2' => ! $stage1Only,
                         'active_stage' => $stage1Only ? 'reference_style' : config('readirect.voice_database.active_stage', 'reference_style'),
@@ -239,6 +247,12 @@ class GenerateGeneratedVoiceLines extends Command
         $requested = trim((string) ($this->option('reference-audio') ?? ''));
         if ($requested !== '') {
             return $requested;
+        }
+
+        foreach (self::CIEL_OVERVIEW_LINE_PREFIXES as $prefix) {
+            if (str_starts_with($line->line_key, $prefix)) {
+                return self::CIEL_OVERVIEW_REFERENCE_AUDIO;
+            }
         }
 
         foreach (self::CIEL_LESSON_LINE_PREFIXES as $prefix) {

@@ -68,18 +68,15 @@ class AgentTtsService
             return $this->withDebug(
                 $payload,
                 $includeDebug,
-                ($databaseAudio['fallback'] ?? false) ? 'database_other_stage' : null,
+                null,
                 0,
                 $profile['voice'],
                 true
             );
         }
 
-        if (
-            (bool) config('readirect.voice_database.enabled', false)
-            && ! (bool) config('readirect.voice_database.fallback_to_runtime_tts', true)
-        ) {
-            return $this->withDebug($fallback, $includeDebug, 'database_voice_line_missing_runtime_disabled', 0);
+        if ((bool) config('readirect.voice_database.enabled', false)) {
+            return $this->withDebug($fallback, $includeDebug, 'database_voice_line_missing_silent', 0);
         }
 
         if (! (bool) config('readirect.tts.enabled')) {
@@ -154,7 +151,7 @@ class AgentTtsService
                 'connected' => false,
                 'status' => 'disabled',
                 'label' => 'Kokoro Voice Disabled',
-                'message' => 'Natural agent voice is disabled. Learner pages will use text-only fallback.',
+                'message' => 'Natural agent voice is disabled. Learner pages will stay silent when no generated audio is available.',
                 'base_url' => $baseUrl,
                 'provider' => $provider,
                 'voices' => $configuredVoices,
@@ -280,7 +277,7 @@ class AgentTtsService
             'tts_provider' => null,
             'audio_url' => null,
             'fallback' => true,
-            'text_fallback_allowed' => (bool) config('readirect.tts.fallback_to_text', true),
+            'text_fallback_allowed' => false,
         ];
     }
 

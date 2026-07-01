@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\AssessmentModeService;
 use App\Services\TTS\AgentTtsService;
+use App\Services\VoiceLines\VoicePlaybackStageService;
 use App\Models\GeneratedVoiceLine;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -50,16 +51,10 @@ class AgentVoiceController extends Controller
 
     public function showGenerated(GeneratedVoiceLine $line, ?string $stage = null): BinaryFileResponse
     {
-        $stage = $stage ?: (string) config('readirect.voice_database.active_stage', 'reference_style');
-        $path = $stage === 'kokoro_identity'
+        $stage = app(VoicePlaybackStageService::class)->current();
+        $path = $stage === VoicePlaybackStageService::KOKORO
             ? $line->kokoro_identity_audio_path
             : $line->reference_style_audio_path;
-
-        if (! $path && (bool) config('readirect.voice_database.fallback_to_other_stage', true)) {
-            $path = $stage === 'kokoro_identity'
-                ? $line->reference_style_audio_path
-                : $line->kokoro_identity_audio_path;
-        }
 
         abort_if(! $path || ! Storage::disk('public')->exists($path), 404);
 

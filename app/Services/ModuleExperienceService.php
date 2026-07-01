@@ -11,6 +11,7 @@ class ModuleExperienceService
         return [
             'purpose' => $this->purpose($module->key),
             'guide_message' => $this->guideMessage($module->key),
+            'guide_line_key' => $this->guideLineKey($module->key),
             'lesson_boxes' => $this->lessonBoxes($module->key, $activityTypes),
             'goodbye_message' => 'See you next time. Keep practicing, keep using your clear voice, and remember that every step helps.',
         ];
@@ -44,10 +45,20 @@ class ModuleExperienceService
     private function guideMessage(string $moduleKey): string
     {
         return match ($moduleKey) {
-            'module_1' => 'Hi, I am Miss Ciel. We will practice letter sounds together, and you can choose a lesson box when you are ready.',
-            'module_2' => 'Hi, I am Miss Ciel. We will practice reading words clearly, one careful sound at a time.',
-            'module_3' => 'Hi, I am Miss Ciel. We will practice smooth sentence reading, and we will go slowly together.',
-            default => 'Hi, I am Miss Ciel. I will guide your practice one step at a time, and we can go slowly together.',
+            'module_1' => 'Hi, I am Miss Ciel. Choose a lesson box, and I will explain how it helps your letter practice.',
+            'module_2' => 'Hi, I am Miss Ciel. Choose a lesson box, and I will show how each word practice step works.',
+            'module_3' => 'Hi, I am Miss Ciel. Choose a lesson box, and I will explain how it helps your sentence reading.',
+            default => 'Hi, I am Miss Ciel. Choose a lesson box, and I will guide your reading practice.',
+        };
+    }
+
+    private function guideLineKey(string $moduleKey): string
+    {
+        return match ($moduleKey) {
+            'module_1' => 'ciel.module1.overview.intro',
+            'module_2' => 'ciel.module2.overview.intro',
+            'module_3' => 'ciel.module3.overview.intro',
+            default => 'ciel.module_overview.intro',
         };
     }
 
@@ -60,6 +71,7 @@ class ModuleExperienceService
                 'title' => $this->activityTitle($moduleKey, $type),
                 'description' => $this->activityDescription($moduleKey, $type),
                 'explanation' => $this->activityExplanation($moduleKey, $type),
+                'line_key' => $this->activityLineKey($moduleKey, $type),
             ])
             ->values()
             ->all();
@@ -136,6 +148,18 @@ class ModuleExperienceService
         };
     }
 
+    private function activityLineKey(string $moduleKey, string $activityType): string
+    {
+        $modulePrefix = match ($moduleKey) {
+            'module_1' => 'module1',
+            'module_2' => 'module2',
+            'module_3' => 'module3',
+            default => 'module',
+        };
+
+        return "ciel.{$modulePrefix}.overview.{$activityType}";
+    }
+
     private function moduleActivityTitle(string $moduleKey, string $activityType): ?string
     {
         return match ($moduleKey) {
@@ -191,10 +215,10 @@ class ModuleExperienceService
     private function moduleOneActivityExplanation(string $activityType): ?string
     {
         return match ($activityType) {
-            'letter_pair_identification' => 'This box shows a letter pair like Aa. Say the letter name clearly.',
-            'highlighted_first_letter' => 'This box shows a word with the first letter highlighted. Say the highlighted letter.',
-            'first_letter_identification' => 'This box shows a word without a highlight. Find the first letter and say it.',
-            'missing_first_letter' => 'This box shows a full word beside a missing-letter word. Say the missing first letter.',
+            'letter_pair_identification' => 'This lesson shows the big and small form together, like Aa. Look first, then say the letter name clearly.',
+            'highlighted_first_letter' => 'This lesson gives you a word and marks the first letter. Find that marked letter, then say its name clearly.',
+            'first_letter_identification' => 'This lesson has no highlight. Look at the word, find the first letter yourself, then say that letter.',
+            'missing_first_letter' => 'This lesson shows the complete word and the same word with the first letter missing. Say the missing letter.',
             default => null,
         };
     }
@@ -224,10 +248,10 @@ class ModuleExperienceService
     private function moduleTwoActivityExplanation(string $activityType): ?string
     {
         return match ($activityType) {
-            'display_word_reading' => 'This box is for reading one short word at a time. Look at the word, then say it clearly.',
-            'split_word_reading' => 'This box splits a word into beginning and ending parts. Blend the parts and read the whole word.',
-            'highlighted_rhyme_word' => 'This box shows rhyming words together. Read only the highlighted word.',
-            'highlighted_sentence_word' => 'This box shows a sentence with one highlighted word. Read only that word.',
+            'display_word_reading' => 'This lesson shows one short word. Look across the letters, blend the sounds, then read the word clearly.',
+            'split_word_reading' => 'This lesson breaks the word into two parts. Say the parts together, then read the whole word smoothly.',
+            'highlighted_rhyme_word' => 'This lesson shows words that sound alike. Look for the highlighted word, then read only that word.',
+            'highlighted_sentence_word' => 'This lesson puts the word inside a sentence. Find the highlighted word, then read just that word clearly.',
             default => null,
         };
     }
@@ -257,10 +281,10 @@ class ModuleExperienceService
     private function moduleThreeActivityExplanation(string $activityType): ?string
     {
         return match ($activityType) {
-            'simple_sentence_reading' => 'This box is for reading a full sentence accurately from start to finish.',
-            'comma_pause_reading' => 'This box helps you read a sentence and pause just a little when you see a comma.',
-            'full_stop_pause_reading' => 'This box helps you pause more strongly after one sentence before reading the next one.',
-            'mixed_punctuation_fluency' => 'This box combines accurate sentence reading with smooth comma and full-stop pauses.',
+            'simple_sentence_reading' => 'This lesson gives you one sentence. Read every word in order, from the first word to the last.',
+            'comma_pause_reading' => 'This lesson has a comma in the sentence. When you reach it, make a tiny pause, then keep reading.',
+            'full_stop_pause_reading' => 'This lesson uses two sentences. Pause when the first sentence ends, then begin the next sentence clearly.',
+            'mixed_punctuation_fluency' => 'This lesson mixes commas and full stops. Read every word clearly, and let the marks guide your pauses.',
             default => null,
         };
     }

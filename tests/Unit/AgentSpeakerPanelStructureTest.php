@@ -77,7 +77,7 @@ class AgentSpeakerPanelStructureTest extends TestCase
         $this->assertStringContainsString('Replay agent message', $component);
     }
 
-    public function test_agent_speaker_tts_component_uses_kokoro_audio_or_text_only_fallback(): void
+    public function test_agent_speaker_tts_component_uses_kokoro_audio_or_silent_fallback(): void
     {
         $root = dirname(__DIR__, 2);
         $componentPath = $root.'/resources/js/Components/Agents/AgentSpeakerTTS.vue';
@@ -88,10 +88,11 @@ class AgentSpeakerPanelStructureTest extends TestCase
 
         $this->assertStringContainsString('new Audio', $component);
         $this->assertStringContainsString('audioUrl', $component);
-        $this->assertStringContainsString('Agent voice audio file could not be loaded.', $component);
-        $this->assertStringContainsString('autoplay blocked', $component);
+        $this->assertStringContainsString('finishSilently', $component);
         $this->assertStringContainsString('speakingStart', $component);
         $this->assertStringContainsString('speakingEnd', $component);
+        $this->assertStringNotContainsString('speakWithTextFallback', $component);
+        $this->assertStringNotContainsString('autoplay blocked', $component);
         $this->assertStringNotContainsString('SpeechSynthesisUtterance', $component);
         $this->assertStringNotContainsString('speechSynthesis.speak', $component);
         $this->assertStringNotContainsString('voiceschanged', $component);

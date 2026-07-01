@@ -2,9 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\GeneratedVoiceLine;
 use App\Models\Learner;
 use App\Models\Module;
 use App\Models\School;
+use App\Models\SystemSetting;
 use App\Services\TTS\AgentTtsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -38,7 +40,7 @@ class AgentTtsServiceTest extends TestCase
         $this->assertSame(0.96, $profile['speed']);
     }
 
-    public function test_tts_disabled_returns_text_fallback_without_local_paths(): void
+    public function test_tts_disabled_returns_silent_fallback_without_local_paths(): void
     {
         config()->set('readirect.tts.enabled', false);
 
@@ -47,7 +49,7 @@ class AgentTtsServiceTest extends TestCase
         $this->assertFalse($payload['voice_enabled']);
         $this->assertNull($payload['audio_url']);
         $this->assertArrayNotHasKey('browser_speech_allowed', $payload);
-        $this->assertTrue($payload['text_fallback_allowed']);
+        $this->assertFalse($payload['text_fallback_allowed']);
         $this->assertArrayNotHasKey('debug', $payload);
         $this->assertStringNotContainsString('storage', json_encode($payload));
     }
@@ -65,6 +67,61 @@ class AgentTtsServiceTest extends TestCase
         $this->assertNull($payload['audio_url']);
         $this->assertTrue($payload['fallback']);
         $this->assertArrayNotHasKey('debug', $payload);
+    }
+
+    public function test_voice_database_missing_selected_stage_returns_silence_without_other_stage_or_runtime_tts(): void
+    {
+        Storage::fake('public');
+        config()->set('readirect.voice_database.enabled', true);
+        config()->set('readirect.tts.enabled', true);
+        config()->set('readirect.tts.base_url', 'http://tts.test');
+        Http::fake();
+
+        Storage::disk('public')->put('tts/generated_voice_lines/ciel/stage2.wav', 'RIFF-stage-two');
+
+        $line = GeneratedVoiceLine::create([
+            'line_key' => 'ciel.test.stage_missing',
+            'agent' => 'ciel',
+            'intent' => 'focused_instruction',
+            'text' => 'Use the selected stage only.',
+            'kokoro_identity_audio_path' => 'tts/generated_voice_lines/ciel/stage2.wav',
+            'kokoro_identity_engine' => 'kokoro',
+            'kokoro_identity_duration_seconds' => 7.0,
+            'kokoro_identity_status' => 'completed',
+        ]);
+
+        $payload = app(AgentTtsService::class)->speechPayload('coach_feedback', 'Use the selected stage only.', true, [
+            'line_key' => 'ciel.test.stage_missing',
+        ]);
+
+        $this->assertFalse($payload['voice_enabled']);
+        $this->assertNull($payload['audio_url']);
+        $this->assertFalse($payload['text_fallback_allowed']);
+        $this->assertSame('database_voice_line_missing_silent', $payload['debug']['fallback_reason']);
+        Http::assertSentCount(0);
+
+        $this->get(route('agent-voice.generated', [
+            'line' => $line,
+            'stage' => 'kokoro_identity',
+        ]))->assertNotFound();
+
+        SystemSetting::create([
+            'key' => 'voice_playback_stage',
+            'value' => 'kokoro_identity',
+            'type' => 'string',
+        ]);
+
+        $kokoroPayload = app(AgentTtsService::class)->speechPayload('coach_feedback', 'Use the selected stage only.', false, [
+            'line_key' => 'ciel.test.stage_missing',
+        ]);
+
+        $this->assertTrue($kokoroPayload['voice_enabled']);
+        $this->assertSame('kokoro_identity', $kokoroPayload['active_audio_type']);
+        $this->assertStringContainsString('/agent-voice/generated/', $kokoroPayload['audio_url']);
+        $this->get($kokoroPayload['audio_url'])
+            ->assertOk()
+            ->assertHeader('X-ReaDirect-Voice-Stage', 'kokoro_identity');
+        Http::assertSentCount(0);
     }
 
     public function test_successful_tts_response_is_cached_and_served_through_laravel_route(): void

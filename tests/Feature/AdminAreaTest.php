@@ -14,6 +14,7 @@ use App\Models\ModuleActivity;
 use App\Models\ModuleAttempt;
 use App\Models\School;
 use App\Models\SchoolClass;
+use App\Models\SystemSetting;
 use App\Models\User;
 use App\Support\LearnerStage;
 use Database\Seeders\DiagnosticContentSeeder;
@@ -39,7 +40,28 @@ class AdminAreaTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/Dashboard')
                 ->has('dashboard.counts')
+                ->where('agentMediaMode', 'chibi')
+                ->where('voicePlaybackStage', 'reference_style')
             );
+    }
+
+    public function test_system_admin_can_update_voice_playback_stage(): void
+    {
+        $admin = $this->userWithRole('system_admin');
+
+        $this->actingAs($admin)
+            ->postJson(route('admin.voice-playback-stage.update'), ['stage' => 'kokoro_identity'])
+            ->assertOk()
+            ->assertJsonPath('stage', 'kokoro_identity');
+
+        $this->assertSame('kokoro_identity', SystemSetting::where('key', 'voice_playback_stage')->value('value'));
+
+        $this->actingAs($admin)
+            ->postJson(route('admin.voice-playback-stage.update'), ['stage' => 'reference_style'])
+            ->assertOk()
+            ->assertJsonPath('stage', 'reference_style');
+
+        $this->assertSame('reference_style', SystemSetting::where('key', 'voice_playback_stage')->value('value'));
     }
 
     public function test_admin_dashboard_reports_wav2vec2_only_ai_status(): void

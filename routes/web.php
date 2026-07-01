@@ -155,6 +155,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function (): v
     Route::get('/dashboard', AdminDashboardController::class)->name('dashboard');
     Route::get('/ai-status', [AdminDashboardController::class, 'aiStatus'])->name('ai-status');
     Route::post('/agent-media-mode', [AdminDashboardController::class, 'updateAgentMediaMode'])->name('agent-media-mode.update');
+    Route::post('/voice-playback-stage', [AdminDashboardController::class, 'updateVoicePlaybackStage'])->name('voice-playback-stage.update');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit')->defaults('layout', 'admin');
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');

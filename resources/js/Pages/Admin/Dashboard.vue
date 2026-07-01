@@ -18,14 +18,23 @@ import {
     AlertTriangle,
     Inbox,
     Image,
+    Volume2,
     Video,
 } from 'lucide-vue-next';
 
-const props = defineProps({ dashboard: Object, aiService: Object, agentMediaMode: { type: String, default: 'chibi' } });
+const props = defineProps({
+    dashboard: Object,
+    aiService: Object,
+    agentMediaMode: { type: String, default: 'chibi' },
+    voicePlaybackStage: { type: String, default: 'reference_style' },
+});
 const page = usePage();
 const mediaMode = ref(props.agentMediaMode === 'dynamic' ? 'dynamic' : 'chibi');
 const savingMediaMode = ref(false);
 const mediaModeLabel = computed(() => mediaMode.value === 'dynamic' ? 'Dynamic videos' : 'Chibi images');
+const voiceStage = ref(props.voicePlaybackStage === 'kokoro_identity' ? 'kokoro_identity' : 'reference_style');
+const savingVoiceStage = ref(false);
+const voiceStageLabel = computed(() => voiceStage.value === 'kokoro_identity' ? 'Kokoro' : 'Expressive');
 
 const csrfToken = () => document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
 
@@ -53,6 +62,30 @@ const setMediaMode = async (mode) => {
         }
     } finally {
         savingMediaMode.value = false;
+    }
+};
+
+const setVoiceStage = async (stage) => {
+    if (savingVoiceStage.value || voiceStage.value === stage) return;
+
+    savingVoiceStage.value = true;
+    try {
+        const response = await fetch('/admin/voice-playback-stage', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                'X-CSRF-TOKEN': csrfToken(),
+            },
+            body: JSON.stringify({ stage }),
+        });
+
+        if (!response.ok) return;
+        const payload = await response.json();
+        voiceStage.value = payload.stage === 'kokoro_identity' ? 'kokoro_identity' : 'reference_style';
+    } finally {
+        savingVoiceStage.value = false;
     }
 };
 
@@ -112,6 +145,38 @@ const statusVariant = (status) => {
                 </div>
             </div>
             <p class="mt-3 text-xs font-bold text-muted">Current mode: {{ mediaModeLabel }}</p>
+
+            <div class="mt-5 border-t border-border/70 pt-5">
+                <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <div>
+                        <h2 class="text-sm font-extrabold text-text">Agent Voice Stage</h2>
+                        <p class="mt-1 text-sm font-medium text-muted">Expressive uses Stage 1 generated lines. Kokoro uses Stage 2 only when selected here.</p>
+                    </div>
+                    <div class="inline-grid grid-cols-2 gap-1 rounded-xl bg-background p-1 ring-1 ring-border/70">
+                        <button
+                            type="button"
+                            class="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-extrabold transition"
+                            :class="voiceStage === 'reference_style' ? 'bg-white text-primary shadow-sm' : 'text-muted hover:text-text'"
+                            :disabled="savingVoiceStage"
+                            @click="setVoiceStage('reference_style')"
+                        >
+                            <Volume2 :size="16" />
+                            Expressive
+                        </button>
+                        <button
+                            type="button"
+                            class="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-extrabold transition"
+                            :class="voiceStage === 'kokoro_identity' ? 'bg-white text-primary shadow-sm' : 'text-muted hover:text-text'"
+                            :disabled="savingVoiceStage"
+                            @click="setVoiceStage('kokoro_identity')"
+                        >
+                            <Volume2 :size="16" />
+                            Kokoro
+                        </button>
+                    </div>
+                </div>
+                <p class="mt-3 text-xs font-bold text-muted">Current voice: {{ voiceStageLabel }}</p>
+            </div>
         </DashboardCard>
 
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

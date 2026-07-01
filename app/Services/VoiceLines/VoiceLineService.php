@@ -219,11 +219,7 @@ class VoiceLineService
 
     public function activeStage(): string
     {
-        $stage = (string) config('readirect.voice_database.active_stage', self::REFERENCE_STYLE);
-
-        return in_array($stage, [self::REFERENCE_STYLE, self::KOKORO_IDENTITY], true)
-            ? $stage
-            : self::REFERENCE_STYLE;
+        return app(VoicePlaybackStageService::class)->current();
     }
 
     public function refreshActiveFields(GeneratedVoiceLine $line): GeneratedVoiceLine
@@ -369,13 +365,7 @@ class VoiceLineService
     private function selectAudio(GeneratedVoiceLine $line): ?array
     {
         $stage = $this->activeStage();
-        $ordered = $stage === self::KOKORO_IDENTITY
-            ? [self::KOKORO_IDENTITY, self::REFERENCE_STYLE]
-            : [self::REFERENCE_STYLE, self::KOKORO_IDENTITY];
-
-        if (! (bool) config('readirect.voice_database.fallback_to_other_stage', true)) {
-            $ordered = [$stage];
-        }
+        $ordered = [$stage];
 
         foreach ($ordered as $type) {
             $path = $type === self::KOKORO_IDENTITY

@@ -9,7 +9,6 @@ const props = defineProps({
     rate: { type: Number, default: 1 },
     pitch: { type: Number, default: 1 },
     audioUrl: { type: String, default: null },
-    browserFallback: { type: Boolean, default: true },
 });
 
 const emit = defineEmits(['speakingStart', 'speakingEnd', 'error']);
@@ -34,19 +33,7 @@ const stopSpeaking = () => {
     emit('speakingEnd');
 };
 
-const playbackErrorMessage = (error = null) => {
-    const name = String(error?.name ?? '').toLowerCase();
-    const message = String(error?.message ?? '').toLowerCase();
-
-    if (name.includes('notallowed') || message.includes('autoplay')) {
-        return 'autoplay blocked';
-    }
-
-    return 'Agent voice audio could not be played.';
-};
-
-const speakWithTextFallback = (reason = 'Agent voice audio is unavailable.') => {
-    emit('error', reason);
+const finishSilently = () => {
     emit('speakingEnd');
 };
 
@@ -63,14 +50,14 @@ const speakWithAudio = async () => {
     };
     audio.onerror = () => {
         activeAudio.value = null;
-        speakWithTextFallback('Agent voice audio file could not be loaded.');
+        finishSilently();
     };
 
     try {
         await audio.play();
-    } catch (error) {
+    } catch {
         activeAudio.value = null;
-        speakWithTextFallback(playbackErrorMessage(error));
+        finishSilently();
     }
 };
 
@@ -87,7 +74,7 @@ const speak = async () => {
         return;
     }
 
-    speakWithTextFallback();
+    finishSilently();
 };
 
 watch(

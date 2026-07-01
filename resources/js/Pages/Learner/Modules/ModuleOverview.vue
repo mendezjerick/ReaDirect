@@ -10,6 +10,7 @@ const props = defineProps({
     lessonBoxes: Array,
     purpose: String,
     guideMessage: String,
+    guideLineKey: String,
     goodbyeMessage: String,
     resumeRoute: String,
     actionLabel: String,
@@ -28,6 +29,7 @@ const resolvedActionLabel = computed(() => props.actionLabel ?? 'Start Module');
 
 const activeLessonKey = ref(null);
 const guideMessage = ref(props.guideMessage ?? `Welcome to ${moduleTitle.value}. I will guide your practice one activity at a time.`);
+const guideLineKey = ref(props.guideLineKey ?? '');
 const guideState = ref('speaking');
 const hoverTimer = ref(null);
 const transitionTimer = ref(null);
@@ -38,10 +40,10 @@ const messageSequence = ref(0);
 const transitionIndex = ref(0);
 
 const transitionMessages = [
-    'I see you found another lesson.',
-    'Let us look at this lesson next.',
-    'You found a different practice box.',
-    'Good noticing. Here is the next one.',
+    { text: 'I see you found another lesson. I will explain this one clearly too.', lineKey: 'ciel.module_overview.transition.found_another' },
+    { text: 'Let us look at this lesson next, so you know what to practice.', lineKey: 'ciel.module_overview.transition.look_next' },
+    { text: 'You found a different practice box. I will tell you what it helps with.', lineKey: 'ciel.module_overview.transition.different_box' },
+    { text: 'Good noticing. Here is the next lesson, and what you will do in it.', lineKey: 'ciel.module_overview.transition.next_one' },
 ];
 
 const stopAgentSpeech = () => {
@@ -57,7 +59,8 @@ const clearGuideTimers = () => {
 };
 
 const transitionDelayFor = (message) => {
-    const wordCount = message.trim().split(/\s+/).filter(Boolean).length;
+    const text = typeof message === 'string' ? message : message?.text ?? '';
+    const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
     return Math.min(Math.max(2800, wordCount * 360), 4600);
 };
 
@@ -85,11 +88,13 @@ const pauseForHoverSpam = () => {
     stopAgentSpeech();
     guideState.value = 'encouraging';
     guideMessage.value = "Ready? Let's go slowly and give this one a try. I'll be right here with you.";
+    guideLineKey.value = 'ciel.playful.go_slowly_try';
 
     readyTimer.value = window.setTimeout(() => {
         if (messageSequence.value !== sequence) return;
 
         guideMessage.value = "Let's try this one together. Look closely, smile a little, and say it when you're ready.";
+        guideLineKey.value = 'ciel.playful.try_together_smile';
         guideState.value = 'speaking';
     }, 3000);
 };
@@ -117,16 +122,19 @@ const explainLesson = (lesson) => {
 
         if (switched) {
             const transitionMessage = nextTransitionMessage();
-            guideMessage.value = transitionMessage;
+            guideMessage.value = transitionMessage.text;
+            guideLineKey.value = transitionMessage.lineKey;
             transitionTimer.value = window.setTimeout(() => {
                 if (messageSequence.value !== sequence || Date.now() < hoverPausedUntil.value) return;
 
                 guideMessage.value = lesson.explanation;
+                guideLineKey.value = lesson.line_key ?? '';
             }, transitionDelayFor(transitionMessage));
             return;
         }
 
         guideMessage.value = lesson.explanation;
+        guideLineKey.value = lesson.line_key ?? '';
     }, 250);
 };
 
@@ -143,6 +151,7 @@ onBeforeUnmount(() => {
         agent-type="coach_feedback"
         :agent-state="guideState"
         :agent-message="guideMessage"
+        :agent-line-key="guideLineKey"
         eyebrow="Module Overview"
         divider-label="Choose lesson"
         :primary-label="resolvedActionLabel"

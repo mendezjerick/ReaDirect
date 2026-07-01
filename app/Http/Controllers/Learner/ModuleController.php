@@ -70,6 +70,7 @@ class ModuleController extends Controller
             'lessonBoxes' => $overview['lesson_boxes'],
             'purpose' => $overview['purpose'],
             'guideMessage' => $overview['guide_message'],
+            'guideLineKey' => $overview['guide_line_key'],
             'goodbyeMessage' => $overview['goodbye_message'],
             'resumeRoute' => $resumeRoute,
             'actionLabel' => $attempt->items()->exists() ? 'Continue Module' : 'Start Module',
